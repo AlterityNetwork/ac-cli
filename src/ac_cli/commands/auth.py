@@ -14,21 +14,22 @@ DEFAULT_API_URL = "http://localhost:8008"
 
 @app.command()
 def login(
-    email: str = typer.Option(..., prompt=True, help="Supabase account email"),
-    password: str = typer.Option(
-        ..., prompt=True, hide_input=True, help="Account password"
-    ),
-    supabase_url: str = typer.Option(
-        ..., prompt="Supabase URL", help="Supabase project URL"
-    ),
-    supabase_anon_key: str = typer.Option(
-        ..., prompt="Supabase anon key", help="Supabase anonymous/public key"
-    ),
-    api_url: str = typer.Option(
-        DEFAULT_API_URL, prompt="API URL", help="AgencyCore API base URL"
-    ),
+    email: str = typer.Option(None, help="Supabase account email"),
+    password: str = typer.Option(None, help="Account password"),
+    supabase_url: str = typer.Option(None, help="Supabase project URL"),
+    supabase_anon_key: str = typer.Option(None, help="Supabase anonymous/public key"),
+    api_url: str = typer.Option(DEFAULT_API_URL, help="AgencyCore API base URL"),
 ) -> None:
     """Sign in with email and password via Supabase."""
+    if not email:
+        email = typer.prompt("Email")
+    if not password:
+        password = typer.prompt("Password", hide_input=True)
+    if not supabase_url:
+        supabase_url = typer.prompt("Supabase URL")
+    if not supabase_anon_key:
+        supabase_anon_key = typer.prompt("Supabase anon key")
+
     try:
         client = create_client(supabase_url, supabase_anon_key)
         response = client.auth.sign_in_with_password(
