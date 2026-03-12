@@ -3,6 +3,7 @@
 import typer
 
 from ac_cli.commands import auth, crm, health
+from ac_cli.commands import envoy
 
 app = typer.Typer(
     name="ac",
@@ -14,6 +15,7 @@ app = typer.Typer(
 app.add_typer(auth.app, name="auth")
 app.add_typer(crm.app, name="crm")
 app.add_typer(health.app, name="health")
+app.add_typer(envoy.app, name="envoy")
 
 # Promote common auth commands to top level for convenience
 app.command("login")(auth.login)

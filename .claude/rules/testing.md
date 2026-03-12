@@ -25,7 +25,8 @@ paths:
 
 ## Running
 ```bash
-uv run pytest                          # All tests
-uv run pytest tests/test_crm_deals.py  # Single file
-uv run pytest -k "test_companies"      # By name pattern
+uv run pytest                              # All tests (165 tests)
+uv run pytest tests/test_crm_deals.py      # Single CRM test file
+uv run pytest tests/test_envoy_outbox.py   # Single Envoy test file
+uv run pytest -k "test_companies"          # By name pattern
 ```
