@@ -2,7 +2,7 @@
 
 import typer
 
-from ac_cli.commands import auth, health
+from ac_cli.commands import auth, crm, health
 
 app = typer.Typer(
     name="ac",
@@ -12,6 +12,7 @@ app = typer.Typer(
 
 # Register sub-command groups
 app.add_typer(auth.app, name="auth")
+app.add_typer(crm.app, name="crm")
 app.add_typer(health.app, name="health")
 
 # Promote common auth commands to top level for convenience

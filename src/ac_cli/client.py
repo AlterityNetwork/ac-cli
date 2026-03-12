@@ -3,12 +3,66 @@
 import httpx
 import typer
 
-from ac_cli.config import load_config
+from ac_cli.config import load_config, save_config
+
+
+def _refresh_access_token(cfg: dict) -> str:
+    """Use stored refresh_token to obtain a new access_token from Supabase.
+
+    Persists the new tokens to config. Returns the new access_token.
+    Raises typer.Exit on failure.
+    """
+    from supabase import create_client
+
+    supabase_url = cfg.get("supabase_url")
+    supabase_anon_key = cfg.get("supabase_anon_key")
+    refresh_token = cfg.get("refresh_token")
+
+    if not supabase_url or not supabase_anon_key or not refresh_token:
+        typer.echo("Session expired. Run `ac login` to re-authenticate.")
+        raise typer.Exit(code=1)
+
+    try:
+        sb = create_client(supabase_url, supabase_anon_key)
+        response = sb.auth.refresh_session(refresh_token)
+    except Exception as exc:
+        typer.echo(f"Token refresh failed: {exc}\nRun `ac login` to re-authenticate.")
+        raise typer.Exit(code=1) from exc
+
+    session = response.session
+    if not session:
+        typer.echo("Token refresh returned no session. Run `ac login` to re-authenticate.")
+        raise typer.Exit(code=1)
+
+    cfg["access_token"] = session.access_token
+    cfg["refresh_token"] = session.refresh_token
+    save_config(cfg)
+    return session.access_token
+
+
+class _AuthClient(httpx.Client):
+    """httpx.Client that auto-refreshes expired Supabase tokens on 401."""
+
+    def __init__(self, cfg: dict, **kwargs: object) -> None:
+        self._cfg = cfg
+        super().__init__(**kwargs)
+
+    def send(self, request: httpx.Request, **kwargs: object) -> httpx.Response:
+        response = super().send(request, **kwargs)
+
+        if response.status_code == 401:
+            new_token = _refresh_access_token(self._cfg)
+            request.headers["Authorization"] = f"Bearer {new_token}"
+            self.headers["Authorization"] = f"Bearer {new_token}"
+            response = super().send(request, **kwargs)
+
+        return response
 
 
 def get_api_client() -> httpx.Client:
     """Return an httpx.Client with base URL and auth header from stored config.
 
+    The client auto-refreshes the Supabase access token on 401 responses.
     Raises typer.Exit if not logged in.
     """
     cfg = load_config()
@@ -19,7 +73,8 @@ def get_api_client() -> httpx.Client:
         typer.echo("Not logged in. Run `ac login` first.")
         raise typer.Exit(code=1)
 
-    return httpx.Client(
+    return _AuthClient(
+        cfg=cfg,
         base_url=api_url,
         headers={"Authorization": f"Bearer {access_token}"},
         timeout=30.0,
