@@ -1,5 +1,7 @@
 """Shared output helpers for CLI commands."""
 
+from __future__ import annotations
+
 import json
 import sys
 

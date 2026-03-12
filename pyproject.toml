@@ -6,7 +6,7 @@ build-backend = "hatchling.build"
 name = "ac-cli"
 version = "0.1.0"
 description = "AgencyCore CLI — authenticate and interact with the AgencyCore API"
-requires-python = ">=3.11"
+requires-python = ">=3.10"
 dependencies = [
     "typer>=0.9",
     "httpx>=0.27",

@@ -1,5 +1,7 @@
 """Health-check command."""
 
+from __future__ import annotations
+
 import httpx
 import typer
 from rich import print as rprint

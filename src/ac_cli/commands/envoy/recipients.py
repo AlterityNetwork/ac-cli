@@ -1,5 +1,7 @@
 """Envoy sequence recipients commands."""
 
+from __future__ import annotations
+
 import json as json_lib
 
 import typer
