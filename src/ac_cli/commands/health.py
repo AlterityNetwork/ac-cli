@@ -4,11 +4,9 @@ import httpx
 import typer
 from rich import print as rprint
 
-from ac_cli.config import load_config
+from ac_cli.config import DEFAULT_API_URL, load_config
 
 app = typer.Typer(help="Service health commands")
-
-DEFAULT_API_URL = "http://localhost:8008"
 
 
 @app.command("check")

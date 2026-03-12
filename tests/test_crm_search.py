@@ -9,7 +9,7 @@ from tests.conftest import WHOAMI_RESPONSE
 
 
 def test_search_happy_path(invoke, mock_api):
-    mock_api.get("/crm/search").respond(200, json={
+    mock_api.get("/api/v1/crm/search").respond(200, json={
         "companies": [{"name": "Acme", "industry": "SaaS", "id": "c1"}],
         "contacts": [{"full_name": "Jane", "email": "jane@acme.com", "id": "p1"}],
         "deals": [{"name": "Big Deal", "stage": "lead", "id": "d1"}],
@@ -27,7 +27,7 @@ def test_search_json_flag(invoke, mock_api):
         "contacts": [],
         "deals": [],
     }
-    mock_api.get("/crm/search").respond(200, json=payload)
+    mock_api.get("/api/v1/crm/search").respond(200, json=payload)
     result = invoke(["crm", "--json", "search", "acme"])
     assert result.exit_code == 0
     parsed = json.loads(result.output)
@@ -35,7 +35,7 @@ def test_search_json_flag(invoke, mock_api):
 
 
 def test_search_no_results(invoke, mock_api):
-    mock_api.get("/crm/search").respond(200, json={
+    mock_api.get("/api/v1/crm/search").respond(200, json={
         "companies": [], "contacts": [], "deals": [],
     })
     result = invoke(["crm", "search", "nonexistent"])
@@ -44,7 +44,7 @@ def test_search_no_results(invoke, mock_api):
 
 
 def test_search_api_error(invoke, mock_api):
-    mock_api.get("/crm/search").respond(404, json={"detail": "Not found"})
+    mock_api.get("/api/v1/crm/search").respond(404, json={"detail": "Not found"})
     result = invoke(["crm", "search", "bad"])
     assert result.exit_code == 1
     assert "404" in result.output

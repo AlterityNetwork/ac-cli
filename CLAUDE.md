@@ -19,16 +19,17 @@ ac crm companies list|get|create|update|delete
 ac crm people list|get|create|update|delete
 ac crm deals list|get|create|update|move|delete
 ac crm activities list|get|create|complete|delete
+ac crm comms list|get|thread|unread|mark-read|delete|delete-thread
 ac crm dashboard [--period N]
 ac crm lists list|get|create|members|add-member|remove-member|delete
 ```
 
-All CRM list/get commands support `--json` flag for scripting (set on `ac crm --json`).
+All CRM list/get commands support `--json` flag for scripting (set on `ac crm --json`). The flag is passed via `typer.Context` (not a global variable).
 
 ## Running Checks
 
 ```bash
-uv run pytest              # Run all tests (62 tests)
+uv run pytest              # Run all tests (85 tests)
 uv run pytest tests/test_crm_companies.py -v  # Single test file
 uv run python -m ac_cli.main --help            # Verify CLI loads
 ```

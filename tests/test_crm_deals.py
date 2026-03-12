@@ -22,14 +22,14 @@ SAMPLE_DEAL = {
 
 
 def test_deals_list(invoke, mock_api):
-    mock_api.get("/crm/deals").respond(200, json=[SAMPLE_DEAL])
+    mock_api.get("/api/v1/crm/deals").respond(200, json=[SAMPLE_DEAL])
     result = invoke(["crm", "deals", "list"])
     assert result.exit_code == 0
     assert "Enterprise Contract" in result.output
 
 
 def test_deals_list_json(invoke, mock_api):
-    mock_api.get("/crm/deals").respond(200, json=[SAMPLE_DEAL])
+    mock_api.get("/api/v1/crm/deals").respond(200, json=[SAMPLE_DEAL])
     result = invoke(["crm", "--json", "deals", "list"])
     assert result.exit_code == 0
     parsed = json.loads(result.output)
@@ -37,13 +37,13 @@ def test_deals_list_json(invoke, mock_api):
 
 
 def test_deals_list_with_filters(invoke, mock_api):
-    mock_api.get("/crm/deals").respond(200, json=[])
+    mock_api.get("/api/v1/crm/deals").respond(200, json=[])
     result = invoke(["crm", "deals", "list", "--stage", "lead", "--company-id", "c1"])
     assert result.exit_code == 0
 
 
 def test_deals_get(invoke, mock_api):
-    mock_api.get("/crm/deals/d1").respond(200, json=SAMPLE_DEAL)
+    mock_api.get("/api/v1/crm/deals/d1").respond(200, json=SAMPLE_DEAL)
     result = invoke(["crm", "deals", "get", "d1"])
     assert result.exit_code == 0
     assert "Enterprise Contract" in result.output
@@ -52,7 +52,7 @@ def test_deals_get(invoke, mock_api):
 
 def test_deals_create(invoke, mock_api):
     mock_api.get("/whoami").respond(200, json=WHOAMI_RESPONSE)
-    mock_api.post("/crm/deals").respond(201, json=SAMPLE_DEAL)
+    mock_api.post("/api/v1/crm/deals").respond(201, json=SAMPLE_DEAL)
     result = invoke(["crm", "deals", "create", "--name", "Enterprise Contract", "--amount", "50000"])
     assert result.exit_code == 0
     assert "Created deal" in result.output
@@ -60,7 +60,7 @@ def test_deals_create(invoke, mock_api):
 
 def test_deals_update(invoke, mock_api):
     updated = {**SAMPLE_DEAL, "stage": "qualified"}
-    mock_api.patch("/crm/deals/d1").respond(200, json=updated)
+    mock_api.patch("/api/v1/crm/deals/d1").respond(200, json=updated)
     result = invoke(["crm", "deals", "update", "d1", "--stage", "qualified"])
     assert result.exit_code == 0
     assert "Updated deal" in result.output
@@ -73,14 +73,30 @@ def test_deals_update_no_fields(invoke, mock_api):
 
 def test_deals_move(invoke, mock_api):
     moved = {**SAMPLE_DEAL, "stage": "proposal"}
-    mock_api.patch("/crm/deals/d1/stage").respond(200, json=moved)
+    mock_api.patch("/api/v1/crm/deals/d1/stage").respond(200, json=moved)
     result = invoke(["crm", "deals", "move", "d1", "--stage", "proposal"])
     assert result.exit_code == 0
     assert "Moved deal to proposal" in result.output
 
 
+def test_deals_order(invoke, mock_api):
+    mock_api.post("/api/v1/crm/deals/order").respond(200, json={"ordered": True})
+    result = invoke(["crm", "deals", "order", "--stage", "lead", "--deal-ids", "d1,d2,d3"])
+    assert result.exit_code == 0
+    assert "Reordered 3 deals" in result.output
+    assert "lead" in result.output
+
+
+def test_deals_order_json(invoke, mock_api):
+    mock_api.post("/api/v1/crm/deals/order").respond(200, json={"ordered": True})
+    result = invoke(["crm", "--json", "deals", "order", "--stage", "lead", "--deal-ids", "d1,d2"])
+    assert result.exit_code == 0
+    parsed = json.loads(result.output)
+    assert parsed["ordered"] is True
+
+
 def test_deals_delete_with_yes(invoke, mock_api):
-    mock_api.delete("/crm/deals/d1").respond(204)
+    mock_api.delete("/api/v1/crm/deals/d1").respond(204)
     result = invoke(["crm", "deals", "delete", "d1", "--yes"])
     assert result.exit_code == 0
     assert "Deleted" in result.output

@@ -28,7 +28,7 @@ SAMPLE_MEMBER = {
 
 
 def test_lists_list(invoke, mock_api):
-    mock_api.get("/crm/lists/").respond(200, json={
+    mock_api.get("/api/v1/crm/lists").respond(200, json={
         "data": [SAMPLE_LIST],
         "total": 1,
     })
@@ -39,7 +39,7 @@ def test_lists_list(invoke, mock_api):
 
 def test_lists_list_json(invoke, mock_api):
     payload = {"data": [SAMPLE_LIST], "total": 1}
-    mock_api.get("/crm/lists/").respond(200, json=payload)
+    mock_api.get("/api/v1/crm/lists").respond(200, json=payload)
     result = invoke(["crm", "--json", "lists", "list"])
     assert result.exit_code == 0
     parsed = json.loads(result.output)
@@ -47,7 +47,7 @@ def test_lists_list_json(invoke, mock_api):
 
 
 def test_lists_get(invoke, mock_api):
-    mock_api.get("/crm/lists/l1").respond(200, json=SAMPLE_LIST)
+    mock_api.get("/api/v1/crm/lists/l1").respond(200, json=SAMPLE_LIST)
     result = invoke(["crm", "lists", "get", "l1"])
     assert result.exit_code == 0
     assert "Target Companies" in result.output
@@ -55,14 +55,36 @@ def test_lists_get(invoke, mock_api):
 
 def test_lists_create(invoke, mock_api):
     mock_api.get("/whoami").respond(200, json=WHOAMI_RESPONSE)
-    mock_api.post("/crm/lists/").respond(201, json=SAMPLE_LIST)
+    mock_api.post("/api/v1/crm/lists").respond(201, json=SAMPLE_LIST)
     result = invoke(["crm", "lists", "create", "--name", "Target Companies", "--member-type", "company"])
     assert result.exit_code == 0
     assert "Created list" in result.output
 
 
+def test_lists_update(invoke, mock_api):
+    updated = {**SAMPLE_LIST, "name": "Updated List"}
+    mock_api.patch("/api/v1/crm/lists/l1").respond(200, json=updated)
+    result = invoke(["crm", "lists", "update", "l1", "--name", "Updated List"])
+    assert result.exit_code == 0
+    assert "Updated list" in result.output
+
+
+def test_lists_update_json(invoke, mock_api):
+    updated = {**SAMPLE_LIST, "name": "Updated List"}
+    mock_api.patch("/api/v1/crm/lists/l1").respond(200, json=updated)
+    result = invoke(["crm", "--json", "lists", "update", "l1", "--name", "Updated List"])
+    assert result.exit_code == 0
+    parsed = json.loads(result.output)
+    assert parsed["name"] == "Updated List"
+
+
+def test_lists_update_no_fields(invoke, mock_api):
+    result = invoke(["crm", "lists", "update", "l1"])
+    assert result.exit_code == 1
+
+
 def test_lists_members(invoke, mock_api):
-    mock_api.get("/crm/lists/l1/members").respond(200, json={
+    mock_api.get("/api/v1/crm/lists/l1/members").respond(200, json={
         "data": [SAMPLE_MEMBER],
         "total": 1,
     })
@@ -72,7 +94,7 @@ def test_lists_members(invoke, mock_api):
 
 
 def test_lists_add_member(invoke, mock_api):
-    mock_api.post("/crm/lists/l1/members").respond(201, json=SAMPLE_MEMBER)
+    mock_api.post("/api/v1/crm/lists/l1/members").respond(201, json=SAMPLE_MEMBER)
     result = invoke(["crm", "lists", "add-member", "l1", "--company-id", "c1"])
     assert result.exit_code == 0
     assert "Added" in result.output
@@ -85,14 +107,14 @@ def test_lists_add_member_missing_id(invoke, mock_api):
 
 
 def test_lists_remove_member(invoke, mock_api):
-    mock_api.delete("/crm/lists/l1/members/company/c1").respond(204)
+    mock_api.delete("/api/v1/crm/lists/l1/members/company/c1").respond(204)
     result = invoke(["crm", "lists", "remove-member", "l1", "--company-id", "c1"])
     assert result.exit_code == 0
     assert "Removed" in result.output
 
 
 def test_lists_remove_member_person(invoke, mock_api):
-    mock_api.delete("/crm/lists/l1/members/person/p1").respond(204)
+    mock_api.delete("/api/v1/crm/lists/l1/members/person/p1").respond(204)
     result = invoke(["crm", "lists", "remove-member", "l1", "--person-id", "p1"])
     assert result.exit_code == 0
 
@@ -103,7 +125,7 @@ def test_lists_remove_member_missing_id(invoke, mock_api):
 
 
 def test_lists_delete_with_yes(invoke, mock_api):
-    mock_api.delete("/crm/lists/l1").respond(204)
+    mock_api.delete("/api/v1/crm/lists/l1").respond(204)
     result = invoke(["crm", "lists", "delete", "l1", "--yes"])
     assert result.exit_code == 0
     assert "Deleted" in result.output

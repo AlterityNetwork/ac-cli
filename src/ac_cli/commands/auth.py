@@ -1,15 +1,14 @@
 """Authentication commands: login, logout, whoami."""
 
+import httpx
 import typer
 from rich import print as rprint
 from supabase import create_client
 
 from ac_cli.client import get_api_client
-from ac_cli.config import clear_config, save_config
+from ac_cli.config import DEFAULT_API_URL, clear_config, save_config
 
 app = typer.Typer(help="Authentication commands")
-
-DEFAULT_API_URL = "http://localhost:8008"
 
 
 @app.command()
@@ -67,7 +66,17 @@ def logout() -> None:
 def whoami() -> None:
     """Show the currently authenticated user."""
     with get_api_client() as client:
-        resp = client.get("/whoami")
-        resp.raise_for_status()
-        data = resp.json()
-    rprint(data)
+        try:
+            resp = client.get("/whoami")
+            resp.raise_for_status()
+        except httpx.HTTPStatusError as exc:
+            try:
+                detail = exc.response.json().get("detail", exc.response.text)
+            except Exception:
+                detail = exc.response.text
+            rprint(f"[red]Error {exc.response.status_code}:[/red] {detail}")
+            raise typer.Exit(code=1)
+        except httpx.HTTPError as exc:
+            rprint(f"[red]Connection error:[/red] {exc}")
+            raise typer.Exit(code=1)
+    rprint(resp.json())

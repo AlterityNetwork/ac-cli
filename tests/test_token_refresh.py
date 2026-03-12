@@ -33,7 +33,7 @@ PATCH_CREATE_CLIENT = "supabase.create_client"
 
 def test_auto_refresh_on_401(mock_api):
     """First request gets 401, refresh succeeds, retry succeeds."""
-    mock_api.get("/crm/companies").mock(
+    mock_api.get("/api/v1/crm/companies").mock(
         side_effect=[
             httpx.Response(401, json={"detail": "JWT expired"}),
             httpx.Response(200, json={"data": [], "total": 0}),
@@ -62,7 +62,7 @@ def test_auto_refresh_on_401(mock_api):
 
 def test_refresh_failure_exits(mock_api):
     """If token refresh fails, CLI exits with error."""
-    mock_api.get("/crm/companies").respond(401, json={"detail": "JWT expired"})
+    mock_api.get("/api/v1/crm/companies").respond(401, json={"detail": "JWT expired"})
 
     mock_sb = MagicMock()
     mock_sb.auth.refresh_session.side_effect = Exception("Refresh token revoked")
@@ -79,7 +79,7 @@ def test_refresh_failure_exits(mock_api):
 
 def test_refresh_no_session_exits(mock_api):
     """If refresh returns no session, CLI exits with error."""
-    mock_api.get("/crm/companies").respond(401, json={"detail": "JWT expired"})
+    mock_api.get("/api/v1/crm/companies").respond(401, json={"detail": "JWT expired"})
 
     mock_sb = MagicMock()
     mock_response = MagicMock()
@@ -98,7 +98,7 @@ def test_refresh_no_session_exits(mock_api):
 
 def test_no_refresh_token_exits(mock_api):
     """If no refresh_token in config, CLI exits with login prompt."""
-    mock_api.get("/crm/companies").respond(401, json={"detail": "JWT expired"})
+    mock_api.get("/api/v1/crm/companies").respond(401, json={"detail": "JWT expired"})
 
     cfg_no_refresh = {
         "api_url": API_BASE,
@@ -114,7 +114,7 @@ def test_no_refresh_token_exits(mock_api):
 
 def test_no_refresh_needed_on_200(mock_api):
     """Normal 200 response does not trigger refresh."""
-    mock_api.get("/crm/companies").respond(200, json={"data": [], "total": 0})
+    mock_api.get("/api/v1/crm/companies").respond(200, json={"data": [], "total": 0})
 
     with patch("ac_cli.client.load_config", return_value=MOCK_CONFIG.copy()):
         result = runner.invoke(app, ["crm", "companies", "list"])
@@ -130,7 +130,7 @@ def test_refresh_updates_client_headers(mock_api):
             httpx.Response(200, json=WHOAMI_RESPONSE),
         ]
     )
-    mock_api.post("/crm/companies").respond(201, json={
+    mock_api.post("/api/v1/crm/companies").respond(201, json={
         "id": "c1", "organization_id": "org-456", "name": "Test",
         "lifecycle_stage": "target", "tags": [],
         "created_at": "2026-01-01T00:00:00Z", "updated_at": "2026-01-01T00:00:00Z",

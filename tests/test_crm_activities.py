@@ -19,14 +19,14 @@ SAMPLE_ACTIVITY = {
 
 
 def test_activities_list(invoke, mock_api):
-    mock_api.get("/crm/activities").respond(200, json=[SAMPLE_ACTIVITY])
+    mock_api.get("/api/v1/crm/activities").respond(200, json=[SAMPLE_ACTIVITY])
     result = invoke(["crm", "activities", "list"])
     assert result.exit_code == 0
     assert "Follow up with Acme" in result.output
 
 
 def test_activities_list_json(invoke, mock_api):
-    mock_api.get("/crm/activities").respond(200, json=[SAMPLE_ACTIVITY])
+    mock_api.get("/api/v1/crm/activities").respond(200, json=[SAMPLE_ACTIVITY])
     result = invoke(["crm", "--json", "activities", "list"])
     assert result.exit_code == 0
     parsed = json.loads(result.output)
@@ -34,13 +34,13 @@ def test_activities_list_json(invoke, mock_api):
 
 
 def test_activities_list_with_filters(invoke, mock_api):
-    mock_api.get("/crm/activities").respond(200, json=[])
+    mock_api.get("/api/v1/crm/activities").respond(200, json=[])
     result = invoke(["crm", "activities", "list", "--type", "task", "--status", "pending"])
     assert result.exit_code == 0
 
 
 def test_activities_get(invoke, mock_api):
-    mock_api.get("/crm/activities/a1").respond(200, json=SAMPLE_ACTIVITY)
+    mock_api.get("/api/v1/crm/activities/a1").respond(200, json=SAMPLE_ACTIVITY)
     result = invoke(["crm", "activities", "get", "a1"])
     assert result.exit_code == 0
     assert "Follow up with Acme" in result.output
@@ -48,7 +48,7 @@ def test_activities_get(invoke, mock_api):
 
 def test_activities_create(invoke, mock_api):
     mock_api.get("/whoami").respond(200, json=WHOAMI_RESPONSE)
-    mock_api.post("/crm/activities").respond(201, json=SAMPLE_ACTIVITY)
+    mock_api.post("/api/v1/crm/activities").respond(201, json=SAMPLE_ACTIVITY)
     result = invoke([
         "crm", "activities", "create",
         "--type", "task",
@@ -58,16 +58,38 @@ def test_activities_create(invoke, mock_api):
     assert "Created activity" in result.output
 
 
+def test_activities_update(invoke, mock_api):
+    updated = {**SAMPLE_ACTIVITY, "title": "Updated task", "priority": "high"}
+    mock_api.patch("/api/v1/crm/activities/a1").respond(200, json=updated)
+    result = invoke(["crm", "activities", "update", "a1", "--title", "Updated task", "--priority", "high"])
+    assert result.exit_code == 0
+    assert "Updated activity" in result.output
+
+
+def test_activities_update_json(invoke, mock_api):
+    updated = {**SAMPLE_ACTIVITY, "priority": "high"}
+    mock_api.patch("/api/v1/crm/activities/a1").respond(200, json=updated)
+    result = invoke(["crm", "--json", "activities", "update", "a1", "--priority", "high"])
+    assert result.exit_code == 0
+    parsed = json.loads(result.output)
+    assert parsed["priority"] == "high"
+
+
+def test_activities_update_no_fields(invoke, mock_api):
+    result = invoke(["crm", "activities", "update", "a1"])
+    assert result.exit_code == 1
+
+
 def test_activities_complete(invoke, mock_api):
     completed = {**SAMPLE_ACTIVITY, "status": "completed", "completed_at": "2026-03-12T00:00:00Z"}
-    mock_api.patch("/crm/activities/a1").respond(200, json=completed)
+    mock_api.patch("/api/v1/crm/activities/a1").respond(200, json=completed)
     result = invoke(["crm", "activities", "complete", "a1"])
     assert result.exit_code == 0
     assert "Completed activity" in result.output
 
 
 def test_activities_delete_with_yes(invoke, mock_api):
-    mock_api.delete("/crm/activities/a1").respond(204)
+    mock_api.delete("/api/v1/crm/activities/a1").respond(204)
     result = invoke(["crm", "activities", "delete", "a1", "--yes"])
     assert result.exit_code == 0
     assert "Deleted" in result.output

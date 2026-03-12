@@ -21,7 +21,7 @@ SAMPLE_COMPANY = {
 
 
 def test_companies_list(invoke, mock_api):
-    mock_api.get("/crm/companies").respond(200, json={
+    mock_api.get("/api/v1/crm/companies").respond(200, json={
         "data": [SAMPLE_COMPANY],
         "total": 1,
     })
@@ -32,7 +32,7 @@ def test_companies_list(invoke, mock_api):
 
 def test_companies_list_json(invoke, mock_api):
     payload = {"data": [SAMPLE_COMPANY], "total": 1}
-    mock_api.get("/crm/companies").respond(200, json=payload)
+    mock_api.get("/api/v1/crm/companies").respond(200, json=payload)
     result = invoke(["crm", "--json", "companies", "list"])
     assert result.exit_code == 0
     parsed = json.loads(result.output)
@@ -40,14 +40,14 @@ def test_companies_list_json(invoke, mock_api):
 
 
 def test_companies_get(invoke, mock_api):
-    mock_api.get("/crm/companies/c1").respond(200, json=SAMPLE_COMPANY)
+    mock_api.get("/api/v1/crm/companies/c1").respond(200, json=SAMPLE_COMPANY)
     result = invoke(["crm", "companies", "get", "c1"])
     assert result.exit_code == 0
     assert "Acme Corp" in result.output
 
 
 def test_companies_get_not_found(invoke, mock_api):
-    mock_api.get("/crm/companies/bad").respond(404, json={"detail": "Not found"})
+    mock_api.get("/api/v1/crm/companies/bad").respond(404, json={"detail": "Not found"})
     result = invoke(["crm", "companies", "get", "bad"])
     assert result.exit_code == 1
     assert "404" in result.output
@@ -55,7 +55,7 @@ def test_companies_get_not_found(invoke, mock_api):
 
 def test_companies_create(invoke, mock_api):
     mock_api.get("/whoami").respond(200, json=WHOAMI_RESPONSE)
-    mock_api.post("/crm/companies").respond(201, json=SAMPLE_COMPANY)
+    mock_api.post("/api/v1/crm/companies").respond(201, json=SAMPLE_COMPANY)
     result = invoke(["crm", "companies", "create", "--name", "Acme Corp"])
     assert result.exit_code == 0
     assert "Created company" in result.output
@@ -64,7 +64,7 @@ def test_companies_create(invoke, mock_api):
 
 def test_companies_create_with_tags(invoke, mock_api):
     mock_api.get("/whoami").respond(200, json=WHOAMI_RESPONSE)
-    mock_api.post("/crm/companies").respond(201, json=SAMPLE_COMPANY)
+    mock_api.post("/api/v1/crm/companies").respond(201, json=SAMPLE_COMPANY)
     result = invoke([
         "crm", "companies", "create",
         "--name", "Acme Corp",
@@ -76,7 +76,7 @@ def test_companies_create_with_tags(invoke, mock_api):
 
 def test_companies_update(invoke, mock_api):
     updated = {**SAMPLE_COMPANY, "name": "Acme Inc"}
-    mock_api.patch("/crm/companies/c1").respond(200, json=updated)
+    mock_api.patch("/api/v1/crm/companies/c1").respond(200, json=updated)
     result = invoke(["crm", "companies", "update", "c1", "--name", "Acme Inc"])
     assert result.exit_code == 0
     assert "Updated company" in result.output
@@ -89,7 +89,7 @@ def test_companies_update_no_fields(invoke, mock_api):
 
 
 def test_companies_delete_with_yes(invoke, mock_api):
-    mock_api.delete("/crm/companies/c1").respond(204)
+    mock_api.delete("/api/v1/crm/companies/c1").respond(204)
     result = invoke(["crm", "companies", "delete", "c1", "--yes"])
     assert result.exit_code == 0
     assert "Deleted" in result.output

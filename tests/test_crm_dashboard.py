@@ -42,7 +42,7 @@ SAMPLE_DASHBOARD = {
 
 
 def test_dashboard(invoke, mock_api):
-    mock_api.get("/crm/dashboard").respond(200, json=SAMPLE_DASHBOARD)
+    mock_api.get("/api/v1/crm/dashboard").respond(200, json=SAMPLE_DASHBOARD)
     result = invoke(["crm", "dashboard"])
     assert result.exit_code == 0
     assert "Pipeline" in result.output
@@ -51,7 +51,7 @@ def test_dashboard(invoke, mock_api):
 
 
 def test_dashboard_json(invoke, mock_api):
-    mock_api.get("/crm/dashboard").respond(200, json=SAMPLE_DASHBOARD)
+    mock_api.get("/api/v1/crm/dashboard").respond(200, json=SAMPLE_DASHBOARD)
     result = invoke(["crm", "--json", "dashboard"])
     assert result.exit_code == 0
     parsed = json.loads(result.output)
@@ -59,13 +59,13 @@ def test_dashboard_json(invoke, mock_api):
 
 
 def test_dashboard_custom_period(invoke, mock_api):
-    mock_api.get("/crm/dashboard").respond(200, json=SAMPLE_DASHBOARD)
+    mock_api.get("/api/v1/crm/dashboard").respond(200, json=SAMPLE_DASHBOARD)
     result = invoke(["crm", "dashboard", "--period", "90"])
     assert result.exit_code == 0
 
 
 def test_dashboard_api_error(invoke, mock_api):
-    mock_api.get("/crm/dashboard").respond(500, json={"detail": "Internal error"})
+    mock_api.get("/api/v1/crm/dashboard").respond(500, json={"detail": "Internal error"})
     result = invoke(["crm", "dashboard"])
     assert result.exit_code == 1
     assert "500" in result.output
