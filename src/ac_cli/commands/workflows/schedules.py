@@ -74,7 +74,11 @@ def schedules_create(
     """Create a schedule for a workflow."""
     body: dict = {"cron_expression": cron, "timezone": timezone}
     if input_json:
-        body["input"] = json.loads(input_json)
+        try:
+            body["input"] = json.loads(input_json)
+        except json.JSONDecodeError:
+            rprint("[red]Invalid JSON for --input[/red]")
+            raise typer.Exit(code=1)
 
     resp = _api_request("post", f"{_WORKFLOWS}/{workflow_id}/schedule", json=body)
 
@@ -97,7 +101,11 @@ def schedules_update(
     """Update a workflow schedule."""
     body = _build_body(cron_expression=cron, timezone=timezone)
     if input_json:
-        body["input"] = json.loads(input_json)
+        try:
+            body["input"] = json.loads(input_json)
+        except json.JSONDecodeError:
+            rprint("[red]Invalid JSON for --input[/red]")
+            raise typer.Exit(code=1)
 
     if not body:
         rprint("[yellow]No fields to update.[/yellow]")

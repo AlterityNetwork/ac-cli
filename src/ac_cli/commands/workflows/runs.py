@@ -24,7 +24,11 @@ def runs_create(
     """Create a new workflow run."""
     body: dict = {}
     if input_json:
-        body["input"] = json.loads(input_json)
+        try:
+            body["input"] = json.loads(input_json)
+        except json.JSONDecodeError:
+            rprint("[red]Invalid JSON for --input[/red]")
+            raise typer.Exit(code=1)
 
     headers: dict = {}
     if idempotency_key:

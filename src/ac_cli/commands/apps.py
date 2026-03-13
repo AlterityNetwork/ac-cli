@@ -109,7 +109,11 @@ def apps_usage_event(
     oid = _resolve_org_id(org_id)
     body: dict = {"event_type": event_type}
     if metadata is not None:
-        body["metadata"] = json_lib.loads(metadata)
+        try:
+            body["metadata"] = json_lib.loads(metadata)
+        except json_lib.JSONDecodeError:
+            rprint("[red]Invalid JSON for --metadata[/red]")
+            raise typer.Exit(code=1)
 
     resp = _api_request("post", f"{_APPS}/{oid}/apps/{app_slug}/events", json=body)
 

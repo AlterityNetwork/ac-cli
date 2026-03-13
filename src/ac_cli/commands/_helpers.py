@@ -11,7 +11,7 @@ def _handle_error(exc: httpx.HTTPStatusError) -> None:
     """Print API error detail and exit."""
     try:
         detail = exc.response.json().get("detail", exc.response.text)
-    except Exception:
+    except (ValueError, KeyError):
         detail = exc.response.text
     rprint(f"[red]Error {exc.response.status_code}:[/red] {detail}")
     raise typer.Exit(code=1)

@@ -22,7 +22,11 @@ def import_preview(
         rprint(f"[red]File not found:[/red] {file}")
         raise typer.Exit(code=1)
 
-    items = json_lib.loads(file.read_text())
+    try:
+        items = json_lib.loads(file.read_text())
+    except json_lib.JSONDecodeError:
+        rprint(f"[red]Invalid JSON in file:[/red] {file}")
+        raise typer.Exit(code=1)
     resp = _api_request("post", f"{_CRM}/import/preview", json=items)
 
     data = resp.json()

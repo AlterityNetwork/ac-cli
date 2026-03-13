@@ -3,6 +3,7 @@
 from unittest.mock import MagicMock, patch
 
 import httpx
+from supabase import AuthApiError
 from typer.testing import CliRunner
 
 from ac_cli.main import app
@@ -65,7 +66,7 @@ def test_refresh_failure_exits(mock_api):
     mock_api.get("/api/v1/crm/companies").respond(401, json={"detail": "JWT expired"})
 
     mock_sb = MagicMock()
-    mock_sb.auth.refresh_session.side_effect = Exception("Refresh token revoked")
+    mock_sb.auth.refresh_session.side_effect = AuthApiError("Refresh token revoked", 401, None)
 
     with (
         patch("ac_cli.client.load_config", return_value=MOCK_CONFIG.copy()),

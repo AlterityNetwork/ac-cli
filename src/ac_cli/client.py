@@ -12,7 +12,7 @@ def _refresh_access_token(cfg: dict) -> str:
     Persists the new tokens to config. Returns the new access_token.
     Raises typer.Exit on failure.
     """
-    from supabase import create_client
+    from supabase import AuthApiError, create_client
 
     supabase_url = cfg.get("supabase_url")
     supabase_anon_key = cfg.get("supabase_anon_key")
@@ -25,7 +25,7 @@ def _refresh_access_token(cfg: dict) -> str:
     try:
         sb = create_client(supabase_url, supabase_anon_key)
         response = sb.auth.refresh_session(refresh_token)
-    except Exception as exc:
+    except (httpx.HTTPError, AuthApiError, ValueError, KeyError) as exc:
         typer.echo(f"Token refresh failed: {exc}\nRun `ac login` to re-authenticate.")
         raise typer.Exit(code=1) from exc
 

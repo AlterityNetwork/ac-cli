@@ -72,7 +72,11 @@ def presets_create(
     """Create a workflow preset."""
     body = _build_body(name=name, description=description)
     if config_json:
-        body["config"] = json.loads(config_json)
+        try:
+            body["config"] = json.loads(config_json)
+        except json.JSONDecodeError:
+            rprint("[red]Invalid JSON for --config[/red]")
+            raise typer.Exit(code=1)
 
     resp = _api_request("post", f"{_WORKFLOWS}/{workflow_id}/presets", json=body)
 
@@ -95,7 +99,11 @@ def presets_update(
     """Update a workflow preset."""
     body = _build_body(name=name, description=description)
     if config_json:
-        body["config"] = json.loads(config_json)
+        try:
+            body["config"] = json.loads(config_json)
+        except json.JSONDecodeError:
+            rprint("[red]Invalid JSON for --config[/red]")
+            raise typer.Exit(code=1)
 
     if not body:
         rprint("[yellow]No fields to update.[/yellow]")
