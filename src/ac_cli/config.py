@@ -9,6 +9,25 @@ CONFIG_FILE = CONFIG_DIR / "config.json"
 
 DEFAULT_API_URL = "http://localhost:8008"
 
+# Staging environment defaults
+STAGING_API_URL = "https://api.agencycore.dev"
+STAGING_SUPABASE_URL = "https://tjzxfwiqommgrzxaflar.supabase.co"
+STAGING_SUPABASE_ANON_KEY = (
+    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9"
+    ".eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRqenhmd2lxb21tZ3J6eGFmbGFyIiwi"
+    "cm9sZSI6ImFub24iLCJpYXQiOjE3NDkxNDAxODYsImV4cCI6MjA2NDcxNjE4Nn0"
+    ".oq3bhnDBJtWA1K0Hs0GgrZeWxHSC4TuT1IjnvFo2Sig"
+)
+
+# Local development defaults
+DEV_API_URL = "http://localhost:8008"
+DEV_SUPABASE_URL = "http://127.0.0.1:54321"
+DEV_SUPABASE_ANON_KEY = (
+    "eyJhbGciOiJFUzI1NiIsImtpZCI6Ijk3YWQzMDY1LTdhM2UtNDQxNy1iYmRhLWVkOTNmOWJkYjY2NSIsInR5cCI6IkpXVCJ9"
+    ".eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjIwODUzOTEyMTV9"
+    ".zKYmobkoFPZI-GYaPICU1E3UYzBOmsRxJqeuPL0X9s5PotMN3LW0d6HV5cTMGy7k3dWBlAQ0dJ7sqHXR1liRcA"
+)
+
 
 def load_config() -> dict:
     """Read config JSON. Returns empty dict if file is missing."""

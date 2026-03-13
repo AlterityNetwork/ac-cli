@@ -57,3 +57,16 @@ uv lock                    # Regenerate lockfile after manual pyproject.toml edi
 ## Config
 
 Credentials stored in `~/.agencycore/config.json` (file mode 0600).
+
+### Environments
+
+`ac login` defaults to **staging**. Use `--dev` for local development:
+
+```bash
+ac login              # Staging (api.agencycore.dev)
+ac login --dev        # Local dev (localhost:8008 + local Supabase)
+```
+
+Environment constants (URLs, anon keys) are defined in `config.py`:
+- `STAGING_*` — staging API + Supabase
+- `DEV_*` — localhost API + local Supabase (`127.0.0.1:54321`)

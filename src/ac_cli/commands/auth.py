@@ -6,7 +6,16 @@ from rich import print as rprint
 from supabase import create_client
 
 from ac_cli.client import get_api_client
-from ac_cli.config import DEFAULT_API_URL, clear_config, save_config
+from ac_cli.config import (
+    DEV_API_URL,
+    DEV_SUPABASE_ANON_KEY,
+    DEV_SUPABASE_URL,
+    STAGING_API_URL,
+    STAGING_SUPABASE_ANON_KEY,
+    STAGING_SUPABASE_URL,
+    clear_config,
+    save_config,
+)
 
 app = typer.Typer(help="Authentication commands")
 
@@ -17,17 +26,28 @@ def login(
     password: str = typer.Option(None, help="Account password"),
     supabase_url: str = typer.Option(None, help="Supabase project URL"),
     supabase_anon_key: str = typer.Option(None, help="Supabase anonymous/public key"),
-    api_url: str = typer.Option(DEFAULT_API_URL, help="AgencyCore API base URL"),
+    api_url: str = typer.Option(None, help="AgencyCore API base URL"),
+    dev: bool = typer.Option(False, "--dev", help="Use local dev environment (localhost)"),
 ) -> None:
-    """Sign in with email and password via Supabase."""
+    """Sign in with email and password via Supabase.
+
+    By default, connects to the staging environment. Pass --dev to use local
+    dev services (localhost API + local Supabase).
+    """
+    if dev:
+        api_url = api_url or DEV_API_URL
+        supabase_url = supabase_url or DEV_SUPABASE_URL
+        supabase_anon_key = supabase_anon_key or DEV_SUPABASE_ANON_KEY
+        rprint("[dim]Using local dev environment[/dim]")
+    else:
+        api_url = api_url or STAGING_API_URL
+        supabase_url = supabase_url or STAGING_SUPABASE_URL
+        supabase_anon_key = supabase_anon_key or STAGING_SUPABASE_ANON_KEY
+
     if not email:
         email = typer.prompt("Email")
     if not password:
         password = typer.prompt("Password", hide_input=True)
-    if not supabase_url:
-        supabase_url = typer.prompt("Supabase URL")
-    if not supabase_anon_key:
-        supabase_anon_key = typer.prompt("Supabase anon key")
 
     try:
         client = create_client(supabase_url, supabase_anon_key)

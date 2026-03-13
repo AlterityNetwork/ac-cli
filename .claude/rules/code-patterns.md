@@ -5,6 +5,11 @@ paths:
 
 # Code Patterns
 
+## Environment Selection
+- `ac login` defaults to staging (`STAGING_*` constants in `config.py`)
+- `ac login --dev` uses local dev (`DEV_*` constants in `config.py`)
+- Explicit `--api-url`, `--supabase-url`, `--supabase-anon-key` flags override environment defaults
+
 ## Command Structure
 - Each command group is a `typer.Typer()` sub-app registered via `app.add_typer()` in `main.py`
 - CRM commands use `_api_request()` helper for HTTP calls with built-in error handling

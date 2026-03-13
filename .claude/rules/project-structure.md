@@ -5,7 +5,7 @@ ac-cli/
 ├── src/ac_cli/
 │   ├── main.py              # Entry point, registers all sub-apps
 │   ├── client.py            # Authenticated httpx client from stored config
-│   ├── config.py            # Load/save ~/.agencycore/config.json, DEFAULT_API_URL
+│   ├── config.py            # Load/save ~/.agencycore/config.json, environment constants (STAGING_*, DEV_*)
 │   ├── formatting.py        # Shared output: print_table, print_detail, print_json
 │   └── commands/
 │       ├── auth.py           # login, logout, whoami
@@ -72,4 +72,4 @@ ac-cli/
 - CRM commands hit `/api/v1/crm/*` — the `_CRM` constant in `crm/__init__.py` holds this prefix
 - Envoy commands hit `/api/v1/envoy/*` — the `_ENVOY` constant in `envoy/__init__.py` holds this prefix
 - Both share `_api_request()` and `_build_body()` helpers from `crm/__init__.py`
-- The API base URL (default `http://localhost:8008`) is stored in `~/.agencycore/config.json` (set during `ac login`). The default URL constant lives in `config.py` as `DEFAULT_API_URL`.
+- The API base URL is stored in `~/.agencycore/config.json` (set during `ac login`). Environment constants live in `config.py`: `STAGING_*` (default) and `DEV_*` (used with `ac login --dev`).
