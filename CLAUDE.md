@@ -12,6 +12,7 @@ uv sync --all-extras       # Install with dev dependencies (pytest, respx)
 ## Commands
 
 ```
+ac --version / -V            # Show version
 ac login / logout / whoami   # Auth commands
 ac health check              # API health (no auth)
 
@@ -31,18 +32,80 @@ ac envoy sequences list|get|create|update|delete|launch|pause|resume
 ac envoy steps create|update|delete|reorder|stats
 ac envoy recipients list|add|remove
 ac envoy outbox pending|sent|step-drafts|update-draft|approve|reject|regenerate
+ac envoy playbooks list|get|create|update|delete|duplicate
+ac envoy battlecards list|get|create|update|delete|duplicate
+ac envoy inbox list|messages|archive|unarchive|assign|snooze|complete|update-status|add-tags|remove-tags|reply
+ac envoy signals <recipient-id>
+ac envoy inbox-count
 ac envoy dashboard
+
+# Writing Styles
+ac styles list|get|create|update|delete|train|feedback|iterate|analyze
+
+# Workflows
+ac workflows runs create|list|get|logs
+ac workflows schedules list|get|create|update|delete|preview|toggle
+ac workflows presets list|get|create|update|delete
+
+# Organization Apps
+ac apps install|uninstall|list|usage-event|usage|configs|update-config|delete-config
+
+# Admin (super admin only)
+ac admin users list|get|create|update|delete|search|reset-password|impersonate|exit-impersonation|generate-link
+ac admin orgs list|get|create|update|delete|members|add-member|update-member|remove-member|transfer-ownership
+ac admin queues health|stats|queue-stats|metrics|send-to-sentry|job-performance|failed|retry-all|retry-job|clear-failed
+ac admin demo scrape-website|generate-org|generate-profile|prepare-account|list-accounts|get-account|update-account|delete-account|cleanup|stats
+
+# Nylas (email integration)
+ac nylas oauth-start|account|org-accounts|disconnect|send|update-signature|validate-signature
+
+# Hooks
+ac hooks list <capability>
 ```
 
-All CRM and Envoy commands support `--json` flag for scripting (set on `ac crm --json` or `ac envoy --json`). The flag is passed via `typer.Context`.
+All commands support `--json` flag for scripting (set on the group, e.g. `ac crm --json` or `ac admin --json`). The flag is passed via `typer.Context`.
 
 ## Running Checks
 
 ```bash
-uv run pytest              # Run all tests (165 tests)
+uv run pytest              # Run all tests (~334 tests)
 uv run pytest tests/test_crm_companies.py -v  # Single test file
 uv run python -m ac_cli.main --help            # Verify CLI loads
 ```
+
+## Versioning
+
+Version is managed by **hatch-vcs** — derived from git tags automatically.
+
+- **Never hardcode a version** in `pyproject.toml` (it uses `dynamic = ["version"]`)
+- `src/ac_cli/_version.py` is auto-generated at build time — **do not edit or commit it** (gitignored)
+- `__version__` is exposed via `ac_cli.__version__` and the `ac --version` flag
+
+### Auto-bump (post-commit hook)
+
+A post-commit hook (`scripts/auto-version-tag.sh`) auto-creates a version tag based on **conventional commit** prefixes:
+
+| Commit prefix | Bump | Example |
+|---------------|------|---------|
+| `feat:` | minor | 0.1.0 → 0.2.0 |
+| `fix:`, `perf:` | patch | 0.1.0 → 0.1.1 |
+| `feat!:`, `fix!:`, `BREAKING CHANGE` | major | 0.1.0 → 1.0.0 |
+| `chore:`, `docs:`, `refactor:`, `test:`, `ci:`, `style:`, `build:` | none | no tag created |
+
+Add `[skip-version]` to a commit message to skip auto-tagging.
+
+Install the hook: `bash .claude/hooks/install-submodule-hooks.sh` (from the parent repo).
+
+### Manual bump
+
+```bash
+./scripts/bump.sh patch    # 0.1.0 → 0.1.1
+./scripts/bump.sh minor    # 0.1.0 → 0.2.0
+./scripts/bump.sh major    # 0.1.0 → 1.0.0
+./scripts/bump.sh minor --push  # bump + push tag to remote
+```
+
+Between tags, dev builds show versions like `0.2.1.dev3+gabcdef1`.
 
 ## Dependency Management
 
