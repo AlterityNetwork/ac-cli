@@ -5,10 +5,10 @@
 - `src/ac_cli/` — source package
   - `main.py` — entry point, registers all command groups
   - `client.py` — authenticated httpx client from stored config
-  - `config.py` — load/save `~/.agencycore/config.json`, environment constants (`STAGING_*`, `DEV_*`)
+  - `config.py` — multi-env config (`~/.agencycore/config.json`), environment constants (`PROD_*`, `STAGING_*`, `DEV_*`), `ENVIRONMENTS` registry, migration from legacy flat format
   - `formatting.py` — shared output: `print_table`, `print_detail`, `print_json`
   - `commands/_helpers.py` — shared helpers: `_api_request`, `_build_body`, `_handle_error`
-  - `commands/` — standalone modules (`auth.py`, `apps.py`, `writing_styles.py`, `nylas.py`, `hooks.py`, `health.py`) and package-based domains (`crm/`, `envoy/`, `workflows/`, `admin/`, `files/`)
+  - `commands/` — standalone modules (`auth.py`, `env.py`, `apps.py`, `writing_styles.py`, `nylas.py`, `hooks.py`, `health.py`) and package-based domains (`crm/`, `envoy/`, `workflows/`, `admin/`, `files/`)
 - `tests/` — one test file per command group, named `test_<domain>_<group>.py`
 - `scripts/` — `bump.sh` (manual version), `auto-version-tag.sh` (post-commit hook)
 

@@ -6,8 +6,12 @@ paths:
 # Code Patterns
 
 ## Environment Selection
-- `ac login` defaults to staging (`STAGING_*` constants in `config.py`)
-- `ac login --dev` uses local dev (`DEV_*` constants in `config.py`)
+- Three environments: `production` (default), `staging`, `local` — defined in `ENVIRONMENTS` dict in `config.py`
+- `ac login` defaults to production. Use `--env staging` or `--env local` to target others
+- `--dev` flag is a hidden deprecated alias for `--env local`
+- `ac env list` shows all envs and login status, `ac env use <name>` switches instantly
+- Config format is multi-env (`~/.agencycore/config.json` has `active` + `environments` keys). Old flat configs auto-migrate on first read
+- `load_config()` / `save_config()` still return/accept flat dicts for the active env — all command modules are unaffected
 - Explicit `--api-url`, `--supabase-url`, `--supabase-anon-key` flags override environment defaults
 
 ## Command Structure

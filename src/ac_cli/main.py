@@ -3,7 +3,7 @@
 import typer
 
 from ac_cli import __version__
-from ac_cli.commands import admin, apps, auth, crm, files, health
+from ac_cli.commands import admin, apps, auth, crm, env, files, health
 from ac_cli.commands import envoy
 from ac_cli.commands import hooks
 from ac_cli.commands import nylas
@@ -36,6 +36,7 @@ app.add_typer(admin.app, name="admin")
 app.add_typer(apps.app, name="apps")
 app.add_typer(auth.app, name="auth")
 app.add_typer(crm.app, name="crm")
+app.add_typer(env.app, name="env")
 app.add_typer(health.app, name="health")
 app.add_typer(envoy.app, name="envoy")
 app.add_typer(files.app, name="files")

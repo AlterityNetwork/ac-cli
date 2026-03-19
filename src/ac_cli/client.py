@@ -19,7 +19,12 @@ def _refresh_access_token(cfg: dict) -> str:
     refresh_token = cfg.get("refresh_token")
 
     if not supabase_url or not supabase_anon_key or not refresh_token:
-        typer.echo("Session expired. Run `ac login` to re-authenticate.")
+        from ac_cli.config import get_active_env
+
+        env = get_active_env()
+        typer.echo(
+            f"Session expired. Run `ac login --env {env}` to re-authenticate."
+        )
         raise typer.Exit(code=1)
 
     try:

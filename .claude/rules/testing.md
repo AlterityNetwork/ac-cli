@@ -35,7 +35,7 @@ paths:
 
 ## Running
 ```bash
-uv run pytest                              # All tests (~334 tests)
+uv run pytest                              # All tests (~362 tests)
 uv run pytest tests/test_crm_deals.py      # Single CRM test file
 uv run pytest tests/test_envoy_outbox.py   # Single Envoy test file
 uv run pytest tests/test_admin_users.py    # Single Admin test file
