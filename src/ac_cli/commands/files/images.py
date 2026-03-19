@@ -15,7 +15,7 @@ from ac_cli.formatting import print_detail, print_json
 
 images_app = typer.Typer(help="Image file operations")
 
-ALLOWED_EXTENSIONS = {".jpg", ".jpeg", ".png", ".gif", ".webp", ".svg"}
+ALLOWED_EXTENSIONS = {".jpg", ".jpeg", ".png", ".gif", ".webp", ".svg", ".avif"}
 MAX_SIZE_BYTES = 1_048_576  # 1 MB
 
 
