@@ -30,6 +30,7 @@ paths:
   - `_STYLES = "/api/v1/writing-styles"` in `writing_styles.py`
   - `_APPS = "/api/v1/orgs"` in `apps.py`
   - `_NYLAS = "/api/v1/nylas"` in `nylas.py`
+  - `_FILES = "/api/v1/files"` in `files/__init__.py`
   - `_HOOKS = "/api/v1/platform/hooks"` in `hooks.py`
 - All domains share `_api_request()`, `_build_body()`, and `_handle_error()` from `commands/_helpers.py`
 - Non-versioned routes (`/whoami`, `/health`) use root paths directly
@@ -65,13 +66,4 @@ paths:
 - `schedules toggle` uses `--enabled`/`--disabled` flag pair
 
 ## Versioning
-- Version is managed by **hatch-vcs** — derived from git tags, not hardcoded
-- `pyproject.toml` uses `dynamic = ["version"]` — never add a `version` field
-- `src/ac_cli/_version.py` is auto-generated at build/install time — do not edit or commit it (gitignored)
-- `__version__` is exposed via `ac_cli.__version__` and the `ac --version` / `ac -V` flag
-- **Auto-bump**: a post-commit hook (`scripts/auto-version-tag.sh`) reads the commit message prefix and creates a version tag automatically:
-  - `feat:` → minor bump, `fix:`/`perf:` → patch bump, `feat!:`/`BREAKING CHANGE` → major bump
-  - `chore:`, `docs:`, `refactor:`, `test:`, `ci:`, `style:`, `build:` → no bump
-  - Add `[skip-version]` to the commit message to skip auto-tagging
-- **Manual bump**: run `./scripts/bump.sh patch|minor|major [--push]`
-- **Commit message convention**: always use conventional commit prefixes (`feat:`, `fix:`, `chore:`, etc.) so the auto-bump hook works correctly
+- Always use conventional commit prefixes (`feat:`, `fix:`, `chore:`, etc.) — the auto-bump hook and PyPI publishing depend on this. See `versioning.md` for full details.
