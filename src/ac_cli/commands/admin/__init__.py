@@ -25,8 +25,10 @@ from ac_cli.commands.admin.users import users_app  # noqa: E402
 from ac_cli.commands.admin.organizations import organizations_app  # noqa: E402
 from ac_cli.commands.admin.queues import queues_app  # noqa: E402
 from ac_cli.commands.admin.demo import demo_app  # noqa: E402
+from ac_cli.commands.admin.onboarding import onboarding_app  # noqa: E402
 
 app.add_typer(users_app, name="users")
 app.add_typer(organizations_app, name="orgs")
 app.add_typer(queues_app, name="queues")
 app.add_typer(demo_app, name="demo")
+app.add_typer(onboarding_app, name="onboarding")
