@@ -24,7 +24,7 @@ def users_list(
     """List users."""
     params: dict = {"page": page, "page_size": page_size}
     if query:
-        params["query"] = query
+        params["q"] = query
     if sort:
         params["sort"] = sort
     if order:
@@ -38,7 +38,7 @@ def users_list(
         return
 
     print_table(
-        data.get("data", []),
+        data.get("items", []),
         [
             ("email", "Email"),
             ("id", "ID"),
@@ -78,7 +78,13 @@ def users_create(
     full_name: str | None = typer.Option(None, "--full-name", help="Full name"),
 ) -> None:
     """Create a new user."""
-    body = _build_body(email=email, password=password, full_name=full_name)
+    first_name: str | None = None
+    last_name: str | None = None
+    if full_name:
+        parts = full_name.strip().split(" ", 1)
+        first_name = parts[0]
+        last_name = parts[1] if len(parts) > 1 else None
+    body = _build_body(email=email, password=password, first_name=first_name, last_name=last_name)
 
     resp = _api_request("post", f"{_ADMIN}/users", json=body)
 
@@ -93,12 +99,17 @@ def users_create(
 def users_update(
     ctx: typer.Context,
     user_id: str = typer.Argument(..., help="User ID"),
-    email: str | None = typer.Option(None, help="User email"),
     full_name: str | None = typer.Option(None, "--full-name", help="Full name"),
     is_superadmin: bool | None = typer.Option(None, "--is-superadmin", help="Superadmin status"),
 ) -> None:
     """Update an existing user."""
-    body = _build_body(email=email, full_name=full_name, is_superadmin=is_superadmin)
+    first_name: str | None = None
+    last_name: str | None = None
+    if full_name:
+        parts = full_name.strip().split(" ", 1)
+        first_name = parts[0]
+        last_name = parts[1] if len(parts) > 1 else None
+    body = _build_body(first_name=first_name, last_name=last_name, is_superadmin=is_superadmin)
 
     if not body:
         rprint("[yellow]No fields to update.[/yellow]")
@@ -125,6 +136,27 @@ def users_delete(
     _api_request("delete", f"{_ADMIN}/users/{user_id}")
 
     rprint(f"[green]Deleted user {user_id}[/green]")
+
+
+@users_app.command("auth-search")
+def users_auth_search(
+    ctx: typer.Context,
+    email: str = typer.Option(..., help="Email to search for in Supabase Auth"),
+) -> None:
+    """Search for a user in Supabase Auth by email."""
+    resp = _api_request("get", f"{_ADMIN}/users/auth-search", params={"email": email})
+
+    data = resp.json()
+    if ctx.obj["json"]:
+        print_json(data)
+    else:
+        print_detail(data, [
+            ("id", "ID"),
+            ("email", "Email"),
+            ("created_at", "Created"),
+            ("email_confirmed_at", "Email Confirmed"),
+            ("last_sign_in_at", "Last Sign In"),
+        ])
 
 
 @users_app.command("search")
