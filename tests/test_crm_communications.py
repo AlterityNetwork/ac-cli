@@ -2,6 +2,10 @@
 
 import json
 
+import httpx
+
+from tests.conftest import API_BASE
+
 
 SAMPLE_COMMUNICATION = {
     "id": "comm1",
@@ -355,3 +359,17 @@ def test_comms_unread_thread_ids_json(invoke, mock_api):
     assert result.exit_code == 0
     parsed = json.loads(result.output)
     assert parsed["thread_ids"] == ["thread_jane_001"]
+
+
+def test_comms_list_follows_redirect(invoke, mock_api):
+    """Client should follow 307 redirects (e.g. trailing-slash normalization)."""
+    mock_api.get("/api/v1/crm/communications").mock(
+        return_value=httpx.Response(
+            307,
+            headers={"Location": f"{API_BASE}/api/v1/crm/communications/"},
+        )
+    )
+    mock_api.get("/api/v1/crm/communications/").respond(200, json=[SAMPLE_COMMUNICATION])
+    result = invoke(["crm", "comms", "list"])
+    assert result.exit_code == 0
+    assert "Jane Doe" in result.output

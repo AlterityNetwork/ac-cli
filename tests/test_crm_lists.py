@@ -2,7 +2,9 @@
 
 import json
 
-from tests.conftest import WHOAMI_RESPONSE
+import httpx
+
+from tests.conftest import API_BASE, WHOAMI_RESPONSE
 
 
 SAMPLE_LIST = {
@@ -134,3 +136,18 @@ def test_lists_delete_with_yes(invoke, mock_api):
 def test_lists_delete_aborted(invoke, mock_api):
     result = invoke(["crm", "lists", "delete", "l1"], input="n\n")
     assert result.exit_code == 1
+
+
+def test_lists_list_follows_redirect(invoke, mock_api):
+    """Client should follow 307 redirects (e.g. trailing-slash normalization)."""
+    payload = {"data": [SAMPLE_LIST], "total": 1}
+    mock_api.get("/api/v1/crm/lists").mock(
+        return_value=httpx.Response(
+            307,
+            headers={"Location": f"{API_BASE}/api/v1/crm/lists/"},
+        )
+    )
+    mock_api.get("/api/v1/crm/lists/").respond(200, json=payload)
+    result = invoke(["crm", "lists", "list"])
+    assert result.exit_code == 0
+    assert "Target Companies" in result.output

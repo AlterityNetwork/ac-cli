@@ -83,4 +83,5 @@ def get_api_client() -> httpx.Client:
         base_url=api_url,
         headers={"Authorization": f"Bearer {access_token}"},
         timeout=30.0,
+        follow_redirects=True,
     )
