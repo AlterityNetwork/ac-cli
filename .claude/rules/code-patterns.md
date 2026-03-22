@@ -42,8 +42,8 @@ paths:
 
 ## Error Handling
 - `_api_request()` catches both `httpx.HTTPStatusError` (API errors) and `httpx.HTTPError` (connection errors)
-- `_handle_error()` extracts detail from API error responses and exits with code 1
-- Auth and health commands handle errors directly in the command function
+- `_handle_error()` extracts detail from API error responses and exits with code 1. It checks both `"detail"` (FastAPI HTTPException format) and `"message"` (domain error format) fields
+- Auth and health commands handle errors directly in the command function — use the same `body.get("detail") or body.get("message")` pattern
 - `httpx.Client.delete()` does not support `json` kwarg — for DELETE requests with a JSON body, use `client.request("DELETE", url, json=...)` directly (see `inbox.py` remove-tags)
 
 ## Output

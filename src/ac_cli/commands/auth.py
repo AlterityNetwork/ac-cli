@@ -132,7 +132,8 @@ def whoami() -> None:
             resp.raise_for_status()
         except httpx.HTTPStatusError as exc:
             try:
-                detail = exc.response.json().get("detail", exc.response.text)
+                body = exc.response.json()
+                detail = body.get("detail") or body.get("message") or exc.response.text
             except (ValueError, KeyError):
                 detail = exc.response.text
             rprint(f"[red]Error {exc.response.status_code}:[/red] {detail}")

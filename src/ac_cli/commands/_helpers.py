@@ -10,7 +10,8 @@ from ac_cli.client import get_api_client
 def _handle_error(exc: httpx.HTTPStatusError) -> None:
     """Print API error detail and exit."""
     try:
-        detail = exc.response.json().get("detail", exc.response.text)
+        body = exc.response.json()
+        detail = body.get("detail") or body.get("message") or exc.response.text
     except (ValueError, KeyError):
         detail = exc.response.text
     rprint(f"[red]Error {exc.response.status_code}:[/red] {detail}")
