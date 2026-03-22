@@ -136,6 +136,31 @@ def test_onboarding_impersonate(invoke, mock_api):
     assert "xyz789" in result.output
 
 
+def test_onboarding_end_impersonation(invoke, mock_api):
+    mock_api.post(f"{_BASE}/accounts/org-onboard-1/end-impersonate").respond(200, json={
+        "organization_id": "org-onboard-1",
+        "user_id": "user-onboard-1",
+        "signed_out": True,
+    })
+    result = invoke(["admin", "onboarding", "end-impersonation", "org-onboard-1"])
+    assert result.exit_code == 0
+    assert "ended" in result.output.lower()
+
+
+def test_onboarding_end_impersonation_json(invoke, mock_api):
+    payload = {
+        "organization_id": "org-onboard-1",
+        "user_id": "user-onboard-1",
+        "signed_out": True,
+    }
+    mock_api.post(f"{_BASE}/accounts/org-onboard-1/end-impersonate").respond(200, json=payload)
+    result = invoke(["admin", "--json", "onboarding", "end-impersonation", "org-onboard-1"])
+    assert result.exit_code == 0
+    parsed = json.loads(result.output)
+    assert parsed["signed_out"] is True
+    assert parsed["organization_id"] == "org-onboard-1"
+
+
 def test_onboarding_activate(invoke, mock_api):
     mock_api.post(f"{_BASE}/accounts/org-onboard-1/activate").respond(200, json={
         "status": "active",

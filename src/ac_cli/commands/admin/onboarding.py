@@ -186,6 +186,22 @@ def onboarding_impersonate(
     rprint(f"[green]Magic link:[/green] {data.get('magic_link', '')}")
 
 
+@onboarding_app.command("end-impersonation")
+def onboarding_end_impersonation(
+    ctx: typer.Context,
+    org_id: str = typer.Argument(..., help="Organization ID"),
+) -> None:
+    """End admin impersonation and sign out the managed account user."""
+    resp = _api_request("post", f"{_ONBOARDING}/accounts/{org_id}/end-impersonate")
+
+    data = resp.json()
+    if ctx.obj["json"]:
+        print_json(data)
+        return
+
+    rprint(f"[green]Impersonation ended for {org_id}[/green]")
+
+
 @onboarding_app.command("activate")
 def onboarding_activate(
     ctx: typer.Context,
