@@ -7,7 +7,7 @@ import json
 import typer
 from rich import print as rprint
 
-from ac_cli.commands._helpers import _api_request, _build_body
+from ac_cli.commands._helpers import _api_request, _build_body, should_skip_confirm
 from ac_cli.commands.workflows import _WORKFLOWS
 from ac_cli.formatting import print_detail, print_json, print_table
 
@@ -127,7 +127,7 @@ def schedules_delete(
     yes: bool = typer.Option(False, "--yes", "-y", help="Skip confirmation"),
 ) -> None:
     """Delete a workflow schedule."""
-    if not yes:
+    if not should_skip_confirm(yes):
         typer.confirm(f"Delete schedule {schedule_id}?", abort=True)
 
     _api_request("delete", f"{_WORKFLOWS}/{workflow_id}/schedules/{schedule_id}")

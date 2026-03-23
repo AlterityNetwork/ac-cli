@@ -129,5 +129,5 @@ def test_apps_install_error(invoke, mock_api):
     mock_api.get("/whoami").respond(200, json=WHOAMI_RESPONSE)
     mock_api.post("/api/v1/orgs/org-456/apps/email-finder").respond(409, json={"detail": "Already installed"})
     result = invoke(["apps", "install", "email-finder"])
-    assert result.exit_code == 1
+    assert result.exit_code == 5
     assert "409" in result.output

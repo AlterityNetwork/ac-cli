@@ -5,7 +5,7 @@ from __future__ import annotations
 import typer
 from rich import print as rprint
 
-from ac_cli.commands._helpers import _api_request, _build_body
+from ac_cli.commands._helpers import _api_request, _build_body, should_skip_confirm
 from ac_cli.commands.admin import _ADMIN
 from ac_cli.formatting import print_detail, print_json, print_table
 
@@ -130,7 +130,7 @@ def users_delete(
     yes: bool = typer.Option(False, "--yes", "-y", help="Skip confirmation"),
 ) -> None:
     """Delete a user."""
-    if not yes:
+    if not should_skip_confirm(yes):
         typer.confirm(f"Delete user {user_id}?", abort=True)
 
     _api_request("delete", f"{_ADMIN}/users/{user_id}")
@@ -180,7 +180,7 @@ def users_reset_password(
     yes: bool = typer.Option(False, "--yes", "-y", help="Skip confirmation"),
 ) -> None:
     """Reset a user's password."""
-    if not yes:
+    if not should_skip_confirm(yes):
         typer.confirm(f"Reset password for user {user_id}?", abort=True)
 
     _api_request("post", f"{_ADMIN}/users/{user_id}/reset-password")

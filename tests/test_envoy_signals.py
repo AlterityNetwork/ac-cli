@@ -30,5 +30,5 @@ def test_signals_get_json(invoke, mock_api):
 def test_signals_not_found(invoke, mock_api):
     mock_api.get("/api/v1/envoy/recipients/bad/sales-signals").respond(404, json={"detail": "Not found"})
     result = invoke(["envoy", "signals", "bad"])
-    assert result.exit_code == 1
+    assert result.exit_code == 3
     assert "404" in result.output

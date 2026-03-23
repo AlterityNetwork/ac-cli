@@ -49,7 +49,7 @@ def test_companies_get(invoke, mock_api):
 def test_companies_get_not_found(invoke, mock_api):
     mock_api.get("/api/v1/crm/companies/bad").respond(404, json={"detail": "Not found"})
     result = invoke(["crm", "companies", "get", "bad"])
-    assert result.exit_code == 1
+    assert result.exit_code == 3
     assert "404" in result.output
 
 

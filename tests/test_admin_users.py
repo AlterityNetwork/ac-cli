@@ -52,7 +52,7 @@ def test_users_get(invoke, mock_api):
 def test_users_get_not_found(invoke, mock_api):
     mock_api.get("/api/v1/admin/users/bad").respond(404, json={"detail": "Not found"})
     result = invoke(["admin", "users", "get", "bad"])
-    assert result.exit_code == 1
+    assert result.exit_code == 3
     assert "404" in result.output
 
 
@@ -157,7 +157,7 @@ def test_users_auth_search_json(invoke, mock_api):
 def test_users_auth_search_not_found(invoke, mock_api):
     mock_api.get("/api/v1/admin/users/auth-search").respond(404, json={"detail": "Auth user not found"})
     result = invoke(["admin", "users", "auth-search", "--email", "nobody@test.com"])
-    assert result.exit_code == 1
+    assert result.exit_code == 3
     assert "404" in result.output
 
 

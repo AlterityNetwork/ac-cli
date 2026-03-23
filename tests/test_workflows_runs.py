@@ -74,7 +74,7 @@ def test_runs_get(invoke, mock_api):
 def test_runs_get_not_found(invoke, mock_api):
     mock_api.get("/api/v1/workflows/wf-1/runs/run-999").respond(404, json={"detail": "Not found"})
     result = invoke(["workflows", "runs", "get", "wf-1", "run-999"])
-    assert result.exit_code == 1
+    assert result.exit_code == 3
 
 
 def test_runs_logs(invoke, mock_api):

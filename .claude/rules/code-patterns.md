@@ -42,18 +42,28 @@ paths:
 
 ## Error Handling
 - `_api_request()` catches both `httpx.HTTPStatusError` (API errors) and `httpx.HTTPError` (connection errors)
-- `_handle_error()` extracts detail from API error responses and exits with code 1. It checks both `"detail"` (FastAPI HTTPException format) and `"message"` (domain error format) fields
-- Auth and health commands handle errors directly in the command function — use the same `body.get("detail") or body.get("message")` pattern
+- `_handle_error()` extracts detail from API error responses. It checks both `"detail"` (FastAPI HTTPException format) and `"message"` (domain error format) fields
+- When JSON mode is active (`_json_output` context var), errors emit structured JSON: `{"error": true, "status_code": <int>, "detail": <str>}`. Otherwise, errors print Rich-formatted text.
+- **Semantic exit codes** via `_EXIT_CODES` mapping: `{401: 4, 403: 4, 404: 3, 409: 5, 422: 2}`. Unmapped status codes and connection errors exit with code 1. Success is always 0.
+- Auth and health commands handle errors directly in the command function — use the same `body.get("detail") or body.get("message")` pattern, and should also respect JSON mode and semantic exit codes
 - `httpx.Client.delete()` does not support `json` kwarg — for DELETE requests with a JSON body, use `client.request("DELETE", url, json=...)` directly (see `inbox.py` remove-tags)
 
 ## Output
 - Rich output by default via `formatting.py` helpers (`print_table`, `print_detail`)
 - `--json` flag outputs raw JSON to stdout for piping/scripting
-- `--json` is a global option on every command group's callback (crm, envoy, workflows, admin, styles, apps, nylas, hooks), passed via `typer.Context`
+- `--json` is a global option on every command group's callback (crm, envoy, workflows, admin, styles, apps, nylas, hooks, health, env, files), passed via `typer.Context`
+- Every group callback must call `set_json_mode(json_output)` so that `_handle_error()` and `_api_request()` emit JSON errors when `--json` is active
 - Access in subcommands: add `ctx: typer.Context` parameter, read `ctx.obj["json"]`
+- For top-level commands not part of a group (e.g. `whoami`), add `--json` as a direct option and call `set_json_mode()` within the command
 
 ## Delete Commands
 - Always require `--yes` / `-y` flag or interactive `typer.confirm()` prompt
+- Use `should_skip_confirm(yes)` instead of `if not yes:` — this also checks the `AC_YES` env var
+
+## Non-Interactive Mode
+- `should_skip_confirm(yes_flag)` from `_helpers.py` returns `True` if the `--yes` flag is set OR `AC_YES` env var is `1`, `true`, or `yes`
+- All `typer.confirm()` call sites must use this: `if not should_skip_confirm(yes): typer.confirm(...)`
+- This allows agents and scripts to set `AC_YES=1` globally instead of passing `--yes` to every destructive command
 
 ## Create Commands
 - Fetch `organization_id` from `/whoami` before creating resources

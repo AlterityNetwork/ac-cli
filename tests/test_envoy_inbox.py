@@ -126,4 +126,4 @@ def test_inbox_reply(invoke, mock_api):
 def test_inbox_list_not_found(invoke, mock_api):
     mock_api.get("/api/v1/envoy/inbox/threads").respond(404, json={"detail": "Not found"})
     result = invoke(["envoy", "inbox", "list"])
-    assert result.exit_code == 1
+    assert result.exit_code == 3

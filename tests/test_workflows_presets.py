@@ -38,7 +38,7 @@ def test_presets_get(invoke, mock_api):
 def test_presets_get_not_found(invoke, mock_api):
     mock_api.get("/api/v1/workflows/wf-1/presets/pre-999").respond(404, json={"detail": "Not found"})
     result = invoke(["workflows", "presets", "get", "wf-1", "pre-999"])
-    assert result.exit_code == 1
+    assert result.exit_code == 3
 
 
 def test_presets_create(invoke, mock_api):

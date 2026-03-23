@@ -7,7 +7,7 @@
   - `client.py` — authenticated httpx client from stored config
   - `config.py` — multi-env config (`~/.agencycore/config.json`), environment constants (`PROD_*`, `STAGING_*`, `DEV_*`), `ENVIRONMENTS` registry, migration from legacy flat format
   - `formatting.py` — shared output: `print_table`, `print_detail`, `print_json`
-  - `commands/_helpers.py` — shared helpers: `_api_request`, `_build_body`, `_handle_error`
+  - `commands/_helpers.py` — shared helpers: `_api_request`, `_build_body`, `_handle_error`, `set_json_mode`, `should_skip_confirm`, `_EXIT_CODES`
   - `commands/` — standalone modules (`auth.py`, `env.py`, `apps.py`, `writing_styles.py`, `nylas.py`, `hooks.py`, `health.py`) and package-based domains (`crm/`, `envoy/`, `workflows/`, `admin/`, `files/`)
 - `tests/` — one test file per command group, named `test_<domain>_<group>.py`
 - `scripts/` — `bump.sh` (manual version), `auto-version-tag.sh` (post-commit hook)
@@ -18,15 +18,28 @@ All command groups follow the same pattern regardless of domain:
 
 1. **Create the module** — either a single file (`commands/<group>.py`) or a package (`commands/<group>/__init__.py` + submodules)
 2. **Define the app**: `app = typer.Typer(help="...")` and a prefix constant (e.g. `_FILES = "/api/v1/files"`)
-3. **Add `--json` callback**:
+3. **Add `--json` callback with `set_json_mode()`**:
    ```python
+   from ac_cli.commands._helpers import set_json_mode
+
    @app.callback()
    def callback(ctx: typer.Context, json_output: bool = typer.Option(False, "--json", help="Output raw JSON")) -> None:
        ctx.ensure_object(dict)
        ctx.obj["json"] = json_output
+       set_json_mode(json_output)
    ```
+   The `set_json_mode()` call is **required** — it enables structured JSON error output and is what makes errors agent-friendly when `--json` is active.
 4. **Write commands** using `_api_request()` from `commands/_helpers.py`, `print_detail`/`print_table`/`print_json` from `formatting.py`
 5. **Read JSON flag** in commands via `ctx.obj["json"]`
-6. **Register in `main.py`**: `from ac_cli.commands import <group>` + `app.add_typer(<group>.app, name="<group>")`
-7. **For sub-groups within a package** (e.g. `files/images.py`): define `<sub>_app = typer.Typer(help="...")`, then import and register in the package's `__init__.py`: `app.add_typer(<sub>_app, name="<sub>")`
-8. **Add tests** in `tests/test_<domain>_<group>.py` using the `invoke`, `mock_api`, `tmp_path` fixtures from `conftest.py`
+6. **For delete/destructive commands**, use `should_skip_confirm(yes)` instead of `if not yes:`:
+   ```python
+   from ac_cli.commands._helpers import should_skip_confirm
+
+   yes: bool = typer.Option(False, "--yes", "-y", help="Skip confirmation")
+   ...
+   if not should_skip_confirm(yes):
+       typer.confirm("Delete this resource?", abort=True)
+   ```
+7. **Register in `main.py`**: `from ac_cli.commands import <group>` + `app.add_typer(<group>.app, name="<group>")`
+8. **For sub-groups within a package** (e.g. `files/images.py`): define `<sub>_app = typer.Typer(help="...")`, then import and register in the package's `__init__.py`: `app.add_typer(<sub>_app, name="<sub>")`
+9. **Add tests** in `tests/test_<domain>_<group>.py` using the `invoke`, `mock_api`, `tmp_path` fixtures from `conftest.py`

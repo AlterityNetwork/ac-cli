@@ -20,13 +20,24 @@ uv sync --all-extras       # Install with dev dependencies (pytest, respx)
 | `files` | Image upload/delete |
 | `workflows` | Runs, schedules, presets |
 | `apps` | Organization app install/config |
-| `admin` | Users, orgs, queues, demo, onboarding (super admin) |
+| `admin` | Users, orgs, queues, demo, onboarding, app-usage, ai-usage (super admin) |
 | `styles` | Writing styles |
 | `nylas` | Email integration |
 | `hooks` | Platform hooks |
 | `env` | Environment switching (local, staging, production) |
 
 Run `ac <group> --help` for full subcommand listing.
+
+## Agent-Friendly Features
+
+The CLI is designed to be consumed by AI agents and scripts:
+
+- **Structured JSON errors**: When `--json` is active, errors return `{"error": true, "status_code": ..., "detail": ...}` instead of Rich text
+- **Semantic exit codes**: `0`=success, `1`=general error, `2`=validation (422), `3`=not found (404), `4`=auth/permission (401/403), `5`=conflict (409)
+- **`AC_YES=1` env var**: Skips all `typer.confirm()` prompts for non-interactive use
+- **`--json` on all groups**: Every group callback calls `set_json_mode()` so errors also respect JSON mode
+
+See `.claude/rules/code-patterns.md` for implementation details.
 
 ## Running Checks
 

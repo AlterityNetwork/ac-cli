@@ -43,7 +43,7 @@ def test_styles_get(invoke, mock_api):
 def test_styles_get_not_found(invoke, mock_api):
     mock_api.get("/api/v1/writing-styles/ws-1").respond(404, json={"detail": "Not found"})
     result = invoke(["styles", "get", "ws-1"])
-    assert result.exit_code == 1
+    assert result.exit_code == 3
 
 
 def test_styles_create(invoke, mock_api):

@@ -2,7 +2,7 @@
 
 import typer
 
-from ac_cli.commands._helpers import _api_request, _build_body, _handle_error  # noqa: F401
+from ac_cli.commands._helpers import _api_request, _build_body, _handle_error, set_json_mode  # noqa: F401
 
 app = typer.Typer(help="Workflow commands")
 
@@ -16,6 +16,7 @@ def workflows_callback(
 ) -> None:
     ctx.ensure_object(dict)
     ctx.obj["json"] = json_output
+    set_json_mode(json_output)
 
 
 # -- Register sub-command groups from submodules ------------------------------

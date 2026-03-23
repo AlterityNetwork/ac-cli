@@ -3,7 +3,7 @@
 import typer
 from rich import print as rprint
 
-from ac_cli.commands._helpers import _api_request, _build_body, _handle_error  # noqa: F401
+from ac_cli.commands._helpers import _api_request, _build_body, _handle_error, set_json_mode  # noqa: F401
 from ac_cli.formatting import print_json, print_table
 
 app = typer.Typer(help="CRM commands")
@@ -20,6 +20,7 @@ def crm_callback(
 ) -> None:
     ctx.ensure_object(dict)
     ctx.obj["json"] = json_output
+    set_json_mode(json_output)
 
 
 # =============================================================================

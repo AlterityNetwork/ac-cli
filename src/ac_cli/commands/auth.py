@@ -123,8 +123,14 @@ def logout(
 
 
 @app.command()
-def whoami() -> None:
+def whoami(
+    json_output: bool = typer.Option(False, "--json", help="Output raw JSON"),
+) -> None:
     """Show the currently authenticated user."""
+    from ac_cli.commands._helpers import _EXIT_CODES, set_json_mode
+    from ac_cli.formatting import print_json
+
+    set_json_mode(json_output)
     active = get_active_env()
     with get_api_client() as client:
         try:
@@ -136,11 +142,21 @@ def whoami() -> None:
                 detail = body.get("detail") or body.get("message") or exc.response.text
             except (ValueError, KeyError):
                 detail = exc.response.text
-            rprint(f"[red]Error {exc.response.status_code}:[/red] {detail}")
-            raise typer.Exit(code=1)
+            exit_code = _EXIT_CODES.get(exc.response.status_code, 1)
+            if json_output:
+                print_json({"error": True, "status_code": exc.response.status_code, "detail": detail})
+            else:
+                rprint(f"[red]Error {exc.response.status_code}:[/red] {detail}")
+            raise typer.Exit(code=exit_code)
         except httpx.HTTPError as exc:
-            rprint(f"[red]Connection error:[/red] {exc}")
+            if json_output:
+                print_json({"error": True, "status_code": None, "detail": str(exc)})
+            else:
+                rprint(f"[red]Connection error:[/red] {exc}")
             raise typer.Exit(code=1)
     data = resp.json()
     data["environment"] = active
-    rprint(data)
+    if json_output:
+        print_json(data)
+    else:
+        rprint(data)

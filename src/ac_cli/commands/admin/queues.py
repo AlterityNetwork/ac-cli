@@ -5,7 +5,7 @@ from __future__ import annotations
 import typer
 from rich import print as rprint
 
-from ac_cli.commands._helpers import _api_request
+from ac_cli.commands._helpers import _api_request, should_skip_confirm
 from ac_cli.commands.admin import _ADMIN
 from ac_cli.formatting import print_json, print_table
 
@@ -124,7 +124,7 @@ def queues_retry_all(
     yes: bool = typer.Option(False, "--yes", "-y", help="Skip confirmation"),
 ) -> None:
     """Retry all failed jobs in a queue."""
-    if not yes:
+    if not should_skip_confirm(yes):
         typer.confirm(f"Retry all failed jobs in queue {queue_name}?", abort=True)
 
     _api_request("post", f"{_ADMIN}/queues/{queue_name}/failed/retry")
@@ -148,7 +148,7 @@ def queues_clear_failed(
     yes: bool = typer.Option(False, "--yes", "-y", help="Skip confirmation"),
 ) -> None:
     """Clear all failed jobs in a queue."""
-    if not yes:
+    if not should_skip_confirm(yes):
         typer.confirm(f"Clear all failed jobs in queue {queue_name}?", abort=True)
 
     _api_request("delete", f"{_ADMIN}/queues/{queue_name}/failed")

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import typer
 
-from ac_cli.commands._helpers import _api_request
+from ac_cli.commands._helpers import _api_request, set_json_mode
 from ac_cli.formatting import print_json, print_table
 
 app = typer.Typer(help="Platform hooks")
@@ -19,6 +19,7 @@ def hooks_callback(
 ) -> None:
     ctx.ensure_object(dict)
     ctx.obj["json"] = json_output
+    set_json_mode(json_output)
 
 
 @app.command("list")

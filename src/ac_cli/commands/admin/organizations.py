@@ -5,7 +5,7 @@ from __future__ import annotations
 import typer
 from rich import print as rprint
 
-from ac_cli.commands._helpers import _api_request, _build_body
+from ac_cli.commands._helpers import _api_request, _build_body, should_skip_confirm
 from ac_cli.commands.admin import _ADMIN
 from ac_cli.formatting import print_detail, print_json, print_table
 
@@ -118,7 +118,7 @@ def organizations_delete(
     yes: bool = typer.Option(False, "--yes", "-y", help="Skip confirmation"),
 ) -> None:
     """Delete an organization."""
-    if not yes:
+    if not should_skip_confirm(yes):
         typer.confirm(f"Delete organization {org_id}?", abort=True)
 
     _api_request("delete", f"{_ADMIN}/organizations/{org_id}")
@@ -203,7 +203,7 @@ def organizations_remove_member(
     yes: bool = typer.Option(False, "--yes", "-y", help="Skip confirmation"),
 ) -> None:
     """Remove a member from an organization."""
-    if not yes:
+    if not should_skip_confirm(yes):
         typer.confirm(f"Remove user {user_id} from organization {org_id}?", abort=True)
 
     _api_request("delete", f"{_ADMIN}/organizations/{org_id}/members/{user_id}")
@@ -218,7 +218,7 @@ def organizations_transfer_ownership(
     yes: bool = typer.Option(False, "--yes", "-y", help="Skip confirmation"),
 ) -> None:
     """Transfer organization ownership."""
-    if not yes:
+    if not should_skip_confirm(yes):
         typer.confirm(
             f"Transfer ownership of organization {org_id} to {new_owner_id}?",
             abort=True,

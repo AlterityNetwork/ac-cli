@@ -7,6 +7,7 @@ import json as json_lib
 import typer
 from rich import print as rprint
 
+from ac_cli.commands._helpers import should_skip_confirm
 from ac_cli.commands.crm import _api_request
 from ac_cli.commands.envoy import _ENVOY
 from ac_cli.formatting import print_json, print_table
@@ -79,7 +80,7 @@ def recipients_remove(
     yes: bool = typer.Option(False, "--yes", "-y", help="Skip confirmation"),
 ) -> None:
     """Remove a recipient from a sequence."""
-    if not yes:
+    if not should_skip_confirm(yes):
         typer.confirm(f"Remove recipient {recipient_id} from sequence {sequence_id}?", abort=True)
 
     _api_request("delete", f"{_ENVOY}/sequences/{sequence_id}/recipients/{recipient_id}")

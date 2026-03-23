@@ -9,6 +9,8 @@ from pathlib import Path
 import typer
 from rich import print as rprint
 
+from ac_cli.commands._helpers import should_skip_confirm
+
 from ac_cli.commands._helpers import _api_request
 from ac_cli.commands.files import _FILES
 from ac_cli.formatting import print_detail, print_json
@@ -79,7 +81,7 @@ def images_delete(
     yes: bool = typer.Option(False, "--yes", "-y", help="Skip confirmation"),
 ) -> None:
     """Delete an image by its R2 object key."""
-    if not yes:
+    if not should_skip_confirm(yes):
         typer.confirm(f"Delete image {key}?", abort=True)
 
     resp = _api_request("delete", f"{_FILES}/images/{key}")

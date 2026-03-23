@@ -5,6 +5,7 @@ from __future__ import annotations
 import typer
 from rich import print as rprint
 
+from ac_cli.commands._helpers import should_skip_confirm
 from ac_cli.commands.crm import _CRM, _api_request, _build_body
 from ac_cli.formatting import print_detail, print_json, print_table
 
@@ -164,7 +165,7 @@ def communications_delete(
     yes: bool = typer.Option(False, "--yes", "-y", help="Skip confirmation"),
 ) -> None:
     """Delete a communication."""
-    if not yes:
+    if not should_skip_confirm(yes):
         typer.confirm(f"Delete communication {communication_id}?", abort=True)
 
     _api_request("delete", f"{_CRM}/communications/{communication_id}")
@@ -178,7 +179,7 @@ def communications_delete_thread(
     yes: bool = typer.Option(False, "--yes", "-y", help="Skip confirmation"),
 ) -> None:
     """Delete an entire thread."""
-    if not yes:
+    if not should_skip_confirm(yes):
         typer.confirm(f"Delete thread {thread_id} and all its messages?", abort=True)
 
     _api_request("delete", f"{_CRM}/communications/thread/{thread_id}")

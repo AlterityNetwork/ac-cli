@@ -5,7 +5,7 @@ from __future__ import annotations
 import typer
 from rich import print as rprint
 
-from ac_cli.commands._helpers import _api_request, _build_body
+from ac_cli.commands._helpers import _api_request, _build_body, should_skip_confirm
 from ac_cli.commands.admin import _ADMIN
 from ac_cli.formatting import print_detail, print_json, print_table
 
@@ -158,7 +158,7 @@ def demo_delete_account(
     yes: bool = typer.Option(False, "--yes", "-y", help="Skip confirmation"),
 ) -> None:
     """Delete a demo account."""
-    if not yes:
+    if not should_skip_confirm(yes):
         typer.confirm(f"Delete demo account {org_id}?", abort=True)
 
     _api_request("delete", f"{_ADMIN}/demo/accounts/{org_id}")
@@ -172,7 +172,7 @@ def demo_cleanup(
     yes: bool = typer.Option(False, "--yes", "-y", help="Skip confirmation"),
 ) -> None:
     """Clean up old demo accounts."""
-    if not yes:
+    if not should_skip_confirm(yes):
         typer.confirm("Clean up old demo accounts?", abort=True)
 
     body = _build_body(max_age_days=max_age_days)

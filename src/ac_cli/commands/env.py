@@ -12,6 +12,8 @@ from ac_cli.config import (
     set_active_env,
 )
 
+from ac_cli.commands._helpers import set_json_mode
+
 app = typer.Typer(help="Manage CLI environments (local, staging, production)")
 
 
@@ -22,6 +24,7 @@ def callback(
 ) -> None:
     ctx.ensure_object(dict)
     ctx.obj["json"] = json_output
+    set_json_mode(json_output)
 
 
 @app.command("list")

@@ -49,7 +49,7 @@ def test_orgs_get(invoke, mock_api):
 def test_orgs_get_not_found(invoke, mock_api):
     mock_api.get("/api/v1/admin/organizations/bad").respond(404, json={"detail": "Not found"})
     result = invoke(["admin", "orgs", "get", "bad"])
-    assert result.exit_code == 1
+    assert result.exit_code == 3
     assert "404" in result.output
 
 

@@ -5,7 +5,7 @@ from __future__ import annotations
 import typer
 from rich import print as rprint
 
-from ac_cli.commands._helpers import _api_request, _build_body
+from ac_cli.commands._helpers import _api_request, _build_body, set_json_mode, should_skip_confirm
 from ac_cli.formatting import print_detail, print_json, print_table
 
 app = typer.Typer(help="Writing style operations")
@@ -20,6 +20,7 @@ def styles_callback(
 ) -> None:
     ctx.ensure_object(dict)
     ctx.obj["json"] = json_output
+    set_json_mode(json_output)
 
 
 @app.command("list")
@@ -135,7 +136,7 @@ def styles_delete(
     yes: bool = typer.Option(False, "--yes", "-y", help="Skip confirmation"),
 ) -> None:
     """Delete a writing style."""
-    if not yes:
+    if not should_skip_confirm(yes):
         typer.confirm(f"Delete style {style_id}?", abort=True)
 
     _api_request("delete", f"{_STYLES}/{style_id}")

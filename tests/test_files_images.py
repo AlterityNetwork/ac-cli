@@ -132,7 +132,7 @@ def test_images_delete_not_found(invoke, mock_api):
         404, json={"detail": "Image not found"},
     )
     result = invoke(["files", "images", "delete", "org-456/avatars/photo.png", "--yes"])
-    assert result.exit_code == 1
+    assert result.exit_code == 3
     assert "Image not found" in result.output
 
 
@@ -141,5 +141,5 @@ def test_images_delete_forbidden(invoke, mock_api):
         403, json={"detail": "Forbidden"},
     )
     result = invoke(["files", "images", "delete", "org-456/avatars/photo.png", "--yes"])
-    assert result.exit_code == 1
+    assert result.exit_code == 4
     assert "Forbidden" in result.output

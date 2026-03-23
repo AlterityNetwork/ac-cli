@@ -7,7 +7,7 @@ import json as json_lib
 import typer
 from rich import print as rprint
 
-from ac_cli.commands._helpers import _api_request, _build_body
+from ac_cli.commands._helpers import _api_request, _build_body, set_json_mode, should_skip_confirm
 from ac_cli.formatting import print_detail, print_json, print_table
 
 app = typer.Typer(help="Organization app operations")
@@ -22,6 +22,7 @@ def apps_callback(
 ) -> None:
     ctx.ensure_object(dict)
     ctx.obj["json"] = json_output
+    set_json_mode(json_output)
 
 
 def _resolve_org_id(org_id: str | None) -> str:
@@ -56,7 +57,7 @@ def apps_uninstall(
     yes: bool = typer.Option(False, "--yes", "-y", help="Skip confirmation"),
 ) -> None:
     """Uninstall an app from the organization."""
-    if not yes:
+    if not should_skip_confirm(yes):
         typer.confirm(f"Uninstall app {app_slug}?", abort=True)
 
     oid = _resolve_org_id(org_id)
@@ -205,7 +206,7 @@ def apps_delete_config(
     yes: bool = typer.Option(False, "--yes", "-y", help="Skip confirmation"),
 ) -> None:
     """Delete a configuration key for an app."""
-    if not yes:
+    if not should_skip_confirm(yes):
         typer.confirm(f"Delete config {config_key} for {app_slug}?", abort=True)
 
     oid = _resolve_org_id(org_id)
