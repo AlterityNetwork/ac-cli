@@ -56,6 +56,13 @@ paths:
 - Access in subcommands: add `ctx: typer.Context` parameter, read `ctx.obj["json"]`
 - For top-level commands not part of a group (e.g. `whoami`), add `--json` as a direct option and call `set_json_mode()` within the command
 
+## List Commands & Pagination
+- All API list endpoints return a standardized paginated response: `{"data": [...], "total": N, "limit": N, "offset": N, "has_more": bool}`
+- List commands should accept `--limit` (default 50) and `--offset` (default 0) options, and always send both as query params
+- Extract items via `data.get("data", [])` — never use `isinstance(data, list)` fallback
+- Show server-reported total in table titles: `f"Title ({data.get('total', '?')} total)"`
+- CRM, envoy inbox, and envoy outbox commands all follow this pattern
+
 ## Delete Commands
 - Always require `--yes` / `-y` flag or interactive `typer.confirm()` prompt
 - Use `should_skip_confirm(yes)` instead of `if not yes:` — this also checks the `AC_YES` env var
