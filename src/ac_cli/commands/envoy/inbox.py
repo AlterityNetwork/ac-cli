@@ -20,10 +20,10 @@ def inbox_list(
     sequence_id: str | None = typer.Option(None, "--sequence-id", help="Filter by sequence"),
     assigned_to: str | None = typer.Option(None, "--assigned-to", help="Filter by assignee"),
     limit: int = typer.Option(50, help="Max results"),
-    cursor: str | None = typer.Option(None, help="Pagination cursor"),
+    offset: int = typer.Option(0, help="Pagination offset"),
 ) -> None:
     """List inbox threads."""
-    params: dict = {"limit": limit}
+    params: dict = {"limit": limit, "offset": offset}
     if status:
         params["status"] = status
     if sentiment:
@@ -32,8 +32,6 @@ def inbox_list(
         params["sequence_id"] = sequence_id
     if assigned_to:
         params["assigned_to"] = assigned_to
-    if cursor:
-        params["cursor"] = cursor
 
     resp = _api_request("get", f"{_ENVOY}/inbox/threads", params=params)
 
@@ -42,7 +40,7 @@ def inbox_list(
         print_json(data)
         return
 
-    items = data if isinstance(data, list) else data.get("data", [])
+    items = data.get("data", [])
     print_table(
         items,
         [
@@ -52,7 +50,7 @@ def inbox_list(
             ("assigned_to", "Assigned To"),
             ("id", "ID"),
         ],
-        title=f"Inbox Threads ({len(items)})",
+        title=f"Inbox Threads ({data.get('total', '?')} total)",
     )
 
 

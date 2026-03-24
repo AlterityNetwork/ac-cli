@@ -22,55 +22,105 @@ SAMPLE_SENT = {
 
 
 def test_outbox_pending(invoke, mock_api):
-    mock_api.get("/api/v1/envoy/outbox/pending").respond(200, json=[SAMPLE_PENDING])
+    mock_api.get("/api/v1/envoy/outbox/pending").respond(
+        200, json={"data": [SAMPLE_PENDING], "total": 1, "limit": 50, "offset": 0, "has_more": False}
+    )
     result = invoke(["envoy", "outbox", "pending"])
     assert result.exit_code == 0
     assert "Jane Doe" in result.output
     assert "Partnership" in result.output
+    assert "1 total" in result.output
 
 
 def test_outbox_pending_json(invoke, mock_api):
-    mock_api.get("/api/v1/envoy/outbox/pending").respond(200, json=[SAMPLE_PENDING])
+    mock_api.get("/api/v1/envoy/outbox/pending").respond(
+        200, json={"data": [SAMPLE_PENDING], "total": 1, "limit": 50, "offset": 0, "has_more": False}
+    )
     result = invoke(["envoy", "--json", "outbox", "pending"])
     assert result.exit_code == 0
     parsed = json.loads(result.output)
-    assert parsed[0]["id"] == "draft-1"
+    assert parsed["data"][0]["id"] == "draft-1"
 
 
 def test_outbox_pending_with_filters(invoke, mock_api):
-    mock_api.get("/api/v1/envoy/outbox/pending").respond(200, json=[])
+    mock_api.get("/api/v1/envoy/outbox/pending").respond(
+        200, json={"data": [], "total": 0, "limit": 50, "offset": 0, "has_more": False}
+    )
     result = invoke(["envoy", "outbox", "pending", "--sequence-id", "seq-1", "--step-id", "step-1"])
     assert result.exit_code == 0
 
 
+def test_outbox_pending_with_offset(invoke, mock_api):
+    route = mock_api.get("/api/v1/envoy/outbox/pending").respond(
+        200, json={"data": [SAMPLE_PENDING], "total": 11, "limit": 50, "offset": 10, "has_more": False}
+    )
+    result = invoke(["envoy", "outbox", "pending", "--offset", "10"])
+    assert result.exit_code == 0
+    assert "11 total" in result.output
+    req = route.calls[0].request
+    assert "offset=10" in str(req.url)
+
+
 def test_outbox_sent(invoke, mock_api):
-    mock_api.get("/api/v1/envoy/outbox/sent").respond(200, json=[SAMPLE_SENT])
+    mock_api.get("/api/v1/envoy/outbox/sent").respond(
+        200, json={"data": [SAMPLE_SENT], "total": 1, "limit": 50, "offset": 0, "has_more": False}
+    )
     result = invoke(["envoy", "outbox", "sent"])
     assert result.exit_code == 0
     assert "Jane Doe" in result.output
+    assert "1 total" in result.output
 
 
 def test_outbox_sent_json(invoke, mock_api):
-    mock_api.get("/api/v1/envoy/outbox/sent").respond(200, json=[SAMPLE_SENT])
+    mock_api.get("/api/v1/envoy/outbox/sent").respond(
+        200, json={"data": [SAMPLE_SENT], "total": 1, "limit": 50, "offset": 0, "has_more": False}
+    )
     result = invoke(["envoy", "--json", "outbox", "sent"])
     assert result.exit_code == 0
     parsed = json.loads(result.output)
-    assert parsed[0]["status"] == "delivered"
+    assert parsed["data"][0]["status"] == "delivered"
+
+
+def test_outbox_sent_with_offset(invoke, mock_api):
+    route = mock_api.get("/api/v1/envoy/outbox/sent").respond(
+        200, json={"data": [SAMPLE_SENT], "total": 20, "limit": 50, "offset": 5, "has_more": False}
+    )
+    result = invoke(["envoy", "outbox", "sent", "--offset", "5"])
+    assert result.exit_code == 0
+    assert "20 total" in result.output
+    req = route.calls[0].request
+    assert "offset=5" in str(req.url)
 
 
 def test_outbox_step_drafts(invoke, mock_api):
-    mock_api.get("/api/v1/envoy/outbox/step-drafts").respond(200, json=[SAMPLE_PENDING])
+    mock_api.get("/api/v1/envoy/outbox/step-drafts").respond(
+        200, json={"data": [SAMPLE_PENDING], "total": 1, "limit": 50, "offset": 0, "has_more": False}
+    )
     result = invoke(["envoy", "outbox", "step-drafts", "--sequence-id", "seq-1", "--step-id", "step-1"])
     assert result.exit_code == 0
     assert "Jane Doe" in result.output
+    assert "1 total" in result.output
 
 
 def test_outbox_step_drafts_json(invoke, mock_api):
-    mock_api.get("/api/v1/envoy/outbox/step-drafts").respond(200, json=[SAMPLE_PENDING])
+    mock_api.get("/api/v1/envoy/outbox/step-drafts").respond(
+        200, json={"data": [SAMPLE_PENDING], "total": 1, "limit": 50, "offset": 0, "has_more": False}
+    )
     result = invoke(["envoy", "--json", "outbox", "step-drafts", "--sequence-id", "seq-1", "--step-id", "step-1"])
     assert result.exit_code == 0
     parsed = json.loads(result.output)
-    assert len(parsed) == 1
+    assert parsed["data"][0]["id"] == "draft-1"
+
+
+def test_outbox_step_drafts_with_offset(invoke, mock_api):
+    route = mock_api.get("/api/v1/envoy/outbox/step-drafts").respond(
+        200, json={"data": [SAMPLE_PENDING], "total": 15, "limit": 50, "offset": 5, "has_more": False}
+    )
+    result = invoke(["envoy", "outbox", "step-drafts", "--sequence-id", "seq-1", "--step-id", "step-1", "--offset", "5"])
+    assert result.exit_code == 0
+    assert "15 total" in result.output
+    req = route.calls[0].request
+    assert "offset=5" in str(req.url)
 
 
 def test_outbox_update_draft(invoke, mock_api):

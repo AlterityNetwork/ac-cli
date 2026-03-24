@@ -23,15 +23,20 @@ SAMPLE_MESSAGE = {
 
 
 def test_inbox_list(invoke, mock_api):
-    mock_api.get("/api/v1/envoy/inbox/threads").respond(200, json={"data": [SAMPLE_THREAD], "total": 1})
+    mock_api.get("/api/v1/envoy/inbox/threads").respond(
+        200, json={"data": [SAMPLE_THREAD], "total": 1, "limit": 50, "offset": 0, "has_more": False}
+    )
     result = invoke(["envoy", "inbox", "list"])
     assert result.exit_code == 0
     assert "Re: Partnership" in result.output
     assert "open" in result.output
+    assert "1 total" in result.output
 
 
 def test_inbox_list_json(invoke, mock_api):
-    mock_api.get("/api/v1/envoy/inbox/threads").respond(200, json={"data": [SAMPLE_THREAD], "total": 1})
+    mock_api.get("/api/v1/envoy/inbox/threads").respond(
+        200, json={"data": [SAMPLE_THREAD], "total": 1, "limit": 50, "offset": 0, "has_more": False}
+    )
     result = invoke(["envoy", "--json", "inbox", "list"])
     assert result.exit_code == 0
     parsed = json.loads(result.output)
@@ -39,9 +44,22 @@ def test_inbox_list_json(invoke, mock_api):
 
 
 def test_inbox_list_with_filters(invoke, mock_api):
-    mock_api.get("/api/v1/envoy/inbox/threads").respond(200, json={"data": [], "total": 0})
+    mock_api.get("/api/v1/envoy/inbox/threads").respond(
+        200, json={"data": [], "total": 0, "limit": 50, "offset": 0, "has_more": False}
+    )
     result = invoke(["envoy", "inbox", "list", "--status", "open"])
     assert result.exit_code == 0
+
+
+def test_inbox_list_with_offset(invoke, mock_api):
+    route = mock_api.get("/api/v1/envoy/inbox/threads").respond(
+        200, json={"data": [SAMPLE_THREAD], "total": 11, "limit": 50, "offset": 10, "has_more": False}
+    )
+    result = invoke(["envoy", "inbox", "list", "--offset", "10"])
+    assert result.exit_code == 0
+    assert "11 total" in result.output
+    req = route.calls[0].request
+    assert "offset=10" in str(req.url)
 
 
 def test_inbox_messages(invoke, mock_api):

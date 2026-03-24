@@ -18,9 +18,10 @@ def outbox_pending(
     sequence_id: str | None = typer.Option(None, "--sequence-id", help="Filter by sequence"),
     step_id: str | None = typer.Option(None, "--step-id", help="Filter by step"),
     limit: int = typer.Option(50, help="Max results"),
+    offset: int = typer.Option(0, help="Pagination offset"),
 ) -> None:
     """List pending draft approvals."""
-    params: dict = {"limit": limit}
+    params: dict = {"limit": limit, "offset": offset}
     if sequence_id:
         params["sequence_id"] = sequence_id
     if step_id:
@@ -33,7 +34,7 @@ def outbox_pending(
         print_json(data)
         return
 
-    items = data if isinstance(data, list) else data.get("data", [])
+    items = data.get("data", [])
     print_table(
         items,
         [
@@ -43,7 +44,7 @@ def outbox_pending(
             ("step_order", "Step"),
             ("id", "ID"),
         ],
-        title=f"Pending Drafts ({len(items)})",
+        title=f"Pending Drafts ({data.get('total', '?')} total)",
     )
 
 
@@ -53,9 +54,10 @@ def outbox_sent(
     sequence_id: str | None = typer.Option(None, "--sequence-id", help="Filter by sequence"),
     status: str | None = typer.Option(None, help="Filter by status"),
     limit: int = typer.Option(50, help="Max results"),
+    offset: int = typer.Option(0, help="Pagination offset"),
 ) -> None:
     """List sent emails."""
-    params: dict = {"limit": limit}
+    params: dict = {"limit": limit, "offset": offset}
     if sequence_id:
         params["sequence_id"] = sequence_id
     if status:
@@ -68,7 +70,7 @@ def outbox_sent(
         print_json(data)
         return
 
-    items = data if isinstance(data, list) else data.get("data", [])
+    items = data.get("data", [])
     print_table(
         items,
         [
@@ -78,7 +80,7 @@ def outbox_sent(
             ("sent_at", "Sent"),
             ("id", "ID"),
         ],
-        title=f"Sent Emails ({len(items)})",
+        title=f"Sent Emails ({data.get('total', '?')} total)",
     )
 
 
@@ -87,9 +89,11 @@ def outbox_step_drafts(
     ctx: typer.Context,
     sequence_id: str = typer.Option(..., "--sequence-id", help="Sequence ID"),
     step_id: str = typer.Option(..., "--step-id", help="Step ID"),
+    limit: int = typer.Option(50, help="Max results"),
+    offset: int = typer.Option(0, help="Pagination offset"),
 ) -> None:
     """List all drafts for a specific step."""
-    params = {"sequence_id": sequence_id, "step_id": step_id}
+    params: dict = {"sequence_id": sequence_id, "step_id": step_id, "limit": limit, "offset": offset}
     resp = _api_request("get", f"{_ENVOY}/outbox/step-drafts", params=params)
 
     data = resp.json()
@@ -97,7 +101,7 @@ def outbox_step_drafts(
         print_json(data)
         return
 
-    items = data if isinstance(data, list) else data.get("data", [])
+    items = data.get("data", [])
     print_table(
         items,
         [
@@ -106,7 +110,7 @@ def outbox_step_drafts(
             ("status", "Status"),
             ("id", "ID"),
         ],
-        title=f"Step Drafts ({len(items)})",
+        title=f"Step Drafts ({data.get('total', '?')} total)",
     )
 
 
