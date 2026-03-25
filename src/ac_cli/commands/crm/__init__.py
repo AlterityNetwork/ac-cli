@@ -3,7 +3,7 @@
 import typer
 from rich import print as rprint
 
-from ac_cli.commands._helpers import _api_request, _build_body, _handle_error, set_json_mode  # noqa: F401
+from ac_cli.commands._helpers import JSON_OPTION, _api_request, _build_body, _handle_error, set_json_mode  # noqa: F401
 from ac_cli.formatting import print_json, print_table
 
 app = typer.Typer(help="CRM commands")
@@ -14,13 +14,8 @@ _CRM = "/api/v1/crm"
 
 
 @app.callback()
-def crm_callback(
-    ctx: typer.Context,
-    json_output: bool = typer.Option(False, "--json", help="Output raw JSON"),
-) -> None:
+def crm_callback(ctx: typer.Context) -> None:
     ctx.ensure_object(dict)
-    ctx.obj["json"] = json_output
-    set_json_mode(json_output)
 
 
 # =============================================================================
@@ -32,12 +27,14 @@ def crm_callback(
 def search(
     ctx: typer.Context,
     query: str = typer.Argument(..., help="Search query"),
+    json_output: bool = JSON_OPTION,
 ) -> None:
     """Search across companies, contacts, and deals."""
+    set_json_mode(json_output)
     resp = _api_request("get", f"{_CRM}/search", params={"q": query})
 
     data = resp.json()
-    if ctx.obj["json"]:
+    if json_output:
         print_json(data)
         return
 
@@ -77,12 +74,14 @@ def search(
 def dashboard(
     ctx: typer.Context,
     period: int = typer.Option(30, "--period", help="Period in days"),
+    json_output: bool = JSON_OPTION,
 ) -> None:
     """Show CRM dashboard summary."""
+    set_json_mode(json_output)
     resp = _api_request("get", f"{_CRM}/dashboard", params={"period_days": period})
 
     data = resp.json()
-    if ctx.obj["json"]:
+    if json_output:
         print_json(data)
         return
 

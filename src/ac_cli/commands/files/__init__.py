@@ -10,13 +10,8 @@ _FILES = "/api/v1/files"
 
 
 @app.callback()
-def files_callback(
-    ctx: typer.Context,
-    json_output: bool = typer.Option(False, "--json", help="Output raw JSON"),
-) -> None:
+def files_callback(ctx: typer.Context) -> None:
     ctx.ensure_object(dict)
-    ctx.obj["json"] = json_output
-    set_json_mode(json_output)
 
 
 # -- Register sub-command groups from submodules ------------------------------

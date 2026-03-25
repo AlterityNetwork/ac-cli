@@ -33,7 +33,7 @@ def test_companies_list(invoke, mock_api):
 def test_companies_list_json(invoke, mock_api):
     payload = {"data": [SAMPLE_COMPANY], "total": 1}
     mock_api.get("/api/v1/crm/companies").respond(200, json=payload)
-    result = invoke(["crm", "--json", "companies", "list"])
+    result = invoke(["crm", "companies", "list", "--json"])
     assert result.exit_code == 0
     parsed = json.loads(result.output)
     assert parsed["data"][0]["name"] == "Acme Corp"

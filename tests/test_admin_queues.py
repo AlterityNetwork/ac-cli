@@ -17,7 +17,7 @@ def test_queues_health(invoke, mock_api):
 
 def test_queues_health_json(invoke, mock_api):
     mock_api.get("/api/v1/admin/queues/health").respond(200, json=SAMPLE_HEALTH)
-    result = invoke(["admin", "--json", "queues", "health"])
+    result = invoke(["admin", "queues", "health", "--json"])
     assert result.exit_code == 0
     parsed = json.loads(result.output)
     assert parsed["status"] == "healthy"
@@ -31,7 +31,7 @@ def test_queues_stats(invoke, mock_api):
 
 def test_queues_stats_json(invoke, mock_api):
     mock_api.get("/api/v1/admin/queues/stats").respond(200, json=SAMPLE_STATS)
-    result = invoke(["admin", "--json", "queues", "stats"])
+    result = invoke(["admin", "queues", "stats", "--json"])
     assert result.exit_code == 0
     parsed = json.loads(result.output)
     assert parsed["total_jobs"] == 1000

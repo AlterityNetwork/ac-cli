@@ -74,7 +74,7 @@ def test_ai_usage_summary(invoke, mock_api):
 
 def test_ai_usage_summary_json(invoke, mock_api):
     mock_api.get("/api/v1/admin/ai-usage/summary").respond(200, json=SAMPLE_SUMMARY)
-    result = invoke(["admin", "--json", "ai-usage", "summary"])
+    result = invoke(["admin", "ai-usage", "summary", "--json"])
     assert result.exit_code == 0
     parsed = json.loads(result.output)
     assert parsed["total_requests"] == 1000
@@ -100,7 +100,7 @@ def test_ai_usage_users(invoke, mock_api):
 
 def test_ai_usage_users_json(invoke, mock_api):
     mock_api.get("/api/v1/admin/ai-usage/users").respond(200, json=SAMPLE_USERS)
-    result = invoke(["admin", "--json", "ai-usage", "users"])
+    result = invoke(["admin", "ai-usage", "users", "--json"])
     assert result.exit_code == 0
     parsed = json.loads(result.output)
     assert parsed["items"][0]["email"] == "alice@example.com"
@@ -129,7 +129,7 @@ def test_ai_usage_user(invoke, mock_api):
 
 def test_ai_usage_user_json(invoke, mock_api):
     mock_api.get("/api/v1/admin/ai-usage/users/user-123").respond(200, json=SAMPLE_USER_DETAIL)
-    result = invoke(["admin", "--json", "ai-usage", "user", "user-123"])
+    result = invoke(["admin", "ai-usage", "user", "user-123", "--json"])
     assert result.exit_code == 0
     parsed = json.loads(result.output)
     assert parsed["email"] == "alice@example.com"
@@ -145,7 +145,7 @@ def test_ai_usage_by_model(invoke, mock_api):
 
 def test_ai_usage_by_model_json(invoke, mock_api):
     mock_api.get("/api/v1/admin/ai-usage/by-model").respond(200, json=SAMPLE_BY_MODEL)
-    result = invoke(["admin", "--json", "ai-usage", "by-model"])
+    result = invoke(["admin", "ai-usage", "by-model", "--json"])
     assert result.exit_code == 0
     parsed = json.loads(result.output)
     assert len(parsed) == 2
@@ -161,7 +161,7 @@ def test_ai_usage_by_workflow(invoke, mock_api):
 
 def test_ai_usage_by_workflow_json(invoke, mock_api):
     mock_api.get("/api/v1/admin/ai-usage/by-workflow").respond(200, json=SAMPLE_BY_WORKFLOW)
-    result = invoke(["admin", "--json", "ai-usage", "by-workflow"])
+    result = invoke(["admin", "ai-usage", "by-workflow", "--json"])
     assert result.exit_code == 0
     parsed = json.loads(result.output)
     assert len(parsed) == 2
@@ -177,7 +177,7 @@ def test_ai_usage_details(invoke, mock_api):
 
 def test_ai_usage_details_json(invoke, mock_api):
     mock_api.get("/api/v1/admin/ai-usage/details").respond(200, json=SAMPLE_DETAILS)
-    result = invoke(["admin", "--json", "ai-usage", "details"])
+    result = invoke(["admin", "ai-usage", "details", "--json"])
     assert result.exit_code == 0
     parsed = json.loads(result.output)
     assert parsed["items"][0]["id"] == "rec-1"

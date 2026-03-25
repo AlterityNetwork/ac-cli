@@ -7,7 +7,7 @@ import json
 import typer
 from rich import print as rprint
 
-from ac_cli.commands._helpers import _api_request, _build_body
+from ac_cli.commands._helpers import _api_request, _build_body, JSON_OPTION, set_json_mode
 from ac_cli.commands.workflows import _WORKFLOWS
 from ac_cli.formatting import print_detail, print_json, print_table
 
@@ -20,8 +20,10 @@ def runs_create(
     workflow_id: str = typer.Argument(..., help="Workflow ID"),
     input_json: str | None = typer.Option(None, "--input", help="Input JSON string"),
     idempotency_key: str | None = typer.Option(None, "--idempotency-key", help="Idempotency key"),
+    json_output: bool = JSON_OPTION,
 ) -> None:
     """Create a new workflow run."""
+    set_json_mode(json_output)
     body: dict = {}
     if input_json:
         try:
@@ -41,7 +43,7 @@ def runs_create(
     resp = _api_request("post", f"{_WORKFLOWS}/{workflow_id}/runs", **kwargs)
 
     data = resp.json()
-    if ctx.obj["json"]:
+    if json_output:
         print_json(data)
     else:
         rprint(f"[green]Run created:[/green] {data['run_id']} (status: {data['status']})")
@@ -53,13 +55,15 @@ def runs_list(
     workflow_id: str = typer.Argument(..., help="Workflow ID"),
     limit: int = typer.Option(50, help="Max results"),
     offset: int = typer.Option(0, help="Offset"),
+    json_output: bool = JSON_OPTION,
 ) -> None:
     """List runs for a workflow."""
+    set_json_mode(json_output)
     params: dict = {"limit": limit, "offset": offset}
     resp = _api_request("get", f"{_WORKFLOWS}/{workflow_id}/runs", params=params)
 
     data = resp.json()
-    if ctx.obj["json"]:
+    if json_output:
         print_json(data)
         return
 
@@ -80,12 +84,14 @@ def runs_get(
     ctx: typer.Context,
     workflow_id: str = typer.Argument(..., help="Workflow ID"),
     run_id: str = typer.Argument(..., help="Run ID"),
+    json_output: bool = JSON_OPTION,
 ) -> None:
     """Get a workflow run by ID."""
+    set_json_mode(json_output)
     resp = _api_request("get", f"{_WORKFLOWS}/{workflow_id}/runs/{run_id}")
 
     data = resp.json()
-    if ctx.obj["json"]:
+    if json_output:
         print_json(data)
         return
 
@@ -106,13 +112,15 @@ def runs_logs(
     run_id: str = typer.Argument(..., help="Run ID"),
     limit: int = typer.Option(50, help="Max results"),
     offset: int = typer.Option(0, help="Offset"),
+    json_output: bool = JSON_OPTION,
 ) -> None:
     """Get logs for a workflow run."""
+    set_json_mode(json_output)
     params: dict = {"limit": limit, "offset": offset}
     resp = _api_request("get", f"{_WORKFLOWS}/{workflow_id}/runs/{run_id}/logs", params=params)
 
     data = resp.json()
-    if ctx.obj["json"]:
+    if json_output:
         print_json(data)
         return
 

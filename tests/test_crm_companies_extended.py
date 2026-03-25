@@ -38,7 +38,7 @@ def test_companies_delete_json_error(invoke, mock_api):
     mock_api.delete("/api/v1/crm/companies/nonexistent").respond(
         404, json={"detail": "Not found"}
     )
-    result = invoke(["crm", "--json", "companies", "delete", "nonexistent", "--yes"])
+    result = invoke(["crm", "companies", "delete", "nonexistent", "--yes", "--json"])
     assert result.exit_code == 3
     parsed = json.loads(result.output)
     assert parsed["error"] is True
@@ -61,7 +61,7 @@ def test_companies_get_network_timeout_json(invoke, mock_api):
     mock_api.get("/api/v1/crm/companies/c1").mock(
         side_effect=httpx.ConnectTimeout("Connection timed out")
     )
-    result = invoke(["crm", "--json", "companies", "get", "c1"])
+    result = invoke(["crm", "companies", "get", "c1", "--json"])
     assert result.exit_code == 1
     parsed = json.loads(result.output)
     assert parsed["error"] is True

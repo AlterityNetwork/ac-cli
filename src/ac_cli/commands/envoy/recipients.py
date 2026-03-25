@@ -7,7 +7,7 @@ import json as json_lib
 import typer
 from rich import print as rprint
 
-from ac_cli.commands._helpers import should_skip_confirm
+from ac_cli.commands._helpers import JSON_OPTION, set_json_mode, should_skip_confirm
 from ac_cli.commands.crm import _api_request
 from ac_cli.commands.envoy import _ENVOY
 from ac_cli.formatting import print_json, print_table
@@ -21,8 +21,10 @@ def recipients_list(
     sequence_id: str = typer.Argument(..., help="Sequence ID"),
     status: str | None = typer.Option(None, help="Filter by status"),
     step_id: str | None = typer.Option(None, "--step-id", help="Filter by step"),
+    json_output: bool = JSON_OPTION,
 ) -> None:
     """List recipients of a sequence."""
+    set_json_mode(json_output)
     params: dict = {}
     if status:
         params["status_filter"] = status
@@ -32,7 +34,7 @@ def recipients_list(
     resp = _api_request("get", f"{_ENVOY}/sequences/{sequence_id}/recipients", params=params)
 
     data = resp.json()
-    if ctx.obj["json"]:
+    if json_output:
         print_json(data)
         return
 
@@ -55,8 +57,10 @@ def recipients_add(
     ctx: typer.Context,
     sequence_id: str = typer.Argument(..., help="Sequence ID"),
     source: str = typer.Option(..., help="JSON array of recipient objects"),
+    json_output: bool = JSON_OPTION,
 ) -> None:
     """Add recipients to a sequence."""
+    set_json_mode(json_output)
     try:
         recipients = json_lib.loads(source)
     except json_lib.JSONDecodeError:
@@ -66,7 +70,7 @@ def recipients_add(
     resp = _api_request("post", f"{_ENVOY}/sequences/{sequence_id}/recipients", json=recipients)
 
     data = resp.json()
-    if ctx.obj["json"]:
+    if json_output:
         print_json(data)
     else:
         count = len(recipients) if isinstance(recipients, list) else 1

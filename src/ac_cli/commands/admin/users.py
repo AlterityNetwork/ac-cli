@@ -5,7 +5,7 @@ from __future__ import annotations
 import typer
 from rich import print as rprint
 
-from ac_cli.commands._helpers import _api_request, _build_body, should_skip_confirm
+from ac_cli.commands._helpers import JSON_OPTION, _api_request, _build_body, set_json_mode, should_skip_confirm
 from ac_cli.commands.admin import _ADMIN
 from ac_cli.formatting import print_detail, print_json, print_table
 
@@ -20,8 +20,10 @@ def users_list(
     order: str | None = typer.Option(None, help="Sort order (asc/desc)"),
     page: int = typer.Option(1, help="Page number"),
     page_size: int = typer.Option(50, "--page-size", help="Page size"),
+    json_output: bool = JSON_OPTION,
 ) -> None:
     """List users."""
+    set_json_mode(json_output)
     params: dict = {"page": page, "page_size": page_size}
     if query:
         params["q"] = query
@@ -33,7 +35,7 @@ def users_list(
     resp = _api_request("get", f"{_ADMIN}/users", params=params)
 
     data = resp.json()
-    if ctx.obj["json"]:
+    if json_output:
         print_json(data)
         return
 
@@ -51,12 +53,14 @@ def users_list(
 def users_get(
     ctx: typer.Context,
     user_id: str = typer.Argument(..., help="User ID"),
+    json_output: bool = JSON_OPTION,
 ) -> None:
     """Get a user by ID."""
+    set_json_mode(json_output)
     resp = _api_request("get", f"{_ADMIN}/users/{user_id}")
 
     data = resp.json()
-    if ctx.obj["json"]:
+    if json_output:
         print_json(data)
         return
 
@@ -76,8 +80,10 @@ def users_create(
     email: str = typer.Option(..., help="User email"),
     password: str = typer.Option(..., help="User password"),
     full_name: str | None = typer.Option(None, "--full-name", help="Full name"),
+    json_output: bool = JSON_OPTION,
 ) -> None:
     """Create a new user."""
+    set_json_mode(json_output)
     first_name: str | None = None
     last_name: str | None = None
     if full_name:
@@ -89,7 +95,7 @@ def users_create(
     resp = _api_request("post", f"{_ADMIN}/users", json=body)
 
     data = resp.json()
-    if ctx.obj["json"]:
+    if json_output:
         print_json(data)
     else:
         rprint(f"[green]Created user:[/green] {data['id']}")
@@ -101,8 +107,10 @@ def users_update(
     user_id: str = typer.Argument(..., help="User ID"),
     full_name: str | None = typer.Option(None, "--full-name", help="Full name"),
     is_superadmin: bool | None = typer.Option(None, "--is-superadmin", help="Superadmin status"),
+    json_output: bool = JSON_OPTION,
 ) -> None:
     """Update an existing user."""
+    set_json_mode(json_output)
     first_name: str | None = None
     last_name: str | None = None
     if full_name:
@@ -118,7 +126,7 @@ def users_update(
     resp = _api_request("patch", f"{_ADMIN}/users/{user_id}", json=body)
 
     data = resp.json()
-    if ctx.obj["json"]:
+    if json_output:
         print_json(data)
     else:
         rprint(f"[green]Updated user:[/green] {data['id']}")
@@ -142,12 +150,14 @@ def users_delete(
 def users_auth_search(
     ctx: typer.Context,
     email: str = typer.Option(..., help="Email to search for in Supabase Auth"),
+    json_output: bool = JSON_OPTION,
 ) -> None:
     """Search for a user in Supabase Auth by email."""
+    set_json_mode(json_output)
     resp = _api_request("get", f"{_ADMIN}/users/auth-search", params={"email": email})
 
     data = resp.json()
-    if ctx.obj["json"]:
+    if json_output:
         print_json(data)
     else:
         print_detail(data, [
@@ -163,12 +173,14 @@ def users_auth_search(
 def users_search(
     ctx: typer.Context,
     email: str = typer.Option(..., help="Email to search for"),
+    json_output: bool = JSON_OPTION,
 ) -> None:
     """Search users by email."""
+    set_json_mode(json_output)
     resp = _api_request("get", f"{_ADMIN}/users/search", params={"email": email})
 
     data = resp.json()
-    if ctx.obj["json"]:
+    if json_output:
         print_json(data)
     else:
         rprint(data)

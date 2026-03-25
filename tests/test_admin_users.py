@@ -36,7 +36,7 @@ def test_users_list(invoke, mock_api):
 def test_users_list_json(invoke, mock_api):
     payload = {"items": [SAMPLE_USER], "total": 1, "page": 1, "page_size": 50}
     mock_api.get("/api/v1/admin/users").respond(200, json=payload)
-    result = invoke(["admin", "--json", "users", "list"])
+    result = invoke(["admin", "users", "list", "--json"])
     assert result.exit_code == 0
     parsed = json.loads(result.output)
     assert parsed["items"][0]["email"] == "admin@test.com"
@@ -66,7 +66,7 @@ def test_users_create(invoke, mock_api):
 
 def test_users_create_json(invoke, mock_api):
     mock_api.post("/api/v1/admin/users").respond(201, json={"id": "u-1"})
-    result = invoke(["admin", "--json", "users", "create", "--email", "admin@test.com", "--password", "secret123"])
+    result = invoke(["admin", "users", "create", "--email", "admin@test.com", "--password", "secret123", "--json"])
     assert result.exit_code == 0
     parsed = json.loads(result.output)
     assert parsed["id"] == "u-1"
@@ -147,7 +147,7 @@ def test_users_auth_search(invoke, mock_api):
 
 def test_users_auth_search_json(invoke, mock_api):
     mock_api.get("/api/v1/admin/users/auth-search").respond(200, json=SAMPLE_AUTH_USER)
-    result = invoke(["admin", "--json", "users", "auth-search", "--email", "admin@test.com"])
+    result = invoke(["admin", "users", "auth-search", "--email", "admin@test.com", "--json"])
     assert result.exit_code == 0
     parsed = json.loads(result.output)
     assert parsed["email"] == "admin@test.com"

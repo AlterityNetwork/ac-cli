@@ -7,7 +7,7 @@ import json as json_lib
 import typer
 from rich import print as rprint
 
-from ac_cli.commands._helpers import _api_request, _build_body, set_json_mode, should_skip_confirm
+from ac_cli.commands._helpers import JSON_OPTION, _api_request, _build_body, set_json_mode, should_skip_confirm
 from ac_cli.formatting import print_detail, print_json, print_table
 
 app = typer.Typer(help="Organization app operations")
@@ -16,13 +16,8 @@ _APPS = "/api/v1/orgs"
 
 
 @app.callback()
-def apps_callback(
-    ctx: typer.Context,
-    json_output: bool = typer.Option(False, "--json", help="Output raw JSON"),
-) -> None:
+def apps_callback(ctx: typer.Context) -> None:
     ctx.ensure_object(dict)
-    ctx.obj["json"] = json_output
-    set_json_mode(json_output)
 
 
 def _resolve_org_id(org_id: str | None) -> str:
@@ -38,13 +33,15 @@ def apps_install(
     ctx: typer.Context,
     app_slug: str = typer.Argument(..., help="App slug to install"),
     org_id: str | None = typer.Option(None, "--org-id", help="Organization ID (auto-resolved from /whoami)"),
+    json_output: bool = JSON_OPTION,
 ) -> None:
     """Install an app for the organization."""
+    set_json_mode(json_output)
     oid = _resolve_org_id(org_id)
     resp = _api_request("post", f"{_APPS}/{oid}/apps/{app_slug}")
 
     data = resp.json()
-    if ctx.obj["json"]:
+    if json_output:
         print_json(data)
     else:
         rprint(f"[green]Installed {app_slug}[/green]")
@@ -73,8 +70,10 @@ def apps_list(
     include_inactive: bool = typer.Option(False, "--include-inactive", help="Include inactive apps"),
     limit: int = typer.Option(100, help="Max results"),
     offset: int = typer.Option(0, help="Offset"),
+    json_output: bool = JSON_OPTION,
 ) -> None:
     """List installed apps for the organization."""
+    set_json_mode(json_output)
     oid = _resolve_org_id(org_id)
     params: dict = {"limit": limit, "offset": offset}
     if include_inactive:
@@ -83,7 +82,7 @@ def apps_list(
     resp = _api_request("get", f"{_APPS}/{oid}/apps", params=params)
 
     data = resp.json()
-    if ctx.obj["json"]:
+    if json_output:
         print_json(data)
         return
 
@@ -105,8 +104,10 @@ def apps_usage_event(
     org_id: str | None = typer.Option(None, "--org-id", help="Organization ID (auto-resolved from /whoami)"),
     event_type: str = typer.Option(..., "--event-type", help="Event type"),
     metadata: str | None = typer.Option(None, "--metadata", help="JSON metadata string"),
+    json_output: bool = JSON_OPTION,
 ) -> None:
     """Record a usage event for an app."""
+    set_json_mode(json_output)
     oid = _resolve_org_id(org_id)
     body: dict = {"event_type": event_type}
     if metadata is not None:
@@ -119,7 +120,7 @@ def apps_usage_event(
     resp = _api_request("post", f"{_APPS}/{oid}/apps/{app_slug}/events", json=body)
 
     data = resp.json()
-    if ctx.obj["json"]:
+    if json_output:
         print_json(data)
     else:
         rprint(f"[green]Recorded usage event for {app_slug}[/green]")
@@ -130,13 +131,15 @@ def apps_usage(
     ctx: typer.Context,
     app_slug: str = typer.Argument(..., help="App slug"),
     org_id: str | None = typer.Option(None, "--org-id", help="Organization ID (auto-resolved from /whoami)"),
+    json_output: bool = JSON_OPTION,
 ) -> None:
     """Get usage summary for an app."""
+    set_json_mode(json_output)
     oid = _resolve_org_id(org_id)
     resp = _api_request("get", f"{_APPS}/{oid}/apps/{app_slug}/usage")
 
     data = resp.json()
-    if ctx.obj["json"]:
+    if json_output:
         print_json(data)
         return
 
@@ -153,14 +156,16 @@ def apps_configs(
     app_slug: str = typer.Argument(..., help="App slug"),
     org_id: str | None = typer.Option(None, "--org-id", help="Organization ID (auto-resolved from /whoami)"),
     mask_secrets: bool = typer.Option(True, "--mask-secrets/--no-mask-secrets", help="Mask secret values"),
+    json_output: bool = JSON_OPTION,
 ) -> None:
     """List configuration for an app."""
+    set_json_mode(json_output)
     oid = _resolve_org_id(org_id)
     params: dict = {"mask_secrets": mask_secrets}
     resp = _api_request("get", f"{_APPS}/{oid}/apps/{app_slug}/configs", params=params)
 
     data = resp.json()
-    if ctx.obj["json"]:
+    if json_output:
         print_json(data)
         return
 
@@ -182,8 +187,10 @@ def apps_update_config(
     config_key: str = typer.Argument(..., help="Configuration key"),
     value: str = typer.Option(..., "--value", help="Configuration value"),
     org_id: str | None = typer.Option(None, "--org-id", help="Organization ID (auto-resolved from /whoami)"),
+    json_output: bool = JSON_OPTION,
 ) -> None:
     """Update a configuration value for an app."""
+    set_json_mode(json_output)
     oid = _resolve_org_id(org_id)
     resp = _api_request(
         "put",
@@ -192,7 +199,7 @@ def apps_update_config(
     )
 
     data = resp.json()
-    if ctx.obj["json"]:
+    if json_output:
         print_json(data)
     else:
         rprint(f"[green]Updated config {config_key} for {app_slug}[/green]")

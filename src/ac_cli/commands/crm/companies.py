@@ -5,7 +5,7 @@ from __future__ import annotations
 import typer
 from rich import print as rprint
 
-from ac_cli.commands._helpers import should_skip_confirm
+from ac_cli.commands._helpers import JSON_OPTION, set_json_mode, should_skip_confirm
 from ac_cli.commands.crm import _CRM, _api_request, _build_body
 from ac_cli.formatting import print_detail, print_json, print_table
 
@@ -17,12 +17,14 @@ def companies_list(
     ctx: typer.Context,
     limit: int = typer.Option(100, help="Max results"),
     offset: int = typer.Option(0, help="Offset"),
+    json_output: bool = JSON_OPTION,
 ) -> None:
     """List companies."""
+    set_json_mode(json_output)
     resp = _api_request("get", f"{_CRM}/companies", params={"limit": limit, "offset": offset})
 
     data = resp.json()
-    if ctx.obj["json"]:
+    if json_output:
         print_json(data)
         return
 
@@ -43,12 +45,14 @@ def companies_list(
 def companies_get(
     ctx: typer.Context,
     company_id: str = typer.Argument(..., help="Company ID"),
+    json_output: bool = JSON_OPTION,
 ) -> None:
     """Get a company by ID."""
+    set_json_mode(json_output)
     resp = _api_request("get", f"{_CRM}/companies/{company_id}")
 
     data = resp.json()
-    if ctx.obj["json"]:
+    if json_output:
         print_json(data)
         return
 
@@ -79,8 +83,10 @@ def companies_create(
     location: str | None = typer.Option(None, help="Location"),
     country: str | None = typer.Option(None, help="Country"),
     description: str | None = typer.Option(None, help="Description"),
+    json_output: bool = JSON_OPTION,
 ) -> None:
     """Create a new company."""
+    set_json_mode(json_output)
     body = _build_body(
         name=name, website=website, industry=industry,
         lifecycle_stage=lifecycle_stage, tags=tags,
@@ -93,7 +99,7 @@ def companies_create(
     resp = _api_request("post", f"{_CRM}/companies", json=body)
 
     data = resp.json()
-    if ctx.obj["json"]:
+    if json_output:
         print_json(data)
     else:
         rprint(f"[green]Created company:[/green] {data['name']} ({data['id']})")
@@ -111,8 +117,10 @@ def companies_update(
     location: str | None = typer.Option(None, help="Location"),
     country: str | None = typer.Option(None, help="Country"),
     description: str | None = typer.Option(None, help="Description"),
+    json_output: bool = JSON_OPTION,
 ) -> None:
     """Update an existing company."""
+    set_json_mode(json_output)
     body = _build_body(
         name=name, website=website, industry=industry,
         lifecycle_stage=lifecycle_stage, tags=tags,
@@ -126,7 +134,7 @@ def companies_update(
     resp = _api_request("patch", f"{_CRM}/companies/{company_id}", json=body)
 
     data = resp.json()
-    if ctx.obj["json"]:
+    if json_output:
         print_json(data)
     else:
         rprint(f"[green]Updated company:[/green] {data['name']} ({data['id']})")
@@ -136,8 +144,10 @@ def companies_update(
 def companies_delete(
     company_id: str = typer.Argument(..., help="Company ID"),
     yes: bool = typer.Option(False, "--yes", "-y", help="Skip confirmation"),
+    json_output: bool = JSON_OPTION,
 ) -> None:
     """Delete a company."""
+    set_json_mode(json_output)
     if not should_skip_confirm(yes):
         typer.confirm(f"Delete company {company_id}?", abort=True)
 

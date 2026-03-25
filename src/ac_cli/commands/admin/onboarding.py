@@ -5,7 +5,7 @@ from __future__ import annotations
 import typer
 from rich import print as rprint
 
-from ac_cli.commands._helpers import _api_request, _build_body, should_skip_confirm
+from ac_cli.commands._helpers import _api_request, _build_body, should_skip_confirm, JSON_OPTION, set_json_mode
 from ac_cli.commands.admin import _ADMIN
 from ac_cli.formatting import print_json, print_table
 
@@ -37,8 +37,10 @@ def onboarding_create(
     products_services: str | None = typer.Option(None, "--products-services", help="Products/services"),
     calendly_url: str | None = typer.Option(None, "--calendly-url", help="Calendly URL"),
     show_calendly: bool | None = typer.Option(None, "--show-calendly/--no-show-calendly", help="Show Calendly widget"),
+    json_output: bool = JSON_OPTION,
 ) -> None:
     """Create a new managed onboarding account."""
+    set_json_mode(json_output)
     body = _build_body(
         email=email,
         first_name=first_name,
@@ -67,7 +69,7 @@ def onboarding_create(
     resp = _api_request("post", f"{_ONBOARDING}/accounts", json=body)
 
     data = resp.json()
-    if ctx.obj["json"]:
+    if json_output:
         print_json(data)
         return
 
@@ -90,8 +92,10 @@ def onboarding_list(
     query: str | None = typer.Option(None, "--query", help="Search query"),
     page: int = typer.Option(1, help="Page number"),
     page_size: int = typer.Option(25, "--page-size", help="Page size"),
+    json_output: bool = JSON_OPTION,
 ) -> None:
     """List managed onboarding accounts."""
+    set_json_mode(json_output)
     params: dict = {"page": page, "page_size": page_size}
     if status:
         params["status"] = status
@@ -101,7 +105,7 @@ def onboarding_list(
     resp = _api_request("get", f"{_ONBOARDING}/accounts", params=params)
 
     data = resp.json()
-    if ctx.obj["json"]:
+    if json_output:
         print_json(data)
         return
 
@@ -122,12 +126,14 @@ def onboarding_list(
 def onboarding_get(
     ctx: typer.Context,
     org_id: str = typer.Argument(..., help="Organization ID"),
+    json_output: bool = JSON_OPTION,
 ) -> None:
     """Get details of a managed onboarding account."""
+    set_json_mode(json_output)
     resp = _api_request("get", f"{_ONBOARDING}/accounts/{org_id}")
 
     data = resp.json()
-    if ctx.obj["json"]:
+    if json_output:
         print_json(data)
     else:
         rprint(data)
@@ -152,8 +158,10 @@ def onboarding_send_link(
     ctx: typer.Context,
     org_id: str = typer.Argument(..., help="Organization ID"),
     send_email: bool = typer.Option(False, "--send-email", help="Send link via email"),
+    json_output: bool = JSON_OPTION,
 ) -> None:
     """Regenerate onboarding link and optionally send email."""
+    set_json_mode(json_output)
     resp = _api_request(
         "post",
         f"{_ONBOARDING}/accounts/{org_id}/send-link",
@@ -161,7 +169,7 @@ def onboarding_send_link(
     )
 
     data = resp.json()
-    if ctx.obj["json"]:
+    if json_output:
         print_json(data)
         return
 
@@ -174,12 +182,14 @@ def onboarding_send_link(
 def onboarding_impersonate(
     ctx: typer.Context,
     org_id: str = typer.Argument(..., help="Organization ID"),
+    json_output: bool = JSON_OPTION,
 ) -> None:
     """Get a magic link to impersonate a managed account."""
+    set_json_mode(json_output)
     resp = _api_request("post", f"{_ONBOARDING}/accounts/{org_id}/impersonate")
 
     data = resp.json()
-    if ctx.obj["json"]:
+    if json_output:
         print_json(data)
         return
 
@@ -190,12 +200,14 @@ def onboarding_impersonate(
 def onboarding_end_impersonation(
     ctx: typer.Context,
     org_id: str = typer.Argument(..., help="Organization ID"),
+    json_output: bool = JSON_OPTION,
 ) -> None:
     """End admin impersonation and sign out the managed account user."""
+    set_json_mode(json_output)
     resp = _api_request("post", f"{_ONBOARDING}/accounts/{org_id}/end-impersonate")
 
     data = resp.json()
-    if ctx.obj["json"]:
+    if json_output:
         print_json(data)
         return
 
@@ -211,8 +223,10 @@ def onboarding_activate(
         "--send-password-reset/--no-send-password-reset",
         help="Send password reset email",
     ),
+    json_output: bool = JSON_OPTION,
 ) -> None:
     """Activate a managed account."""
+    set_json_mode(json_output)
     resp = _api_request(
         "post",
         f"{_ONBOARDING}/accounts/{org_id}/activate",
@@ -220,7 +234,7 @@ def onboarding_activate(
     )
 
     data = resp.json()
-    if ctx.obj["json"]:
+    if json_output:
         print_json(data)
         return
 
@@ -233,12 +247,14 @@ def onboarding_activate(
 def onboarding_deactivate(
     ctx: typer.Context,
     org_id: str = typer.Argument(..., help="Organization ID"),
+    json_output: bool = JSON_OPTION,
 ) -> None:
     """Deactivate a managed account (revert to pending)."""
+    set_json_mode(json_output)
     resp = _api_request("post", f"{_ONBOARDING}/accounts/{org_id}/deactivate")
 
     data = resp.json()
-    if ctx.obj["json"]:
+    if json_output:
         print_json(data)
         return
 
@@ -255,8 +271,10 @@ def onboarding_update_config(
         None, "--show-calendly/--no-show-calendly", help="Show Calendly widget"
     ),
     calendly_url: str | None = typer.Option(None, "--calendly-url", help="Calendly URL"),
+    json_output: bool = JSON_OPTION,
 ) -> None:
     """Update onboarding configuration for a managed account."""
+    set_json_mode(json_output)
     body = _build_body(show_calendly=show_calendly, calendly_url=calendly_url)
 
     if not body:
@@ -266,7 +284,7 @@ def onboarding_update_config(
     resp = _api_request("patch", f"{_ONBOARDING}/accounts/{org_id}/config", json=body)
 
     data = resp.json()
-    if ctx.obj["json"]:
+    if json_output:
         print_json(data)
         return
 
@@ -276,12 +294,14 @@ def onboarding_update_config(
 @onboarding_app.command("get-settings")
 def onboarding_get_settings(
     ctx: typer.Context,
+    json_output: bool = JSON_OPTION,
 ) -> None:
     """Get global managed onboarding settings."""
+    set_json_mode(json_output)
     resp = _api_request("get", f"{_ONBOARDING}/settings")
 
     data = resp.json()
-    if ctx.obj["json"]:
+    if json_output:
         print_json(data)
     else:
         rprint(data)
@@ -295,8 +315,10 @@ def onboarding_update_settings(
     calendly_enabled: bool | None = typer.Option(
         None, "--calendly-enabled/--no-calendly-enabled", help="Enable Calendly globally"
     ),
+    json_output: bool = JSON_OPTION,
 ) -> None:
     """Update global managed onboarding settings."""
+    set_json_mode(json_output)
     body = _build_body(
         terms_html=terms_html,
         calendly_url=calendly_url,
@@ -310,7 +332,7 @@ def onboarding_update_settings(
     resp = _api_request("put", f"{_ONBOARDING}/settings", json=body)
 
     data = resp.json()
-    if ctx.obj["json"]:
+    if json_output:
         print_json(data)
         return
 

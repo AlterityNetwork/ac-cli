@@ -3,6 +3,7 @@
 import typer
 from rich import print as rprint
 
+from ac_cli.commands._helpers import JSON_OPTION, set_json_mode
 from ac_cli.commands.crm import _api_request
 from ac_cli.commands.envoy import _ENVOY
 from ac_cli.formatting import print_json
@@ -10,12 +11,14 @@ from ac_cli.formatting import print_json
 
 def dashboard_command(
     ctx: typer.Context,
+    json_output: bool = JSON_OPTION,
 ) -> None:
     """Show envoy outreach dashboard stats."""
+    set_json_mode(json_output)
     resp = _api_request("get", f"{_ENVOY}/dashboard/stats")
 
     data = resp.json()
-    if ctx.obj["json"]:
+    if json_output:
         print_json(data)
         return
 

@@ -24,7 +24,7 @@ def test_steps_create(invoke, mock_api):
 
 def test_steps_create_json(invoke, mock_api):
     mock_api.post("/api/v1/envoy/sequences/seq-1/steps").respond(201, json=SAMPLE_STEP)
-    result = invoke(["envoy", "--json", "steps", "create", "seq-1", "--type", "message"])
+    result = invoke(["envoy", "steps", "create", "seq-1", "--type", "message", "--json"])
     assert result.exit_code == 0
     parsed = json.loads(result.output)
     assert parsed["step_type"] == "message"
@@ -64,7 +64,7 @@ def test_steps_reorder(invoke, mock_api):
 
 def test_steps_reorder_json(invoke, mock_api):
     mock_api.put("/api/v1/envoy/sequences/seq-1/steps/reorder").respond(200, json={"reordered": True})
-    result = invoke(["envoy", "--json", "steps", "reorder", "seq-1", "--step-ids", "step-2,step-1"])
+    result = invoke(["envoy", "steps", "reorder", "seq-1", "--step-ids", "step-2,step-1", "--json"])
     assert result.exit_code == 0
     parsed = json.loads(result.output)
     assert parsed["reordered"] is True
@@ -84,7 +84,7 @@ def test_steps_stats(invoke, mock_api):
 def test_steps_stats_json(invoke, mock_api):
     stats = [{"step_order": 1, "step_type": "message", "total": 50, "sent": 48, "replied": 12, "bounced": 2}]
     mock_api.get("/api/v1/envoy/sequences/seq-1/step-stats").respond(200, json=stats)
-    result = invoke(["envoy", "--json", "steps", "stats", "seq-1"])
+    result = invoke(["envoy", "steps", "stats", "seq-1", "--json"])
     assert result.exit_code == 0
     parsed = json.loads(result.output)
     assert parsed[0]["total"] == 50

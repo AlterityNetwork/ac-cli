@@ -23,7 +23,7 @@ def test_schedules_list(invoke, mock_api):
 
 def test_schedules_list_json(invoke, mock_api):
     mock_api.get("/api/v1/workflows/wf-1/schedules").respond(200, json=[SAMPLE_SCHEDULE])
-    result = invoke(["workflows", "--json", "schedules", "list", "wf-1"])
+    result = invoke(["workflows", "schedules", "list", "wf-1", "--json"])
     assert result.exit_code == 0
     parsed = json.loads(result.output)
     assert parsed[0]["id"] == "sched-1"
@@ -45,7 +45,7 @@ def test_schedules_create(invoke, mock_api):
 
 def test_schedules_create_json(invoke, mock_api):
     mock_api.post("/api/v1/workflows/wf-1/schedule").respond(201, json=SAMPLE_SCHEDULE)
-    result = invoke(["workflows", "--json", "schedules", "create", "wf-1", "--cron", "0 9 * * 1-5"])
+    result = invoke(["workflows", "schedules", "create", "wf-1", "--cron", "0 9 * * 1-5", "--json"])
     assert result.exit_code == 0
     parsed = json.loads(result.output)
     assert parsed["id"] == "sched-1"

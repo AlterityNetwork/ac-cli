@@ -36,7 +36,7 @@ def test_outbox_pending_json(invoke, mock_api):
     mock_api.get("/api/v1/envoy/outbox/pending").respond(
         200, json={"data": [SAMPLE_PENDING], "total": 1, "limit": 50, "offset": 0, "has_more": False}
     )
-    result = invoke(["envoy", "--json", "outbox", "pending"])
+    result = invoke(["envoy", "outbox", "pending", "--json"])
     assert result.exit_code == 0
     parsed = json.loads(result.output)
     assert parsed["data"][0]["id"] == "draft-1"
@@ -75,7 +75,7 @@ def test_outbox_sent_json(invoke, mock_api):
     mock_api.get("/api/v1/envoy/outbox/sent").respond(
         200, json={"data": [SAMPLE_SENT], "total": 1, "limit": 50, "offset": 0, "has_more": False}
     )
-    result = invoke(["envoy", "--json", "outbox", "sent"])
+    result = invoke(["envoy", "outbox", "sent", "--json"])
     assert result.exit_code == 0
     parsed = json.loads(result.output)
     assert parsed["data"][0]["status"] == "delivered"
@@ -106,7 +106,7 @@ def test_outbox_step_drafts_json(invoke, mock_api):
     mock_api.get("/api/v1/envoy/outbox/step-drafts").respond(
         200, json={"data": [SAMPLE_PENDING], "total": 1, "limit": 50, "offset": 0, "has_more": False}
     )
-    result = invoke(["envoy", "--json", "outbox", "step-drafts", "--sequence-id", "seq-1", "--step-id", "step-1"])
+    result = invoke(["envoy", "outbox", "step-drafts", "--sequence-id", "seq-1", "--step-id", "step-1", "--json"])
     assert result.exit_code == 0
     parsed = json.loads(result.output)
     assert parsed["data"][0]["id"] == "draft-1"
@@ -145,7 +145,7 @@ def test_outbox_approve(invoke, mock_api):
 
 def test_outbox_approve_json(invoke, mock_api):
     mock_api.post("/api/v1/envoy/outbox/pending/draft-1/approve").respond(200, json={"sent": True})
-    result = invoke(["envoy", "--json", "outbox", "approve", "draft-1"])
+    result = invoke(["envoy", "outbox", "approve", "draft-1", "--json"])
     assert result.exit_code == 0
     parsed = json.loads(result.output)
     assert parsed["sent"] is True
@@ -161,7 +161,7 @@ def test_outbox_reject(invoke, mock_api):
 
 def test_outbox_reject_json(invoke, mock_api):
     mock_api.post("/api/v1/envoy/outbox/pending/draft-1/reject").respond(200, json={"rejected": True})
-    result = invoke(["envoy", "--json", "outbox", "reject", "draft-1", "--action", "remove_recipient"])
+    result = invoke(["envoy", "outbox", "reject", "draft-1", "--action", "remove_recipient", "--json"])
     assert result.exit_code == 0
     parsed = json.loads(result.output)
     assert parsed["rejected"] is True
@@ -176,7 +176,7 @@ def test_outbox_regenerate(invoke, mock_api):
 
 def test_outbox_regenerate_json(invoke, mock_api):
     mock_api.post("/api/v1/envoy/outbox/pending/draft-1/regenerate").respond(200, json={"regenerated": True})
-    result = invoke(["envoy", "--json", "outbox", "regenerate", "draft-1"])
+    result = invoke(["envoy", "outbox", "regenerate", "draft-1", "--json"])
     assert result.exit_code == 0
     parsed = json.loads(result.output)
     assert parsed["regenerated"] is True

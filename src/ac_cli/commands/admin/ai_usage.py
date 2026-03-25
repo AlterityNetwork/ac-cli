@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import typer
 
-from ac_cli.commands._helpers import _api_request
+from ac_cli.commands._helpers import _api_request, JSON_OPTION, set_json_mode
 from ac_cli.commands.admin import _ADMIN
 from ac_cli.formatting import print_detail, print_json, print_table
 
@@ -17,8 +17,10 @@ def ai_usage_summary(
     start_date: str | None = typer.Option(None, "--start-date", help="Start date (YYYY-MM-DD)"),
     end_date: str | None = typer.Option(None, "--end-date", help="End date (YYYY-MM-DD)"),
     org_id: str | None = typer.Option(None, "--org-id", help="Filter by organization ID"),
+    json_output: bool = JSON_OPTION,
 ) -> None:
     """Show AI usage summary."""
+    set_json_mode(json_output)
     params: dict = {}
     if start_date:
         params["start_date"] = start_date
@@ -30,7 +32,7 @@ def ai_usage_summary(
     resp = _api_request("get", f"{_ADMIN}/ai-usage/summary", params=params)
 
     data = resp.json()
-    if ctx.obj["json"]:
+    if json_output:
         print_json(data)
         return
 
@@ -66,8 +68,10 @@ def ai_usage_users(
     page_size: int = typer.Option(50, "--page-size", help="Page size"),
     search: str | None = typer.Option(None, help="Search query"),
     org_id: str | None = typer.Option(None, "--org-id", help="Filter by organization ID"),
+    json_output: bool = JSON_OPTION,
 ) -> None:
     """List AI usage by user."""
+    set_json_mode(json_output)
     params: dict = {"page": page, "page_size": page_size}
     if start_date:
         params["start_date"] = start_date
@@ -85,7 +89,7 @@ def ai_usage_users(
     resp = _api_request("get", f"{_ADMIN}/ai-usage/users", params=params)
 
     data = resp.json()
-    if ctx.obj["json"]:
+    if json_output:
         print_json(data)
         return
 
@@ -110,8 +114,10 @@ def ai_usage_user(
     start_date: str | None = typer.Option(None, "--start-date", help="Start date (YYYY-MM-DD)"),
     end_date: str | None = typer.Option(None, "--end-date", help="End date (YYYY-MM-DD)"),
     org_id: str | None = typer.Option(None, "--org-id", help="Filter by organization ID"),
+    json_output: bool = JSON_OPTION,
 ) -> None:
     """Get AI usage details for a specific user."""
+    set_json_mode(json_output)
     params: dict = {}
     if start_date:
         params["start_date"] = start_date
@@ -123,7 +129,7 @@ def ai_usage_user(
     resp = _api_request("get", f"{_ADMIN}/ai-usage/users/{user_id}", params=params)
 
     data = resp.json()
-    if ctx.obj["json"]:
+    if json_output:
         print_json(data)
         return
 
@@ -169,8 +175,10 @@ def ai_usage_by_model(
     start_date: str | None = typer.Option(None, "--start-date", help="Start date (YYYY-MM-DD)"),
     end_date: str | None = typer.Option(None, "--end-date", help="End date (YYYY-MM-DD)"),
     org_id: str | None = typer.Option(None, "--org-id", help="Filter by organization ID"),
+    json_output: bool = JSON_OPTION,
 ) -> None:
     """Show AI usage breakdown by model."""
+    set_json_mode(json_output)
     params: dict = {}
     if start_date:
         params["start_date"] = start_date
@@ -182,7 +190,7 @@ def ai_usage_by_model(
     resp = _api_request("get", f"{_ADMIN}/ai-usage/by-model", params=params)
 
     data = resp.json()
-    if ctx.obj["json"]:
+    if json_output:
         print_json(data)
         return
 
@@ -206,8 +214,10 @@ def ai_usage_by_workflow(
     start_date: str | None = typer.Option(None, "--start-date", help="Start date (YYYY-MM-DD)"),
     end_date: str | None = typer.Option(None, "--end-date", help="End date (YYYY-MM-DD)"),
     org_id: str | None = typer.Option(None, "--org-id", help="Filter by organization ID"),
+    json_output: bool = JSON_OPTION,
 ) -> None:
     """Show AI usage breakdown by workflow."""
+    set_json_mode(json_output)
     params: dict = {}
     if start_date:
         params["start_date"] = start_date
@@ -219,7 +229,7 @@ def ai_usage_by_workflow(
     resp = _api_request("get", f"{_ADMIN}/ai-usage/by-workflow", params=params)
 
     data = resp.json()
-    if ctx.obj["json"]:
+    if json_output:
         print_json(data)
         return
 
@@ -247,8 +257,10 @@ def ai_usage_details(
     model_id: str | None = typer.Option(None, "--model-id", help="Filter by model ID"),
     user_id: str | None = typer.Option(None, "--user-id", help="Filter by user ID"),
     workflow_run_id: str | None = typer.Option(None, "--workflow-run-id", help="Filter by workflow run ID"),
+    json_output: bool = JSON_OPTION,
 ) -> None:
     """List detailed AI usage records."""
+    set_json_mode(json_output)
     params: dict = {"limit": limit, "offset": offset}
     if start_date:
         params["start_date"] = start_date
@@ -266,7 +278,7 @@ def ai_usage_details(
     resp = _api_request("get", f"{_ADMIN}/ai-usage/details", params=params)
 
     data = resp.json()
-    if ctx.obj["json"]:
+    if json_output:
         print_json(data)
         return
 

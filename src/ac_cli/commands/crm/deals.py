@@ -5,7 +5,7 @@ from __future__ import annotations
 import typer
 from rich import print as rprint
 
-from ac_cli.commands._helpers import should_skip_confirm
+from ac_cli.commands._helpers import JSON_OPTION, set_json_mode, should_skip_confirm
 from ac_cli.commands.crm import _CRM, _api_request, _build_body
 from ac_cli.formatting import print_detail, print_json, print_table
 
@@ -20,8 +20,10 @@ def deals_list(
     owner_id: str | None = typer.Option(None, "--owner-id", help="Filter by owner"),
     limit: int = typer.Option(100, help="Max results"),
     offset: int = typer.Option(0, help="Offset"),
+    json_output: bool = JSON_OPTION,
 ) -> None:
     """List deals."""
+    set_json_mode(json_output)
     params: dict = {"limit": limit, "offset": offset}
     if stage:
         params["stage"] = stage
@@ -33,7 +35,7 @@ def deals_list(
     resp = _api_request("get", f"{_CRM}/deals", params=params)
 
     data = resp.json()
-    if ctx.obj["json"]:
+    if json_output:
         print_json(data)
         return
 
@@ -56,12 +58,14 @@ def deals_list(
 def deals_get(
     ctx: typer.Context,
     deal_id: str = typer.Argument(..., help="Deal ID"),
+    json_output: bool = JSON_OPTION,
 ) -> None:
     """Get a deal by ID."""
+    set_json_mode(json_output)
     resp = _api_request("get", f"{_CRM}/deals/{deal_id}")
 
     data = resp.json()
-    if ctx.obj["json"]:
+    if json_output:
         print_json(data)
         return
 
@@ -97,8 +101,10 @@ def deals_create(
     expected_close_date: str | None = typer.Option(None, "--expected-close-date", help="ISO date"),
     tags: str | None = typer.Option(None, help="Comma-separated tags"),
     next_steps: str | None = typer.Option(None, "--next-steps", help="Next steps"),
+    json_output: bool = JSON_OPTION,
 ) -> None:
     """Create a new deal."""
+    set_json_mode(json_output)
     body = _build_body(
         name=name, stage=stage, amount=amount, currency=currency,
         company_id=company_id, expected_close_date=expected_close_date,
@@ -113,7 +119,7 @@ def deals_create(
     resp = _api_request("post", f"{_CRM}/deals", json=body)
 
     data = resp.json()
-    if ctx.obj["json"]:
+    if json_output:
         print_json(data)
     else:
         rprint(f"[green]Created deal:[/green] {data['name']} ({data['id']})")
@@ -132,8 +138,10 @@ def deals_update(
     expected_close_date: str | None = typer.Option(None, "--expected-close-date", help="ISO date"),
     tags: str | None = typer.Option(None, help="Comma-separated tags"),
     next_steps: str | None = typer.Option(None, "--next-steps", help="Next steps"),
+    json_output: bool = JSON_OPTION,
 ) -> None:
     """Update an existing deal."""
+    set_json_mode(json_output)
     body = _build_body(
         name=name, stage=stage, amount=amount, currency=currency,
         company_id=company_id, expected_close_date=expected_close_date,
@@ -149,7 +157,7 @@ def deals_update(
     resp = _api_request("patch", f"{_CRM}/deals/{deal_id}", json=body)
 
     data = resp.json()
-    if ctx.obj["json"]:
+    if json_output:
         print_json(data)
     else:
         rprint(f"[green]Updated deal:[/green] {data['name']} ({data['id']})")
@@ -160,12 +168,14 @@ def deals_move(
     ctx: typer.Context,
     deal_id: str = typer.Argument(..., help="Deal ID"),
     stage: str = typer.Option(..., help="New stage"),
+    json_output: bool = JSON_OPTION,
 ) -> None:
     """Move a deal to a new stage."""
+    set_json_mode(json_output)
     resp = _api_request("patch", f"{_CRM}/deals/{deal_id}/stage", json={"stage": stage})
 
     data = resp.json()
-    if ctx.obj["json"]:
+    if json_output:
         print_json(data)
     else:
         rprint(f"[green]Moved deal to {data['stage']}:[/green] {data['name']} ({data['id']})")
@@ -176,13 +186,15 @@ def deals_order(
     ctx: typer.Context,
     stage: str = typer.Option(..., help="Stage to reorder deals in"),
     deal_ids: str = typer.Option(..., "--deal-ids", help="Comma-separated ordered deal IDs"),
+    json_output: bool = JSON_OPTION,
 ) -> None:
     """Set the display order of deals within a stage."""
+    set_json_mode(json_output)
     ids_list = [d.strip() for d in deal_ids.split(",")]
     resp = _api_request("post", f"{_CRM}/deals/order", json={"stage": stage, "deal_ids": ids_list})
 
     data = resp.json()
-    if ctx.obj["json"]:
+    if json_output:
         print_json(data)
     else:
         rprint(f"[green]Reordered {len(ids_list)} deals in stage '{stage}'[/green]")

@@ -36,7 +36,7 @@ def test_images_upload(invoke, mock_api, tmp_path):
 def test_images_upload_json(invoke, mock_api, tmp_path):
     img = _create_image(tmp_path)
     mock_api.post("/api/v1/files/images/upload").respond(200, json=SAMPLE_UPLOAD_RESPONSE)
-    result = invoke(["files", "--json", "images", "upload", str(img), "--category", "avatars"])
+    result = invoke(["files", "images", "upload", str(img), "--category", "avatars", "--json"])
     assert result.exit_code == 0
     parsed = json.loads(result.output)
     assert parsed["key"] == "org-456/avatars/photo.png"
@@ -116,7 +116,7 @@ def test_images_delete_json(invoke, mock_api):
     mock_api.delete("/api/v1/files/images/org-456/avatars/photo.png").respond(
         200, json=SAMPLE_DELETE_RESPONSE,
     )
-    result = invoke(["files", "--json", "images", "delete", "org-456/avatars/photo.png", "--yes"])
+    result = invoke(["files", "images", "delete", "org-456/avatars/photo.png", "--yes", "--json"])
     assert result.exit_code == 0
     parsed = json.loads(result.output)
     assert parsed["deleted"] is True

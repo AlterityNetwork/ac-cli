@@ -47,7 +47,7 @@ def test_app_usage_summary(invoke, mock_api):
 
 def test_app_usage_summary_json(invoke, mock_api):
     mock_api.get("/api/v1/admin/app-usage/summary").respond(200, json=SAMPLE_SUMMARY)
-    result = invoke(["admin", "--json", "app-usage", "summary"])
+    result = invoke(["admin", "app-usage", "summary", "--json"])
     assert result.exit_code == 0
     parsed = json.loads(result.output)
     assert parsed["total_opens"] == 150
@@ -73,7 +73,7 @@ def test_app_usage_users(invoke, mock_api):
 
 def test_app_usage_users_json(invoke, mock_api):
     mock_api.get("/api/v1/admin/app-usage/users").respond(200, json=SAMPLE_USERS)
-    result = invoke(["admin", "--json", "app-usage", "users"])
+    result = invoke(["admin", "app-usage", "users", "--json"])
     assert result.exit_code == 0
     parsed = json.loads(result.output)
     assert parsed["items"][0]["email"] == "alice@example.com"
@@ -102,7 +102,7 @@ def test_app_usage_user(invoke, mock_api):
 
 def test_app_usage_user_json(invoke, mock_api):
     mock_api.get("/api/v1/admin/app-usage/users/user-123").respond(200, json=SAMPLE_USER_DETAIL)
-    result = invoke(["admin", "--json", "app-usage", "user", "user-123"])
+    result = invoke(["admin", "app-usage", "user", "user-123", "--json"])
     assert result.exit_code == 0
     parsed = json.loads(result.output)
     assert parsed["email"] == "alice@example.com"

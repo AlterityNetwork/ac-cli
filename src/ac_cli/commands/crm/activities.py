@@ -7,7 +7,7 @@ from datetime import datetime, timezone
 import typer
 from rich import print as rprint
 
-from ac_cli.commands._helpers import should_skip_confirm
+from ac_cli.commands._helpers import JSON_OPTION, set_json_mode, should_skip_confirm
 from ac_cli.commands.crm import _CRM, _api_request, _build_body
 from ac_cli.formatting import print_detail, print_json, print_table
 
@@ -25,8 +25,10 @@ def activities_list(
     sort_by: str | None = typer.Option(None, "--sort-by", help="Sort field: due_date or created_at"),
     limit: int = typer.Option(100, help="Max results"),
     offset: int = typer.Option(0, help="Offset"),
+    json_output: bool = JSON_OPTION,
 ) -> None:
     """List activities."""
+    set_json_mode(json_output)
     params: dict = {"limit": limit, "offset": offset}
     if deal_id:
         params["deal_id"] = deal_id
@@ -44,7 +46,7 @@ def activities_list(
     resp = _api_request("get", f"{_CRM}/activities", params=params)
 
     data = resp.json()
-    if ctx.obj["json"]:
+    if json_output:
         print_json(data)
         return
 
@@ -68,12 +70,14 @@ def activities_list(
 def activities_get(
     ctx: typer.Context,
     activity_id: str = typer.Argument(..., help="Activity ID"),
+    json_output: bool = JSON_OPTION,
 ) -> None:
     """Get an activity by ID."""
+    set_json_mode(json_output)
     resp = _api_request("get", f"{_CRM}/activities/{activity_id}")
 
     data = resp.json()
-    if ctx.obj["json"]:
+    if json_output:
         print_json(data)
         return
 
@@ -106,8 +110,10 @@ def activities_create(
     company_id: str | None = typer.Option(None, "--company-id", help="Company ID"),
     contact_id: str | None = typer.Option(None, "--contact-id", help="Contact ID"),
     description: str | None = typer.Option(None, help="Description"),
+    json_output: bool = JSON_OPTION,
 ) -> None:
     """Create a new activity."""
+    set_json_mode(json_output)
     body = _build_body(
         type=activity_type, title=title, due_date=due_date,
         priority=priority, deal_id=deal_id, company_id=company_id,
@@ -120,7 +126,7 @@ def activities_create(
     resp = _api_request("post", f"{_CRM}/activities", json=body)
 
     data = resp.json()
-    if ctx.obj["json"]:
+    if json_output:
         print_json(data)
     else:
         rprint(f"[green]Created activity:[/green] {data['title']} ({data['id']})")
@@ -139,8 +145,10 @@ def activities_update(
     deal_id: str | None = typer.Option(None, "--deal-id", help="Deal ID"),
     company_id: str | None = typer.Option(None, "--company-id", help="Company ID"),
     contact_id: str | None = typer.Option(None, "--contact-id", help="Contact ID"),
+    json_output: bool = JSON_OPTION,
 ) -> None:
     """Update an existing activity."""
+    set_json_mode(json_output)
     body = _build_body(
         title=title, type=activity_type, status=status, priority=priority,
         due_date=due_date, description=description, deal_id=deal_id,
@@ -154,7 +162,7 @@ def activities_update(
     resp = _api_request("patch", f"{_CRM}/activities/{activity_id}", json=body)
 
     data = resp.json()
-    if ctx.obj["json"]:
+    if json_output:
         print_json(data)
     else:
         rprint(f"[green]Updated activity:[/green] {data['title']} ({data['id']})")
@@ -164,8 +172,10 @@ def activities_update(
 def activities_complete(
     ctx: typer.Context,
     activity_id: str = typer.Argument(..., help="Activity ID"),
+    json_output: bool = JSON_OPTION,
 ) -> None:
     """Mark an activity as completed."""
+    set_json_mode(json_output)
     now = datetime.now(timezone.utc).isoformat()
     resp = _api_request(
         "patch",
@@ -174,7 +184,7 @@ def activities_complete(
     )
 
     data = resp.json()
-    if ctx.obj["json"]:
+    if json_output:
         print_json(data)
     else:
         rprint(f"[green]Completed activity:[/green] {data['title']} ({data['id']})")

@@ -5,7 +5,7 @@ from __future__ import annotations
 import typer
 from rich import print as rprint
 
-from ac_cli.commands._helpers import _api_request, _build_body, should_skip_confirm
+from ac_cli.commands._helpers import _api_request, _build_body, should_skip_confirm, JSON_OPTION, set_json_mode
 from ac_cli.commands.admin import _ADMIN
 from ac_cli.formatting import print_detail, print_json, print_table
 
@@ -16,12 +16,14 @@ demo_app = typer.Typer(help="Demo account management")
 def demo_scrape_website(
     ctx: typer.Context,
     url: str = typer.Option(..., help="URL to scrape"),
+    json_output: bool = JSON_OPTION,
 ) -> None:
     """Scrape a website for company data."""
+    set_json_mode(json_output)
     resp = _api_request("post", f"{_ADMIN}/demo/scrape-website", json={"url": url})
 
     data = resp.json()
-    if ctx.obj["json"]:
+    if json_output:
         print_json(data)
     else:
         rprint(data)
@@ -32,14 +34,16 @@ def demo_generate_org(
     ctx: typer.Context,
     industry: str | None = typer.Option(None, help="Industry"),
     size: str | None = typer.Option(None, help="Organization size"),
+    json_output: bool = JSON_OPTION,
 ) -> None:
     """Generate a random demo organization."""
+    set_json_mode(json_output)
     body = _build_body(industry=industry, size=size)
 
     resp = _api_request("post", f"{_ADMIN}/demo/generate-random-org", json=body)
 
     data = resp.json()
-    if ctx.obj["json"]:
+    if json_output:
         print_json(data)
     else:
         rprint(data)
@@ -49,14 +53,16 @@ def demo_generate_org(
 def demo_generate_profile(
     ctx: typer.Context,
     industry: str | None = typer.Option(None, help="Industry"),
+    json_output: bool = JSON_OPTION,
 ) -> None:
     """Generate a random demo profile."""
+    set_json_mode(json_output)
     body = _build_body(industry=industry)
 
     resp = _api_request("post", f"{_ADMIN}/demo/generate-random-profile", json=body)
 
     data = resp.json()
-    if ctx.obj["json"]:
+    if json_output:
         print_json(data)
     else:
         rprint(data)
@@ -67,14 +73,16 @@ def demo_prepare_account(
     ctx: typer.Context,
     org_name: str = typer.Option(..., "--org-name", help="Organization name"),
     template: str | None = typer.Option(None, help="Account template"),
+    json_output: bool = JSON_OPTION,
 ) -> None:
     """Prepare a demo account."""
+    set_json_mode(json_output)
     body = _build_body(org_name=org_name, template=template)
 
     resp = _api_request("post", f"{_ADMIN}/demo/prepare-account", json=body)
 
     data = resp.json()
-    if ctx.obj["json"]:
+    if json_output:
         print_json(data)
     else:
         rprint(data)
@@ -87,8 +95,10 @@ def demo_list_accounts(
     page_size: int = typer.Option(50, "--page-size", help="Page size"),
     sort: str | None = typer.Option(None, help="Sort field"),
     order: str | None = typer.Option(None, help="Sort order (asc/desc)"),
+    json_output: bool = JSON_OPTION,
 ) -> None:
     """List demo accounts."""
+    set_json_mode(json_output)
     params: dict = {"page": page, "page_size": page_size}
     if sort:
         params["sort"] = sort
@@ -98,7 +108,7 @@ def demo_list_accounts(
     resp = _api_request("get", f"{_ADMIN}/demo/accounts", params=params)
 
     data = resp.json()
-    if ctx.obj["json"]:
+    if json_output:
         print_json(data)
         return
 
@@ -118,12 +128,14 @@ def demo_list_accounts(
 def demo_get_account(
     ctx: typer.Context,
     org_id: str = typer.Argument(..., help="Organization ID"),
+    json_output: bool = JSON_OPTION,
 ) -> None:
     """Get a demo account by organization ID."""
+    set_json_mode(json_output)
     resp = _api_request("get", f"{_ADMIN}/demo/accounts/{org_id}")
 
     data = resp.json()
-    if ctx.obj["json"]:
+    if json_output:
         print_json(data)
     else:
         rprint(data)
@@ -135,8 +147,10 @@ def demo_update_account(
     org_id: str = typer.Argument(..., help="Organization ID"),
     status: str | None = typer.Option(None, help="Account status"),
     notes: str | None = typer.Option(None, help="Account notes"),
+    json_output: bool = JSON_OPTION,
 ) -> None:
     """Update a demo account."""
+    set_json_mode(json_output)
     body = _build_body(status=status, notes=notes)
 
     if not body:
@@ -146,7 +160,7 @@ def demo_update_account(
     resp = _api_request("patch", f"{_ADMIN}/demo/accounts/{org_id}", json=body)
 
     data = resp.json()
-    if ctx.obj["json"]:
+    if json_output:
         print_json(data)
     else:
         rprint(f"[green]Updated demo account {org_id}[/green]")
@@ -186,12 +200,14 @@ def demo_cleanup(
 @demo_app.command("stats")
 def demo_stats(
     ctx: typer.Context,
+    json_output: bool = JSON_OPTION,
 ) -> None:
     """Show demo account statistics."""
+    set_json_mode(json_output)
     resp = _api_request("get", f"{_ADMIN}/demo/stats")
 
     data = resp.json()
-    if ctx.obj["json"]:
+    if json_output:
         print_json(data)
     else:
         rprint(data)

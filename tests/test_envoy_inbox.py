@@ -37,7 +37,7 @@ def test_inbox_list_json(invoke, mock_api):
     mock_api.get("/api/v1/envoy/inbox/threads").respond(
         200, json={"data": [SAMPLE_THREAD], "total": 1, "limit": 50, "offset": 0, "has_more": False}
     )
-    result = invoke(["envoy", "--json", "inbox", "list"])
+    result = invoke(["envoy", "inbox", "list", "--json"])
     assert result.exit_code == 0
     parsed = json.loads(result.output)
     assert parsed["data"][0]["id"] == "t-1"
@@ -72,7 +72,7 @@ def test_inbox_messages(invoke, mock_api):
 
 def test_inbox_messages_json(invoke, mock_api):
     mock_api.get("/api/v1/envoy/inbox/threads/t-1/messages").respond(200, json={"messages": [SAMPLE_MESSAGE]})
-    result = invoke(["envoy", "--json", "inbox", "messages", "t-1"])
+    result = invoke(["envoy", "inbox", "messages", "t-1", "--json"])
     assert result.exit_code == 0
     parsed = json.loads(result.output)
     assert parsed["messages"][0]["id"] == "m-1"

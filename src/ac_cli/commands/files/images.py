@@ -9,7 +9,7 @@ from pathlib import Path
 import typer
 from rich import print as rprint
 
-from ac_cli.commands._helpers import should_skip_confirm
+from ac_cli.commands._helpers import should_skip_confirm, JSON_OPTION, set_json_mode
 
 from ac_cli.commands._helpers import _api_request
 from ac_cli.commands.files import _FILES
@@ -34,8 +34,10 @@ def images_upload(
     ctx: typer.Context,
     file_path: Path = typer.Argument(..., help="Path to the image file"),
     category: ImageCategory = typer.Option(..., "--category", "-c", help="Image category"),
+    json_output: bool = JSON_OPTION,
 ) -> None:
     """Upload an image file."""
+    set_json_mode(json_output)
     if not file_path.exists():
         rprint(f"[red]Error:[/red] File not found: {file_path}")
         raise typer.Exit(code=1)
@@ -61,7 +63,7 @@ def images_upload(
         )
 
     data = resp.json()
-    if ctx.obj["json"]:
+    if json_output:
         print_json(data)
     else:
         print_detail(data, [
@@ -79,15 +81,17 @@ def images_delete(
     ctx: typer.Context,
     key: str = typer.Argument(..., help="R2 object key of the image"),
     yes: bool = typer.Option(False, "--yes", "-y", help="Skip confirmation"),
+    json_output: bool = JSON_OPTION,
 ) -> None:
     """Delete an image by its R2 object key."""
+    set_json_mode(json_output)
     if not should_skip_confirm(yes):
         typer.confirm(f"Delete image {key}?", abort=True)
 
     resp = _api_request("delete", f"{_FILES}/images/{key}")
 
     data = resp.json()
-    if ctx.obj["json"]:
+    if json_output:
         print_json(data)
     else:
         rprint(f"[green]Deleted image:[/green] {key}")

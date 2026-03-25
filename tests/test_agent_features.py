@@ -13,7 +13,7 @@ from tests.conftest import WHOAMI_RESPONSE
 def test_json_error_404(invoke, mock_api):
     """When --json is active, 404 errors return structured JSON."""
     mock_api.get("/api/v1/crm/companies/bad").respond(404, json={"detail": "Not found"})
-    result = invoke(["crm", "--json", "companies", "get", "bad"])
+    result = invoke(["crm", "companies", "get", "bad", "--json"])
     assert result.exit_code == 3
     parsed = json.loads(result.output)
     assert parsed["error"] is True
@@ -24,7 +24,7 @@ def test_json_error_404(invoke, mock_api):
 def test_json_error_403(invoke, mock_api):
     """When --json is active, 403 errors return structured JSON with exit code 4."""
     mock_api.get("/api/v1/crm/companies").respond(403, json={"detail": "Forbidden"})
-    result = invoke(["crm", "--json", "companies", "list"])
+    result = invoke(["crm", "companies", "list", "--json"])
     assert result.exit_code == 4
     parsed = json.loads(result.output)
     assert parsed["error"] is True
@@ -35,7 +35,7 @@ def test_json_error_422(invoke, mock_api):
     """When --json is active, 422 errors return structured JSON with exit code 2."""
     mock_api.post("/api/v1/crm/companies").respond(422, json={"detail": "Validation error"})
     mock_api.get("/whoami").respond(200, json=WHOAMI_RESPONSE)
-    result = invoke(["crm", "--json", "companies", "create", "--name", "Bad"])
+    result = invoke(["crm", "companies", "create", "--name", "Bad", "--json"])
     assert result.exit_code == 2
     parsed = json.loads(result.output)
     assert parsed["error"] is True
@@ -46,7 +46,7 @@ def test_json_error_409(invoke, mock_api):
     """When --json is active, 409 errors return structured JSON with exit code 5."""
     mock_api.get("/whoami").respond(200, json=WHOAMI_RESPONSE)
     mock_api.post("/api/v1/orgs/org-456/apps/email-finder").respond(409, json={"detail": "Already installed"})
-    result = invoke(["apps", "--json", "install", "email-finder"])
+    result = invoke(["apps", "install", "email-finder", "--json"])
     assert result.exit_code == 5
     parsed = json.loads(result.output)
     assert parsed["error"] is True
@@ -100,7 +100,7 @@ def test_health_check_json(invoke, mock_api, mock_config):
 
     with respx.mock:
         respx.get("http://test-api:8008/health").respond(200, json={"status": "healthy"})
-        result = invoke(["health", "--json", "check", "--api-url", "http://test-api:8008"])
+        result = invoke(["health", "check", "--api-url", "http://test-api:8008", "--json"])
     assert result.exit_code == 0
     parsed = json.loads(result.output)
     assert parsed["status"] == "healthy"
@@ -112,7 +112,7 @@ def test_health_check_json_error(invoke, mock_api, mock_config):
 
     with respx.mock:
         respx.get("http://test-api:8008/health").respond(503, json={"status": "unhealthy"})
-        result = invoke(["health", "--json", "check", "--api-url", "http://test-api:8008"])
+        result = invoke(["health", "check", "--api-url", "http://test-api:8008", "--json"])
     assert result.exit_code == 1
     parsed = json.loads(result.output)
     assert parsed["error"] is True

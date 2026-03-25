@@ -27,7 +27,7 @@ def test_styles_list(invoke, mock_api):
 
 def test_styles_list_json(invoke, mock_api):
     mock_api.get("/api/v1/writing-styles").respond(200, json={"data": [SAMPLE_STYLE], "total": 1})
-    result = invoke(["styles", "--json", "list"])
+    result = invoke(["styles", "list", "--json"])
     assert result.exit_code == 0
     parsed = json.loads(result.output)
     assert parsed["data"][0]["name"] == "Professional"
@@ -57,7 +57,7 @@ def test_styles_create(invoke, mock_api):
 def test_styles_create_json(invoke, mock_api):
     mock_api.get("/whoami").respond(200, json=WHOAMI_RESPONSE)
     mock_api.post("/api/v1/writing-styles").respond(201, json=SAMPLE_STYLE)
-    result = invoke(["styles", "--json", "create", "--name", "Professional"])
+    result = invoke(["styles", "create", "--name", "Professional", "--json"])
     assert result.exit_code == 0
     parsed = json.loads(result.output)
     assert parsed["name"] == "Professional"
@@ -119,7 +119,7 @@ def test_styles_analyze(invoke, mock_api):
 
 def test_styles_analyze_json(invoke, mock_api):
     mock_api.post("/api/v1/writing-styles/analyze").respond(200, json={"analysis": "Good tone"})
-    result = invoke(["styles", "--json", "analyze", "--text", "Hello world"])
+    result = invoke(["styles", "analyze", "--text", "Hello world", "--json"])
     assert result.exit_code == 0
     parsed = json.loads(result.output)
     assert parsed["analysis"] == "Good tone"

@@ -11,13 +11,8 @@ _ADMIN = "/api/v1/admin"
 
 
 @app.callback()
-def admin_callback(
-    ctx: typer.Context,
-    json_output: bool = typer.Option(False, "--json", help="Output raw JSON"),
-) -> None:
+def admin_callback(ctx: typer.Context) -> None:
     ctx.ensure_object(dict)
-    ctx.obj["json"] = json_output
-    set_json_mode(json_output)
 
 
 # -- Register sub-command groups from submodules ------------------------------

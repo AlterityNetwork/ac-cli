@@ -12,31 +12,30 @@ from ac_cli.config import (
     set_active_env,
 )
 
-from ac_cli.commands._helpers import set_json_mode
+from ac_cli.commands._helpers import JSON_OPTION, set_json_mode
 
 app = typer.Typer(help="Manage CLI environments (local, staging, production)")
 
 
 @app.callback()
-def callback(
-    ctx: typer.Context,
-    json_output: bool = typer.Option(False, "--json", help="Output raw JSON"),
-) -> None:
+def callback(ctx: typer.Context) -> None:
     ctx.ensure_object(dict)
-    ctx.obj["json"] = json_output
-    set_json_mode(json_output)
 
 
 @app.command("list")
-def list_envs(ctx: typer.Context) -> None:
+def list_envs(
+    ctx: typer.Context,
+    json_output: bool = JSON_OPTION,
+) -> None:
     """List all environments and their login status."""
+    set_json_mode(json_output)
     import json as json_mod
 
     full = load_full_config()
     active = full.get("active")
     envs = full.get("environments", {})
 
-    if ctx.obj.get("json"):
+    if json_output:
         rows = []
         for name in ENV_NAMES:
             env_data = envs.get(name, {})
@@ -69,8 +68,12 @@ def list_envs(ctx: typer.Context) -> None:
 
 
 @app.command()
-def show(ctx: typer.Context) -> None:
+def show(
+    ctx: typer.Context,
+    json_output: bool = JSON_OPTION,
+) -> None:
     """Show the active environment details."""
+    set_json_mode(json_output)
     import json as json_mod
 
     full = load_full_config()
@@ -85,7 +88,7 @@ def show(ctx: typer.Context) -> None:
         "logged_in": bool(env_data.get("access_token")),
     }
 
-    if ctx.obj.get("json"):
+    if json_output:
         rprint(json_mod.dumps(info, indent=2))
         return
 

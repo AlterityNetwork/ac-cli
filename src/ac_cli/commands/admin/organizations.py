@@ -5,7 +5,7 @@ from __future__ import annotations
 import typer
 from rich import print as rprint
 
-from ac_cli.commands._helpers import _api_request, _build_body, should_skip_confirm
+from ac_cli.commands._helpers import _api_request, _build_body, should_skip_confirm, JSON_OPTION, set_json_mode
 from ac_cli.commands.admin import _ADMIN
 from ac_cli.formatting import print_detail, print_json, print_table
 
@@ -20,8 +20,10 @@ def organizations_list(
     order: str | None = typer.Option(None, help="Sort order (asc/desc)"),
     page: int = typer.Option(1, help="Page number"),
     page_size: int = typer.Option(50, "--page-size", help="Page size"),
+    json_output: bool = JSON_OPTION,
 ) -> None:
     """List organizations."""
+    set_json_mode(json_output)
     params: dict = {"page": page, "page_size": page_size}
     if query:
         params["query"] = query
@@ -33,7 +35,7 @@ def organizations_list(
     resp = _api_request("get", f"{_ADMIN}/organizations", params=params)
 
     data = resp.json()
-    if ctx.obj["json"]:
+    if json_output:
         print_json(data)
         return
 
@@ -51,12 +53,14 @@ def organizations_list(
 def organizations_get(
     ctx: typer.Context,
     org_id: str = typer.Argument(..., help="Organization ID"),
+    json_output: bool = JSON_OPTION,
 ) -> None:
     """Get an organization by ID."""
+    set_json_mode(json_output)
     resp = _api_request("get", f"{_ADMIN}/organizations/{org_id}")
 
     data = resp.json()
-    if ctx.obj["json"]:
+    if json_output:
         print_json(data)
         return
 
@@ -75,14 +79,16 @@ def organizations_create(
     name: str = typer.Option(..., help="Organization name"),
     slug: str | None = typer.Option(None, help="Organization slug"),
     plan: str | None = typer.Option(None, help="Plan"),
+    json_output: bool = JSON_OPTION,
 ) -> None:
     """Create a new organization."""
+    set_json_mode(json_output)
     body = _build_body(name=name, slug=slug, plan=plan)
 
     resp = _api_request("post", f"{_ADMIN}/organizations", json=body)
 
     data = resp.json()
-    if ctx.obj["json"]:
+    if json_output:
         print_json(data)
     else:
         rprint(f"[green]Created org:[/green] {data['name']} ({data['id']})")
@@ -95,8 +101,10 @@ def organizations_update(
     name: str | None = typer.Option(None, help="Organization name"),
     slug: str | None = typer.Option(None, help="Organization slug"),
     plan: str | None = typer.Option(None, help="Plan"),
+    json_output: bool = JSON_OPTION,
 ) -> None:
     """Update an existing organization."""
+    set_json_mode(json_output)
     body = _build_body(name=name, slug=slug, plan=plan)
 
     if not body:
@@ -106,7 +114,7 @@ def organizations_update(
     resp = _api_request("patch", f"{_ADMIN}/organizations/{org_id}", json=body)
 
     data = resp.json()
-    if ctx.obj["json"]:
+    if json_output:
         print_json(data)
     else:
         rprint(f"[green]Updated org:[/green] {data['name']} ({data['id']})")
@@ -132,8 +140,10 @@ def organizations_members(
     org_id: str = typer.Argument(..., help="Organization ID"),
     page: int = typer.Option(1, help="Page number"),
     page_size: int = typer.Option(50, "--page-size", help="Page size"),
+    json_output: bool = JSON_OPTION,
 ) -> None:
     """List members of an organization."""
+    set_json_mode(json_output)
     resp = _api_request(
         "get",
         f"{_ADMIN}/organizations/{org_id}/members",
@@ -141,7 +151,7 @@ def organizations_members(
     )
 
     data = resp.json()
-    if ctx.obj["json"]:
+    if json_output:
         print_json(data)
         return
 
@@ -162,14 +172,16 @@ def organizations_add_member(
     org_id: str = typer.Argument(..., help="Organization ID"),
     user_id: str = typer.Option(..., "--user-id", help="User ID to add"),
     role: str | None = typer.Option(None, help="Member role"),
+    json_output: bool = JSON_OPTION,
 ) -> None:
     """Add a member to an organization."""
+    set_json_mode(json_output)
     body = _build_body(user_id=user_id, role=role)
 
     resp = _api_request("post", f"{_ADMIN}/organizations/{org_id}/members", json=body)
 
     data = resp.json()
-    if ctx.obj["json"]:
+    if json_output:
         print_json(data)
     else:
         rprint(f"[green]Added user {user_id} to organization {org_id}[/green]")
@@ -181,8 +193,10 @@ def organizations_update_member(
     org_id: str = typer.Argument(..., help="Organization ID"),
     user_id: str = typer.Argument(..., help="User ID"),
     role: str = typer.Option(..., help="New role"),
+    json_output: bool = JSON_OPTION,
 ) -> None:
     """Update a member's role in an organization."""
+    set_json_mode(json_output)
     resp = _api_request(
         "patch",
         f"{_ADMIN}/organizations/{org_id}/members/{user_id}",
@@ -190,7 +204,7 @@ def organizations_update_member(
     )
 
     data = resp.json()
-    if ctx.obj["json"]:
+    if json_output:
         print_json(data)
     else:
         rprint(f"[green]Updated member {user_id} role to {role}[/green]")

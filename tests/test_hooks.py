@@ -18,7 +18,7 @@ def test_hooks_list(invoke, mock_api):
 
 def test_hooks_list_json(invoke, mock_api):
     mock_api.get("/api/v1/platform/hooks").respond(200, json=[SAMPLE_HOOK])
-    result = invoke(["hooks", "--json", "list", "email"])
+    result = invoke(["hooks", "list", "email", "--json"])
     assert result.exit_code == 0
     parsed = json.loads(result.output)
     assert parsed[0]["name"] == "email-send"

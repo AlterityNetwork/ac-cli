@@ -28,7 +28,7 @@ def test_battlecards_list(invoke, mock_api):
 
 def test_battlecards_list_json(invoke, mock_api):
     mock_api.get("/api/v1/envoy/battlecards").respond(200, json=[SAMPLE_BATTLECARD])
-    result = invoke(["envoy", "--json", "battlecards", "list"])
+    result = invoke(["envoy", "battlecards", "list", "--json"])
     assert result.exit_code == 0
     parsed = json.loads(result.output)
     assert parsed[0]["name"] == "vs Competitor X"
@@ -58,7 +58,7 @@ def test_battlecards_create(invoke, mock_api):
 def test_battlecards_create_json(invoke, mock_api):
     mock_api.get("/whoami").respond(200, json=WHOAMI_RESPONSE)
     mock_api.post("/api/v1/envoy/battlecards").respond(201, json=SAMPLE_BATTLECARD)
-    result = invoke(["envoy", "--json", "battlecards", "create", "--name", "vs Competitor X"])
+    result = invoke(["envoy", "battlecards", "create", "--name", "vs Competitor X", "--json"])
     assert result.exit_code == 0
     parsed = json.loads(result.output)
     assert parsed["name"] == "vs Competitor X"

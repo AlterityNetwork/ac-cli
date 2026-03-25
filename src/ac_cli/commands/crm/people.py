@@ -5,7 +5,7 @@ from __future__ import annotations
 import typer
 from rich import print as rprint
 
-from ac_cli.commands._helpers import should_skip_confirm
+from ac_cli.commands._helpers import JSON_OPTION, set_json_mode, should_skip_confirm
 from ac_cli.commands.crm import _CRM, _api_request, _build_body
 from ac_cli.formatting import print_detail, print_json, print_table
 
@@ -18,8 +18,10 @@ def people_list(
     company_id: str | None = typer.Option(None, "--company-id", help="Filter by company"),
     limit: int = typer.Option(100, help="Max results"),
     offset: int = typer.Option(0, help="Offset"),
+    json_output: bool = JSON_OPTION,
 ) -> None:
     """List people."""
+    set_json_mode(json_output)
     params: dict = {"limit": limit, "offset": offset}
     if company_id:
         params["company_id"] = company_id
@@ -27,7 +29,7 @@ def people_list(
     resp = _api_request("get", f"{_CRM}/people", params=params)
 
     data = resp.json()
-    if ctx.obj["json"]:
+    if json_output:
         print_json(data)
         return
 
@@ -48,12 +50,14 @@ def people_list(
 def people_get(
     ctx: typer.Context,
     person_id: str = typer.Argument(..., help="Person ID"),
+    json_output: bool = JSON_OPTION,
 ) -> None:
     """Get a person by ID."""
+    set_json_mode(json_output)
     resp = _api_request("get", f"{_CRM}/people/{person_id}")
 
     data = resp.json()
-    if ctx.obj["json"]:
+    if json_output:
         print_json(data)
         return
 
@@ -85,8 +89,10 @@ def people_create(
     linkedin_url: str | None = typer.Option(None, "--linkedin-url", help="LinkedIn URL"),
     location: str | None = typer.Option(None, help="Location"),
     country: str | None = typer.Option(None, help="Country"),
+    json_output: bool = JSON_OPTION,
 ) -> None:
     """Create a new person."""
+    set_json_mode(json_output)
     body = _build_body(
         email=email, full_name=full_name, current_title=current_title,
         company_id=company_id, lifecycle_stage=lifecycle_stage, tags=tags,
@@ -99,7 +105,7 @@ def people_create(
     resp = _api_request("post", f"{_CRM}/people", json=body)
 
     data = resp.json()
-    if ctx.obj["json"]:
+    if json_output:
         print_json(data)
     else:
         label = data.get("full_name") or data.get("email") or data["id"]
@@ -119,8 +125,10 @@ def people_update(
     linkedin_url: str | None = typer.Option(None, "--linkedin-url", help="LinkedIn URL"),
     location: str | None = typer.Option(None, help="Location"),
     country: str | None = typer.Option(None, help="Country"),
+    json_output: bool = JSON_OPTION,
 ) -> None:
     """Update an existing person."""
+    set_json_mode(json_output)
     body = _build_body(
         email=email, full_name=full_name, current_title=current_title,
         company_id=company_id, lifecycle_stage=lifecycle_stage, tags=tags,
@@ -134,7 +142,7 @@ def people_update(
     resp = _api_request("patch", f"{_CRM}/people/{person_id}", json=body)
 
     data = resp.json()
-    if ctx.obj["json"]:
+    if json_output:
         print_json(data)
     else:
         label = data.get("full_name") or data.get("email") or data["id"]

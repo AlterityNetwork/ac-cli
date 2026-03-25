@@ -29,7 +29,7 @@ def test_runs_create(invoke, mock_api):
 
 def test_runs_create_json(invoke, mock_api):
     mock_api.post("/api/v1/workflows/wf-1/runs").respond(202, json={"run_id": "run-1", "status": "accepted"})
-    result = invoke(["workflows", "--json", "runs", "create", "wf-1"])
+    result = invoke(["workflows", "runs", "create", "wf-1", "--json"])
     assert result.exit_code == 0
     parsed = json.loads(result.output)
     assert parsed["run_id"] == "run-1"
@@ -58,7 +58,7 @@ def test_runs_list(invoke, mock_api):
 
 def test_runs_list_json(invoke, mock_api):
     mock_api.get("/api/v1/workflows/wf-1/runs").respond(200, json={"data": [SAMPLE_RUN], "total": 1})
-    result = invoke(["workflows", "--json", "runs", "list", "wf-1"])
+    result = invoke(["workflows", "runs", "list", "wf-1", "--json"])
     assert result.exit_code == 0
     parsed = json.loads(result.output)
     assert parsed["data"][0]["id"] == "run-1"
@@ -86,7 +86,7 @@ def test_runs_logs(invoke, mock_api):
 
 def test_runs_logs_json(invoke, mock_api):
     mock_api.get("/api/v1/workflows/wf-1/runs/run-1/logs").respond(200, json=[SAMPLE_LOG])
-    result = invoke(["workflows", "--json", "runs", "logs", "wf-1", "run-1"])
+    result = invoke(["workflows", "runs", "logs", "wf-1", "run-1", "--json"])
     assert result.exit_code == 0
     parsed = json.loads(result.output)
     assert parsed[0]["level"] == "info"

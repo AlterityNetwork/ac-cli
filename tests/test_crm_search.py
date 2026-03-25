@@ -28,7 +28,7 @@ def test_search_json_flag(invoke, mock_api):
         "deals": [],
     }
     mock_api.get("/api/v1/crm/search").respond(200, json=payload)
-    result = invoke(["crm", "--json", "search", "acme"])
+    result = invoke(["crm", "search", "acme", "--json"])
     assert result.exit_code == 0
     parsed = json.loads(result.output)
     assert parsed["companies"][0]["name"] == "Acme"

@@ -56,7 +56,7 @@ def test_demo_list_accounts(invoke, mock_api):
 def test_demo_list_accounts_json(invoke, mock_api):
     payload = {"data": [SAMPLE_ACCOUNT], "total": 1, "page": 1, "page_size": 50}
     mock_api.get("/api/v1/admin/demo/accounts").respond(200, json=payload)
-    result = invoke(["admin", "--json", "demo", "list-accounts"])
+    result = invoke(["admin", "demo", "list-accounts", "--json"])
     assert result.exit_code == 0
     parsed = json.loads(result.output)
     assert parsed["data"][0]["org_name"] == "Demo Corp"

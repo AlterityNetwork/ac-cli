@@ -7,7 +7,7 @@ import json
 import typer
 from rich import print as rprint
 
-from ac_cli.commands._helpers import _api_request, _build_body, should_skip_confirm
+from ac_cli.commands._helpers import _api_request, _build_body, should_skip_confirm, JSON_OPTION, set_json_mode
 from ac_cli.commands.workflows import _WORKFLOWS
 from ac_cli.formatting import print_detail, print_json, print_table
 
@@ -18,12 +18,14 @@ presets_app = typer.Typer(help="Workflow preset operations")
 def presets_list(
     ctx: typer.Context,
     workflow_id: str = typer.Argument(..., help="Workflow ID"),
+    json_output: bool = JSON_OPTION,
 ) -> None:
     """List presets for a workflow."""
+    set_json_mode(json_output)
     resp = _api_request("get", f"{_WORKFLOWS}/{workflow_id}/presets")
 
     data = resp.json()
-    if ctx.obj["json"]:
+    if json_output:
         print_json(data)
         return
 
@@ -43,12 +45,14 @@ def presets_get(
     ctx: typer.Context,
     workflow_id: str = typer.Argument(..., help="Workflow ID"),
     preset_id: str = typer.Argument(..., help="Preset ID"),
+    json_output: bool = JSON_OPTION,
 ) -> None:
     """Get a workflow preset by ID."""
+    set_json_mode(json_output)
     resp = _api_request("get", f"{_WORKFLOWS}/{workflow_id}/presets/{preset_id}")
 
     data = resp.json()
-    if ctx.obj["json"]:
+    if json_output:
         print_json(data)
         return
 
@@ -68,8 +72,10 @@ def presets_create(
     name: str = typer.Option(..., help="Preset name"),
     description: str | None = typer.Option(None, help="Description"),
     config_json: str | None = typer.Option(None, "--config", help="Config JSON string"),
+    json_output: bool = JSON_OPTION,
 ) -> None:
     """Create a workflow preset."""
+    set_json_mode(json_output)
     body = _build_body(name=name, description=description)
     if config_json:
         try:
@@ -81,7 +87,7 @@ def presets_create(
     resp = _api_request("post", f"{_WORKFLOWS}/{workflow_id}/presets", json=body)
 
     data = resp.json()
-    if ctx.obj["json"]:
+    if json_output:
         print_json(data)
     else:
         rprint(f"[green]Created preset:[/green] {data['name']} ({data['id']})")
@@ -95,8 +101,10 @@ def presets_update(
     name: str | None = typer.Option(None, help="Preset name"),
     description: str | None = typer.Option(None, help="Description"),
     config_json: str | None = typer.Option(None, "--config", help="Config JSON string"),
+    json_output: bool = JSON_OPTION,
 ) -> None:
     """Update a workflow preset."""
+    set_json_mode(json_output)
     body = _build_body(name=name, description=description)
     if config_json:
         try:
@@ -112,7 +120,7 @@ def presets_update(
     resp = _api_request("patch", f"{_WORKFLOWS}/{workflow_id}/presets/{preset_id}", json=body)
 
     data = resp.json()
-    if ctx.obj["json"]:
+    if json_output:
         print_json(data)
     else:
         rprint(f"[green]Updated preset {preset_id}[/green]")

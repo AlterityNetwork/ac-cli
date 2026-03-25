@@ -11,7 +11,7 @@ uv sync --all-extras       # Install with dev dependencies (pytest, respx)
 
 ## Command Groups
 
-`ac <group> [--json] <subcommand>` — all groups support `--json` for scripting.
+`ac <group> <subcommand> [--json]` — all commands support `--json` for scripting.
 
 | Group | Domain |
 |-------|--------|

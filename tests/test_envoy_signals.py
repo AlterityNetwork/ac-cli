@@ -21,7 +21,7 @@ def test_signals_get(invoke, mock_api):
 
 def test_signals_get_json(invoke, mock_api):
     mock_api.get("/api/v1/envoy/recipients/r-1/sales-signals").respond(200, json=[SAMPLE_SIGNAL])
-    result = invoke(["envoy", "--json", "signals", "r-1"])
+    result = invoke(["envoy", "signals", "r-1", "--json"])
     assert result.exit_code == 0
     parsed = json.loads(result.output)
     assert parsed[0]["signal_type"] == "email_opened"

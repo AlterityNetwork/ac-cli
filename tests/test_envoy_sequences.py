@@ -30,7 +30,7 @@ def test_sequences_list(invoke, mock_api):
 
 def test_sequences_list_json(invoke, mock_api):
     mock_api.get("/api/v1/envoy/sequences").respond(200, json=[SAMPLE_SEQUENCE])
-    result = invoke(["envoy", "--json", "sequences", "list"])
+    result = invoke(["envoy", "sequences", "list", "--json"])
     assert result.exit_code == 0
     parsed = json.loads(result.output)
     assert parsed[0]["name"] == "Q1 Outreach"
@@ -51,7 +51,7 @@ def test_sequences_get(invoke, mock_api):
 
 def test_sequences_get_json(invoke, mock_api):
     mock_api.get("/api/v1/envoy/sequences/seq-1").respond(200, json=SAMPLE_SEQUENCE)
-    result = invoke(["envoy", "--json", "sequences", "get", "seq-1"])
+    result = invoke(["envoy", "sequences", "get", "seq-1", "--json"])
     assert result.exit_code == 0
     parsed = json.loads(result.output)
     assert parsed["id"] == "seq-1"
@@ -68,7 +68,7 @@ def test_sequences_create(invoke, mock_api):
 def test_sequences_create_json(invoke, mock_api):
     mock_api.get("/whoami").respond(200, json=WHOAMI_RESPONSE)
     mock_api.post("/api/v1/envoy/sequences").respond(201, json=SAMPLE_SEQUENCE)
-    result = invoke(["envoy", "--json", "sequences", "create", "--name", "Q1 Outreach"])
+    result = invoke(["envoy", "sequences", "create", "--name", "Q1 Outreach", "--json"])
     assert result.exit_code == 0
     parsed = json.loads(result.output)
     assert parsed["name"] == "Q1 Outreach"

@@ -5,7 +5,7 @@ from __future__ import annotations
 import typer
 from rich import print as rprint
 
-from ac_cli.commands._helpers import should_skip_confirm
+from ac_cli.commands._helpers import JSON_OPTION, set_json_mode, should_skip_confirm
 from ac_cli.commands.crm import _CRM, _api_request, _build_body
 from ac_cli.formatting import print_detail, print_json, print_table
 
@@ -23,8 +23,10 @@ def communications_list(
     status: str | None = typer.Option(None, help="Filter by status"),
     limit: int = typer.Option(20, help="Max results"),
     offset: int = typer.Option(0, help="Offset"),
+    json_output: bool = JSON_OPTION,
 ) -> None:
     """List communications."""
+    set_json_mode(json_output)
     params: dict = {"limit": limit, "offset": offset}
     if company_id:
         params["company_id"] = company_id
@@ -42,7 +44,7 @@ def communications_list(
     resp = _api_request("get", f"{_CRM}/communications", params=params)
 
     data = resp.json()
-    if ctx.obj["json"]:
+    if json_output:
         print_json(data)
         return
 
@@ -65,12 +67,14 @@ def communications_list(
 def communications_get(
     ctx: typer.Context,
     communication_id: str = typer.Argument(..., help="Communication ID"),
+    json_output: bool = JSON_OPTION,
 ) -> None:
     """Get a single communication by ID."""
+    set_json_mode(json_output)
     resp = _api_request("get", f"{_CRM}/communications/{communication_id}")
 
     data = resp.json()
-    if ctx.obj["json"]:
+    if json_output:
         print_json(data)
         return
 
@@ -95,12 +99,14 @@ def communications_get(
 def communications_thread(
     ctx: typer.Context,
     thread_id: str = typer.Argument(..., help="Thread ID"),
+    json_output: bool = JSON_OPTION,
 ) -> None:
     """Show all messages in a thread."""
+    set_json_mode(json_output)
     resp = _api_request("get", f"{_CRM}/communications/thread/{thread_id}")
 
     data = resp.json()
-    if ctx.obj["json"]:
+    if json_output:
         print_json(data)
         return
 
@@ -129,12 +135,14 @@ def communications_thread(
 @communications_app.command("unread")
 def communications_unread(
     ctx: typer.Context,
+    json_output: bool = JSON_OPTION,
 ) -> None:
     """Show unread thread counts."""
+    set_json_mode(json_output)
     resp = _api_request("get", f"{_CRM}/communications/unread-counts")
 
     data = resp.json()
-    if ctx.obj["json"]:
+    if json_output:
         print_json(data)
         return
 
@@ -195,8 +203,10 @@ def communications_update(
     content: str | None = typer.Option(None, help="Content"),
     status: str | None = typer.Option(None, help="Status"),
     tags: str | None = typer.Option(None, help="Comma-separated tags"),
+    json_output: bool = JSON_OPTION,
 ) -> None:
     """Update a communication."""
+    set_json_mode(json_output)
     body = _build_body(subject=subject, content=content, status=status, tags=tags)
 
     if not body:
@@ -206,7 +216,7 @@ def communications_update(
     resp = _api_request("patch", f"{_CRM}/communications/{communication_id}", json=body)
 
     data = resp.json()
-    if ctx.obj["json"]:
+    if json_output:
         print_json(data)
     else:
         rprint(f"[green]Updated communication {communication_id}[/green]")
@@ -217,8 +227,10 @@ def communications_archive(
     ctx: typer.Context,
     thread_id: str | None = typer.Option(None, "--thread-id", help="Thread ID to archive"),
     comm_id: str | None = typer.Option(None, "--comm-id", help="Communication ID to archive"),
+    json_output: bool = JSON_OPTION,
 ) -> None:
     """Archive a communication or thread."""
+    set_json_mode(json_output)
     if not thread_id and not comm_id:
         rprint("[red]Must specify --thread-id or --comm-id[/red]")
         raise typer.Exit(code=1)
@@ -227,7 +239,7 @@ def communications_archive(
     resp = _api_request("post", f"{_CRM}/communications/archive", json=body)
 
     data = resp.json()
-    if ctx.obj["json"]:
+    if json_output:
         print_json(data)
     else:
         target = thread_id or comm_id
@@ -239,8 +251,10 @@ def communications_unarchive(
     ctx: typer.Context,
     thread_id: str | None = typer.Option(None, "--thread-id", help="Thread ID to unarchive"),
     comm_id: str | None = typer.Option(None, "--comm-id", help="Communication ID to unarchive"),
+    json_output: bool = JSON_OPTION,
 ) -> None:
     """Unarchive a communication or thread."""
+    set_json_mode(json_output)
     if not thread_id and not comm_id:
         rprint("[red]Must specify --thread-id or --comm-id[/red]")
         raise typer.Exit(code=1)
@@ -249,7 +263,7 @@ def communications_unarchive(
     resp = _api_request("post", f"{_CRM}/communications/unarchive", json=body)
 
     data = resp.json()
-    if ctx.obj["json"]:
+    if json_output:
         print_json(data)
     else:
         target = thread_id or comm_id
@@ -260,12 +274,14 @@ def communications_unarchive(
 def communications_contact_by_email(
     ctx: typer.Context,
     email: str = typer.Argument(..., help="Email address to look up"),
+    json_output: bool = JSON_OPTION,
 ) -> None:
     """Look up a contact by email address."""
+    set_json_mode(json_output)
     resp = _api_request("get", f"{_CRM}/communications/contact-by-email", params={"email": email})
 
     data = resp.json()
-    if ctx.obj["json"]:
+    if json_output:
         print_json(data)
         return
 
@@ -285,13 +301,15 @@ def communications_resolve_contact(
     name: str | None = typer.Option(None, help="Contact name"),
     job_title: str | None = typer.Option(None, "--job-title", help="Job title"),
     company_id: str | None = typer.Option(None, "--company-id", help="Company ID"),
+    json_output: bool = JSON_OPTION,
 ) -> None:
     """Resolve or create a contact from an email address."""
+    set_json_mode(json_output)
     body = _build_body(email=email, name=name, job_title=job_title, company_id=company_id)
     resp = _api_request("post", f"{_CRM}/communications/resolve-contact", json=body)
 
     data = resp.json()
-    if ctx.obj["json"]:
+    if json_output:
         print_json(data)
     else:
         rprint(f"[green]Resolved contact:[/green] {data.get('full_name', data.get('email', email))} ({data.get('id', '')})")
@@ -307,8 +325,10 @@ def communications_draft_email(
     deal_id: str | None = typer.Option(None, "--deal-id", help="Deal ID"),
     to_emails: str | None = typer.Option(None, "--to-emails", help="Comma-separated recipient emails"),
     from_email: str | None = typer.Option(None, "--from-email", help="Sender email"),
+    json_output: bool = JSON_OPTION,
 ) -> None:
     """Create an email draft."""
+    set_json_mode(json_output)
     body = _build_body(
         contact_id=contact_id, subject=subject, content=content,
         company_id=company_id, deal_id=deal_id, from_email=from_email,
@@ -319,7 +339,7 @@ def communications_draft_email(
     resp = _api_request("post", f"{_CRM}/communications/draft-email", json=body)
 
     data = resp.json()
-    if ctx.obj["json"]:
+    if json_output:
         print_json(data)
     else:
         rprint(f"[green]Draft created:[/green] {data.get('subject', '')} ({data.get('id', '')})")
@@ -336,8 +356,10 @@ def communications_generate_draft(
     original_subject: str | None = typer.Option(None, "--original-subject", help="Original subject (for replies)"),
     original_content: str | None = typer.Option(None, "--original-content", help="Original content (for replies)"),
     context: str | None = typer.Option(None, help="Additional context for generation"),
+    json_output: bool = JSON_OPTION,
 ) -> None:
     """Generate an AI-drafted email."""
+    set_json_mode(json_output)
     body = _build_body(
         mode=mode, recipient_name=recipient_name, recipient_email=recipient_email,
         company_name=company_name, sender_name=sender_name,
@@ -348,7 +370,7 @@ def communications_generate_draft(
     resp = _api_request("post", f"{_CRM}/communications/generate-draft", json=body)
 
     data = resp.json()
-    if ctx.obj["json"]:
+    if json_output:
         print_json(data)
     else:
         rprint(f"[bold]Generated Draft[/bold]\n")
@@ -359,12 +381,14 @@ def communications_generate_draft(
 @communications_app.command("unread-thread-ids")
 def communications_unread_thread_ids(
     ctx: typer.Context,
+    json_output: bool = JSON_OPTION,
 ) -> None:
     """Get list of unread thread IDs."""
+    set_json_mode(json_output)
     resp = _api_request("get", f"{_CRM}/communications/unread-thread-ids")
 
     data = resp.json()
-    if ctx.obj["json"]:
+    if json_output:
         print_json(data)
         return
 

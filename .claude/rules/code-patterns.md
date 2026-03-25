@@ -18,8 +18,9 @@ paths:
 - Each command group is a `typer.Typer()` sub-app registered via `app.add_typer()` in `main.py`
 - All commands use `_api_request()` helper from `commands/_helpers.py` for HTTP calls with built-in error handling
 - Use `_build_body()` helper from `commands/_helpers.py` to construct request bodies from non-None fields (handles tags splitting)
-- Package-based domains (crm, envoy, workflows, admin) have their own `__init__.py` with prefix constant and `--json` callback
+- Package-based domains (crm, envoy, workflows, admin) have their own `__init__.py` with prefix constant and a simple callback for context initialization
 - Standalone domains (writing_styles, apps, nylas, hooks) are single-file modules with their own prefix constant and callback
+- `--json` is a subcommand-level option (not group-level) — use `JSON_OPTION` from `_helpers.py` on each command
 - IDs are positional `typer.Argument()`, optional fields are `typer.Option(None, ...)`
 - Tags: accept comma-separated string on CLI, `_build_body` splits to list automatically
 - Dates: ISO format strings (`2026-03-15`)
@@ -51,10 +52,19 @@ paths:
 ## Output
 - Rich output by default via `formatting.py` helpers (`print_table`, `print_detail`)
 - `--json` flag outputs raw JSON to stdout for piping/scripting
-- `--json` is a global option on every command group's callback (crm, envoy, workflows, admin, styles, apps, nylas, hooks, health, env, files), passed via `typer.Context`
-- Every group callback must call `set_json_mode(json_output)` so that `_handle_error()` and `_api_request()` emit JSON errors when `--json` is active
-- Access in subcommands: add `ctx: typer.Context` parameter, read `ctx.obj["json"]`
-- For top-level commands not part of a group (e.g. `whoami`), add `--json` as a direct option and call `set_json_mode()` within the command
+- `--json` is a **subcommand-level option** on every command (not on the group callback). Use `JSON_OPTION` from `_helpers.py`:
+  ```python
+  from ac_cli.commands._helpers import JSON_OPTION, set_json_mode
+
+  @app.command()
+  def list(ctx: typer.Context, json_output: bool = JSON_OPTION, ...):
+      set_json_mode(json_output)
+      ...
+      if json_output:
+          print_json(data)
+  ```
+- Every command that supports JSON must call `set_json_mode(json_output)` at the start so that `_handle_error()` and `_api_request()` emit JSON errors when `--json` is active
+- Usage: `ac crm companies list --json`, `ac health check --json`, `ac whoami --json`
 
 ## List Commands & Pagination
 - All API list endpoints return a standardized paginated response: `{"data": [...], "total": N, "limit": N, "offset": N, "has_more": bool}`

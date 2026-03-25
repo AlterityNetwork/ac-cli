@@ -22,7 +22,7 @@ def test_presets_list(invoke, mock_api):
 
 def test_presets_list_json(invoke, mock_api):
     mock_api.get("/api/v1/workflows/wf-1/presets").respond(200, json=[SAMPLE_PRESET])
-    result = invoke(["workflows", "--json", "presets", "list", "wf-1"])
+    result = invoke(["workflows", "presets", "list", "wf-1", "--json"])
     assert result.exit_code == 0
     parsed = json.loads(result.output)
     assert parsed[0]["name"] == "Default Config"
@@ -50,7 +50,7 @@ def test_presets_create(invoke, mock_api):
 
 def test_presets_create_json(invoke, mock_api):
     mock_api.post("/api/v1/workflows/wf-1/presets").respond(201, json=SAMPLE_PRESET)
-    result = invoke(["workflows", "--json", "presets", "create", "wf-1", "--name", "Default Config"])
+    result = invoke(["workflows", "presets", "create", "wf-1", "--name", "Default Config", "--json"])
     assert result.exit_code == 0
     parsed = json.loads(result.output)
     assert parsed["name"] == "Default Config"

@@ -5,7 +5,7 @@ from __future__ import annotations
 import typer
 from rich import print as rprint
 
-from ac_cli.commands._helpers import _api_request, _build_body, should_skip_confirm
+from ac_cli.commands._helpers import JSON_OPTION, _api_request, _build_body, set_json_mode, should_skip_confirm
 from ac_cli.commands.envoy import _ENVOY
 from ac_cli.formatting import print_detail, print_json, print_table
 
@@ -17,8 +17,10 @@ def battlecards_list(
     ctx: typer.Context,
     query: str | None = typer.Option(None, "--query", "-q", help="Search query"),
     limit: int | None = typer.Option(None, help="Max results"),
+    json_output: bool = JSON_OPTION,
 ) -> None:
     """List battlecards."""
+    set_json_mode(json_output)
     params: dict = {}
     if query:
         params["q"] = query
@@ -28,7 +30,7 @@ def battlecards_list(
     resp = _api_request("get", f"{_ENVOY}/battlecards", params=params)
 
     data = resp.json()
-    if ctx.obj["json"]:
+    if json_output:
         print_json(data)
         return
 
@@ -49,12 +51,14 @@ def battlecards_list(
 def battlecards_get(
     ctx: typer.Context,
     battlecard_id: str = typer.Argument(..., help="Battlecard ID"),
+    json_output: bool = JSON_OPTION,
 ) -> None:
     """Get a battlecard by ID."""
+    set_json_mode(json_output)
     resp = _api_request("get", f"{_ENVOY}/battlecards/{battlecard_id}")
 
     data = resp.json()
-    if ctx.obj["json"]:
+    if json_output:
         print_json(data)
         return
 
@@ -78,8 +82,10 @@ def battlecards_create(
     description: str | None = typer.Option(None, help="Description"),
     competitor_name: str | None = typer.Option(None, "--competitor-name", help="Competitor name"),
     status: str | None = typer.Option(None, help="Status"),
+    json_output: bool = JSON_OPTION,
 ) -> None:
     """Create a new battlecard."""
+    set_json_mode(json_output)
     body = _build_body(
         name=name, description=description, competitor_name=competitor_name,
         status=status,
@@ -91,7 +97,7 @@ def battlecards_create(
     resp = _api_request("post", f"{_ENVOY}/battlecards", json=body)
 
     data = resp.json()
-    if ctx.obj["json"]:
+    if json_output:
         print_json(data)
     else:
         rprint(f"[green]Created battlecard:[/green] {data['name']} ({data['id']})")
@@ -105,8 +111,10 @@ def battlecards_update(
     description: str | None = typer.Option(None, help="Description"),
     competitor_name: str | None = typer.Option(None, "--competitor-name", help="Competitor name"),
     status: str | None = typer.Option(None, help="Status"),
+    json_output: bool = JSON_OPTION,
 ) -> None:
     """Update a battlecard."""
+    set_json_mode(json_output)
     body = _build_body(
         name=name, description=description, competitor_name=competitor_name,
         status=status,
@@ -119,7 +127,7 @@ def battlecards_update(
     resp = _api_request("patch", f"{_ENVOY}/battlecards/{battlecard_id}", json=body)
 
     data = resp.json()
-    if ctx.obj["json"]:
+    if json_output:
         print_json(data)
     else:
         rprint(f"[green]Updated battlecard:[/green] {data['name']} ({data['id']})")
@@ -143,12 +151,14 @@ def battlecards_delete(
 def battlecards_duplicate(
     ctx: typer.Context,
     battlecard_id: str = typer.Argument(..., help="Battlecard ID"),
+    json_output: bool = JSON_OPTION,
 ) -> None:
     """Duplicate a battlecard."""
+    set_json_mode(json_output)
     resp = _api_request("post", f"{_ENVOY}/battlecards/{battlecard_id}/duplicate")
 
     data = resp.json()
-    if ctx.obj["json"]:
+    if json_output:
         print_json(data)
     else:
         rprint(f"[green]Duplicated battlecard:[/green] {data['name']} ({data['id']})")

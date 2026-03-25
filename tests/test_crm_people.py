@@ -33,7 +33,7 @@ def test_people_list(invoke, mock_api):
 def test_people_list_json(invoke, mock_api):
     payload = {"data": [SAMPLE_PERSON], "total": 1}
     mock_api.get("/api/v1/crm/people").respond(200, json=payload)
-    result = invoke(["crm", "--json", "people", "list"])
+    result = invoke(["crm", "people", "list", "--json"])
     assert result.exit_code == 0
     parsed = json.loads(result.output)
     assert parsed["data"][0]["email"] == "jane@acme.com"

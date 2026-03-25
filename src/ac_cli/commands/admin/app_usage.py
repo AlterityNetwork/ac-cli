@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import typer
 
-from ac_cli.commands._helpers import _api_request
+from ac_cli.commands._helpers import _api_request, JSON_OPTION, set_json_mode
 from ac_cli.commands.admin import _ADMIN
 from ac_cli.formatting import print_detail, print_json, print_table
 
@@ -17,8 +17,10 @@ def app_usage_summary(
     start_date: str | None = typer.Option(None, "--start-date", help="Start date (YYYY-MM-DD)"),
     end_date: str | None = typer.Option(None, "--end-date", help="End date (YYYY-MM-DD)"),
     org_id: str | None = typer.Option(None, "--org-id", help="Filter by organization ID"),
+    json_output: bool = JSON_OPTION,
 ) -> None:
     """Show app usage summary."""
+    set_json_mode(json_output)
     params: dict = {}
     if start_date:
         params["start_date"] = start_date
@@ -30,7 +32,7 @@ def app_usage_summary(
     resp = _api_request("get", f"{_ADMIN}/app-usage/summary", params=params)
 
     data = resp.json()
-    if ctx.obj["json"]:
+    if json_output:
         print_json(data)
         return
 
@@ -53,8 +55,10 @@ def app_usage_users(
     page_size: int = typer.Option(50, "--page-size", help="Page size"),
     search: str | None = typer.Option(None, help="Search query"),
     org_id: str | None = typer.Option(None, "--org-id", help="Filter by organization ID"),
+    json_output: bool = JSON_OPTION,
 ) -> None:
     """List app usage by user."""
+    set_json_mode(json_output)
     params: dict = {"page": page, "page_size": page_size}
     if start_date:
         params["start_date"] = start_date
@@ -72,7 +76,7 @@ def app_usage_users(
     resp = _api_request("get", f"{_ADMIN}/app-usage/users", params=params)
 
     data = resp.json()
-    if ctx.obj["json"]:
+    if json_output:
         print_json(data)
         return
 
@@ -97,8 +101,10 @@ def app_usage_user(
     start_date: str | None = typer.Option(None, "--start-date", help="Start date (YYYY-MM-DD)"),
     end_date: str | None = typer.Option(None, "--end-date", help="End date (YYYY-MM-DD)"),
     org_id: str | None = typer.Option(None, "--org-id", help="Filter by organization ID"),
+    json_output: bool = JSON_OPTION,
 ) -> None:
     """Get app usage details for a specific user."""
+    set_json_mode(json_output)
     params: dict = {}
     if start_date:
         params["start_date"] = start_date
@@ -110,7 +116,7 @@ def app_usage_user(
     resp = _api_request("get", f"{_ADMIN}/app-usage/users/{user_id}", params=params)
 
     data = resp.json()
-    if ctx.obj["json"]:
+    if json_output:
         print_json(data)
         return
 

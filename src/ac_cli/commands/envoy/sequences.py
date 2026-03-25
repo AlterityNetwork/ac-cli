@@ -5,7 +5,7 @@ from __future__ import annotations
 import typer
 from rich import print as rprint
 
-from ac_cli.commands._helpers import should_skip_confirm
+from ac_cli.commands._helpers import JSON_OPTION, set_json_mode, should_skip_confirm
 from ac_cli.commands.crm import _api_request, _build_body
 from ac_cli.commands.envoy import _ENVOY
 from ac_cli.formatting import print_detail, print_json, print_table
@@ -17,8 +17,10 @@ sequences_app = typer.Typer(help="Sequence operations")
 def sequences_list(
     ctx: typer.Context,
     status: str | None = typer.Option(None, help="Filter by status"),
+    json_output: bool = JSON_OPTION,
 ) -> None:
     """List outreach sequences."""
+    set_json_mode(json_output)
     params: dict = {}
     if status:
         params["status_filter"] = status
@@ -26,7 +28,7 @@ def sequences_list(
     resp = _api_request("get", f"{_ENVOY}/sequences", params=params)
 
     data = resp.json()
-    if ctx.obj["json"]:
+    if json_output:
         print_json(data)
         return
 
@@ -47,12 +49,14 @@ def sequences_list(
 def sequences_get(
     ctx: typer.Context,
     sequence_id: str = typer.Argument(..., help="Sequence ID"),
+    json_output: bool = JSON_OPTION,
 ) -> None:
     """Get a sequence by ID."""
+    set_json_mode(json_output)
     resp = _api_request("get", f"{_ENVOY}/sequences/{sequence_id}")
 
     data = resp.json()
-    if ctx.obj["json"]:
+    if json_output:
         print_json(data)
         return
 
@@ -91,8 +95,10 @@ def sequences_create(
     playbook_id: str | None = typer.Option(None, "--playbook-id", help="Playbook ID"),
     crm_list_id: str | None = typer.Option(None, "--crm-list-id", help="CRM list ID"),
     execution_mode: str | None = typer.Option(None, "--execution-mode", help="Execution mode"),
+    json_output: bool = JSON_OPTION,
 ) -> None:
     """Create a new outreach sequence."""
+    set_json_mode(json_output)
     body = _build_body(
         name=name, description=description, writing_style_id=writing_style_id,
         playbook_id=playbook_id, crm_list_id=crm_list_id, execution_mode=execution_mode,
@@ -104,7 +110,7 @@ def sequences_create(
     resp = _api_request("post", f"{_ENVOY}/sequences", json=body)
 
     data = resp.json()
-    if ctx.obj["json"]:
+    if json_output:
         print_json(data)
     else:
         rprint(f"[green]Created sequence:[/green] {data['name']} ({data['id']})")
@@ -120,8 +126,10 @@ def sequences_update(
     playbook_id: str | None = typer.Option(None, "--playbook-id", help="Playbook ID"),
     crm_list_id: str | None = typer.Option(None, "--crm-list-id", help="CRM list ID"),
     execution_mode: str | None = typer.Option(None, "--execution-mode", help="Execution mode"),
+    json_output: bool = JSON_OPTION,
 ) -> None:
     """Update a sequence."""
+    set_json_mode(json_output)
     body = _build_body(
         name=name, description=description, writing_style_id=writing_style_id,
         playbook_id=playbook_id, crm_list_id=crm_list_id, execution_mode=execution_mode,
@@ -134,7 +142,7 @@ def sequences_update(
     resp = _api_request("patch", f"{_ENVOY}/sequences/{sequence_id}", json=body)
 
     data = resp.json()
-    if ctx.obj["json"]:
+    if json_output:
         print_json(data)
     else:
         rprint(f"[green]Updated sequence:[/green] {data['name']} ({data['id']})")
@@ -159,12 +167,14 @@ def sequences_launch(
     ctx: typer.Context,
     sequence_id: str = typer.Argument(..., help="Sequence ID"),
     workflow_id: str = typer.Option(..., "--workflow-id", help="Workflow ID to launch with"),
+    json_output: bool = JSON_OPTION,
 ) -> None:
     """Launch a sequence."""
+    set_json_mode(json_output)
     resp = _api_request("post", f"{_ENVOY}/sequences/{sequence_id}/launch", json={"workflow_id": workflow_id})
 
     data = resp.json()
-    if ctx.obj["json"]:
+    if json_output:
         print_json(data)
     else:
         rprint(f"[green]Launched sequence {sequence_id}[/green]")
@@ -174,12 +184,14 @@ def sequences_launch(
 def sequences_pause(
     ctx: typer.Context,
     sequence_id: str = typer.Argument(..., help="Sequence ID"),
+    json_output: bool = JSON_OPTION,
 ) -> None:
     """Pause a running sequence."""
+    set_json_mode(json_output)
     resp = _api_request("post", f"{_ENVOY}/sequences/{sequence_id}/pause")
 
     data = resp.json()
-    if ctx.obj["json"]:
+    if json_output:
         print_json(data)
     else:
         rprint(f"[green]Paused sequence {sequence_id}[/green]")
@@ -190,12 +202,14 @@ def sequences_resume(
     ctx: typer.Context,
     sequence_id: str = typer.Argument(..., help="Sequence ID"),
     workflow_id: str = typer.Option(..., "--workflow-id", help="Workflow ID"),
+    json_output: bool = JSON_OPTION,
 ) -> None:
     """Resume a paused sequence."""
+    set_json_mode(json_output)
     resp = _api_request("post", f"{_ENVOY}/sequences/{sequence_id}/resume", json={"workflow_id": workflow_id})
 
     data = resp.json()
-    if ctx.obj["json"]:
+    if json_output:
         print_json(data)
     else:
         rprint(f"[green]Resumed sequence {sequence_id}[/green]")

@@ -18,19 +18,25 @@ All command groups follow the same pattern regardless of domain:
 
 1. **Create the module** — either a single file (`commands/<group>.py`) or a package (`commands/<group>/__init__.py` + submodules)
 2. **Define the app**: `app = typer.Typer(help="...")` and a prefix constant (e.g. `_FILES = "/api/v1/files"`)
-3. **Add `--json` callback with `set_json_mode()`**:
+3. **Add a simple callback** (for context initialization only):
    ```python
-   from ac_cli.commands._helpers import set_json_mode
-
    @app.callback()
-   def callback(ctx: typer.Context, json_output: bool = typer.Option(False, "--json", help="Output raw JSON")) -> None:
+   def callback(ctx: typer.Context) -> None:
        ctx.ensure_object(dict)
-       ctx.obj["json"] = json_output
+   ```
+4. **Write commands** using `_api_request()` from `commands/_helpers.py`, `print_detail`/`print_table`/`print_json` from `formatting.py`
+5. **Add `--json` to each command** using the shared `JSON_OPTION` constant:
+   ```python
+   from ac_cli.commands._helpers import JSON_OPTION, set_json_mode
+
+   @app.command()
+   def list(ctx: typer.Context, json_output: bool = JSON_OPTION, ...):
        set_json_mode(json_output)
+       ...
+       if json_output:
+           print_json(data)
    ```
    The `set_json_mode()` call is **required** — it enables structured JSON error output and is what makes errors agent-friendly when `--json` is active.
-4. **Write commands** using `_api_request()` from `commands/_helpers.py`, `print_detail`/`print_table`/`print_json` from `formatting.py`
-5. **Read JSON flag** in commands via `ctx.obj["json"]`
 6. **For delete/destructive commands**, use `should_skip_confirm(yes)` instead of `if not yes:`:
    ```python
    from ac_cli.commands._helpers import should_skip_confirm

@@ -27,7 +27,7 @@ def test_activities_list(invoke, mock_api):
 
 def test_activities_list_json(invoke, mock_api):
     mock_api.get("/api/v1/crm/activities").respond(200, json=[SAMPLE_ACTIVITY])
-    result = invoke(["crm", "--json", "activities", "list"])
+    result = invoke(["crm", "activities", "list", "--json"])
     assert result.exit_code == 0
     parsed = json.loads(result.output)
     assert parsed[0]["title"] == "Follow up with Acme"
@@ -69,7 +69,7 @@ def test_activities_update(invoke, mock_api):
 def test_activities_update_json(invoke, mock_api):
     updated = {**SAMPLE_ACTIVITY, "priority": "high"}
     mock_api.patch("/api/v1/crm/activities/a1").respond(200, json=updated)
-    result = invoke(["crm", "--json", "activities", "update", "a1", "--priority", "high"])
+    result = invoke(["crm", "activities", "update", "a1", "--priority", "high", "--json"])
     assert result.exit_code == 0
     parsed = json.loads(result.output)
     assert parsed["priority"] == "high"

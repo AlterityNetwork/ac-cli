@@ -7,7 +7,7 @@ import json
 import typer
 from rich import print as rprint
 
-from ac_cli.commands._helpers import _api_request, _build_body, should_skip_confirm
+from ac_cli.commands._helpers import _api_request, _build_body, should_skip_confirm, JSON_OPTION, set_json_mode
 from ac_cli.commands.workflows import _WORKFLOWS
 from ac_cli.formatting import print_detail, print_json, print_table
 
@@ -18,12 +18,14 @@ schedules_app = typer.Typer(help="Workflow schedule operations")
 def schedules_list(
     ctx: typer.Context,
     workflow_id: str = typer.Argument(..., help="Workflow ID"),
+    json_output: bool = JSON_OPTION,
 ) -> None:
     """List schedules for a workflow."""
+    set_json_mode(json_output)
     resp = _api_request("get", f"{_WORKFLOWS}/{workflow_id}/schedules")
 
     data = resp.json()
-    if ctx.obj["json"]:
+    if json_output:
         print_json(data)
         return
 
@@ -44,12 +46,14 @@ def schedules_list(
 def schedules_get(
     ctx: typer.Context,
     workflow_id: str = typer.Argument(..., help="Workflow ID"),
+    json_output: bool = JSON_OPTION,
 ) -> None:
     """Get the schedule for a workflow."""
+    set_json_mode(json_output)
     resp = _api_request("get", f"{_WORKFLOWS}/{workflow_id}/schedule")
 
     data = resp.json()
-    if ctx.obj["json"]:
+    if json_output:
         print_json(data)
         return
 
@@ -70,8 +74,10 @@ def schedules_create(
     cron: str = typer.Option(..., "--cron", help="Cron expression"),
     timezone: str = typer.Option("UTC", "--timezone", help="Timezone"),
     input_json: str | None = typer.Option(None, "--input", help="Input JSON string"),
+    json_output: bool = JSON_OPTION,
 ) -> None:
     """Create a schedule for a workflow."""
+    set_json_mode(json_output)
     body: dict = {"cron_expression": cron, "timezone": timezone}
     if input_json:
         try:
@@ -83,7 +89,7 @@ def schedules_create(
     resp = _api_request("post", f"{_WORKFLOWS}/{workflow_id}/schedule", json=body)
 
     data = resp.json()
-    if ctx.obj["json"]:
+    if json_output:
         print_json(data)
     else:
         rprint(f"[green]Schedule created:[/green] {data['id']}")
@@ -97,8 +103,10 @@ def schedules_update(
     cron: str | None = typer.Option(None, "--cron", help="Cron expression"),
     timezone: str | None = typer.Option(None, "--timezone", help="Timezone"),
     input_json: str | None = typer.Option(None, "--input", help="Input JSON string"),
+    json_output: bool = JSON_OPTION,
 ) -> None:
     """Update a workflow schedule."""
+    set_json_mode(json_output)
     body = _build_body(cron_expression=cron, timezone=timezone)
     if input_json:
         try:
@@ -114,7 +122,7 @@ def schedules_update(
     resp = _api_request("patch", f"{_WORKFLOWS}/{workflow_id}/schedules/{schedule_id}", json=body)
 
     data = resp.json()
-    if ctx.obj["json"]:
+    if json_output:
         print_json(data)
     else:
         rprint(f"[green]Updated schedule {schedule_id}[/green]")
@@ -142,13 +150,15 @@ def schedules_preview(
     cron: str = typer.Option(..., "--cron", help="Cron expression"),
     timezone: str = typer.Option("UTC", "--timezone", help="Timezone"),
     count: int = typer.Option(5, "--count", help="Number of upcoming runs to preview"),
+    json_output: bool = JSON_OPTION,
 ) -> None:
     """Preview upcoming run times for a cron schedule."""
+    set_json_mode(json_output)
     body = {"cron_expression": cron, "timezone": timezone, "count": count}
     resp = _api_request("post", f"{_WORKFLOWS}/{workflow_id}/schedule/preview", json=body)
 
     data = resp.json()
-    if ctx.obj["json"]:
+    if json_output:
         print_json(data)
         return
 
@@ -164,8 +174,10 @@ def schedules_toggle(
     workflow_id: str = typer.Argument(..., help="Workflow ID"),
     schedule_id: str = typer.Argument(..., help="Schedule ID"),
     enabled: bool = typer.Option(..., "--enabled/--disabled", help="Enable or disable"),
+    json_output: bool = JSON_OPTION,
 ) -> None:
     """Toggle a workflow schedule on or off."""
+    set_json_mode(json_output)
     resp = _api_request(
         "post",
         f"{_WORKFLOWS}/{workflow_id}/schedules/{schedule_id}/toggle",
@@ -173,7 +185,7 @@ def schedules_toggle(
     )
 
     data = resp.json()
-    if ctx.obj["json"]:
+    if json_output:
         print_json(data)
     else:
         state = "enabled" if enabled else "disabled"

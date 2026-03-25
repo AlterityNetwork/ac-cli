@@ -23,7 +23,7 @@ def test_envoy_dashboard(invoke, mock_api):
 
 def test_envoy_dashboard_json(invoke, mock_api):
     mock_api.get("/api/v1/envoy/dashboard/stats").respond(200, json=SAMPLE_DASHBOARD)
-    result = invoke(["envoy", "--json", "dashboard"])
+    result = invoke(["envoy", "dashboard", "--json"])
     assert result.exit_code == 0
     parsed = json.loads(result.output)
     assert parsed["emails_sent"] == 150

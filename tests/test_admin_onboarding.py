@@ -45,11 +45,12 @@ def test_onboarding_create(invoke, mock_api):
 def test_onboarding_create_json(invoke, mock_api):
     mock_api.post(f"{_BASE}/accounts").respond(200, json=SAMPLE_ACCOUNT)
     result = invoke([
-        "admin", "--json", "onboarding", "create",
+        "admin", "onboarding", "create",
         "--email", "user@example.com",
         "--first-name", "Jane",
         "--last-name", "Doe",
         "--org-name", "Test Corp",
+        "--json",
     ])
     assert result.exit_code == 0
     parsed = json.loads(result.output)
@@ -83,7 +84,7 @@ def test_onboarding_list_with_filters(invoke, mock_api):
 def test_onboarding_list_json(invoke, mock_api):
     payload = {"items": [SAMPLE_LIST_ITEM], "total": 1, "page": 1, "page_size": 25}
     mock_api.get(f"{_BASE}/accounts").respond(200, json=payload)
-    result = invoke(["admin", "--json", "onboarding", "list"])
+    result = invoke(["admin", "onboarding", "list", "--json"])
     assert result.exit_code == 0
     parsed = json.loads(result.output)
     assert parsed["items"][0]["organization_name"] == "Onboard Corp"
@@ -154,7 +155,7 @@ def test_onboarding_end_impersonation_json(invoke, mock_api):
         "signed_out": True,
     }
     mock_api.post(f"{_BASE}/accounts/org-onboard-1/end-impersonate").respond(200, json=payload)
-    result = invoke(["admin", "--json", "onboarding", "end-impersonation", "org-onboard-1"])
+    result = invoke(["admin", "onboarding", "end-impersonation", "org-onboard-1", "--json"])
     assert result.exit_code == 0
     parsed = json.loads(result.output)
     assert parsed["signed_out"] is True
@@ -210,7 +211,7 @@ def test_onboarding_get_settings(invoke, mock_api):
 
 def test_onboarding_get_settings_json(invoke, mock_api):
     mock_api.get(f"{_BASE}/settings").respond(200, json=SAMPLE_SETTINGS)
-    result = invoke(["admin", "--json", "onboarding", "get-settings"])
+    result = invoke(["admin", "onboarding", "get-settings", "--json"])
     assert result.exit_code == 0
     parsed = json.loads(result.output)
     assert parsed["calendly_enabled"] is True

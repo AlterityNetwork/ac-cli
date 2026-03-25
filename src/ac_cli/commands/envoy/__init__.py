@@ -2,7 +2,7 @@
 
 import typer
 
-from ac_cli.commands._helpers import _api_request, _build_body, _handle_error, set_json_mode  # noqa: F401
+from ac_cli.commands._helpers import _api_request, _build_body, _handle_error, set_json_mode  # noqa: F401, JSON_OPTION
 
 app = typer.Typer(help="Envoy outreach commands")
 
@@ -10,13 +10,8 @@ _ENVOY = "/api/v1/envoy"
 
 
 @app.callback()
-def envoy_callback(
-    ctx: typer.Context,
-    json_output: bool = typer.Option(False, "--json", help="Output raw JSON"),
-) -> None:
+def envoy_callback(ctx: typer.Context) -> None:
     ctx.ensure_object(dict)
-    ctx.obj["json"] = json_output
-    set_json_mode(json_output)
 
 
 # -- Register sub-command groups from submodules ------------------------------
@@ -43,15 +38,19 @@ app.command("signals")(signals_command)
 
 
 @app.command("inbox-count")
-def inbox_count(ctx: typer.Context) -> None:
+def inbox_count(
+    ctx: typer.Context,
+    json_output: bool = typer.Option(False, "--json", help="Output raw JSON"),
+) -> None:
     """Get inbox thread count."""
-    from ac_cli.commands._helpers import _api_request
+    from ac_cli.commands._helpers import _api_request, set_json_mode
     from ac_cli.formatting import print_json
     from rich import print as rprint
 
+    set_json_mode(json_output)
     resp = _api_request("get", f"{_ENVOY}/dashboard/inbox-count")
     data = resp.json()
-    if ctx.obj["json"]:
+    if json_output:
         print_json(data)
     else:
         rprint(f"Inbox count: {data.get('count', data)}")

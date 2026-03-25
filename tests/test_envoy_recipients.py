@@ -22,7 +22,7 @@ def test_recipients_list(invoke, mock_api):
 
 def test_recipients_list_json(invoke, mock_api):
     mock_api.get("/api/v1/envoy/sequences/seq-1/recipients").respond(200, json=[SAMPLE_RECIPIENT])
-    result = invoke(["envoy", "--json", "recipients", "list", "seq-1"])
+    result = invoke(["envoy", "recipients", "list", "seq-1", "--json"])
     assert result.exit_code == 0
     parsed = json.loads(result.output)
     assert parsed[0]["recipient_email"] == "jane@example.com"
@@ -45,7 +45,7 @@ def test_recipients_add(invoke, mock_api):
 def test_recipients_add_json(invoke, mock_api):
     mock_api.post("/api/v1/envoy/sequences/seq-1/recipients").respond(201, json={"added": 1})
     source = json.dumps([{"email": "a@b.com"}])
-    result = invoke(["envoy", "--json", "recipients", "add", "seq-1", "--source", source])
+    result = invoke(["envoy", "recipients", "add", "seq-1", "--source", source, "--json"])
     assert result.exit_code == 0
     parsed = json.loads(result.output)
     assert parsed["added"] == 1

@@ -59,7 +59,7 @@ class TestEnvList:
     def test_list_json(self):
         full = _multi_env_config()
         with _patch_full_config(full):
-            result = runner.invoke(app, ["env", "--json", "list"])
+            result = runner.invoke(app, ["env", "list", "--json"])
         assert result.exit_code == 0
         data = json.loads(result.output)
         assert len(data) == 3
@@ -73,7 +73,7 @@ class TestEnvList:
     def test_list_not_logged_in(self):
         full = _multi_env_config(envs={})
         with _patch_full_config(full):
-            result = runner.invoke(app, ["env", "--json", "list"])
+            result = runner.invoke(app, ["env", "list", "--json"])
         data = json.loads(result.output)
         assert all(e["logged_in"] is False for e in data)
 
@@ -93,7 +93,7 @@ class TestEnvShow:
     def test_show_json(self):
         full = _multi_env_config()
         with _patch_full_config(full):
-            result = runner.invoke(app, ["env", "--json", "show"])
+            result = runner.invoke(app, ["env", "show", "--json"])
         data = json.loads(result.output)
         assert data["environment"] == "staging"
         assert data["logged_in"] is True

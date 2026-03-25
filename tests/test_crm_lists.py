@@ -42,7 +42,7 @@ def test_lists_list(invoke, mock_api):
 def test_lists_list_json(invoke, mock_api):
     payload = {"data": [SAMPLE_LIST], "total": 1}
     mock_api.get("/api/v1/crm/lists").respond(200, json=payload)
-    result = invoke(["crm", "--json", "lists", "list"])
+    result = invoke(["crm", "lists", "list", "--json"])
     assert result.exit_code == 0
     parsed = json.loads(result.output)
     assert parsed["data"][0]["name"] == "Target Companies"
@@ -74,7 +74,7 @@ def test_lists_update(invoke, mock_api):
 def test_lists_update_json(invoke, mock_api):
     updated = {**SAMPLE_LIST, "name": "Updated List"}
     mock_api.patch("/api/v1/crm/lists/l1").respond(200, json=updated)
-    result = invoke(["crm", "--json", "lists", "update", "l1", "--name", "Updated List"])
+    result = invoke(["crm", "lists", "update", "l1", "--name", "Updated List", "--json"])
     assert result.exit_code == 0
     parsed = json.loads(result.output)
     assert parsed["name"] == "Updated List"

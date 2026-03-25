@@ -52,7 +52,7 @@ def test_dashboard(invoke, mock_api):
 
 def test_dashboard_json(invoke, mock_api):
     mock_api.get("/api/v1/crm/dashboard").respond(200, json=SAMPLE_DASHBOARD)
-    result = invoke(["crm", "--json", "dashboard"])
+    result = invoke(["crm", "dashboard", "--json"])
     assert result.exit_code == 0
     parsed = json.loads(result.output)
     assert parsed["pipeline"]["total_deals"] == 5

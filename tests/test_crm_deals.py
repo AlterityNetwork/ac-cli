@@ -30,7 +30,7 @@ def test_deals_list(invoke, mock_api):
 
 def test_deals_list_json(invoke, mock_api):
     mock_api.get("/api/v1/crm/deals").respond(200, json=[SAMPLE_DEAL])
-    result = invoke(["crm", "--json", "deals", "list"])
+    result = invoke(["crm", "deals", "list", "--json"])
     assert result.exit_code == 0
     parsed = json.loads(result.output)
     assert parsed[0]["name"] == "Enterprise Contract"
@@ -89,7 +89,7 @@ def test_deals_order(invoke, mock_api):
 
 def test_deals_order_json(invoke, mock_api):
     mock_api.post("/api/v1/crm/deals/order").respond(200, json={"ordered": True})
-    result = invoke(["crm", "--json", "deals", "order", "--stage", "lead", "--deal-ids", "d1,d2"])
+    result = invoke(["crm", "deals", "order", "--stage", "lead", "--deal-ids", "d1,d2", "--json"])
     assert result.exit_code == 0
     parsed = json.loads(result.output)
     assert parsed["ordered"] is True

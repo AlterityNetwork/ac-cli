@@ -5,7 +5,7 @@ from __future__ import annotations
 import typer
 from rich import print as rprint
 
-from ac_cli.commands._helpers import _api_request, _build_body
+from ac_cli.commands._helpers import JSON_OPTION, _api_request, _build_body, set_json_mode
 from ac_cli.commands.envoy import _ENVOY
 from ac_cli.formatting import print_detail, print_json, print_table
 
@@ -21,8 +21,10 @@ def inbox_list(
     assigned_to: str | None = typer.Option(None, "--assigned-to", help="Filter by assignee"),
     limit: int = typer.Option(50, help="Max results"),
     offset: int = typer.Option(0, help="Pagination offset"),
+    json_output: bool = JSON_OPTION,
 ) -> None:
     """List inbox threads."""
+    set_json_mode(json_output)
     params: dict = {"limit": limit, "offset": offset}
     if status:
         params["status"] = status
@@ -36,7 +38,7 @@ def inbox_list(
     resp = _api_request("get", f"{_ENVOY}/inbox/threads", params=params)
 
     data = resp.json()
-    if ctx.obj["json"]:
+    if json_output:
         print_json(data)
         return
 
@@ -58,12 +60,14 @@ def inbox_list(
 def inbox_messages(
     ctx: typer.Context,
     thread_id: str = typer.Argument(..., help="Thread ID"),
+    json_output: bool = JSON_OPTION,
 ) -> None:
     """Get messages for a thread."""
+    set_json_mode(json_output)
     resp = _api_request("get", f"{_ENVOY}/inbox/threads/{thread_id}/messages")
 
     data = resp.json()
-    if ctx.obj["json"]:
+    if json_output:
         print_json(data)
         return
 
@@ -83,12 +87,14 @@ def inbox_messages(
 def inbox_archive(
     ctx: typer.Context,
     thread_id: str = typer.Argument(..., help="Thread ID"),
+    json_output: bool = JSON_OPTION,
 ) -> None:
     """Archive a thread."""
+    set_json_mode(json_output)
     resp = _api_request("post", f"{_ENVOY}/inbox/threads/{thread_id}/archive")
 
     data = resp.json()
-    if ctx.obj["json"]:
+    if json_output:
         print_json(data)
     else:
         rprint(f"[green]Archived thread {thread_id}[/green]")
@@ -98,12 +104,14 @@ def inbox_archive(
 def inbox_unarchive(
     ctx: typer.Context,
     thread_id: str = typer.Argument(..., help="Thread ID"),
+    json_output: bool = JSON_OPTION,
 ) -> None:
     """Unarchive a thread."""
+    set_json_mode(json_output)
     resp = _api_request("post", f"{_ENVOY}/inbox/threads/{thread_id}/unarchive")
 
     data = resp.json()
-    if ctx.obj["json"]:
+    if json_output:
         print_json(data)
     else:
         rprint(f"[green]Unarchived thread {thread_id}[/green]")
@@ -114,12 +122,14 @@ def inbox_assign(
     ctx: typer.Context,
     thread_id: str = typer.Argument(..., help="Thread ID"),
     user_id: str = typer.Option(..., "--user-id", help="User ID to assign"),
+    json_output: bool = JSON_OPTION,
 ) -> None:
     """Assign a thread to a user."""
+    set_json_mode(json_output)
     resp = _api_request("post", f"{_ENVOY}/inbox/threads/{thread_id}/assign", json={"assigned_to": user_id})
 
     data = resp.json()
-    if ctx.obj["json"]:
+    if json_output:
         print_json(data)
     else:
         rprint(f"[green]Assigned thread {thread_id} to {user_id}[/green]")
@@ -130,12 +140,14 @@ def inbox_snooze(
     ctx: typer.Context,
     thread_id: str = typer.Argument(..., help="Thread ID"),
     until: str = typer.Option(..., "--until", help="Snooze until (ISO datetime)"),
+    json_output: bool = JSON_OPTION,
 ) -> None:
     """Snooze a thread until a given time."""
+    set_json_mode(json_output)
     resp = _api_request("post", f"{_ENVOY}/inbox/threads/{thread_id}/snooze", json={"snooze_until": until})
 
     data = resp.json()
-    if ctx.obj["json"]:
+    if json_output:
         print_json(data)
     else:
         rprint(f"[green]Snoozed thread {thread_id} until {until}[/green]")
@@ -145,12 +157,14 @@ def inbox_snooze(
 def inbox_complete(
     ctx: typer.Context,
     thread_id: str = typer.Argument(..., help="Thread ID"),
+    json_output: bool = JSON_OPTION,
 ) -> None:
     """Mark a thread as complete."""
+    set_json_mode(json_output)
     resp = _api_request("post", f"{_ENVOY}/inbox/threads/{thread_id}/complete")
 
     data = resp.json()
-    if ctx.obj["json"]:
+    if json_output:
         print_json(data)
     else:
         rprint(f"[green]Completed thread {thread_id}[/green]")
@@ -161,12 +175,14 @@ def inbox_update_status(
     ctx: typer.Context,
     thread_id: str = typer.Argument(..., help="Thread ID"),
     status: str = typer.Option(..., "--status", help="New status"),
+    json_output: bool = JSON_OPTION,
 ) -> None:
     """Update the status of a thread."""
+    set_json_mode(json_output)
     resp = _api_request("patch", f"{_ENVOY}/inbox/threads/{thread_id}/status", json={"status": status})
 
     data = resp.json()
-    if ctx.obj["json"]:
+    if json_output:
         print_json(data)
     else:
         rprint(f"[green]Updated thread {thread_id} status to {status}[/green]")
@@ -177,13 +193,15 @@ def inbox_add_tags(
     ctx: typer.Context,
     thread_id: str = typer.Argument(..., help="Thread ID"),
     tags: str = typer.Option(..., "--tags", help="Comma-separated tags"),
+    json_output: bool = JSON_OPTION,
 ) -> None:
     """Add tags to a thread."""
+    set_json_mode(json_output)
     tags_list = [t.strip() for t in tags.split(",")]
     resp = _api_request("post", f"{_ENVOY}/inbox/threads/{thread_id}/tags", json=tags_list)
 
     data = resp.json()
-    if ctx.obj["json"]:
+    if json_output:
         print_json(data)
     else:
         rprint(f"[green]Added tags to thread {thread_id}[/green]")
@@ -194,8 +212,10 @@ def inbox_remove_tags(
     ctx: typer.Context,
     thread_id: str = typer.Argument(..., help="Thread ID"),
     tags: str = typer.Option(..., "--tags", help="Comma-separated tags"),
+    json_output: bool = JSON_OPTION,
 ) -> None:
     """Remove tags from a thread."""
+    set_json_mode(json_output)
     tags_list = [t.strip() for t in tags.split(",")]
     # httpx delete() doesn't accept json body; use request() directly
     from ac_cli.client import get_api_client
@@ -213,7 +233,7 @@ def inbox_remove_tags(
             raise typer.Exit(code=1)
 
     data = resp.json()
-    if ctx.obj["json"]:
+    if json_output:
         print_json(data)
     else:
         rprint(f"[green]Removed tags from thread {thread_id}[/green]")
@@ -225,13 +245,15 @@ def inbox_reply(
     thread_id: str = typer.Argument(..., help="Thread ID"),
     body: str = typer.Option(..., "--body", help="Reply body"),
     subject: str | None = typer.Option(None, "--subject", help="Reply subject"),
+    json_output: bool = JSON_OPTION,
 ) -> None:
     """Reply to a thread."""
+    set_json_mode(json_output)
     req_body = _build_body(body=body, subject=subject)
     resp = _api_request("post", f"{_ENVOY}/inbox/threads/{thread_id}/reply", json=req_body)
 
     data = resp.json()
-    if ctx.obj["json"]:
+    if json_output:
         print_json(data)
     else:
         rprint(f"[green]Replied to thread {thread_id}[/green]")

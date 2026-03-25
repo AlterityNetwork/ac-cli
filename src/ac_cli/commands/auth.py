@@ -127,7 +127,7 @@ def whoami(
     json_output: bool = typer.Option(False, "--json", help="Output raw JSON"),
 ) -> None:
     """Show the currently authenticated user."""
-    from ac_cli.commands._helpers import _EXIT_CODES, set_json_mode
+    from ac_cli.commands._helpers import _EXIT_CODES, set_json_mode, JSON_OPTION
     from ac_cli.formatting import print_json
 
     set_json_mode(json_output)

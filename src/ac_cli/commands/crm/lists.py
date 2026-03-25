@@ -5,7 +5,7 @@ from __future__ import annotations
 import typer
 from rich import print as rprint
 
-from ac_cli.commands._helpers import should_skip_confirm
+from ac_cli.commands._helpers import JSON_OPTION, set_json_mode, should_skip_confirm
 from ac_cli.commands.crm import _CRM, _api_request, _build_body
 from ac_cli.formatting import print_detail, print_json, print_table
 
@@ -17,12 +17,14 @@ def lists_list(
     ctx: typer.Context,
     limit: int = typer.Option(100, help="Max results"),
     offset: int = typer.Option(0, help="Offset"),
+    json_output: bool = JSON_OPTION,
 ) -> None:
     """List all CRM lists."""
+    set_json_mode(json_output)
     resp = _api_request("get", f"{_CRM}/lists", params={"limit": limit, "offset": offset})
 
     data = resp.json()
-    if ctx.obj["json"]:
+    if json_output:
         print_json(data)
         return
 
@@ -43,12 +45,14 @@ def lists_list(
 def lists_get(
     ctx: typer.Context,
     list_id: str = typer.Argument(..., help="List ID"),
+    json_output: bool = JSON_OPTION,
 ) -> None:
     """Get a list by ID."""
+    set_json_mode(json_output)
     resp = _api_request("get", f"{_CRM}/lists/{list_id}")
 
     data = resp.json()
-    if ctx.obj["json"]:
+    if json_output:
         print_json(data)
         return
 
@@ -71,8 +75,10 @@ def lists_create(
     member_type: str = typer.Option("mixed", "--member-type", help="person, company, or mixed"),
     description: str | None = typer.Option(None, help="Description"),
     list_type: str = typer.Option("static", "--type", help="static or dynamic"),
+    json_output: bool = JSON_OPTION,
 ) -> None:
     """Create a new list."""
+    set_json_mode(json_output)
     body = _build_body(
         name=name, type=list_type, member_type=member_type, description=description,
     )
@@ -83,7 +89,7 @@ def lists_create(
     resp = _api_request("post", f"{_CRM}/lists", json=body)
 
     data = resp.json()
-    if ctx.obj["json"]:
+    if json_output:
         print_json(data)
     else:
         rprint(f"[green]Created list:[/green] {data['name']} ({data['id']})")
@@ -97,8 +103,10 @@ def lists_update(
     description: str | None = typer.Option(None, help="Description"),
     list_type: str | None = typer.Option(None, "--type", help="static or dynamic"),
     member_type: str | None = typer.Option(None, "--member-type", help="person, company, or mixed"),
+    json_output: bool = JSON_OPTION,
 ) -> None:
     """Update an existing list."""
+    set_json_mode(json_output)
     body = _build_body(
         name=name, description=description, type=list_type, member_type=member_type,
     )
@@ -110,7 +118,7 @@ def lists_update(
     resp = _api_request("patch", f"{_CRM}/lists/{list_id}", json=body)
 
     data = resp.json()
-    if ctx.obj["json"]:
+    if json_output:
         print_json(data)
     else:
         rprint(f"[green]Updated list:[/green] {data['name']} ({data['id']})")
@@ -122,8 +130,10 @@ def lists_members(
     list_id: str = typer.Argument(..., help="List ID"),
     limit: int = typer.Option(100, help="Max results"),
     offset: int = typer.Option(0, help="Offset"),
+    json_output: bool = JSON_OPTION,
 ) -> None:
     """List members of a list."""
+    set_json_mode(json_output)
     resp = _api_request(
         "get",
         f"{_CRM}/lists/{list_id}/members",
@@ -131,7 +141,7 @@ def lists_members(
     )
 
     data = resp.json()
-    if ctx.obj["json"]:
+    if json_output:
         print_json(data)
         return
 
@@ -153,8 +163,10 @@ def lists_add_member(
     list_id: str = typer.Argument(..., help="List ID"),
     person_id: str | None = typer.Option(None, "--person-id", help="Person ID"),
     company_id: str | None = typer.Option(None, "--company-id", help="Company ID"),
+    json_output: bool = JSON_OPTION,
 ) -> None:
     """Add a member to a list."""
+    set_json_mode(json_output)
     if not person_id and not company_id:
         rprint("[red]Must specify --person-id or --company-id[/red]")
         raise typer.Exit(code=1)
@@ -164,7 +176,7 @@ def lists_add_member(
     resp = _api_request("post", f"{_CRM}/lists/{list_id}/members", json=body)
 
     data = resp.json()
-    if ctx.obj["json"]:
+    if json_output:
         print_json(data)
     else:
         member_label = person_id or company_id

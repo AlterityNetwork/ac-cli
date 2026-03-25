@@ -29,7 +29,7 @@ def test_apps_list_json(invoke, mock_api):
     mock_api.get("/whoami").respond(200, json=WHOAMI_RESPONSE)
     payload = [SAMPLE_APP]
     mock_api.get("/api/v1/orgs/org-456/apps").respond(200, json=payload)
-    result = invoke(["apps", "--json", "list"])
+    result = invoke(["apps", "list", "--json"])
     assert result.exit_code == 0
     parsed = json.loads(result.output)
     assert parsed[0]["app_slug"] == "email-finder"
@@ -96,7 +96,7 @@ def test_apps_configs_json(invoke, mock_api):
     mock_api.get("/whoami").respond(200, json=WHOAMI_RESPONSE)
     payload = [SAMPLE_CONFIG]
     mock_api.get("/api/v1/orgs/org-456/apps/email-finder/configs").respond(200, json=payload)
-    result = invoke(["apps", "--json", "configs", "email-finder"])
+    result = invoke(["apps", "configs", "email-finder", "--json"])
     assert result.exit_code == 0
     parsed = json.loads(result.output)
     assert parsed[0]["config_key"] == "api_key"

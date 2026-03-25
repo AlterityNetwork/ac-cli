@@ -32,7 +32,7 @@ def test_import_preview_json(invoke, mock_api, tmp_path):
     items_file = tmp_path / "items.json"
     items_file.write_text(json.dumps([{"name": "Acme Corp"}]))
     mock_api.post("/api/v1/crm/import/preview").respond(200, json=SAMPLE_PREVIEW)
-    result = invoke(["crm", "--json", "import", "preview", "--file", str(items_file)])
+    result = invoke(["crm", "import", "preview", "--file", str(items_file), "--json"])
     assert result.exit_code == 0
     parsed = json.loads(result.output)
     assert parsed["preview_id"] == "prev-123"
@@ -54,7 +54,7 @@ def test_import_commit(invoke, mock_api):
 
 def test_import_commit_json(invoke, mock_api):
     mock_api.post("/api/v1/crm/import/commit").respond(200, json=SAMPLE_COMMIT)
-    result = invoke(["crm", "--json", "import", "commit", "--preview-id", "prev-123"])
+    result = invoke(["crm", "import", "commit", "--preview-id", "prev-123", "--json"])
     assert result.exit_code == 0
     parsed = json.loads(result.output)
     assert parsed["created"] == 3

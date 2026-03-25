@@ -57,7 +57,7 @@ def test_comms_list(invoke, mock_api):
 
 def test_comms_list_json(invoke, mock_api):
     mock_api.get("/api/v1/crm/communications").respond(200, json=[SAMPLE_COMMUNICATION])
-    result = invoke(["crm", "--json", "comms", "list"])
+    result = invoke(["crm", "comms", "list", "--json"])
     assert result.exit_code == 0
     parsed = json.loads(result.output)
     assert parsed[0]["from_name"] == "Jane Doe"
@@ -91,7 +91,7 @@ def test_comms_thread_json(invoke, mock_api):
     mock_api.get("/api/v1/crm/communications/thread/thread_jane_001").respond(
         200, json=[SAMPLE_OUTBOUND, SAMPLE_COMMUNICATION]
     )
-    result = invoke(["crm", "--json", "comms", "thread", "thread_jane_001"])
+    result = invoke(["crm", "comms", "thread", "thread_jane_001", "--json"])
     assert result.exit_code == 0
     parsed = json.loads(result.output)
     assert len(parsed) == 2
@@ -168,7 +168,7 @@ def test_comms_update(invoke, mock_api):
 def test_comms_update_json(invoke, mock_api):
     updated = {**SAMPLE_COMMUNICATION, "subject": "Updated subject"}
     mock_api.patch("/api/v1/crm/communications/comm1").respond(200, json=updated)
-    result = invoke(["crm", "--json", "comms", "update", "comm1", "--subject", "Updated subject"])
+    result = invoke(["crm", "comms", "update", "comm1", "--subject", "Updated subject", "--json"])
     assert result.exit_code == 0
     parsed = json.loads(result.output)
     assert parsed["subject"] == "Updated subject"
@@ -236,7 +236,7 @@ def test_comms_contact_by_email(invoke, mock_api):
 
 def test_comms_contact_by_email_json(invoke, mock_api):
     mock_api.get("/api/v1/crm/communications/contact-by-email").respond(200, json=SAMPLE_CONTACT)
-    result = invoke(["crm", "--json", "comms", "contact-by-email", "jane@example.com"])
+    result = invoke(["crm", "comms", "contact-by-email", "jane@example.com", "--json"])
     assert result.exit_code == 0
     parsed = json.loads(result.output)
     assert parsed["email"] == "jane@example.com"
@@ -254,7 +254,7 @@ def test_comms_resolve_contact(invoke, mock_api):
 
 def test_comms_resolve_contact_json(invoke, mock_api):
     mock_api.post("/api/v1/crm/communications/resolve-contact").respond(200, json=SAMPLE_CONTACT)
-    result = invoke(["crm", "--json", "comms", "resolve-contact", "jane@example.com"])
+    result = invoke(["crm", "comms", "resolve-contact", "jane@example.com", "--json"])
     assert result.exit_code == 0
     parsed = json.loads(result.output)
     assert parsed["full_name"] == "Jane Doe"
@@ -286,10 +286,11 @@ def test_comms_draft_email(invoke, mock_api):
 def test_comms_draft_email_json(invoke, mock_api):
     mock_api.post("/api/v1/crm/communications/draft-email").respond(201, json=SAMPLE_DRAFT)
     result = invoke([
-        "crm", "--json", "comms", "draft-email",
+        "crm", "comms", "draft-email",
         "--contact-id", "p1",
         "--subject", "Partnership opportunity",
         "--content", "Dear Jane...",
+        "--json",
     ])
     assert result.exit_code == 0
     parsed = json.loads(result.output)
@@ -320,10 +321,11 @@ def test_comms_generate_draft(invoke, mock_api):
 def test_comms_generate_draft_json(invoke, mock_api):
     mock_api.post("/api/v1/crm/communications/generate-draft").respond(200, json=SAMPLE_GENERATED)
     result = invoke([
-        "crm", "--json", "comms", "generate-draft",
+        "crm", "comms", "generate-draft",
         "--mode", "reply",
         "--recipient-name", "Jane Doe",
         "--original-subject", "Partnership",
+        "--json",
     ])
     assert result.exit_code == 0
     parsed = json.loads(result.output)
@@ -355,7 +357,7 @@ def test_comms_unread_thread_ids_empty(invoke, mock_api):
 def test_comms_unread_thread_ids_json(invoke, mock_api):
     data = {"thread_ids": ["thread_jane_001"]}
     mock_api.get("/api/v1/crm/communications/unread-thread-ids").respond(200, json=data)
-    result = invoke(["crm", "--json", "comms", "unread-thread-ids"])
+    result = invoke(["crm", "comms", "unread-thread-ids", "--json"])
     assert result.exit_code == 0
     parsed = json.loads(result.output)
     assert parsed["thread_ids"] == ["thread_jane_001"]

@@ -14,6 +14,8 @@ _json_output: contextvars.ContextVar[bool] = contextvars.ContextVar(
     "json_output", default=False
 )
 
+JSON_OPTION = typer.Option(False, "--json", help="Output raw JSON")
+
 _EXIT_CODES = {401: 4, 403: 4, 404: 3, 409: 5, 422: 2}
 
 

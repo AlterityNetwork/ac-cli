@@ -23,7 +23,7 @@ def test_nylas_oauth_start_json(invoke, mock_api):
     mock_api.get("/api/v1/nylas/oauth/start").respond(
         200, json={"url": "https://accounts.google.com/o/oauth2/auth?client_id=123"}
     )
-    result = invoke(["nylas", "--json", "oauth-start"])
+    result = invoke(["nylas", "oauth-start", "--json"])
     assert result.exit_code == 0
     parsed = json.loads(result.output)
     assert parsed["url"].startswith("https://")
@@ -38,7 +38,7 @@ def test_nylas_account(invoke, mock_api):
 
 def test_nylas_account_json(invoke, mock_api):
     mock_api.get("/api/v1/nylas/oauth/account").respond(200, json=SAMPLE_ACCOUNT)
-    result = invoke(["nylas", "--json", "account"])
+    result = invoke(["nylas", "account", "--json"])
     assert result.exit_code == 0
     parsed = json.loads(result.output)
     assert parsed["email"] == "user@example.com"
