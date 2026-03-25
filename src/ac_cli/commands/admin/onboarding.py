@@ -106,7 +106,7 @@ def onboarding_list(
         return
 
     print_table(
-        data.get("data", []),
+        data.get("items", data.get("data", [])),
         [
             ("organization_id", "Org ID"),
             ("organization_name", "Org Name"),

@@ -59,7 +59,7 @@ def test_onboarding_create_json(invoke, mock_api):
 
 def test_onboarding_list(invoke, mock_api):
     mock_api.get(f"{_BASE}/accounts").respond(200, json={
-        "data": [SAMPLE_LIST_ITEM],
+        "items": [SAMPLE_LIST_ITEM],
         "total": 1,
         "page": 1,
         "page_size": 25,
@@ -71,7 +71,7 @@ def test_onboarding_list(invoke, mock_api):
 
 def test_onboarding_list_with_filters(invoke, mock_api):
     mock_api.get(f"{_BASE}/accounts").respond(200, json={
-        "data": [SAMPLE_LIST_ITEM],
+        "items": [SAMPLE_LIST_ITEM],
         "total": 1,
         "page": 1,
         "page_size": 25,
@@ -81,12 +81,12 @@ def test_onboarding_list_with_filters(invoke, mock_api):
 
 
 def test_onboarding_list_json(invoke, mock_api):
-    payload = {"data": [SAMPLE_LIST_ITEM], "total": 1, "page": 1, "page_size": 25}
+    payload = {"items": [SAMPLE_LIST_ITEM], "total": 1, "page": 1, "page_size": 25}
     mock_api.get(f"{_BASE}/accounts").respond(200, json=payload)
     result = invoke(["admin", "--json", "onboarding", "list"])
     assert result.exit_code == 0
     parsed = json.loads(result.output)
-    assert parsed["data"][0]["organization_name"] == "Onboard Corp"
+    assert parsed["items"][0]["organization_name"] == "Onboard Corp"
 
 
 def test_onboarding_get(invoke, mock_api):
