@@ -24,6 +24,8 @@ from ac_cli.commands.admin.demo import demo_app  # noqa: E402
 from ac_cli.commands.admin.onboarding import onboarding_app  # noqa: E402
 from ac_cli.commands.admin.app_usage import app_usage_app  # noqa: E402
 from ac_cli.commands.admin.ai_usage import ai_usage_app  # noqa: E402
+from ac_cli.commands.admin.platform_activity import platform_activity_app  # noqa: E402
+from ac_cli.commands.admin.legal_documents import legal_docs_app  # noqa: E402
 
 app.add_typer(users_app, name="users")
 app.add_typer(organizations_app, name="orgs")
@@ -32,3 +34,5 @@ app.add_typer(demo_app, name="demo")
 app.add_typer(onboarding_app, name="onboarding")
 app.add_typer(app_usage_app, name="app-usage")
 app.add_typer(ai_usage_app, name="ai-usage")
+app.add_typer(platform_activity_app, name="platform-activity")
+app.add_typer(legal_docs_app, name="legal-docs")

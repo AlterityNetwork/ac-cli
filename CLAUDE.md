@@ -20,7 +20,10 @@ uv sync --all-extras       # Install with dev dependencies (pytest, respx)
 | `files` | Image upload/delete |
 | `workflows` | Runs, schedules, presets |
 | `apps` | Organization app install/config |
-| `admin` | Users, orgs, queues, demo, onboarding, app-usage, ai-usage (super admin) |
+| `chat` | AI chat threads and messages |
+| `admin` | Users, orgs, queues, demo, onboarding, app-usage, ai-usage, platform-activity, legal-docs (super admin) |
+| `profiles` | User profile management |
+| `resources` | Knowledge base resource management |
 | `styles` | Writing styles |
 | `nylas` | Email integration |
 | `hooks` | Platform hooks |

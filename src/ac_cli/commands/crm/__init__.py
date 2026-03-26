@@ -116,6 +116,59 @@ def dashboard(
     rprint(f"  Change: {messages.get('change', 0):+d}")
 
 
+# =============================================================================
+# ENGAGEMENT DASHBOARD
+# =============================================================================
+
+
+@app.command("engagement-dashboard")
+def engagement_dashboard(
+    ctx: typer.Context,
+    period: int = typer.Option(30, "--period", help="Period in days (1-365)"),
+    json_output: bool = JSON_OPTION,
+) -> None:
+    """Show email engagement dashboard."""
+    set_json_mode(json_output)
+    resp = _api_request("get", f"{_CRM}/engagement-dashboard", params={"period_days": period})
+
+    data = resp.json()
+    if json_output:
+        print_json(data)
+        return
+
+    rprint(f"\n[bold]Email Engagement Dashboard[/bold] (last {data.get('period_days', period)} days)\n")
+
+    emails = data.get("emails_sent", {})
+    rprint("[bold]Emails Sent[/bold]")
+    rprint(f"  Current period: {emails.get('current_period', 0)}")
+    rprint(f"  Previous period: {emails.get('previous_period', 0)}")
+    rprint(f"  Change: {emails.get('change', 0):+d}")
+
+    rprint(f"\n[bold]Engagement Rates[/bold]")
+    rprint(f"  Open rate: {data.get('open_rate', 0):.1f}%")
+    rprint(f"  Click rate: {data.get('click_rate', 0):.1f}%")
+    rprint(f"  Reply rate: {data.get('reply_rate', 0):.1f}%")
+    rprint(f"  Bounce rate: {data.get('bounce_rate', 0):.1f}%")
+
+    health = data.get("email_health", {})
+    if health:
+        rprint(f"\n[bold]Email Health[/bold]")
+        rprint(f"  Score: {health.get('score', 'N/A')}")
+        rprint(f"  Status: {health.get('status', 'N/A')}")
+
+    top_links = data.get("top_clicked_links", [])
+    if top_links:
+        from ac_cli.formatting import print_table
+        print_table(
+            top_links,
+            [
+                ("url", "URL"),
+                ("clicks", "Clicks"),
+            ],
+            title="Top Clicked Links",
+        )
+
+
 # -- Register sub-command groups from submodules ------------------------------
 
 from ac_cli.commands.crm.companies import companies_app  # noqa: E402

@@ -3,10 +3,12 @@
 import typer
 
 from ac_cli import __version__
-from ac_cli.commands import admin, apps, auth, crm, env, files, health
+from ac_cli.commands import admin, apps, auth, chat, crm, env, files, health
 from ac_cli.commands import envoy
 from ac_cli.commands import hooks
 from ac_cli.commands import nylas
+from ac_cli.commands import profiles
+from ac_cli.commands import resources
 from ac_cli.commands import workflows
 from ac_cli.commands import writing_styles
 
@@ -35,6 +37,7 @@ def main(
 app.add_typer(admin.app, name="admin")
 app.add_typer(apps.app, name="apps")
 app.add_typer(auth.app, name="auth")
+app.add_typer(chat.app, name="chat")
 app.add_typer(crm.app, name="crm")
 app.add_typer(env.app, name="env")
 app.add_typer(health.app, name="health")
@@ -42,6 +45,8 @@ app.add_typer(envoy.app, name="envoy")
 app.add_typer(files.app, name="files")
 app.add_typer(hooks.app, name="hooks")
 app.add_typer(nylas.app, name="nylas")
+app.add_typer(profiles.app, name="profiles")
+app.add_typer(resources.app, name="resources")
 app.add_typer(workflows.app, name="workflows")
 app.add_typer(writing_styles.app, name="styles")
 
