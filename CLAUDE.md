@@ -24,6 +24,7 @@ uv sync --all-extras       # Install with dev dependencies (pytest, respx)
 | `styles` | Writing styles |
 | `nylas` | Email integration |
 | `hooks` | Platform hooks |
+| `health` | Health checks |
 | `env` | Environment switching (local, staging, production) |
 
 Run `ac <group> --help` for full subcommand listing.
