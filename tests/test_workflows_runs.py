@@ -20,33 +20,46 @@ SAMPLE_LOG = {
 
 
 def test_runs_create(invoke, mock_api):
-    mock_api.post("/api/v1/workflows/wf-1/runs").respond(202, json={"run_id": "run-1", "status": "accepted"})
+    route = mock_api.post("/api/v1/workflows/wf-1/runs").respond(202, json={"workflow_run_id": "run-1", "status": "queued"})
     result = invoke(["workflows", "runs", "create", "wf-1"])
     assert result.exit_code == 0
     assert "Run created" in result.output
     assert "run-1" in result.output
+    # Verify empty trigger_data is sent by default
+    body = json.loads(route.calls[0].request.content)
+    assert body["trigger_data"] == {}
 
 
 def test_runs_create_json(invoke, mock_api):
-    mock_api.post("/api/v1/workflows/wf-1/runs").respond(202, json={"run_id": "run-1", "status": "accepted"})
+    mock_api.post("/api/v1/workflows/wf-1/runs").respond(202, json={"workflow_run_id": "run-1", "status": "queued"})
     result = invoke(["workflows", "runs", "create", "wf-1", "--json"])
     assert result.exit_code == 0
     parsed = json.loads(result.output)
-    assert parsed["run_id"] == "run-1"
+    assert parsed["workflow_run_id"] == "run-1"
 
 
 def test_runs_create_with_input(invoke, mock_api):
-    mock_api.post("/api/v1/workflows/wf-1/runs").respond(202, json={"run_id": "run-1", "status": "accepted"})
+    route = mock_api.post("/api/v1/workflows/wf-1/runs").respond(202, json={"workflow_run_id": "run-1", "status": "queued"})
     result = invoke(["workflows", "runs", "create", "wf-1", "--input", '{"key": "value"}'])
     assert result.exit_code == 0
     assert "Run created" in result.output
+    # Verify trigger_data contains the input
+    body = json.loads(route.calls[0].request.content)
+    assert body["trigger_data"] == {"key": "value"}
 
 
 def test_runs_create_with_idempotency_key(invoke, mock_api):
-    mock_api.post("/api/v1/workflows/wf-1/runs").respond(202, json={"run_id": "run-1", "status": "accepted"})
+    route = mock_api.post("/api/v1/workflows/wf-1/runs").respond(202, json={"workflow_run_id": "run-1", "status": "queued"})
     result = invoke(["workflows", "runs", "create", "wf-1", "--idempotency-key", "key-123"])
     assert result.exit_code == 0
     assert "Run created" in result.output
+    # Verify idempotency header was sent
+    assert route.calls[0].request.headers.get("Idempotency-Key") == "key-123"
+
+
+def test_runs_create_invalid_input_json(invoke, mock_api):
+    result = invoke(["workflows", "runs", "create", "wf-1", "--input", "not-json"])
+    assert result.exit_code == 1
 
 
 def test_runs_list(invoke, mock_api):

@@ -24,10 +24,10 @@ def runs_create(
 ) -> None:
     """Create a new workflow run."""
     set_json_mode(json_output)
-    body: dict = {}
+    body: dict = {"trigger_data": {}}
     if input_json:
         try:
-            body["input"] = json.loads(input_json)
+            body["trigger_data"] = json.loads(input_json)
         except json.JSONDecodeError:
             rprint("[red]Invalid JSON for --input[/red]")
             raise typer.Exit(code=1)
@@ -46,7 +46,7 @@ def runs_create(
     if json_output:
         print_json(data)
     else:
-        rprint(f"[green]Run created:[/green] {data['run_id']} (status: {data['status']})")
+        rprint(f"[green]Run created:[/green] {data['workflow_run_id']} (status: {data['status']})")
 
 
 @runs_app.command("list")
