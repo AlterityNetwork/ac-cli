@@ -351,20 +351,23 @@ def communications_generate_draft(
     mode: str = typer.Option(..., help="compose or reply"),
     recipient_name: str = typer.Option(..., "--recipient-name", help="Recipient name"),
     recipient_email: str | None = typer.Option(None, "--recipient-email", help="Recipient email"),
+    recipient_title: str | None = typer.Option(None, "--recipient-title", help="Recipient job title"),
     company_name: str | None = typer.Option(None, "--company-name", help="Company name"),
     sender_name: str | None = typer.Option(None, "--sender-name", help="Sender name"),
+    sender_signature: str | None = typer.Option(None, "--sender-signature", help="Sender email signature"),
     original_subject: str | None = typer.Option(None, "--original-subject", help="Original subject (for replies)"),
-    original_content: str | None = typer.Option(None, "--original-content", help="Original content (for replies)"),
-    context: str | None = typer.Option(None, help="Additional context for generation"),
+    user_draft_subject: str | None = typer.Option(None, "--user-draft-subject", help="Draft subject to refine"),
+    user_draft_body: str | None = typer.Option(None, "--user-draft-body", help="Draft body to refine"),
     json_output: bool = JSON_OPTION,
 ) -> None:
     """Generate an AI-drafted email."""
     set_json_mode(json_output)
     body = _build_body(
         mode=mode, recipient_name=recipient_name, recipient_email=recipient_email,
-        company_name=company_name, sender_name=sender_name,
-        original_subject=original_subject, original_content=original_content,
-        context=context,
+        recipient_title=recipient_title, company_name=company_name,
+        sender_name=sender_name, sender_signature=sender_signature,
+        original_subject=original_subject,
+        user_draft_subject=user_draft_subject, user_draft_body=user_draft_body,
     )
 
     resp = _api_request("post", f"{_CRM}/communications/generate-draft", json=body)

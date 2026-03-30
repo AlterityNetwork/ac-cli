@@ -69,9 +69,9 @@ paths:
 ## List Commands & Pagination
 - All API list endpoints return a standardized paginated response: `{"data": [...], "total": N, "limit": N, "offset": N, "has_more": bool}`
 - List commands should accept `--limit` (default 50) and `--offset` (default 0) options, and always send both as query params
-- Extract items via `data.get("data", [])` — never use `isinstance(data, list)` fallback
-- Show server-reported total in table titles: `f"Title ({data.get('total', '?')} total)"`
-- CRM, envoy inbox, and envoy outbox commands all follow this pattern
+- For endpoints returning paginated responses, extract items via `data.get("data", [])` and show server-reported total in table titles: `f"Title ({data.get('total', '?')} total)"`
+- Some legacy endpoints (communications list, thread, recipients) still return raw lists — use `isinstance(data, list)` fallback for those: `items = data if isinstance(data, list) else data.get("data", [])`
+- CRM, envoy inbox, and envoy outbox commands all follow the paginated pattern
 
 ## Delete Commands
 - Always require `--yes` / `-y` flag or interactive `typer.confirm()` prompt

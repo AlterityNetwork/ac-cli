@@ -112,6 +112,24 @@ def test_recipients_add_422_error(invoke, mock_api):
     assert result.exit_code == 2
 
 
+def test_recipients_add_all_duplicates(invoke, mock_api):
+    """API returns empty list when all recipients already exist in the sequence."""
+    mock_api.post("/api/v1/envoy/sequences/seq-1/recipients").respond(201, json=[])
+    result = invoke(["envoy", "recipients", "add", "seq-1", "--prospect-ids", "p1,p2"])
+    assert result.exit_code == 0
+    assert "No new recipients" in result.output
+    assert "already in sequence" in result.output
+
+
+def test_recipients_add_all_duplicates_json(invoke, mock_api):
+    """JSON output for all-duplicate case returns the empty list as-is."""
+    mock_api.post("/api/v1/envoy/sequences/seq-1/recipients").respond(201, json=[])
+    result = invoke(["envoy", "recipients", "add", "seq-1", "--prospect-ids", "p1", "--json"])
+    assert result.exit_code == 0
+    parsed = json.loads(result.output)
+    assert parsed == []
+
+
 def test_recipients_remove_aborted(invoke, mock_api):
     result = invoke(["envoy", "recipients", "remove", "seq-1", "r1"], input="n\n")
     assert result.exit_code == 1

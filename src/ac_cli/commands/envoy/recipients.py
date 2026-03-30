@@ -95,7 +95,10 @@ def recipients_add(
         print_json(data)
     else:
         items = data if isinstance(data, list) else []
-        rprint(f"[green]Added {len(items)} recipient(s) to sequence {sequence_id}[/green]")
+        if items:
+            rprint(f"[green]Added {len(items)} recipient(s) to sequence {sequence_id}[/green]")
+        else:
+            rprint(f"[yellow]No new recipients added (all already in sequence {sequence_id})[/yellow]")
 
 
 @recipients_app.command("remove")

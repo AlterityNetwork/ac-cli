@@ -332,6 +332,34 @@ def test_comms_generate_draft_json(invoke, mock_api):
     assert parsed["subject"] == "Re: Partnership"
 
 
+def test_comms_generate_draft_with_user_draft(invoke, mock_api):
+    """User draft fields are sent to API for refinement."""
+    mock_api.post("/api/v1/crm/communications/generate-draft").respond(200, json=SAMPLE_GENERATED)
+    result = invoke([
+        "crm", "comms", "generate-draft",
+        "--mode", "compose",
+        "--recipient-name", "Jane Doe",
+        "--user-draft-subject", "Quick question",
+        "--user-draft-body", "Hi Jane, I wanted to ask about...",
+    ])
+    assert result.exit_code == 0
+    assert "Generated Draft" in result.output
+
+
+def test_comms_generate_draft_with_extra_options(invoke, mock_api):
+    """Recipient title and sender signature are sent to API."""
+    mock_api.post("/api/v1/crm/communications/generate-draft").respond(200, json=SAMPLE_GENERATED)
+    result = invoke([
+        "crm", "comms", "generate-draft",
+        "--mode", "compose",
+        "--recipient-name", "Jane Doe",
+        "--recipient-title", "VP Sales",
+        "--sender-signature", "Best regards, Alex",
+    ])
+    assert result.exit_code == 0
+    assert "Generated Draft" in result.output
+
+
 # -- unread-thread-ids --
 
 
