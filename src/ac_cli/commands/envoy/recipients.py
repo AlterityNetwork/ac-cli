@@ -56,25 +56,46 @@ def recipients_list(
 def recipients_add(
     ctx: typer.Context,
     sequence_id: str = typer.Argument(..., help="Sequence ID"),
-    source: str = typer.Option(..., help="JSON array of recipient objects"),
+    prospect_ids: str = typer.Option(
+        None, "--prospect-ids", "-p", help="Comma-separated prospect IDs"
+    ),
+    crm_list_id: str | None = typer.Option(
+        None, "--crm-list-id", help="CRM list ID to add members from"
+    ),
+    source: str | None = typer.Option(
+        None, help="Raw JSON source object (advanced, overrides other options)"
+    ),
     json_output: bool = JSON_OPTION,
 ) -> None:
-    """Add recipients to a sequence."""
+    """Add recipients to a sequence from prospect IDs or a CRM list."""
     set_json_mode(json_output)
-    try:
-        recipients = json_lib.loads(source)
-    except json_lib.JSONDecodeError:
-        rprint("[red]Invalid JSON for --source[/red]")
+
+    if source:
+        try:
+            body = json_lib.loads(source)
+        except json_lib.JSONDecodeError:
+            rprint("[red]Invalid JSON for --source[/red]")
+            raise typer.Exit(code=1)
+        # Wrap in {"source": ...} if not already wrapped
+        if "source" not in body:
+            body = {"source": body}
+    elif prospect_ids:
+        ids = [pid.strip() for pid in prospect_ids.split(",") if pid.strip()]
+        body = {"source": {"type": "explicit", "prospect_ids": ids}}
+    elif crm_list_id:
+        body = {"source": {"type": "crm_list", "crm_list_id": crm_list_id}}
+    else:
+        rprint("[red]Provide --prospect-ids, --crm-list-id, or --source[/red]")
         raise typer.Exit(code=1)
 
-    resp = _api_request("post", f"{_ENVOY}/sequences/{sequence_id}/recipients", json=recipients)
+    resp = _api_request("post", f"{_ENVOY}/sequences/{sequence_id}/recipients", json=body)
 
     data = resp.json()
     if json_output:
         print_json(data)
     else:
-        count = len(recipients) if isinstance(recipients, list) else 1
-        rprint(f"[green]Added {count} recipient(s) to sequence {sequence_id}[/green]")
+        items = data if isinstance(data, list) else []
+        rprint(f"[green]Added {len(items)} recipient(s) to sequence {sequence_id}[/green]")
 
 
 @recipients_app.command("remove")
