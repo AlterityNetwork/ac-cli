@@ -64,6 +64,26 @@ def test_recipients_remove_with_yes(invoke, mock_api):
     assert "Removed" in result.output
 
 
+def test_recipients_add_with_duplicates_succeeds(invoke, mock_api):
+    """API returns 201 with partial results when some recipients already exist."""
+    mock_api.post("/api/v1/envoy/sequences/seq-1/recipients").respond(
+        201, json=[{"id": "rec-1", "prospect_id": "p3", "status": "active"}]
+    )
+    source = json.dumps({"source": {"type": "explicit", "prospect_ids": ["p1", "p2", "p3"]}})
+    result = invoke(["envoy", "recipients", "add", "seq-1", "--source", source])
+    assert result.exit_code == 0
+
+
+def test_recipients_add_422_error(invoke, mock_api):
+    """API returns 422 validation error -> exit code 2."""
+    mock_api.post("/api/v1/envoy/sequences/seq-1/recipients").respond(
+        422, json={"detail": "The request contains invalid data."}
+    )
+    source = json.dumps([{"email": "a@b.com"}])
+    result = invoke(["envoy", "recipients", "add", "seq-1", "--source", source])
+    assert result.exit_code == 2
+
+
 def test_recipients_remove_aborted(invoke, mock_api):
     result = invoke(["envoy", "recipients", "remove", "seq-1", "r1"], input="n\n")
     assert result.exit_code == 1
