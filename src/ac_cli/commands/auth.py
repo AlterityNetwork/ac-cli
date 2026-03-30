@@ -30,7 +30,7 @@ def login(
     env: str = typer.Option(
         None,
         "--env",
-        help="Environment to log in to (local, staging, production). Default: production.",
+        help="Environment to log in to (local, staging, production). Default: active env.",
     ),
     dev: bool = typer.Option(
         False,
@@ -41,13 +41,13 @@ def login(
 ) -> None:
     """Sign in with email and password via Supabase.
 
-    By default, logs in to the production environment. Use --env to target
+    By default, logs in to the currently active environment. Use --env to target
     a specific environment (local, staging, production).
     """
     # Resolve environment name
     if dev and not env:
         env = "local"
-    env = env or "production"
+    env = env or get_active_env()
 
     if env not in ENV_NAMES:
         rprint(f"[red]Unknown environment:[/red] {env}")
