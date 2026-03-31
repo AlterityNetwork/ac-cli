@@ -28,7 +28,7 @@ def steps_create(
     """Create a step in a sequence."""
     set_json_mode(json_output)
     body = _build_body(
-        step_type=step_type, step_order=step_order, message_template=message_template,
+        type=step_type, step_order=step_order, message_template=message_template,
         prompt=prompt, delay_value=delay_value, delay_unit=delay_unit,
     )
 
