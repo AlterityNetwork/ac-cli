@@ -6,6 +6,7 @@ from ac_cli import __version__
 from ac_cli.commands import admin, apps, auth, chat, crm, env, files, health
 from ac_cli.commands import envoy
 from ac_cli.commands import hooks
+from ac_cli.commands import messaging
 from ac_cli.commands import nylas
 from ac_cli.commands import profiles
 from ac_cli.commands import resources
@@ -44,6 +45,7 @@ app.add_typer(health.app, name="health")
 app.add_typer(envoy.app, name="envoy")
 app.add_typer(files.app, name="files")
 app.add_typer(hooks.app, name="hooks")
+app.add_typer(messaging.app, name="messaging")
 app.add_typer(nylas.app, name="nylas")
 app.add_typer(profiles.app, name="profiles")
 app.add_typer(resources.app, name="resources")

@@ -26,6 +26,7 @@ uv sync --all-extras       # Install with dev dependencies (pytest, respx)
 | `resources` | Knowledge base resource management |
 | `styles` | Writing styles |
 | `nylas` | Email integration |
+| `messaging` | Messaging platform sessions and account linking |
 | `hooks` | Platform hooks |
 | `health` | Health checks |
 | `env` | Environment switching (local, staging, production) |
