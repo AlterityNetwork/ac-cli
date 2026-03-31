@@ -7,7 +7,7 @@ paths:
 
 ## Environment Selection
 - Three environments: `production` (default), `staging`, `local` — defined in `ENVIRONMENTS` dict in `config.py`
-- `ac login` defaults to production. Use `--env staging` or `--env local` to target others
+- `ac login` defaults to the currently active environment. Use `--env staging`, `--env local`, or `--env production` to target a specific environment
 - `--dev` flag is a hidden deprecated alias for `--env local`
 - `ac env list` shows all envs and login status, `ac env use <name>` switches instantly
 - Config format is multi-env (`~/.agencycore/config.json` has `active` + `environments` keys). Old flat configs auto-migrate on first read
