@@ -161,3 +161,57 @@ def people_delete(
     _api_request("delete", f"{_CRM}/people/{person_id}")
 
     rprint(f"[green]Deleted person {person_id}[/green]")
+
+
+@people_app.command("bulk-upsert")
+def people_bulk_upsert(
+    ctx: typer.Context,
+    file: str = typer.Option(..., "--file", "-f", help="JSON file with people array"),
+    json_output: bool = JSON_OPTION,
+) -> None:
+    """Bulk upsert people from a JSON file."""
+    import json as json_mod
+    from pathlib import Path
+
+    set_json_mode(json_output)
+    path = Path(file)
+    if not path.exists():
+        rprint(f"[red]File not found:[/red] {file}")
+        raise typer.Exit(code=1)
+
+    try:
+        items = json_mod.loads(path.read_text())
+    except json_mod.JSONDecodeError:
+        rprint("[red]Invalid JSON in file[/red]")
+        raise typer.Exit(code=1)
+
+    if not isinstance(items, list):
+        rprint("[red]File must contain a JSON array of people[/red]")
+        raise typer.Exit(code=1)
+
+    resp = _api_request("put", f"{_CRM}/people/bulk", json={"items": items})
+
+    data = resp.json()
+    if json_output:
+        print_json(data)
+    else:
+        rprint(f"[green]Upserted {data.get('count', 0)} people[/green]")
+
+
+@people_app.command("bulk-delete")
+def people_bulk_delete(
+    ids: str = typer.Option(..., "--ids", help="Comma-separated people IDs"),
+    yes: bool = typer.Option(False, "--yes", "-y", help="Skip confirmation"),
+) -> None:
+    """Bulk delete people by ID list."""
+    id_list = [i.strip() for i in ids.split(",") if i.strip()]
+    if not id_list:
+        rprint("[red]No IDs provided[/red]")
+        raise typer.Exit(code=1)
+
+    if not should_skip_confirm(yes):
+        typer.confirm(f"Delete {len(id_list)} people?", abort=True)
+
+    _api_request("post", f"{_CRM}/people/bulk-delete", json={"ids": id_list})
+
+    rprint(f"[green]Deleted {len(id_list)} people[/green]")
