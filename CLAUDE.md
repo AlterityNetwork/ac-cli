@@ -44,6 +44,20 @@ The CLI is designed to be consumed by AI agents and scripts:
 
 See `.claude/rules/code-patterns.md` for implementation details.
 
+## Project Layout
+
+```
+src/ac_cli/
+  main.py              → Entry point, registers all command groups
+  client.py            → Authenticated httpx client from stored config
+  config.py            → Multi-env config (~/.agencycore/config.json)
+  formatting.py        → Shared output (print_table, print_detail, print_json)
+  commands/            → Command modules (auth, env, crm/, envoy/, admin/, etc.)
+    _helpers.py        → Shared helpers (_api_request, _build_body, exit codes)
+tests/                 → One test file per command group (test_<domain>_<group>.py)
+scripts/               → bump.sh (manual version), auto-version-tag.sh (post-commit hook)
+```
+
 ## Running Checks
 
 ```bash
@@ -51,6 +65,8 @@ uv run pytest                              # All tests
 uv run pytest tests/test_crm_companies.py  # Single file
 uv run python -m ac_cli.main --help        # Verify CLI loads
 ```
+
+No lint or type-check tooling is configured — pytest is the only check.
 
 ## Critical Rules
 
