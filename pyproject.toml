@@ -34,12 +34,6 @@ dependencies = [
     "socksio>=1.0.0",
 ]
 
-[project.optional-dependencies]
-dev = [
-    "pytest>=8.0",
-    "respx>=0.22",
-]
-
 [dependency-groups]
 dev = [
     "pytest>=8.0",
