@@ -7,7 +7,14 @@ from datetime import datetime, timezone
 import typer
 from rich import print as rprint
 
-from ac_cli.commands._helpers import JSON_OPTION, set_json_mode, should_skip_confirm
+from ac_cli.commands._helpers import (
+    JSON_OPTION,
+    _resolve_company_id,
+    _resolve_contact_id,
+    _resolve_deal_id,
+    set_json_mode,
+    should_skip_confirm,
+)
 from ac_cli.commands.crm import _CRM, _api_request, _build_body
 from ac_cli.formatting import print_detail, print_json, print_table
 
@@ -107,17 +114,23 @@ def activities_create(
     due_date: str | None = typer.Option(None, "--due-date", help="Due date (ISO format)"),
     priority: str | None = typer.Option(None, help="Priority (low, medium, high, urgent)"),
     deal_id: str | None = typer.Option(None, "--deal-id", help="Deal ID"),
+    deal_name: str | None = typer.Option(None, "--deal-name", help="Deal name (auto-resolves to ID)"),
     company_id: str | None = typer.Option(None, "--company-id", help="Company ID"),
+    company_name: str | None = typer.Option(None, "--company-name", help="Company name (auto-resolves to ID)"),
     contact_id: str | None = typer.Option(None, "--contact-id", help="Contact ID"),
+    contact_name: str | None = typer.Option(None, "--contact-name", help="Contact name (auto-resolves to ID)"),
     description: str | None = typer.Option(None, help="Description"),
     json_output: bool = JSON_OPTION,
 ) -> None:
     """Create a new activity."""
     set_json_mode(json_output)
+    resolved_deal = _resolve_deal_id(deal_id, deal_name, _CRM)
+    resolved_company = _resolve_company_id(company_id, company_name, _CRM)
+    resolved_contact = _resolve_contact_id(contact_id, contact_name, _CRM)
     body = _build_body(
         type=activity_type, title=title, due_date=due_date,
-        priority=priority, deal_id=deal_id, company_id=company_id,
-        contact_id=contact_id, description=description,
+        priority=priority, deal_id=resolved_deal, company_id=resolved_company,
+        contact_id=resolved_contact, description=description,
     )
 
     me = _api_request("get", "/whoami")
@@ -143,16 +156,22 @@ def activities_update(
     due_date: str | None = typer.Option(None, "--due-date", help="Due date (ISO format)"),
     description: str | None = typer.Option(None, help="Description"),
     deal_id: str | None = typer.Option(None, "--deal-id", help="Deal ID"),
+    deal_name: str | None = typer.Option(None, "--deal-name", help="Deal name (auto-resolves to ID)"),
     company_id: str | None = typer.Option(None, "--company-id", help="Company ID"),
+    company_name: str | None = typer.Option(None, "--company-name", help="Company name (auto-resolves to ID)"),
     contact_id: str | None = typer.Option(None, "--contact-id", help="Contact ID"),
+    contact_name: str | None = typer.Option(None, "--contact-name", help="Contact name (auto-resolves to ID)"),
     json_output: bool = JSON_OPTION,
 ) -> None:
     """Update an existing activity."""
     set_json_mode(json_output)
+    resolved_deal = _resolve_deal_id(deal_id, deal_name, _CRM)
+    resolved_company = _resolve_company_id(company_id, company_name, _CRM)
+    resolved_contact = _resolve_contact_id(contact_id, contact_name, _CRM)
     body = _build_body(
         title=title, type=activity_type, status=status, priority=priority,
-        due_date=due_date, description=description, deal_id=deal_id,
-        company_id=company_id, contact_id=contact_id,
+        due_date=due_date, description=description, deal_id=resolved_deal,
+        company_id=resolved_company, contact_id=resolved_contact,
     )
 
     if not body:

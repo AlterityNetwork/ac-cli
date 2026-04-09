@@ -61,6 +61,102 @@ def _api_request(method: str, path: str, **kwargs: object) -> httpx.Response:
     return resp
 
 
+def _resolve_entity(
+    entity_type: str,
+    *,
+    entity_id: str | None,
+    entity_name: str | None,
+    search_path: str,
+    name_field: str = "name",
+    label: str = "entity",
+) -> str | None:
+    """Resolve an entity ID from an explicit ID or a name-based search.
+
+    Returns the entity ID, or ``None`` if neither *entity_id* nor
+    *entity_name* was provided.  Exits with an error when a name search
+    finds zero or multiple matches.
+    """
+    if entity_id:
+        return entity_id
+    if not entity_name:
+        return None
+
+    resp = _api_request("get", search_path, params={"search": entity_name, "limit": 5})
+    data = resp.json()
+    items = data if isinstance(data, list) else data.get("data", [])
+
+    if not items:
+        if _json_output.get():
+            print_json({"error": True, "detail": f"No {label} found matching '{entity_name}'"})
+        else:
+            rprint(f"[red]No {label} found matching '{entity_name}'[/red]")
+        raise typer.Exit(code=3)
+
+    if len(items) > 1:
+        # Check for an exact match first
+        exact = [i for i in items if (i.get(name_field) or "").lower() == entity_name.lower()]
+        if len(exact) == 1:
+            return exact[0]["id"]
+        if _json_output.get():
+            matches = [{"id": i["id"], name_field: i.get(name_field)} for i in items]
+            print_json({"error": True, "detail": f"Multiple {label}s match '{entity_name}'", "matches": matches})
+        else:
+            rprint(f"[yellow]Multiple {label}s match '{entity_name}':[/yellow]")
+            for item in items:
+                rprint(f"  - {item.get(name_field, '?')} ({item['id']})")
+        raise typer.Exit(code=2)
+
+    return items[0]["id"]
+
+
+def _resolve_company_id(
+    company_id: str | None,
+    company_name: str | None,
+    crm_prefix: str,
+) -> str | None:
+    """Resolve a company ID from ``--company-id`` or ``--company-name``."""
+    return _resolve_entity(
+        "company",
+        entity_id=company_id,
+        entity_name=company_name,
+        search_path=f"{crm_prefix}/companies",
+        name_field="name",
+        label="company",
+    )
+
+
+def _resolve_contact_id(
+    contact_id: str | None,
+    contact_name: str | None,
+    crm_prefix: str,
+) -> str | None:
+    """Resolve a contact ID from ``--contact-id`` or ``--contact-name``."""
+    return _resolve_entity(
+        "person",
+        entity_id=contact_id,
+        entity_name=contact_name,
+        search_path=f"{crm_prefix}/people",
+        name_field="full_name",
+        label="contact",
+    )
+
+
+def _resolve_deal_id(
+    deal_id: str | None,
+    deal_name: str | None,
+    crm_prefix: str,
+) -> str | None:
+    """Resolve a deal ID from ``--deal-id`` or ``--deal-name``."""
+    return _resolve_entity(
+        "deal",
+        entity_id=deal_id,
+        entity_name=deal_name,
+        search_path=f"{crm_prefix}/deals",
+        name_field="name",
+        label="deal",
+    )
+
+
 def _build_body(**fields: object) -> dict:
     """Build API request body from non-None fields."""
     body: dict = {}

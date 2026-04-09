@@ -5,7 +5,12 @@ from __future__ import annotations
 import typer
 from rich import print as rprint
 
-from ac_cli.commands._helpers import JSON_OPTION, set_json_mode, should_skip_confirm
+from ac_cli.commands._helpers import (
+    JSON_OPTION,
+    _resolve_company_id,
+    set_json_mode,
+    should_skip_confirm,
+)
 from ac_cli.commands.crm import _CRM, _api_request, _build_body
 from ac_cli.formatting import print_detail, print_json, print_table
 
@@ -84,6 +89,7 @@ def people_create(
     full_name: str | None = typer.Option(None, "--full-name", help="Full name"),
     current_title: str | None = typer.Option(None, "--current-title", help="Job title"),
     company_id: str | None = typer.Option(None, "--company-id", help="Company ID"),
+    company_name: str | None = typer.Option(None, "--company-name", help="Company name (auto-resolves to ID)"),
     lifecycle_stage: str | None = typer.Option(None, "--lifecycle-stage", help="Lifecycle stage"),
     tags: str | None = typer.Option(None, help="Comma-separated tags"),
     linkedin_url: str | None = typer.Option(None, "--linkedin-url", help="LinkedIn URL"),
@@ -93,9 +99,10 @@ def people_create(
 ) -> None:
     """Create a new person."""
     set_json_mode(json_output)
+    resolved_company = _resolve_company_id(company_id, company_name, _CRM)
     body = _build_body(
         email=email, full_name=full_name, current_title=current_title,
-        company_id=company_id, lifecycle_stage=lifecycle_stage, tags=tags,
+        company_id=resolved_company, lifecycle_stage=lifecycle_stage, tags=tags,
         linkedin_url=linkedin_url, location=location, country=country,
     )
 
@@ -120,6 +127,7 @@ def people_update(
     full_name: str | None = typer.Option(None, "--full-name", help="Full name"),
     current_title: str | None = typer.Option(None, "--current-title", help="Job title"),
     company_id: str | None = typer.Option(None, "--company-id", help="Company ID"),
+    company_name: str | None = typer.Option(None, "--company-name", help="Company name (auto-resolves to ID)"),
     lifecycle_stage: str | None = typer.Option(None, "--lifecycle-stage", help="Lifecycle stage"),
     tags: str | None = typer.Option(None, help="Comma-separated tags"),
     linkedin_url: str | None = typer.Option(None, "--linkedin-url", help="LinkedIn URL"),
@@ -129,9 +137,10 @@ def people_update(
 ) -> None:
     """Update an existing person."""
     set_json_mode(json_output)
+    resolved_company = _resolve_company_id(company_id, company_name, _CRM)
     body = _build_body(
         email=email, full_name=full_name, current_title=current_title,
-        company_id=company_id, lifecycle_stage=lifecycle_stage, tags=tags,
+        company_id=resolved_company, lifecycle_stage=lifecycle_stage, tags=tags,
         linkedin_url=linkedin_url, location=location, country=country,
     )
 

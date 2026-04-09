@@ -5,7 +5,13 @@ from __future__ import annotations
 import typer
 from rich import print as rprint
 
-from ac_cli.commands._helpers import JSON_OPTION, set_json_mode, should_skip_confirm
+from ac_cli.commands._helpers import (
+    JSON_OPTION,
+    _resolve_company_id,
+    _resolve_contact_id,
+    set_json_mode,
+    should_skip_confirm,
+)
 from ac_cli.commands.crm import _CRM, _api_request, _build_body
 from ac_cli.formatting import print_detail, print_json, print_table
 
@@ -97,7 +103,9 @@ def deals_create(
     amount: float | None = typer.Option(None, help="Deal amount"),
     currency: str | None = typer.Option(None, help="Currency code"),
     company_id: str | None = typer.Option(None, "--company-id", help="Company ID"),
+    company_name: str | None = typer.Option(None, "--company-name", help="Company name (auto-resolves to ID)"),
     contact_id: str | None = typer.Option(None, "--contact-id", help="Primary contact ID"),
+    contact_name: str | None = typer.Option(None, "--contact-name", help="Contact name (auto-resolves to ID)"),
     expected_close_date: str | None = typer.Option(None, "--expected-close-date", help="ISO date"),
     tags: str | None = typer.Option(None, help="Comma-separated tags"),
     next_steps: str | None = typer.Option(None, "--next-steps", help="Next steps"),
@@ -105,13 +113,15 @@ def deals_create(
 ) -> None:
     """Create a new deal."""
     set_json_mode(json_output)
+    resolved_company = _resolve_company_id(company_id, company_name, _CRM)
+    resolved_contact = _resolve_contact_id(contact_id, contact_name, _CRM)
     body = _build_body(
         name=name, stage=stage, amount=amount, currency=currency,
-        company_id=company_id, expected_close_date=expected_close_date,
+        company_id=resolved_company, expected_close_date=expected_close_date,
         tags=tags, next_steps=next_steps,
     )
-    if contact_id is not None:
-        body["primary_contact_id"] = contact_id
+    if resolved_contact is not None:
+        body["primary_contact_id"] = resolved_contact
 
     me = _api_request("get", "/whoami")
     body["organization_id"] = me.json()["organization_id"]
@@ -134,7 +144,9 @@ def deals_update(
     amount: float | None = typer.Option(None, help="Deal amount"),
     currency: str | None = typer.Option(None, help="Currency code"),
     company_id: str | None = typer.Option(None, "--company-id", help="Company ID"),
+    company_name: str | None = typer.Option(None, "--company-name", help="Company name (auto-resolves to ID)"),
     contact_id: str | None = typer.Option(None, "--contact-id", help="Primary contact ID"),
+    contact_name: str | None = typer.Option(None, "--contact-name", help="Contact name (auto-resolves to ID)"),
     expected_close_date: str | None = typer.Option(None, "--expected-close-date", help="ISO date"),
     tags: str | None = typer.Option(None, help="Comma-separated tags"),
     next_steps: str | None = typer.Option(None, "--next-steps", help="Next steps"),
@@ -142,13 +154,15 @@ def deals_update(
 ) -> None:
     """Update an existing deal."""
     set_json_mode(json_output)
+    resolved_company = _resolve_company_id(company_id, company_name, _CRM)
+    resolved_contact = _resolve_contact_id(contact_id, contact_name, _CRM)
     body = _build_body(
         name=name, stage=stage, amount=amount, currency=currency,
-        company_id=company_id, expected_close_date=expected_close_date,
+        company_id=resolved_company, expected_close_date=expected_close_date,
         tags=tags, next_steps=next_steps,
     )
-    if contact_id is not None:
-        body["primary_contact_id"] = contact_id
+    if resolved_contact is not None:
+        body["primary_contact_id"] = resolved_contact
 
     if not body:
         rprint("[yellow]No fields to update.[/yellow]")
