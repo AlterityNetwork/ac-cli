@@ -40,6 +40,12 @@ dev = [
     "respx>=0.22",
 ]
 
+[dependency-groups]
+dev = [
+    "pytest>=8.0",
+    "respx>=0.22",
+]
+
 [project.urls]
 Homepage = "https://github.com/AlterityNetwork/ac-cli"
 Repository = "https://github.com/AlterityNetwork/ac-cli"
