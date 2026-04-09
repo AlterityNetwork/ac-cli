@@ -85,3 +85,26 @@ jobs:
             ---
             Install: `pip install agencycore-cli==${{ github.ref_name }}`
           generate_release_notes: false
+
+  notify:
+    needs: [test, publish, github-release]
+    runs-on: ubuntu-latest
+    if: always()
+    steps:
+      - name: Notify Slack
+        env:
+          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+        run: |
+          if [ -z "$SLACK_WEBHOOK" ]; then exit 0; fi
+
+          if [ "${{ needs.publish.result }}" = "success" ]; then
+            TEXT=":white_check_mark: CLI \`${{ github.ref_name }}\` published to PyPI"
+            COLOR="good"
+          else
+            TEXT=":x: CLI \`${{ github.ref_name }}\` publish FAILED"
+            COLOR="danger"
+          fi
+
+          curl -s -X POST -H 'Content-type: application/json' \
+            --data "{\"text\": \"${TEXT}\", \"attachments\": [{\"color\": \"${COLOR}\", \"fields\": [{\"title\": \"Tag\", \"value\": \"\`${{ github.ref_name }}\`\", \"short\": true}, {\"title\": \"Author\", \"value\": \"${{ github.actor }}\", \"short\": true}, {\"title\": \"Run\", \"value\": \"<https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}|View logs>\", \"short\": true}]}]}" \
+            "$SLACK_WEBHOOK" || true

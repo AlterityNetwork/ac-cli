@@ -25,3 +25,26 @@ jobs:
         run: uv sync --all-extras --python ${{ matrix.python-version }}
       - name: Run tests
         run: uv run pytest
+
+  notify:
+    needs: [test]
+    runs-on: ubuntu-latest
+    if: failure() && github.event_name == 'push'
+    steps:
+      - name: Notify Slack on failure
+        env:
+          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+        run: |
+          curl -s -X POST -H 'Content-type: application/json' \
+          --data "{
+            \"text\": \"❌ CLI Tests FAILED on \`${{ github.ref_name }}\`\",
+            \"attachments\": [{
+              \"color\": \"danger\",
+              \"fields\": [
+                {\"title\": \"Branch\", \"value\": \"\`${{ github.ref_name }}\`\", \"short\": true},
+                {\"title\": \"Commit\", \"value\": \"\`${GITHUB_SHA::7}\`\", \"short\": true},
+                {\"title\": \"Author\", \"value\": \"${{ github.actor }}\", \"short\": true},
+                {\"title\": \"Run\", \"value\": \"<https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}|View logs>\", \"short\": true}
+              ]
+            }]
+          }" "$SLACK_WEBHOOK" || true
