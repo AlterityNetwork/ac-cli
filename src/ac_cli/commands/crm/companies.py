@@ -5,7 +5,13 @@ from __future__ import annotations
 import typer
 from rich import print as rprint
 
-from ac_cli.commands._helpers import JSON_OPTION, set_json_mode, should_skip_confirm
+from ac_cli.commands._helpers import (
+    JSON_OPTION,
+    _require_id,
+    _resolve_company_id,
+    set_json_mode,
+    should_skip_confirm,
+)
 from ac_cli.commands.crm import _CRM, _api_request, _build_body
 from ac_cli.formatting import print_detail, print_json, print_table
 
@@ -44,12 +50,17 @@ def companies_list(
 @companies_app.command("get")
 def companies_get(
     ctx: typer.Context,
-    company_id: str = typer.Argument(..., help="Company ID"),
+    company_id: str | None = typer.Argument(None, help="Company ID"),
+    company_name: str | None = typer.Option(None, "--company-name", help="Company name (auto-resolves to ID)"),
     json_output: bool = JSON_OPTION,
 ) -> None:
-    """Get a company by ID."""
+    """Get a company by ID or name."""
     set_json_mode(json_output)
-    resp = _api_request("get", f"{_CRM}/companies/{company_id}")
+    resolved = _require_id(
+        _resolve_company_id(company_id, company_name, _CRM),
+        id_label="company ID", name_flag="--company-name",
+    )
+    resp = _api_request("get", f"{_CRM}/companies/{resolved}")
 
     data = resp.json()
     if json_output:
@@ -108,8 +119,9 @@ def companies_create(
 @companies_app.command("update")
 def companies_update(
     ctx: typer.Context,
-    company_id: str = typer.Argument(..., help="Company ID"),
-    name: str | None = typer.Option(None, help="Company name"),
+    company_id: str | None = typer.Argument(None, help="Company ID"),
+    company_name: str | None = typer.Option(None, "--company-name", help="Company name (auto-resolves to ID)"),
+    name: str | None = typer.Option(None, help="New company name"),
     website: str | None = typer.Option(None, help="Website URL"),
     industry: str | None = typer.Option(None, help="Industry"),
     lifecycle_stage: str | None = typer.Option(None, "--lifecycle-stage", help="Lifecycle stage"),
@@ -121,6 +133,10 @@ def companies_update(
 ) -> None:
     """Update an existing company."""
     set_json_mode(json_output)
+    resolved = _require_id(
+        _resolve_company_id(company_id, company_name, _CRM),
+        id_label="company ID", name_flag="--company-name",
+    )
     body = _build_body(
         name=name, website=website, industry=industry,
         lifecycle_stage=lifecycle_stage, tags=tags,
@@ -131,7 +147,7 @@ def companies_update(
         rprint("[yellow]No fields to update.[/yellow]")
         raise typer.Exit(code=1)
 
-    resp = _api_request("patch", f"{_CRM}/companies/{company_id}", json=body)
+    resp = _api_request("patch", f"{_CRM}/companies/{resolved}", json=body)
 
     data = resp.json()
     if json_output:
@@ -142,15 +158,20 @@ def companies_update(
 
 @companies_app.command("delete")
 def companies_delete(
-    company_id: str = typer.Argument(..., help="Company ID"),
+    company_id: str | None = typer.Argument(None, help="Company ID"),
+    company_name: str | None = typer.Option(None, "--company-name", help="Company name (auto-resolves to ID)"),
     yes: bool = typer.Option(False, "--yes", "-y", help="Skip confirmation"),
     json_output: bool = JSON_OPTION,
 ) -> None:
     """Delete a company."""
     set_json_mode(json_output)
+    resolved = _require_id(
+        _resolve_company_id(company_id, company_name, _CRM),
+        id_label="company ID", name_flag="--company-name",
+    )
     if not should_skip_confirm(yes):
-        typer.confirm(f"Delete company {company_id}?", abort=True)
+        typer.confirm(f"Delete company {resolved}?", abort=True)
 
-    _api_request("delete", f"{_CRM}/companies/{company_id}")
+    _api_request("delete", f"{_CRM}/companies/{resolved}")
 
-    rprint(f"[green]Deleted company {company_id}[/green]")
+    rprint(f"[green]Deleted company {resolved}[/green]")

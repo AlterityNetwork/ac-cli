@@ -7,7 +7,9 @@ from rich import print as rprint
 
 from ac_cli.commands._helpers import (
     JSON_OPTION,
+    _require_id,
     _resolve_company_id,
+    _resolve_contact_id,
     set_json_mode,
     should_skip_confirm,
 )
@@ -54,12 +56,17 @@ def people_list(
 @people_app.command("get")
 def people_get(
     ctx: typer.Context,
-    person_id: str = typer.Argument(..., help="Person ID"),
+    person_id: str | None = typer.Argument(None, help="Person ID"),
+    person_name: str | None = typer.Option(None, "--person-name", help="Person name (auto-resolves to ID)"),
     json_output: bool = JSON_OPTION,
 ) -> None:
-    """Get a person by ID."""
+    """Get a person by ID or name."""
     set_json_mode(json_output)
-    resp = _api_request("get", f"{_CRM}/people/{person_id}")
+    resolved = _require_id(
+        _resolve_contact_id(person_id, person_name, _CRM),
+        id_label="person ID", name_flag="--person-name",
+    )
+    resp = _api_request("get", f"{_CRM}/people/{resolved}")
 
     data = resp.json()
     if json_output:
@@ -122,9 +129,10 @@ def people_create(
 @people_app.command("update")
 def people_update(
     ctx: typer.Context,
-    person_id: str = typer.Argument(..., help="Person ID"),
+    person_id: str | None = typer.Argument(None, help="Person ID"),
+    person_name: str | None = typer.Option(None, "--person-name", help="Person name (auto-resolves to ID)"),
     email: str | None = typer.Option(None, help="Email address"),
-    full_name: str | None = typer.Option(None, "--full-name", help="Full name"),
+    full_name: str | None = typer.Option(None, "--full-name", help="New full name"),
     current_title: str | None = typer.Option(None, "--current-title", help="Job title"),
     company_id: str | None = typer.Option(None, "--company-id", help="Company ID"),
     company_name: str | None = typer.Option(None, "--company-name", help="Company name (auto-resolves to ID)"),
@@ -137,6 +145,10 @@ def people_update(
 ) -> None:
     """Update an existing person."""
     set_json_mode(json_output)
+    resolved = _require_id(
+        _resolve_contact_id(person_id, person_name, _CRM),
+        id_label="person ID", name_flag="--person-name",
+    )
     resolved_company = _resolve_company_id(company_id, company_name, _CRM)
     body = _build_body(
         email=email, full_name=full_name, current_title=current_title,
@@ -148,7 +160,7 @@ def people_update(
         rprint("[yellow]No fields to update.[/yellow]")
         raise typer.Exit(code=1)
 
-    resp = _api_request("patch", f"{_CRM}/people/{person_id}", json=body)
+    resp = _api_request("patch", f"{_CRM}/people/{resolved}", json=body)
 
     data = resp.json()
     if json_output:
@@ -160,16 +172,23 @@ def people_update(
 
 @people_app.command("delete")
 def people_delete(
-    person_id: str = typer.Argument(..., help="Person ID"),
+    person_id: str | None = typer.Argument(None, help="Person ID"),
+    person_name: str | None = typer.Option(None, "--person-name", help="Person name (auto-resolves to ID)"),
     yes: bool = typer.Option(False, "--yes", "-y", help="Skip confirmation"),
+    json_output: bool = JSON_OPTION,
 ) -> None:
     """Delete a person."""
+    set_json_mode(json_output)
+    resolved = _require_id(
+        _resolve_contact_id(person_id, person_name, _CRM),
+        id_label="person ID", name_flag="--person-name",
+    )
     if not should_skip_confirm(yes):
-        typer.confirm(f"Delete person {person_id}?", abort=True)
+        typer.confirm(f"Delete person {resolved}?", abort=True)
 
-    _api_request("delete", f"{_CRM}/people/{person_id}")
+    _api_request("delete", f"{_CRM}/people/{resolved}")
 
-    rprint(f"[green]Deleted person {person_id}[/green]")
+    rprint(f"[green]Deleted person {resolved}[/green]")
 
 
 @people_app.command("bulk-upsert")

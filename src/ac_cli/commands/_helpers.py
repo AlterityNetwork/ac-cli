@@ -109,6 +109,22 @@ def _resolve_entity(
     return items[0]["id"]
 
 
+def _require_id(
+    resolved_id: str | None,
+    *,
+    id_label: str = "ID",
+    name_flag: str = "--name",
+) -> str:
+    """Ensure an entity ID was resolved — exit with error if not."""
+    if resolved_id:
+        return resolved_id
+    if _json_output.get():
+        print_json({"error": True, "detail": f"Provide a {id_label} or use {name_flag}"})
+    else:
+        rprint(f"[red]Provide a {id_label} or use {name_flag}[/red]")
+    raise typer.Exit(code=2)
+
+
 def _resolve_company_id(
     company_id: str | None,
     company_name: str | None,

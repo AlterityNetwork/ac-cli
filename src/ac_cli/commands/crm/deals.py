@@ -7,8 +7,10 @@ from rich import print as rprint
 
 from ac_cli.commands._helpers import (
     JSON_OPTION,
+    _require_id,
     _resolve_company_id,
     _resolve_contact_id,
+    _resolve_deal_id,
     set_json_mode,
     should_skip_confirm,
 )
@@ -63,12 +65,17 @@ def deals_list(
 @deals_app.command("get")
 def deals_get(
     ctx: typer.Context,
-    deal_id: str = typer.Argument(..., help="Deal ID"),
+    deal_id: str | None = typer.Argument(None, help="Deal ID"),
+    deal_name: str | None = typer.Option(None, "--deal-name", help="Deal name (auto-resolves to ID)"),
     json_output: bool = JSON_OPTION,
 ) -> None:
-    """Get a deal by ID."""
+    """Get a deal by ID or name."""
     set_json_mode(json_output)
-    resp = _api_request("get", f"{_CRM}/deals/{deal_id}")
+    resolved = _require_id(
+        _resolve_deal_id(deal_id, deal_name, _CRM),
+        id_label="deal ID", name_flag="--deal-name",
+    )
+    resp = _api_request("get", f"{_CRM}/deals/{resolved}")
 
     data = resp.json()
     if json_output:
@@ -138,8 +145,9 @@ def deals_create(
 @deals_app.command("update")
 def deals_update(
     ctx: typer.Context,
-    deal_id: str = typer.Argument(..., help="Deal ID"),
-    name: str | None = typer.Option(None, help="Deal name"),
+    deal_id: str | None = typer.Argument(None, help="Deal ID"),
+    deal_name: str | None = typer.Option(None, "--deal-name", help="Deal name (auto-resolves to ID)"),
+    name: str | None = typer.Option(None, help="New deal name"),
     stage: str | None = typer.Option(None, help="Deal stage"),
     amount: float | None = typer.Option(None, help="Deal amount"),
     currency: str | None = typer.Option(None, help="Currency code"),
@@ -154,6 +162,10 @@ def deals_update(
 ) -> None:
     """Update an existing deal."""
     set_json_mode(json_output)
+    resolved = _require_id(
+        _resolve_deal_id(deal_id, deal_name, _CRM),
+        id_label="deal ID", name_flag="--deal-name",
+    )
     resolved_company = _resolve_company_id(company_id, company_name, _CRM)
     resolved_contact = _resolve_contact_id(contact_id, contact_name, _CRM)
     body = _build_body(
@@ -168,7 +180,7 @@ def deals_update(
         rprint("[yellow]No fields to update.[/yellow]")
         raise typer.Exit(code=1)
 
-    resp = _api_request("patch", f"{_CRM}/deals/{deal_id}", json=body)
+    resp = _api_request("patch", f"{_CRM}/deals/{resolved}", json=body)
 
     data = resp.json()
     if json_output:
@@ -180,13 +192,18 @@ def deals_update(
 @deals_app.command("move")
 def deals_move(
     ctx: typer.Context,
-    deal_id: str = typer.Argument(..., help="Deal ID"),
+    deal_id: str | None = typer.Argument(None, help="Deal ID"),
+    deal_name: str | None = typer.Option(None, "--deal-name", help="Deal name (auto-resolves to ID)"),
     stage: str = typer.Option(..., help="New stage"),
     json_output: bool = JSON_OPTION,
 ) -> None:
     """Move a deal to a new stage."""
     set_json_mode(json_output)
-    resp = _api_request("patch", f"{_CRM}/deals/{deal_id}/stage", json={"stage": stage})
+    resolved = _require_id(
+        _resolve_deal_id(deal_id, deal_name, _CRM),
+        id_label="deal ID", name_flag="--deal-name",
+    )
+    resp = _api_request("patch", f"{_CRM}/deals/{resolved}/stage", json={"stage": stage})
 
     data = resp.json()
     if json_output:
@@ -216,13 +233,20 @@ def deals_order(
 
 @deals_app.command("delete")
 def deals_delete(
-    deal_id: str = typer.Argument(..., help="Deal ID"),
+    deal_id: str | None = typer.Argument(None, help="Deal ID"),
+    deal_name: str | None = typer.Option(None, "--deal-name", help="Deal name (auto-resolves to ID)"),
     yes: bool = typer.Option(False, "--yes", "-y", help="Skip confirmation"),
+    json_output: bool = JSON_OPTION,
 ) -> None:
     """Delete a deal."""
+    set_json_mode(json_output)
+    resolved = _require_id(
+        _resolve_deal_id(deal_id, deal_name, _CRM),
+        id_label="deal ID", name_flag="--deal-name",
+    )
     if not should_skip_confirm(yes):
-        typer.confirm(f"Delete deal {deal_id}?", abort=True)
+        typer.confirm(f"Delete deal {resolved}?", abort=True)
 
-    _api_request("delete", f"{_CRM}/deals/{deal_id}")
+    _api_request("delete", f"{_CRM}/deals/{resolved}")
 
-    rprint(f"[green]Deleted deal {deal_id}[/green]")
+    rprint(f"[green]Deleted deal {resolved}[/green]")

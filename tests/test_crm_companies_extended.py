@@ -93,4 +93,4 @@ def test_companies_delete_missing_company_id(invoke, mock_api):
     """Delete without company_id argument exits with error (Typer validation)."""
     result = invoke(["crm", "companies", "delete"])
     assert result.exit_code != 0
-    assert "Missing" in result.output or "COMPANY_ID" in result.output or "required" in result.output.lower()
+    assert "Missing" in result.output or "COMPANY_ID" in result.output or "required" in result.output.lower() or "--company-name" in result.output
