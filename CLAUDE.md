@@ -68,6 +68,16 @@ uv run python -m ac_cli.main --help        # Verify CLI loads
 
 No lint or type-check tooling is configured — pytest is the only check.
 
+## TDD Workflow
+
+For `feat:` and `fix:` changes, write tests first. See `.claude/rules/06-tdd-workflow.md`.
+
+**Single test run:** `uv run pytest tests/test_<domain>_<group>.py -x`
+
+**Watch mode:** `uv run ptw -- -x -q`
+
+Every new command needs tests for: happy path, `--json` flag, error codes, and `--yes` on deletes.
+
 ## Critical Rules
 
 - **Never hardcode a version** — managed by hatch-vcs from git tags. See `.claude/rules/versioning.md`.

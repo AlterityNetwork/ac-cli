@@ -37,6 +37,8 @@ dependencies = [
 [dependency-groups]
 dev = [
     "pytest>=8.0",
+    "pytest-cov>=6.0",
+    "pytest-watch>=4.2",
     "respx>=0.22",
 ]
 
@@ -57,6 +59,7 @@ packages = ["src/ac_cli"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+addopts = "--cov=src/ac_cli --cov-report=term-missing:skip-covered"
 
 [project.scripts]
 ac = "ac_cli.main:app"
