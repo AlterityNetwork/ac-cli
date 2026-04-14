@@ -5,7 +5,7 @@ from __future__ import annotations
 import typer
 from rich import print as rprint
 
-from ac_cli.commands._helpers import JSON_OPTION, set_json_mode, should_skip_confirm
+from ac_cli.commands._helpers import JSON_OPTION, _get_org_id, set_json_mode, should_skip_confirm
 from ac_cli.commands.crm import _CRM, _api_request, _build_body
 from ac_cli.formatting import print_detail, print_json, print_table
 
@@ -83,8 +83,7 @@ def lists_create(
         name=name, type=list_type, member_type=member_type, description=description,
     )
 
-    me = _api_request("get", "/whoami")
-    body["organization_id"] = me.json()["organization_id"]
+    body["organization_id"] = _get_org_id()
 
     resp = _api_request("post", f"{_CRM}/lists", json=body)
 

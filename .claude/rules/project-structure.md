@@ -7,8 +7,8 @@
   - `client.py` — authenticated httpx client from stored config
   - `config.py` — multi-env config (`~/.agencycore/config.json`), environment constants (`PROD_*`, `STAGING_*`, `DEV_*`), `ENVIRONMENTS` registry, migration from legacy flat format
   - `formatting.py` — shared output: `print_table`, `print_detail`, `print_json`
-  - `commands/_helpers.py` — shared helpers: `_api_request`, `_build_body`, `_handle_error`, `set_json_mode`, `should_skip_confirm`, `_EXIT_CODES`
-  - `commands/` — standalone modules (`auth.py`, `env.py`, `apps.py`, `writing_styles.py`, `nylas.py`, `hooks.py`, `health.py`) and package-based domains (`crm/`, `envoy/`, `workflows/`, `admin/`, `files/`)
+  - `commands/_helpers.py` — shared helpers: `_api_request`, `_build_body`, `_get_org_id`, `_handle_error`, `set_json_mode`, `should_skip_confirm`, `_EXIT_CODES`
+  - `commands/` — standalone modules (`auth.py`, `env.py`, `apps.py`, `writing_styles.py`, `nylas.py`, `hooks.py`, `health.py`, `legal_documents.py`, `tos.py`, `marketplace.py`, `network.py`, `managed_onboarding.py`) and package-based domains (`crm/`, `envoy/`, `workflows/`, `admin/`, `files/`)
 - `tests/` — one test file per command group, named `test_<domain>_<group>.py`
 - `scripts/` — `bump.sh` (manual version), `auto-version-tag.sh` (post-commit hook)
 

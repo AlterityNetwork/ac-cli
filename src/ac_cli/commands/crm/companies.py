@@ -7,6 +7,7 @@ from rich import print as rprint
 
 from ac_cli.commands._helpers import (
     JSON_OPTION,
+    _get_org_id,
     _require_id,
     _resolve_company_id,
     set_json_mode,
@@ -104,8 +105,7 @@ def companies_create(
         location=location, country=country, description=description,
     )
 
-    me = _api_request("get", "/whoami")
-    body["organization_id"] = me.json()["organization_id"]
+    body["organization_id"] = _get_org_id()
 
     resp = _api_request("post", f"{_CRM}/companies", json=body)
 

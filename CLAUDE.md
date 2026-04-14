@@ -18,18 +18,23 @@ uv sync --all-extras       # Install with dev dependencies (pytest, respx)
 | `crm` | Companies, people, deals, activities, comms, lists, imports |
 | `envoy` | Sequences, steps, recipients, outbox, playbooks, battlecards, inbox |
 | `files` | Image upload/delete |
-| `workflows` | Runs, schedules, presets |
+| `workflows` | Runs, schedules, presets, csv-parse |
 | `apps` | Organization app install/config |
 | `chat` | AI chat threads and messages |
-| `admin` | Users, orgs, queues, demo, onboarding, app-usage, ai-usage, platform-activity, legal-docs (super admin) |
+| `admin` | Users, orgs, queues, demo, onboarding, app-usage, ai-usage, platform-activity, legal-docs, resources, apps (super admin) |
 | `profiles` | User profile management |
 | `resources` | Knowledge base resource management |
 | `styles` | Writing styles |
-| `nylas` | Email integration |
+| `nylas` | Email integration, thread sync, attachment download |
 | `messaging` | Messaging platform sessions and account linking |
 | `hooks` | Platform hooks |
 | `health` | Health checks |
 | `env` | Environment switching (local, staging, production) |
+| `legal-docs` | Legal document retrieval and acceptance |
+| `tos` | Terms of service config, status, acceptance |
+| `marketplace` | App marketplace browsing and developer listing |
+| `network` | Referrals, news, Slack invites |
+| `onboarding` | Managed onboarding config and completion |
 
 Run `ac <group> --help` for full subcommand listing.
 
@@ -53,7 +58,7 @@ src/ac_cli/
   config.py            → Multi-env config (~/.agencycore/config.json)
   formatting.py        → Shared output (print_table, print_detail, print_json)
   commands/            → Command modules (auth, env, crm/, envoy/, admin/, etc.)
-    _helpers.py        → Shared helpers (_api_request, _build_body, exit codes)
+    _helpers.py        → Shared helpers (_api_request, _build_body, _get_org_id, exit codes)
 tests/                 → One test file per command group (test_<domain>_<group>.py)
 scripts/               → bump.sh (manual version), auto-version-tag.sh (post-commit hook)
 ```
@@ -84,3 +89,12 @@ Every new command needs tests for: happy path, `--json` flag, error codes, and `
 - **Always use conventional commit prefixes** (`feat:`, `fix:`, `chore:`, etc.) — auto-bump and PyPI publishing depend on this.
 - **Credentials in `~/.agencycore/config.json`** (file mode 0600) — never commit.
 - **Dependencies**: use `uv add <pkg>` / `uv add --dev <pkg>`. Both `pyproject.toml` and `uv.lock` must stay in sync.
+
+## API Domains Not Exposed in CLI
+
+The following API domains are intentionally not covered by the CLI:
+
+- `/test` — dev-only email simulation endpoints
+- `/admin/demo/*-stream` — SSE streaming endpoints (not suitable for CLI)
+- `/nylas/webhook` — server-side webhook handler (not user-callable)
+- `/nylas/demo/*` — demo-only email simulation endpoints

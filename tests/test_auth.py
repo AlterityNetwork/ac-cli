@@ -1,10 +1,13 @@
-"""Tests for auth commands: login environment handling."""
+"""Tests for auth commands: login, logout, whoami."""
 
+import json
 from unittest.mock import MagicMock, patch
 
+import respx
 from typer.testing import CliRunner
 
 from ac_cli.main import app
+from tests.conftest import API_BASE, MOCK_CONFIG, WHOAMI_RESPONSE
 
 runner = CliRunner()
 
@@ -71,3 +74,95 @@ def test_login_explicit_env_overrides_active():
     assert result.exit_code == 0
     assert "staging" in result.output
     assert saved["active"] == "staging"
+
+
+# -- Logout -------------------------------------------------------------------
+
+
+def test_logout_all():
+    """Logout without --env clears all environments."""
+    with patch("ac_cli.commands.auth.clear_config") as mock_clear:
+        result = runner.invoke(app, ["auth", "logout"])
+
+    assert result.exit_code == 0
+    assert "all environments" in result.output.lower()
+    mock_clear.assert_called_once()
+
+
+def test_logout_specific_env():
+    """Logout with --env clears only that environment."""
+    with patch("ac_cli.commands.auth.clear_env_config") as mock_clear:
+        result = runner.invoke(app, ["auth", "logout", "--env", "staging"])
+
+    assert result.exit_code == 0
+    assert "staging" in result.output
+    mock_clear.assert_called_once_with("staging")
+
+
+def test_logout_unknown_env():
+    """Logout with unknown --env exits with error."""
+    result = runner.invoke(app, ["auth", "logout", "--env", "nonexistent"])
+    assert result.exit_code == 1
+    assert "Unknown environment" in result.output
+
+
+# -- Whoami --------------------------------------------------------------------
+
+
+def test_whoami_happy():
+    """Whoami shows user info."""
+    with (
+        respx.mock(base_url=API_BASE) as router,
+        patch("ac_cli.client.load_config", return_value=MOCK_CONFIG),
+        patch("ac_cli.commands.auth.get_active_env", return_value="staging"),
+    ):
+        router.get("/whoami").respond(200, json=WHOAMI_RESPONSE)
+        result = runner.invoke(app, ["auth", "whoami"])
+
+    assert result.exit_code == 0
+    assert "org-456" in result.output
+
+
+def test_whoami_json():
+    """Whoami --json outputs structured JSON with environment."""
+    with (
+        respx.mock(base_url=API_BASE) as router,
+        patch("ac_cli.client.load_config", return_value=MOCK_CONFIG),
+        patch("ac_cli.commands.auth.get_active_env", return_value="production"),
+    ):
+        router.get("/whoami").respond(200, json=WHOAMI_RESPONSE)
+        result = runner.invoke(app, ["auth", "whoami", "--json"])
+
+    assert result.exit_code == 0
+    parsed = json.loads(result.output)
+    assert parsed["user_id"] == "user-123"
+    assert parsed["environment"] == "production"
+
+
+def test_whoami_403():
+    """Whoami exits 4 on 403."""
+    with (
+        respx.mock(base_url=API_BASE) as router,
+        patch("ac_cli.client.load_config", return_value=MOCK_CONFIG),
+        patch("ac_cli.commands.auth.get_active_env", return_value="staging"),
+    ):
+        router.get("/whoami").respond(403, json={"detail": "Forbidden"})
+        result = runner.invoke(app, ["auth", "whoami"])
+
+    assert result.exit_code == 4
+
+
+def test_whoami_json_error():
+    """Whoami --json returns structured error on failure."""
+    with (
+        respx.mock(base_url=API_BASE) as router,
+        patch("ac_cli.client.load_config", return_value=MOCK_CONFIG),
+        patch("ac_cli.commands.auth.get_active_env", return_value="staging"),
+    ):
+        router.get("/whoami").respond(403, json={"detail": "Forbidden"})
+        result = runner.invoke(app, ["auth", "whoami", "--json"])
+
+    assert result.exit_code == 4
+    parsed = json.loads(result.output)
+    assert parsed["error"] is True
+    assert parsed["status_code"] == 403

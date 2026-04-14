@@ -31,7 +31,6 @@ dependencies = [
     "httpx>=0.27",
     "supabase>=2.0",
     "rich>=13.0",
-    "socksio>=1.0.0",
 ]
 
 [dependency-groups]

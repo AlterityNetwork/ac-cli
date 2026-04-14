@@ -5,7 +5,7 @@ from __future__ import annotations
 import typer
 from rich import print as rprint
 
-from ac_cli.commands._helpers import JSON_OPTION, _api_request, _build_body, set_json_mode, should_skip_confirm
+from ac_cli.commands._helpers import JSON_OPTION, _api_request, _build_body, _get_org_id, set_json_mode, should_skip_confirm
 from ac_cli.formatting import print_detail, print_json, print_table
 
 app = typer.Typer(help="Writing style operations")
@@ -92,8 +92,7 @@ def styles_create(
         name=name, description=description, tone=tone, formality=formality,
     )
 
-    me = _api_request("get", "/whoami")
-    body["organization_id"] = me.json()["organization_id"]
+    body["organization_id"] = _get_org_id()
 
     resp = _api_request("post", _STYLES, json=body)
 

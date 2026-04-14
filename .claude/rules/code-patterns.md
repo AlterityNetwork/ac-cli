@@ -37,6 +37,11 @@ paths:
   - `_NYLAS = "/api/v1/nylas"` in `nylas.py`
   - `_FILES = "/api/v1/files"` in `files/__init__.py`
   - `_HOOKS = "/api/v1/platform/hooks"` in `hooks.py`
+  - `_LEGAL = "/api/v1/legal-documents"` in `legal_documents.py`
+  - `_TOS = "/api/v1/tos"` in `tos.py`
+  - `_MKT = "/api/v1/marketplace"` in `marketplace.py`
+  - `_NET = "/api/v1/network"` in `network.py`
+  - `_ONBOARD = "/api/v1/managed-onboarding"` in `managed_onboarding.py`
 - All domains share `_api_request()`, `_build_body()`, and `_handle_error()` from `commands/_helpers.py`
 - Non-versioned routes (`/whoami`, `/health`) use root paths directly
 - No trailing slashes on API paths

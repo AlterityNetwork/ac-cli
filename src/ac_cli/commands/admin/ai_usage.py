@@ -246,6 +246,44 @@ def ai_usage_by_workflow(
     )
 
 
+@ai_usage_app.command("by-app")
+def ai_usage_by_app(
+    ctx: typer.Context,
+    start_date: str | None = typer.Option(None, "--start-date", help="Start date (YYYY-MM-DD)"),
+    end_date: str | None = typer.Option(None, "--end-date", help="End date (YYYY-MM-DD)"),
+    org_id: str | None = typer.Option(None, "--org-id", help="Filter by organization ID"),
+    json_output: bool = JSON_OPTION,
+) -> None:
+    """Show AI usage breakdown by app."""
+    set_json_mode(json_output)
+    params: dict = {}
+    if start_date:
+        params["start_date"] = start_date
+    if end_date:
+        params["end_date"] = end_date
+    if org_id:
+        params["org_id"] = org_id
+
+    resp = _api_request("get", f"{_ADMIN}/ai-usage/by-app", params=params)
+
+    data = resp.json()
+    if json_output:
+        print_json(data)
+        return
+
+    items = data if isinstance(data, list) else data.get("items", [])
+    print_table(
+        items,
+        [
+            ("app_id", "App"),
+            ("requests", "Requests"),
+            ("tokens", "Tokens"),
+            ("cost", "Cost"),
+        ],
+        title="AI Usage by App",
+    )
+
+
 @ai_usage_app.command("details")
 def ai_usage_details(
     ctx: typer.Context,

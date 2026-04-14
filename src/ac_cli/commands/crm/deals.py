@@ -7,6 +7,7 @@ from rich import print as rprint
 
 from ac_cli.commands._helpers import (
     JSON_OPTION,
+    _get_org_id,
     _require_id,
     _resolve_company_id,
     _resolve_contact_id,
@@ -130,8 +131,7 @@ def deals_create(
     if resolved_contact is not None:
         body["primary_contact_id"] = resolved_contact
 
-    me = _api_request("get", "/whoami")
-    body["organization_id"] = me.json()["organization_id"]
+    body["organization_id"] = _get_org_id()
 
     resp = _api_request("post", f"{_CRM}/deals", json=body)
 

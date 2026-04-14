@@ -232,3 +232,62 @@ def users_generate_link(
 
     data = resp.json()
     rprint(f"[green]Impersonation link:[/green] {data.get('link', data)}")
+
+
+@users_app.command("suspension-messages")
+def users_suspension_messages(
+    ctx: typer.Context,
+    json_output: bool = JSON_OPTION,
+) -> None:
+    """List available suspension messages."""
+    set_json_mode(json_output)
+    resp = _api_request("get", f"{_ADMIN}/suspension-messages")
+
+    data = resp.json()
+    if json_output:
+        print_json(data)
+        return
+
+    items = data if isinstance(data, list) else data.get("messages", [])
+    print_table(items, [("id", "ID"), ("message", "Message")], title="Suspension Messages")
+
+
+@users_app.command("suspend")
+def users_suspend(
+    ctx: typer.Context,
+    user_id: str = typer.Argument(..., help="User ID"),
+    reason: str | None = typer.Option(None, "--reason", help="Suspension reason"),
+    message_id: str | None = typer.Option(None, "--message-id", help="Suspension message ID"),
+    yes: bool = typer.Option(False, "--yes", "-y", help="Skip confirmation"),
+    json_output: bool = JSON_OPTION,
+) -> None:
+    """Suspend a user."""
+    set_json_mode(json_output)
+    if not should_skip_confirm(yes):
+        typer.confirm(f"Suspend user {user_id}?", abort=True)
+
+    body = _build_body(reason=reason, message_id=message_id)
+    resp = _api_request("post", f"{_ADMIN}/users/{user_id}/suspend", json=body)
+
+    data = resp.json()
+    if json_output:
+        print_json(data)
+    else:
+        rprint(f"[green]Suspended user {user_id}[/green]")
+
+
+@users_app.command("activate")
+def users_activate(
+    ctx: typer.Context,
+    user_id: str = typer.Argument(..., help="User ID"),
+    json_output: bool = JSON_OPTION,
+) -> None:
+    """Activate (unsuspend) a user."""
+    set_json_mode(json_output)
+    resp = _api_request("post", f"{_ADMIN}/users/{user_id}/activate")
+
+    data = resp.json()
+    if json_output:
+        print_json(data)
+    else:
+        rprint(f"[green]Activated user {user_id}[/green]")

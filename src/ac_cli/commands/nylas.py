@@ -157,3 +157,48 @@ def validate_signature(
         print_json(data)
     else:
         rprint(data)
+
+
+@app.command("sync-thread")
+def sync_thread(
+    ctx: typer.Context,
+    thread_id: str = typer.Argument(..., help="Thread ID to sync"),
+    json_output: bool = JSON_OPTION,
+) -> None:
+    """Sync messages for a thread from Nylas."""
+    set_json_mode(json_output)
+    resp = _api_request("post", f"{_NYLAS}/sync/threads/{thread_id}/sync")
+
+    data = resp.json()
+    if json_output:
+        print_json(data)
+    else:
+        rprint(f"[green]Synced thread {thread_id}[/green]")
+
+
+@app.command("download-attachment")
+def download_attachment(
+    ctx: typer.Context,
+    message_id: str = typer.Argument(..., help="Message ID"),
+    attachment_id: str = typer.Argument(..., help="Attachment ID"),
+    output: str | None = typer.Option(None, "--output", "-o", help="Output file path"),
+    json_output: bool = JSON_OPTION,
+) -> None:
+    """Download an attachment from a message."""
+    set_json_mode(json_output)
+    from ac_cli.client import get_api_client
+
+    with get_api_client() as client:
+        resp = client.get(f"{_NYLAS}/sync/messages/{message_id}/attachments/{attachment_id}/download")
+        resp.raise_for_status()
+
+    if json_output:
+        print_json({"status": "downloaded", "size": len(resp.content)})
+        return
+
+    if output:
+        with open(output, "wb") as f:
+            f.write(resp.content)
+        rprint(f"[green]Saved to {output}[/green]")
+    else:
+        rprint(f"[green]Downloaded {len(resp.content)} bytes[/green]")

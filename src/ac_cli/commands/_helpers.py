@@ -173,6 +173,12 @@ def _resolve_deal_id(
     )
 
 
+def _get_org_id() -> str:
+    """Fetch the current user's organization ID from /whoami."""
+    resp = _api_request("get", "/whoami")
+    return resp.json()["organization_id"]
+
+
 def _build_body(**fields: object) -> dict:
     """Build API request body from non-None fields."""
     body: dict = {}

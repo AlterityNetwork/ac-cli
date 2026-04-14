@@ -6,10 +6,15 @@ from ac_cli import __version__
 from ac_cli.commands import admin, apps, auth, chat, crm, env, files, health
 from ac_cli.commands import envoy
 from ac_cli.commands import hooks
+from ac_cli.commands import legal_documents
+from ac_cli.commands import managed_onboarding
+from ac_cli.commands import marketplace
 from ac_cli.commands import messaging
+from ac_cli.commands import network
 from ac_cli.commands import nylas
 from ac_cli.commands import profiles
 from ac_cli.commands import resources
+from ac_cli.commands import tos
 from ac_cli.commands import workflows
 from ac_cli.commands import writing_styles
 
@@ -45,10 +50,15 @@ app.add_typer(health.app, name="health")
 app.add_typer(envoy.app, name="envoy")
 app.add_typer(files.app, name="files")
 app.add_typer(hooks.app, name="hooks")
+app.add_typer(legal_documents.app, name="legal-docs")
+app.add_typer(managed_onboarding.app, name="onboarding")
+app.add_typer(marketplace.app, name="marketplace")
 app.add_typer(messaging.app, name="messaging")
+app.add_typer(network.app, name="network")
 app.add_typer(nylas.app, name="nylas")
 app.add_typer(profiles.app, name="profiles")
 app.add_typer(resources.app, name="resources")
+app.add_typer(tos.app, name="tos")
 app.add_typer(workflows.app, name="workflows")
 app.add_typer(writing_styles.app, name="styles")
 

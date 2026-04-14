@@ -2,7 +2,7 @@
 
 import typer
 
-from ac_cli.commands._helpers import _api_request, _build_body, _handle_error, set_json_mode  # noqa: F401, JSON_OPTION
+from ac_cli.commands._helpers import JSON_OPTION, _api_request, _build_body, _handle_error, set_json_mode  # noqa: F401
 
 app = typer.Typer(help="Envoy outreach commands")
 
@@ -40,10 +40,9 @@ app.command("signals")(signals_command)
 @app.command("inbox-count")
 def inbox_count(
     ctx: typer.Context,
-    json_output: bool = typer.Option(False, "--json", help="Output raw JSON"),
+    json_output: bool = JSON_OPTION,
 ) -> None:
     """Get inbox thread count."""
-    from ac_cli.commands._helpers import _api_request, set_json_mode
     from ac_cli.formatting import print_json
     from rich import print as rprint
 

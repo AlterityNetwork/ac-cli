@@ -26,11 +26,6 @@ WHOAMI_RESPONSE = {
 
 
 @pytest.fixture()
-def cli_runner():
-    return CliRunner()
-
-
-@pytest.fixture()
 def mock_config():
     with patch("ac_cli.client.load_config", return_value=MOCK_CONFIG):
         yield MOCK_CONFIG
@@ -43,10 +38,11 @@ def mock_api():
 
 
 @pytest.fixture()
-def invoke(cli_runner, mock_config, mock_api):
+def invoke(mock_config, mock_api):
     """Convenience fixture: returns a function that invokes the CLI app."""
+    runner = CliRunner()
 
     def _invoke(args, input=None):
-        return cli_runner.invoke(app, args, input=input)
+        return runner.invoke(app, args, input=input)
 
     return _invoke
