@@ -3,7 +3,7 @@
 import typer
 
 from ac_cli import __version__
-from ac_cli.commands import admin, agent, apps, auth, chat, crm, env, files, health
+from ac_cli.commands import admin, apps, auth, chat, crm, env, files, health
 from ac_cli.commands import envoy
 from ac_cli.commands import hooks
 from ac_cli.commands import legal_documents
@@ -40,7 +40,6 @@ def main(
     pass
 
 # Register sub-command groups
-app.add_typer(agent.app, name="agent")
 app.add_typer(admin.app, name="admin")
 app.add_typer(apps.app, name="apps")
 app.add_typer(auth.app, name="auth")
