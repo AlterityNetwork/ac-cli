@@ -39,6 +39,36 @@ def test_activities_list_with_filters(invoke, mock_api):
     assert result.exit_code == 0
 
 
+def test_activities_list_assigned_to(invoke, mock_api):
+    """`--assigned-to` passes assigned_to query param to the backend."""
+    route = mock_api.get("/api/v1/crm/activities").respond(200, json=[SAMPLE_ACTIVITY])
+    result = invoke(
+        ["crm", "activities", "list", "--assigned-to", "user-42", "--json"]
+    )
+    assert result.exit_code == 0
+    assert route.called
+    request = route.calls.last.request
+    assert "assigned_to=user-42" in str(request.url)
+
+
+def test_activities_list_assigned_to_me_sentinel(invoke, mock_api):
+    """`--assigned-to me` resolves to the caller's user_id via /whoami.
+
+    The CLI substitutes `me` with the authenticated user id so agents don't
+    need to pre-resolve it.
+    """
+    mock_api.get("/whoami").respond(200, json=WHOAMI_RESPONSE)
+    route = mock_api.get("/api/v1/crm/activities").respond(200, json=[SAMPLE_ACTIVITY])
+    result = invoke(
+        ["crm", "activities", "list", "--assigned-to", "me", "--json"]
+    )
+    assert result.exit_code == 0
+    assert route.called
+    request = route.calls.last.request
+    # WHOAMI_RESPONSE has user_id == "user-123"
+    assert f"assigned_to={WHOAMI_RESPONSE['user_id']}" in str(request.url)
+
+
 def test_activities_get(invoke, mock_api):
     mock_api.get("/api/v1/crm/activities/a1").respond(200, json=SAMPLE_ACTIVITY)
     result = invoke(["crm", "activities", "get", "a1"])

@@ -30,6 +30,11 @@ def activities_list(
     contact_id: str | None = typer.Option(None, "--contact-id", help="Filter by contact"),
     activity_type: str | None = typer.Option(None, "--type", help="Filter by type"),
     status: str | None = typer.Option(None, help="Filter by status"),
+    assigned_to: str | None = typer.Option(
+        None,
+        "--assigned-to",
+        help="Filter by assignee user_id. Pass 'me' to resolve to the authenticated user.",
+    ),
     sort_by: str | None = typer.Option(None, "--sort-by", help="Sort field: due_date or created_at"),
     limit: int = typer.Option(100, help="Max results"),
     offset: int = typer.Option(0, help="Offset"),
@@ -48,6 +53,14 @@ def activities_list(
         params["type"] = activity_type
     if status:
         params["status"] = status
+    if assigned_to:
+        # Sentinel: 'me' resolves to the authenticated user via /whoami so
+        # agents don't have to pre-resolve the user_id.
+        if assigned_to == "me":
+            whoami_resp = _api_request("get", "/whoami")
+            whoami = whoami_resp.json()
+            assigned_to = whoami.get("user_id") or assigned_to
+        params["assigned_to"] = assigned_to
     if sort_by:
         params["sort_by"] = sort_by
 
