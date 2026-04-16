@@ -435,6 +435,64 @@ def test_comms_unread_thread_ids_json(invoke, mock_api):
     assert parsed["thread_ids"] == ["thread_jane_001"]
 
 
+def test_comms_inbox_summary(invoke, mock_api):
+    data = {
+        "unread_count": 3,
+        "unread_thread_count": 2,
+        "open_thread_count": 5,
+        "recent_threads": [
+            {
+                "thread_id": "t-1",
+                "subject": "Follow up",
+                "last_message_at": "2026-04-15T10:00:00Z",
+                "latest_sender": "Jane Doe",
+                "unread_in_thread": 1,
+                "latest_direction": "inbound",
+            }
+        ],
+    }
+    mock_api.get("/api/v1/crm/communications/inbox-summary").respond(200, json=data)
+    result = invoke(["crm", "comms", "inbox-summary"])
+    assert result.exit_code == 0
+    assert "Unread messages" in result.output
+    assert "Open threads" in result.output
+    assert "Follow up" in result.output
+
+
+def test_comms_inbox_summary_json(invoke, mock_api):
+    data = {
+        "unread_count": 0,
+        "unread_thread_count": 0,
+        "open_thread_count": 4,
+        "recent_threads": [],
+    }
+    mock_api.get("/api/v1/crm/communications/inbox-summary").respond(200, json=data)
+    result = invoke(["crm", "comms", "inbox-summary", "--json"])
+    assert result.exit_code == 0
+    parsed = json.loads(result.output)
+    assert parsed["unread_count"] == 0
+    assert parsed["open_thread_count"] == 4
+
+
+def test_comms_inbox_summary_passes_flags(invoke, mock_api):
+    route = mock_api.get("/api/v1/crm/communications/inbox-summary").respond(
+        200,
+        json={
+            "unread_count": 0,
+            "unread_thread_count": 0,
+            "open_thread_count": 0,
+            "recent_threads": [],
+        },
+    )
+    result = invoke(
+        ["crm", "comms", "inbox-summary", "--recent-limit", "3", "--window-days", "14"]
+    )
+    assert result.exit_code == 0
+    request = route.calls.last.request
+    assert request.url.params.get("recent_limit") == "3"
+    assert request.url.params.get("window_days") == "14"
+
+
 def test_comms_list_follows_redirect(invoke, mock_api):
     """Client should follow 307 redirects (e.g. trailing-slash normalization)."""
     mock_api.get("/api/v1/crm/communications").mock(

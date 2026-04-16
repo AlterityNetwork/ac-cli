@@ -24,7 +24,7 @@ from ac_cli.commands.envoy.battlecards import battlecards_app  # noqa: E402
 from ac_cli.commands.envoy.playbooks import playbooks_app  # noqa: E402
 from ac_cli.commands.envoy.dashboard import dashboard_command  # noqa: E402
 from ac_cli.commands.envoy.inbox import inbox_app  # noqa: E402
-from ac_cli.commands.envoy.signals import signals_command  # noqa: E402
+from ac_cli.commands.envoy.signals import signals_app  # noqa: E402
 
 app.add_typer(sequences_app, name="sequences")
 app.add_typer(battlecards_app, name="battlecards")
@@ -34,7 +34,7 @@ app.add_typer(recipients_app, name="recipients")
 app.add_typer(outbox_app, name="outbox")
 app.add_typer(inbox_app, name="inbox")
 app.command("dashboard")(dashboard_command)
-app.command("signals")(signals_command)
+app.add_typer(signals_app, name="signals")
 
 
 @app.command("inbox-count")

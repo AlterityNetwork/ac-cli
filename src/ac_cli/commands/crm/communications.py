@@ -402,6 +402,59 @@ def communications_generate_draft(
         rprint(f"\n{data.get('body', data.get('content', ''))}")
 
 
+@communications_app.command("inbox-summary")
+def communications_inbox_summary(
+    ctx: typer.Context,
+    recent_limit: int = typer.Option(
+        5,
+        "--recent-limit",
+        help="Max recent threads to include (server-clamped 0-50).",
+    ),
+    window_days: int = typer.Option(
+        30,
+        "--window-days",
+        help="Days back that counts as 'open' (server-clamped 1-365).",
+    ),
+    json_output: bool = JSON_OPTION,
+) -> None:
+    """Show combined unread + open-thread counts with recent-thread preview.
+
+    Use this instead of `unread` when you need to answer "what's in my
+    inbox" unambiguously — a 0-unread inbox can still have dozens of open
+    threads, and this endpoint returns both numbers in one call.
+    """
+    set_json_mode(json_output)
+    params: dict = {"recent_limit": recent_limit, "window_days": window_days}
+    resp = _api_request("get", f"{_CRM}/communications/inbox-summary", params=params)
+
+    data = resp.json()
+    if json_output:
+        print_json(data)
+        return
+
+    rprint(
+        "\n[bold]Inbox summary[/bold]\n"
+        f"  Unread messages:  [yellow]{data.get('unread_count', 0)}[/yellow]"
+        f"  across {data.get('unread_thread_count', 0)} threads\n"
+        f"  Open threads ({window_days}d):  "
+        f"[cyan]{data.get('open_thread_count', 0)}[/cyan]"
+    )
+
+    threads = data.get("recent_threads") or []
+    if threads:
+        rprint("\n[bold]Recent threads[/bold]")
+        print_table(
+            threads,
+            [
+                ("subject", "Subject"),
+                ("latest_sender", "Latest sender"),
+                ("last_message_at", "Last message"),
+                ("unread_in_thread", "Unread"),
+            ],
+            title=None,
+        )
+
+
 @communications_app.command("unread-thread-ids")
 def communications_unread_thread_ids(
     ctx: typer.Context,
