@@ -44,6 +44,18 @@ def test_run_companies_list_by_run(invoke, mock_api):
     assert "Acme Corp" in result.output
 
 
+def test_run_companies_list_sort_by_lead_score(invoke, mock_api):
+    """--sort-by lead_score passes through as query param."""
+    route = mock_api.get("/api/v1/workflows/wf-1/runs/companies").respond(
+        200, json={"data": [], "total": 0, "limit": 50, "offset": 0, "has_more": False}
+    )
+    result = invoke(
+        ["workflows", "run-companies", "list", "wf-1", "--sort-by", "lead_score", "--json"]
+    )
+    assert result.exit_code == 0
+    assert "sort_by=lead_score" in str(route.calls.last.request.url)
+
+
 def test_run_companies_add_to_crm(invoke, mock_api):
     mock_api.post("/api/v1/workflows/wf-1/runs/companies/add-to-crm").respond(200, json={
         "added_count": 2,

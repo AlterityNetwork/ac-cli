@@ -21,11 +21,22 @@ def run_companies_list(
     limit: int = typer.Option(50, help="Max results"),
     offset: int = typer.Option(0, help="Offset"),
     include_in_crm: bool = typer.Option(False, "--include-in-crm", help="Include companies already in CRM"),
+    sort_by: str | None = typer.Option(
+        None,
+        "--sort-by",
+        help=(
+            "Sort column: discovered_at (default, newest first) or "
+            "lead_score (highest first — use for 'hottest signals' / "
+            "'top-scoring companies' queries)."
+        ),
+    ),
     json_output: bool = JSON_OPTION,
 ) -> None:
     """List companies discovered by a workflow (deduplicated)."""
     set_json_mode(json_output)
     params: dict = {"limit": limit, "offset": offset, "include_in_crm": include_in_crm}
+    if sort_by:
+        params["sort_by"] = sort_by
     resp = _api_request("get", f"{_WORKFLOWS}/{workflow_id}/runs/companies", params=params)
 
     data = resp.json()
