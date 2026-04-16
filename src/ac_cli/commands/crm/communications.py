@@ -21,6 +21,21 @@ def communications_list(
     comm_type: str | None = typer.Option(None, "--type", help="Filter by type (email, call, etc.)"),
     direction: str | None = typer.Option(None, help="Filter by direction (inbound, outbound)"),
     status: str | None = typer.Option(None, help="Filter by status"),
+    sentiment: str | None = typer.Option(
+        None,
+        "--sentiment",
+        help="Filter by sentiment: positive, neutral, or negative.",
+    ),
+    since: str | None = typer.Option(
+        None,
+        "--since",
+        help="Include only communications on/after this ISO date (YYYY-MM-DD).",
+    ),
+    until: str | None = typer.Option(
+        None,
+        "--until",
+        help="Include only communications on/before this ISO date (YYYY-MM-DD).",
+    ),
     limit: int = typer.Option(20, help="Max results"),
     offset: int = typer.Option(0, help="Offset"),
     json_output: bool = JSON_OPTION,
@@ -40,6 +55,12 @@ def communications_list(
         params["direction"] = direction
     if status:
         params["status"] = status
+    if sentiment:
+        params["sentiment"] = sentiment
+    if since:
+        params["since"] = since
+    if until:
+        params["until"] = until
 
     resp = _api_request("get", f"{_CRM}/communications", params=params)
 

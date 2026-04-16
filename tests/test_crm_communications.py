@@ -69,6 +69,50 @@ def test_comms_list_with_filters(invoke, mock_api):
     assert result.exit_code == 0
 
 
+def test_comms_list_sentiment(invoke, mock_api):
+    """--sentiment passes through as query param."""
+    route = mock_api.get("/api/v1/crm/communications").respond(200, json=[])
+    result = invoke(["crm", "comms", "list", "--sentiment", "negative", "--json"])
+    assert result.exit_code == 0
+    assert "sentiment=negative" in str(route.calls.last.request.url)
+
+
+def test_comms_list_date_range(invoke, mock_api):
+    """--since / --until flow through as ISO dates."""
+    route = mock_api.get("/api/v1/crm/communications").respond(200, json=[])
+    result = invoke(
+        [
+            "crm", "comms", "list",
+            "--since", "2026-04-09",
+            "--until", "2026-04-16",
+            "--json",
+        ]
+    )
+    assert result.exit_code == 0
+    url = str(route.calls.last.request.url)
+    assert "since=2026-04-09" in url
+    assert "until=2026-04-16" in url
+
+
+def test_comms_list_negative_sentiment_this_week(invoke, mock_api):
+    """The composite 'negative sentiment this week' use case agents care about."""
+    route = mock_api.get("/api/v1/crm/communications").respond(200, json=[])
+    result = invoke(
+        [
+            "crm", "comms", "list",
+            "--sentiment", "negative",
+            "--since", "2026-04-09",
+            "--type", "email",
+            "--json",
+        ]
+    )
+    assert result.exit_code == 0
+    url = str(route.calls.last.request.url)
+    assert "sentiment=negative" in url
+    assert "since=2026-04-09" in url
+    assert "type=email" in url
+
+
 def test_comms_get(invoke, mock_api):
     mock_api.get("/api/v1/crm/communications/comm1").respond(200, json=SAMPLE_COMMUNICATION)
     result = invoke(["crm", "comms", "get", "comm1"])
