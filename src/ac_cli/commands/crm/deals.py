@@ -27,6 +27,27 @@ def deals_list(
     stage: str | None = typer.Option(None, help="Filter by stage"),
     company_id: str | None = typer.Option(None, "--company-id", help="Filter by company"),
     owner_id: str | None = typer.Option(None, "--owner-id", help="Filter by owner"),
+    sort_by: str | None = typer.Option(
+        None,
+        "--sort-by",
+        help=(
+            "Sort column: value (amount), amount, expected_close_date, "
+            "close_date, created_at, updated_at."
+        ),
+    ),
+    order: str | None = typer.Option(
+        None, "--order", help="Sort direction: asc or desc (default desc)."
+    ),
+    close_after: str | None = typer.Option(
+        None,
+        "--close-after",
+        help="Filter deals with expected_close_date >= this ISO date (YYYY-MM-DD).",
+    ),
+    close_before: str | None = typer.Option(
+        None,
+        "--close-before",
+        help="Filter deals with expected_close_date <= this ISO date (YYYY-MM-DD).",
+    ),
     limit: int = typer.Option(100, help="Max results"),
     offset: int = typer.Option(0, help="Offset"),
     json_output: bool = JSON_OPTION,
@@ -40,6 +61,14 @@ def deals_list(
         params["company_id"] = company_id
     if owner_id:
         params["owner_user_id"] = owner_id
+    if sort_by:
+        params["sort_by"] = sort_by
+    if order:
+        params["order"] = order
+    if close_after:
+        params["close_after"] = close_after
+    if close_before:
+        params["close_before"] = close_before
 
     resp = _api_request("get", f"{_CRM}/deals", params=params)
 

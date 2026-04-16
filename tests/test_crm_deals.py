@@ -42,6 +42,47 @@ def test_deals_list_with_filters(invoke, mock_api):
     assert result.exit_code == 0
 
 
+def test_deals_list_sort_by_value_desc(invoke, mock_api):
+    """--sort-by value --order desc maps to sort_by/order query params."""
+    route = mock_api.get("/api/v1/crm/deals").respond(200, json=[])
+    result = invoke(
+        ["crm", "deals", "list", "--sort-by", "value", "--order", "desc", "--json"]
+    )
+    assert result.exit_code == 0
+    assert route.called
+    request = route.calls.last.request
+    assert "sort_by=value" in str(request.url)
+    assert "order=desc" in str(request.url)
+
+
+def test_deals_list_close_date_range(invoke, mock_api):
+    """--close-after and --close-before pass through as query params."""
+    route = mock_api.get("/api/v1/crm/deals").respond(200, json=[])
+    result = invoke(
+        [
+            "crm", "deals", "list",
+            "--close-after", "2026-04-01",
+            "--close-before", "2026-04-30",
+            "--json",
+        ]
+    )
+    assert result.exit_code == 0
+    request = route.calls.last.request
+    assert "close_after=2026-04-01" in str(request.url)
+    assert "close_before=2026-04-30" in str(request.url)
+
+
+def test_deals_list_limit_top_5(invoke, mock_api):
+    """--limit 5 caps the page to 5 so `top 5 deals by value` works end-to-end."""
+    route = mock_api.get("/api/v1/crm/deals").respond(200, json=[])
+    result = invoke(
+        ["crm", "deals", "list", "--sort-by", "value", "--order", "desc", "--limit", "5"]
+    )
+    assert result.exit_code == 0
+    request = route.calls.last.request
+    assert "limit=5" in str(request.url)
+
+
 def test_deals_get(invoke, mock_api):
     mock_api.get("/api/v1/crm/deals/d1").respond(200, json=SAMPLE_DEAL)
     result = invoke(["crm", "deals", "get", "d1"])
