@@ -167,11 +167,27 @@ def test_comms_mark_read(invoke, mock_api):
     assert "Marked thread" in result.output
 
 
+def test_comms_mark_read_json(invoke, mock_api):
+    mock_api.post("/api/v1/crm/communications/thread/thread_jane_001/mark-read").respond(200, json={})
+    result = invoke(["crm", "comms", "mark-read", "thread_jane_001", "--json"])
+    assert result.exit_code == 0
+    parsed = json.loads(result.output)
+    assert parsed == {"ok": True, "thread_id": "thread_jane_001", "action": "mark-read"}
+
+
 def test_comms_delete_with_yes(invoke, mock_api):
     mock_api.delete("/api/v1/crm/communications/comm1").respond(204)
     result = invoke(["crm", "comms", "delete", "comm1", "--yes"])
     assert result.exit_code == 0
     assert "Deleted" in result.output
+
+
+def test_comms_delete_json(invoke, mock_api):
+    mock_api.delete("/api/v1/crm/communications/comm1").respond(204)
+    result = invoke(["crm", "comms", "delete", "comm1", "--yes", "--json"])
+    assert result.exit_code == 0
+    parsed = json.loads(result.output)
+    assert parsed == {"ok": True, "id": "comm1", "action": "delete"}
 
 
 def test_comms_delete_aborted(invoke, mock_api):
@@ -184,6 +200,14 @@ def test_comms_delete_thread_with_yes(invoke, mock_api):
     result = invoke(["crm", "comms", "delete-thread", "thread_jane_001", "--yes"])
     assert result.exit_code == 0
     assert "Deleted thread" in result.output
+
+
+def test_comms_delete_thread_json(invoke, mock_api):
+    mock_api.delete("/api/v1/crm/communications/thread/thread_jane_001").respond(204)
+    result = invoke(["crm", "comms", "delete-thread", "thread_jane_001", "--yes", "--json"])
+    assert result.exit_code == 0
+    parsed = json.loads(result.output)
+    assert parsed == {"ok": True, "thread_id": "thread_jane_001", "action": "delete-thread"}
 
 
 def test_comms_delete_thread_aborted(invoke, mock_api):

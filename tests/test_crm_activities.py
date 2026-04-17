@@ -125,6 +125,14 @@ def test_activities_delete_with_yes(invoke, mock_api):
     assert "Deleted" in result.output
 
 
+def test_activities_delete_json(invoke, mock_api):
+    mock_api.delete("/api/v1/crm/activities/a1").respond(204)
+    result = invoke(["crm", "activities", "delete", "a1", "--yes", "--json"])
+    assert result.exit_code == 0
+    parsed = json.loads(result.output)
+    assert parsed == {"ok": True, "id": "a1", "action": "delete"}
+
+
 def test_activities_delete_aborted(invoke, mock_api):
     result = invoke(["crm", "activities", "delete", "a1"], input="n\n")
     assert result.exit_code == 1

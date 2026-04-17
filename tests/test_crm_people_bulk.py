@@ -77,6 +77,19 @@ def test_people_bulk_delete_with_yes(invoke, mock_api):
     assert "Deleted 3 people" in result.output
 
 
+def test_people_bulk_delete_json(invoke, mock_api):
+    mock_api.post("/api/v1/crm/people/bulk-delete").respond(204)
+    result = invoke(["crm", "people", "bulk-delete", "--ids", "p1,p2,p3", "--yes", "--json"])
+    assert result.exit_code == 0
+    parsed = json.loads(result.output)
+    assert parsed == {
+        "ok": True,
+        "ids": ["p1", "p2", "p3"],
+        "count": 3,
+        "action": "bulk-delete",
+    }
+
+
 def test_people_bulk_delete_aborted(invoke, mock_api):
     result = invoke(["crm", "people", "bulk-delete", "--ids", "p1,p2"], input="n\n")
     assert result.exit_code == 1

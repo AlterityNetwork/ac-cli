@@ -115,6 +115,20 @@ def test_lists_remove_member(invoke, mock_api):
     assert "Removed" in result.output
 
 
+def test_lists_remove_member_json(invoke, mock_api):
+    mock_api.delete("/api/v1/crm/lists/l1/members/company/c1").respond(204)
+    result = invoke(["crm", "lists", "remove-member", "l1", "--company-id", "c1", "--json"])
+    assert result.exit_code == 0
+    parsed = json.loads(result.output)
+    assert parsed == {
+        "ok": True,
+        "list_id": "l1",
+        "member_type": "company",
+        "member_id": "c1",
+        "action": "remove-member",
+    }
+
+
 def test_lists_remove_member_person(invoke, mock_api):
     mock_api.delete("/api/v1/crm/lists/l1/members/person/p1").respond(204)
     result = invoke(["crm", "lists", "remove-member", "l1", "--person-id", "p1"])
@@ -131,6 +145,14 @@ def test_lists_delete_with_yes(invoke, mock_api):
     result = invoke(["crm", "lists", "delete", "l1", "--yes"])
     assert result.exit_code == 0
     assert "Deleted" in result.output
+
+
+def test_lists_delete_json(invoke, mock_api):
+    mock_api.delete("/api/v1/crm/lists/l1").respond(204)
+    result = invoke(["crm", "lists", "delete", "l1", "--yes", "--json"])
+    assert result.exit_code == 0
+    parsed = json.loads(result.output)
+    assert parsed == {"ok": True, "id": "l1", "action": "delete"}
 
 
 def test_lists_delete_aborted(invoke, mock_api):

@@ -188,7 +188,10 @@ def people_delete(
 
     _api_request("delete", f"{_CRM}/people/{resolved}")
 
-    rprint(f"[green]Deleted person {resolved}[/green]")
+    if json_output:
+        print_json({"ok": True, "id": resolved, "action": "delete"})
+    else:
+        rprint(f"[green]Deleted person {resolved}[/green]")
 
 
 @people_app.command("bulk-upsert")
@@ -230,8 +233,10 @@ def people_bulk_upsert(
 def people_bulk_delete(
     ids: str = typer.Option(..., "--ids", help="Comma-separated people IDs"),
     yes: bool = typer.Option(False, "--yes", "-y", help="Skip confirmation"),
+    json_output: bool = JSON_OPTION,
 ) -> None:
     """Bulk delete people by ID list."""
+    set_json_mode(json_output)
     id_list = [i.strip() for i in ids.split(",") if i.strip()]
     if not id_list:
         rprint("[red]No IDs provided[/red]")
@@ -242,4 +247,7 @@ def people_bulk_delete(
 
     _api_request("post", f"{_CRM}/people/bulk-delete", json={"ids": id_list})
 
-    rprint(f"[green]Deleted {len(id_list)} people[/green]")
+    if json_output:
+        print_json({"ok": True, "ids": id_list, "count": len(id_list), "action": "bulk-delete"})
+    else:
+        rprint(f"[green]Deleted {len(id_list)} people[/green]")

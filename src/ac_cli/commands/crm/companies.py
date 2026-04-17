@@ -174,4 +174,7 @@ def companies_delete(
 
     _api_request("delete", f"{_CRM}/companies/{resolved}")
 
-    rprint(f"[green]Deleted company {resolved}[/green]")
+    if json_output:
+        print_json({"ok": True, "id": resolved, "action": "delete"})
+    else:
+        rprint(f"[green]Deleted company {resolved}[/green]")

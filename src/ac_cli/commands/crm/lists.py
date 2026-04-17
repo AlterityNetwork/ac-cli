@@ -187,8 +187,10 @@ def lists_remove_member(
     list_id: str = typer.Argument(..., help="List ID"),
     person_id: str | None = typer.Option(None, "--person-id", help="Person ID"),
     company_id: str | None = typer.Option(None, "--company-id", help="Company ID"),
+    json_output: bool = JSON_OPTION,
 ) -> None:
     """Remove a member from a list."""
+    set_json_mode(json_output)
     if person_id:
         member_type = "person"
         member_id = person_id
@@ -201,18 +203,32 @@ def lists_remove_member(
 
     _api_request("delete", f"{_CRM}/lists/{list_id}/members/{member_type}/{member_id}")
 
-    rprint(f"[green]Removed {member_type} {member_id} from list {list_id}[/green]")
+    if json_output:
+        print_json({
+            "ok": True,
+            "list_id": list_id,
+            "member_type": member_type,
+            "member_id": member_id,
+            "action": "remove-member",
+        })
+    else:
+        rprint(f"[green]Removed {member_type} {member_id} from list {list_id}[/green]")
 
 
 @lists_app.command("delete")
 def lists_delete(
     list_id: str = typer.Argument(..., help="List ID"),
     yes: bool = typer.Option(False, "--yes", "-y", help="Skip confirmation"),
+    json_output: bool = JSON_OPTION,
 ) -> None:
     """Delete a list."""
+    set_json_mode(json_output)
     if not should_skip_confirm(yes):
         typer.confirm(f"Delete list {list_id}?", abort=True)
 
     _api_request("delete", f"{_CRM}/lists/{list_id}")
 
-    rprint(f"[green]Deleted list {list_id}[/green]")
+    if json_output:
+        print_json({"ok": True, "id": list_id, "action": "delete"})
+    else:
+        rprint(f"[green]Deleted list {list_id}[/green]")

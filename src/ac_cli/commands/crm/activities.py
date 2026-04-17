@@ -226,11 +226,16 @@ def activities_complete(
 def activities_delete(
     activity_id: str = typer.Argument(..., help="Activity ID"),
     yes: bool = typer.Option(False, "--yes", "-y", help="Skip confirmation"),
+    json_output: bool = JSON_OPTION,
 ) -> None:
     """Delete an activity."""
+    set_json_mode(json_output)
     if not should_skip_confirm(yes):
         typer.confirm(f"Delete activity {activity_id}?", abort=True)
 
     _api_request("delete", f"{_CRM}/activities/{activity_id}")
 
-    rprint(f"[green]Deleted activity {activity_id}[/green]")
+    if json_output:
+        print_json({"ok": True, "id": activity_id, "action": "delete"})
+    else:
+        rprint(f"[green]Deleted activity {activity_id}[/green]")

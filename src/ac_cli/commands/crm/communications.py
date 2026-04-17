@@ -181,39 +181,54 @@ def communications_unread(
 @communications_app.command("mark-read")
 def communications_mark_read(
     thread_id: str = typer.Argument(..., help="Thread ID"),
+    json_output: bool = JSON_OPTION,
 ) -> None:
     """Mark a thread as read."""
+    set_json_mode(json_output)
     _api_request("post", f"{_CRM}/communications/thread/{thread_id}/mark-read")
 
-    rprint(f"[green]Marked thread {thread_id} as read[/green]")
+    if json_output:
+        print_json({"ok": True, "thread_id": thread_id, "action": "mark-read"})
+    else:
+        rprint(f"[green]Marked thread {thread_id} as read[/green]")
 
 
 @communications_app.command("delete")
 def communications_delete(
     communication_id: str = typer.Argument(..., help="Communication ID"),
     yes: bool = typer.Option(False, "--yes", "-y", help="Skip confirmation"),
+    json_output: bool = JSON_OPTION,
 ) -> None:
     """Delete a communication."""
+    set_json_mode(json_output)
     if not should_skip_confirm(yes):
         typer.confirm(f"Delete communication {communication_id}?", abort=True)
 
     _api_request("delete", f"{_CRM}/communications/{communication_id}")
 
-    rprint(f"[green]Deleted communication {communication_id}[/green]")
+    if json_output:
+        print_json({"ok": True, "id": communication_id, "action": "delete"})
+    else:
+        rprint(f"[green]Deleted communication {communication_id}[/green]")
 
 
 @communications_app.command("delete-thread")
 def communications_delete_thread(
     thread_id: str = typer.Argument(..., help="Thread ID"),
     yes: bool = typer.Option(False, "--yes", "-y", help="Skip confirmation"),
+    json_output: bool = JSON_OPTION,
 ) -> None:
     """Delete an entire thread."""
+    set_json_mode(json_output)
     if not should_skip_confirm(yes):
         typer.confirm(f"Delete thread {thread_id} and all its messages?", abort=True)
 
     _api_request("delete", f"{_CRM}/communications/thread/{thread_id}")
 
-    rprint(f"[green]Deleted thread {thread_id}[/green]")
+    if json_output:
+        print_json({"ok": True, "thread_id": thread_id, "action": "delete-thread"})
+    else:
+        rprint(f"[green]Deleted thread {thread_id}[/green]")
 
 
 @communications_app.command("update")
