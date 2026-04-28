@@ -40,7 +40,7 @@ paths:
 
 ## Running
 ```bash
-uv run pytest                              # All tests (~432 tests)
+uv run pytest                              # All tests (~800 tests, ~92% coverage)
 uv run pytest tests/test_crm_deals.py      # Single CRM test file
 uv run pytest tests/test_envoy_outbox.py   # Single Envoy test file
 uv run pytest tests/test_admin_users.py    # Single Admin test file
@@ -48,3 +48,11 @@ uv run pytest tests/test_workflows_runs.py # Single Workflows test file
 uv run pytest tests/test_agent_features.py # Agent-friendly features
 uv run pytest -k "test_companies"          # By name pattern
 ```
+
+## Endpoint Audit (CI Gate)
+- `python scripts/audit_endpoints.py --strict` diffs CLI `_api_request()` /
+  `client.request()` calls against the live `/openapi.json` spec.
+- Run before merging changes that touch routers or new commands. Exits nonzero
+  if a CLI call hits a path the API doesn't expose, or if a new API endpoint
+  appears that isn't in `OUT_OF_SCOPE`.
+- Requires the API on `localhost:8008` (or pass `--api-url`).

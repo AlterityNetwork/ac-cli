@@ -30,8 +30,12 @@ paths:
 - Each domain defines its own prefix constant in its `__init__.py` or module file:
   - `_CRM = "/api/v1/crm"` in `crm/__init__.py`
   - `_ENVOY = "/api/v1/envoy"` in `envoy/__init__.py`
+  - `_BATTLECARDS = "/api/v1/battlecards"` in `envoy/battlecards.py` (top-level since ENG-592)
+  - `_PLAYBOOKS = "/api/v1/playbooks"` in `envoy/playbooks.py` (top-level since ENG-592)
   - `_WORKFLOWS = "/api/v1/workflows"` in `workflows/__init__.py`
   - `_ADMIN = "/api/v1/admin"` in `admin/__init__.py`
+  - `_CHAT = "/api/v1/chat"` in `chat/__init__.py`
+  - `_PROFILES = "/api/v1/profiles"` in `profiles.py`
   - `_STYLES = "/api/v1/writing-styles"` in `writing_styles.py`
   - `_APPS = "/api/v1/orgs"` in `apps.py`
   - `_NYLAS = "/api/v1/nylas"` in `nylas.py`
@@ -45,6 +49,8 @@ paths:
 - All domains share `_api_request()`, `_build_body()`, and `_handle_error()` from `commands/_helpers.py`
 - Non-versioned routes (`/whoami`, `/health`) use root paths directly
 - No trailing slashes on API paths
+- When adding a new path constant, also register it in `PATH_CONSTANTS` inside
+  `scripts/audit_endpoints.py` so the audit script can resolve f-string CLI calls
 
 ## Error Handling
 - `_api_request()` catches both `httpx.HTTPStatusError` (API errors) and `httpx.HTTPError` (connection errors)

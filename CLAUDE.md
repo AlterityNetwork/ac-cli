@@ -15,14 +15,14 @@ uv sync --all-extras       # Install with dev dependencies (pytest, respx)
 
 | Group | Domain |
 |-------|--------|
-| `crm` | Companies, people, deals, activities, comms, lists, imports |
-| `envoy` | Sequences, steps, recipients, outbox, playbooks, battlecards, inbox |
+| `crm` | Companies, people, deals, activities, comms (incl. approvals), lists, imports |
+| `envoy` | Sequences (incl. lifecycle), campaigns, steps, recipients, outbox, playbooks, battlecards, inbox |
 | `files` | Image upload/delete |
 | `workflows` | Runs, schedules, presets, csv-parse |
 | `apps` | Organization app install/config |
-| `chat` | AI chat threads and messages |
-| `admin` | Users, orgs, queues, demo, onboarding, app-usage, ai-usage, platform-activity, legal-docs, resources, apps (super admin) |
-| `profiles` | User profile management |
+| `chat` | AI chat threads (incl. send/escalate) and messages |
+| `admin` | Users, orgs, queues, demo, onboarding, app-usage, ai-usage, platform-activity, legal-docs, resources, apps, chat-escalations, subscriptions, subscription-plans (super admin) |
+| `profiles` | User profile (incl. set-organization, set-password, subscription) |
 | `resources` | Knowledge base resource management |
 | `styles` | Writing styles |
 | `nylas` | Email integration, thread sync, attachment download |
@@ -60,7 +60,8 @@ src/ac_cli/
   commands/            → Command modules (auth, env, crm/, envoy/, admin/, etc.)
     _helpers.py        → Shared helpers (_api_request, _build_body, _get_org_id, exit codes)
 tests/                 → One test file per command group (test_<domain>_<group>.py)
-scripts/               → bump.sh (manual version), auto-version-tag.sh (post-commit hook)
+scripts/               → bump.sh (manual version), auto-version-tag.sh (post-commit hook),
+                         audit_endpoints.py (CLI vs API endpoint diff)
 ```
 
 ## Running Checks
@@ -69,9 +70,14 @@ scripts/               → bump.sh (manual version), auto-version-tag.sh (post-c
 uv run pytest                              # All tests
 uv run pytest tests/test_crm_companies.py  # Single file
 uv run python -m ac_cli.main --help        # Verify CLI loads
+python scripts/audit_endpoints.py --strict # Diff CLI calls vs live OpenAPI
 ```
 
 No lint or type-check tooling is configured — pytest is the only check.
+
+`audit_endpoints.py` requires the API on `localhost:8008` (or pass `--api-url`).
+Run before merging changes that touch routers or `_api_request` calls — exits
+nonzero on stale CLI paths or new API endpoints not yet covered.
 
 ## TDD Workflow
 
@@ -95,6 +101,21 @@ Every new command needs tests for: happy path, `--json` flag, error codes, and `
 The following API domains are intentionally not covered by the CLI:
 
 - `/test` — dev-only email simulation endpoints
-- `/admin/demo/*-stream` — SSE streaming endpoints (not suitable for CLI)
-- `/nylas/webhook` — server-side webhook handler (not user-callable)
-- `/nylas/demo/*` — demo-only email simulation endpoints
+- `/eval/*` — internal eval dashboard endpoints
+- `/admin/demo/*-stream`, `/organizations/scrape-website-stream`,
+  `/envoy/sequences/{id}/step-stats/stream`,
+  `/workflows/{id}/runs/{id}/events`, `/resources/{id}/stream` — SSE streaming
+- `/webhook`, `/nylas/webhook`, `/messaging/whatsapp/webhook`,
+  `/messaging/slack/events` — server-side webhook handlers
+- `/nylas/oauth/callback`, `/email/unsubscribe`, `/nylas/email/unsubscribe` —
+  public/browser endpoints
+- `/nylas/demo/*` — demo-only email simulation
+- `/organizations/*` (non-admin), `/profiles` (admin list), `/envoy/outputs` —
+  not surfaced via CLI today; admin equivalents exist under `ac admin orgs`
+- `/orgs/{id}/activity-events` — frontend-only activity logger
+- `/battlecards/*`, `/playbooks/*` mounted bare are duplicates of the
+  `/envoy/*` variants — CLI uses the canonical path
+
+The full list lives in `OUT_OF_SCOPE` inside `scripts/audit_endpoints.py`;
+update that set when intentionally adding a new API endpoint that the CLI
+shouldn't call.
