@@ -113,14 +113,6 @@ def test_comms_list_negative_sentiment_this_week(invoke, mock_api):
     assert "type=email" in url
 
 
-def test_comms_get(invoke, mock_api):
-    mock_api.get("/api/v1/crm/communications/comm1").respond(200, json=SAMPLE_COMMUNICATION)
-    result = invoke(["crm", "comms", "get", "comm1"])
-    assert result.exit_code == 0
-    assert "Jane Doe" in result.output
-    assert "Hi Alex, thanks for reaching out." in result.output
-
-
 def test_comms_thread(invoke, mock_api):
     mock_api.get("/api/v1/crm/communications/thread/thread_jane_001").respond(
         200, json=[SAMPLE_OUTBOUND, SAMPLE_COMMUNICATION]
@@ -529,3 +521,70 @@ def test_comms_list_follows_redirect(invoke, mock_api):
     result = invoke(["crm", "comms", "list"])
     assert result.exit_code == 0
     assert "Jane Doe" in result.output
+
+
+# -- Approvals workflow ------------------------------------------------------
+
+
+def test_comms_pending_approvals(invoke, mock_api):
+    mock_api.get("/api/v1/crm/communications/pending-approvals").respond(
+        200,
+        json={
+            "data": [{**SAMPLE_COMMUNICATION, "status": "awaiting_approval"}],
+            "total": 1,
+        },
+    )
+    result = invoke(["crm", "comms", "pending-approvals"])
+    assert result.exit_code == 0
+    assert "Pending approvals" in result.output
+
+
+def test_comms_pending_approvals_filters(invoke, mock_api):
+    route = mock_api.get("/api/v1/crm/communications/pending-approvals").respond(
+        200, json={"data": [], "total": 0}
+    )
+    result = invoke(
+        [
+            "crm", "comms", "pending-approvals",
+            "--sequence-id", "seq-1", "--step-id", "step-1", "--json",
+        ]
+    )
+    assert result.exit_code == 0
+    url = str(route.calls.last.request.url)
+    assert "sequence_id=seq-1" in url
+    assert "step_id=step-1" in url
+
+
+def test_comms_approve(invoke, mock_api):
+    mock_api.post("/api/v1/crm/communications/c1/approve").respond(
+        200, json={"id": "c1", "status": "queued"}
+    )
+    result = invoke(["crm", "comms", "approve", "c1"])
+    assert result.exit_code == 0
+    assert "Approved" in result.output
+
+
+def test_comms_reject_requires_action(invoke, mock_api):
+    result = invoke(["crm", "comms", "reject", "c1"])
+    assert result.exit_code != 0
+
+
+def test_comms_reject(invoke, mock_api):
+    mock_api.post("/api/v1/crm/communications/c1/reject").respond(
+        200, json={"id": "c1", "status": "rejected"}
+    )
+    result = invoke(
+        ["crm", "comms", "reject", "c1", "--action", "skip_send", "--reason", "bad fit"]
+    )
+    assert result.exit_code == 0
+    assert "Rejected" in result.output
+
+
+def test_comms_regenerate(invoke, mock_api):
+    mock_api.post("/api/v1/crm/communications/c1/regenerate").respond(
+        202, json={"id": "c1", "status": "queued"}
+    )
+    result = invoke(["crm", "comms", "regenerate", "c1", "--json"])
+    assert result.exit_code == 0
+    parsed = json.loads(result.output)
+    assert parsed["status"] == "queued"

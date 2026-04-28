@@ -155,3 +155,46 @@ def generate_title(
         return
 
     rprint(data.get("title", data))
+
+
+@threads_app.command("send")
+def send_message(
+    ctx: typer.Context,
+    thread_id: str = typer.Argument(..., help="Thread ID"),
+    content: str = typer.Argument(..., help="Message content"),
+    context: str | None = typer.Option(None, help="Optional surrounding context"),
+    document_id: list[str] | None = typer.Option(
+        None,
+        "--document-id",
+        help="Restrict knowledge retrieval to these resource_hub IDs (repeatable)",
+    ),
+    json_output: bool = JSON_OPTION,
+) -> None:
+    """Send a message to a chat thread (non-streaming)."""
+    set_json_mode(json_output)
+    body = _build_body(content=content, context=context, document_ids=document_id or None)
+    resp = _api_request("post", f"{_CHAT}/threads/{thread_id}/send", json=body)
+    data = resp.json()
+    if json_output:
+        print_json(data)
+    else:
+        rprint(f"[green]Sent to thread {thread_id}[/green]")
+
+
+@threads_app.command("escalate")
+def escalate_thread(
+    ctx: typer.Context,
+    thread_id: str = typer.Argument(..., help="Thread ID"),
+    note: str | None = typer.Option(None, help="Optional escalation note"),
+    message_id: str | None = typer.Option(None, "--message-id", help="Specific message to escalate"),
+    json_output: bool = JSON_OPTION,
+) -> None:
+    """Escalate a chat thread to a human."""
+    set_json_mode(json_output)
+    body = _build_body(note=note, message_id=message_id)
+    resp = _api_request("post", f"{_CHAT}/threads/{thread_id}/escalate", json=body)
+    data = resp.json()
+    if json_output:
+        print_json(data)
+    else:
+        rprint(f"[green]Escalated thread {thread_id}[/green]")

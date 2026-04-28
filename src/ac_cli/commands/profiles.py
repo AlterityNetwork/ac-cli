@@ -79,6 +79,63 @@ def profiles_update(
         rprint(f"[green]Profile updated.[/green]")
 
 
+@app.command("set-organization")
+def profiles_set_organization(
+    ctx: typer.Context,
+    organization_id: str = typer.Argument(..., help="Organization ID to select"),
+    json_output: bool = JSON_OPTION,
+) -> None:
+    """Switch the current user's selected organization."""
+    set_json_mode(json_output)
+    resp = _api_request(
+        "patch",
+        f"{_PROFILES}/me/organization",
+        json={"organization_id": organization_id},
+    )
+    data = resp.json()
+    if json_output:
+        print_json(data)
+    else:
+        rprint(f"[green]Selected organization {organization_id}[/green]")
+
+
+@app.command("set-password")
+def profiles_set_password(
+    ctx: typer.Context,
+    json_output: bool = JSON_OPTION,
+) -> None:
+    """Mark current user's password as set (post-Supabase magic-link signup)."""
+    set_json_mode(json_output)
+    _api_request("patch", f"{_PROFILES}/me/password-set")
+    if json_output:
+        print_json({"ok": True})
+    else:
+        rprint("[green]Password marked as set[/green]")
+
+
+@app.command("subscription")
+def profiles_subscription(
+    ctx: typer.Context,
+    json_output: bool = JSON_OPTION,
+) -> None:
+    """Show the current user's organization subscription."""
+    set_json_mode(json_output)
+    resp = _api_request("get", "/api/v1/subscriptions/me")
+    data = resp.json()
+    if json_output:
+        print_json(data)
+        return
+    print_detail(data, [
+        ("id", "ID"),
+        ("plan_id", "Plan"),
+        ("billing_period", "Billing"),
+        ("status", "Status"),
+        ("started_at", "Started"),
+        ("ended_at", "Ended"),
+        ("trial_ends_at", "Trial Ends"),
+    ])
+
+
 @app.command("members")
 def profiles_members(
     ctx: typer.Context,

@@ -1,0 +1,178 @@
+"""Tests for admin subscriptions and subscription-plans commands."""
+
+import json
+
+
+SAMPLE_PLAN = {
+    "id": "plan-1",
+    "slug": "pro",
+    "name": "Pro",
+    "description": "Pro tier",
+    "monthly_price_cents": 4900,
+    "annual_price_cents": 49000,
+    "features": {"seats": 10},
+    "is_active": True,
+    "created_at": "2026-01-01T00:00:00Z",
+    "updated_at": "2026-01-01T00:00:00Z",
+}
+
+SAMPLE_SUB = {
+    "id": "sub-1",
+    "organization_id": "org-1",
+    "plan_id": "plan-1",
+    "billing_period": "monthly",
+    "status": "active",
+    "started_at": "2026-04-01T00:00:00Z",
+    "ended_at": None,
+    "trial_ends_at": None,
+    "stripe_customer_id": "cus_x",
+    "stripe_subscription_id": "sub_x",
+}
+
+
+# -- Subscription plans ------------------------------------------------------
+
+
+def test_plans_list(invoke, mock_api):
+    mock_api.get("/api/v1/admin/subscription-plans").respond(200, json=[SAMPLE_PLAN])
+    result = invoke(["admin", "subscription-plans", "list"])
+    assert result.exit_code == 0
+    assert "Pro" in result.output
+
+
+def test_plans_get(invoke, mock_api):
+    mock_api.get("/api/v1/admin/subscription-plans/plan-1").respond(200, json=SAMPLE_PLAN)
+    result = invoke(["admin", "subscription-plans", "get", "plan-1"])
+    assert result.exit_code == 0
+    assert "Pro" in result.output
+
+
+def test_plans_create(invoke, mock_api):
+    route = mock_api.post("/api/v1/admin/subscription-plans").respond(201, json=SAMPLE_PLAN)
+    result = invoke(
+        [
+            "admin", "subscription-plans", "create",
+            "--slug", "pro", "--name", "Pro",
+            "--monthly-price-cents", "4900",
+            "--annual-price-cents", "49000",
+            "--features", '{"seats": 10}',
+        ]
+    )
+    assert result.exit_code == 0
+    body = json.loads(route.calls.last.request.content)
+    assert body["features"] == {"seats": 10}
+    assert "Created plan" in result.output
+
+
+def test_plans_create_invalid_features(invoke, mock_api):
+    result = invoke(
+        [
+            "admin", "subscription-plans", "create",
+            "--slug", "pro", "--name", "Pro",
+            "--monthly-price-cents", "4900",
+            "--annual-price-cents", "49000",
+            "--features", "{not json",
+        ]
+    )
+    assert result.exit_code == 2
+
+
+def test_plans_update(invoke, mock_api):
+    mock_api.patch("/api/v1/admin/subscription-plans/plan-1").respond(
+        200, json={**SAMPLE_PLAN, "name": "Pro Plus"}
+    )
+    result = invoke(
+        ["admin", "subscription-plans", "update", "plan-1", "--name", "Pro Plus"]
+    )
+    assert result.exit_code == 0
+    assert "Updated plan" in result.output
+
+
+def test_plans_update_no_fields(invoke, mock_api):
+    result = invoke(["admin", "subscription-plans", "update", "plan-1"])
+    assert result.exit_code == 1
+
+
+def test_plans_delete_with_yes(invoke, mock_api):
+    mock_api.delete("/api/v1/admin/subscription-plans/plan-1").respond(204)
+    result = invoke(["admin", "subscription-plans", "delete", "plan-1", "--yes"])
+    assert result.exit_code == 0
+    assert "Deleted plan" in result.output
+
+
+def test_plans_delete_aborted(invoke, mock_api):
+    result = invoke(["admin", "subscription-plans", "delete", "plan-1"], input="n\n")
+    assert result.exit_code == 1
+
+
+# -- Subscriptions -----------------------------------------------------------
+
+
+def test_subscriptions_list(invoke, mock_api):
+    mock_api.get("/api/v1/admin/subscriptions").respond(
+        200, json={"data": [SAMPLE_SUB], "total": 1}
+    )
+    result = invoke(["admin", "subscriptions", "list"])
+    assert result.exit_code == 0
+    assert "Subscriptions" in result.output
+
+
+def test_subscriptions_list_org_filter(invoke, mock_api):
+    route = mock_api.get("/api/v1/admin/subscriptions").respond(
+        200, json={"data": [], "total": 0}
+    )
+    result = invoke(
+        ["admin", "subscriptions", "list", "--org-id", "org-1", "--status", "active", "--json"]
+    )
+    assert result.exit_code == 0
+    url = str(route.calls.last.request.url)
+    assert "organization_id=org-1" in url
+    assert "status=active" in url
+
+
+def test_subscriptions_get(invoke, mock_api):
+    mock_api.get("/api/v1/admin/subscriptions/sub-1").respond(200, json=SAMPLE_SUB)
+    result = invoke(["admin", "subscriptions", "get", "sub-1"])
+    assert result.exit_code == 0
+    assert "sub-1" in result.output
+
+
+def test_subscriptions_create(invoke, mock_api):
+    mock_api.post("/api/v1/admin/subscriptions").respond(201, json=SAMPLE_SUB)
+    result = invoke(
+        [
+            "admin", "subscriptions", "create",
+            "--org-id", "org-1", "--plan-id", "plan-1",
+            "--billing-period", "monthly", "--started-at", "2026-04-01",
+        ]
+    )
+    assert result.exit_code == 0
+    assert "Created subscription" in result.output
+
+
+def test_subscriptions_update(invoke, mock_api):
+    mock_api.patch("/api/v1/admin/subscriptions/sub-1").respond(
+        200, json={**SAMPLE_SUB, "status": "cancelled"}
+    )
+    result = invoke(
+        ["admin", "subscriptions", "update", "sub-1", "--status", "cancelled"]
+    )
+    assert result.exit_code == 0
+    assert "Updated subscription" in result.output
+
+
+def test_subscriptions_update_no_fields(invoke, mock_api):
+    result = invoke(["admin", "subscriptions", "update", "sub-1"])
+    assert result.exit_code == 1
+
+
+def test_subscriptions_delete_with_yes(invoke, mock_api):
+    mock_api.delete("/api/v1/admin/subscriptions/sub-1").respond(204)
+    result = invoke(["admin", "subscriptions", "delete", "sub-1", "--yes"])
+    assert result.exit_code == 0
+    assert "Deleted subscription" in result.output
+
+
+def test_subscriptions_delete_aborted(invoke, mock_api):
+    result = invoke(["admin", "subscriptions", "delete", "sub-1"], input="n\n")
+    assert result.exit_code == 1

@@ -6,8 +6,10 @@ import typer
 from rich import print as rprint
 
 from ac_cli.commands._helpers import JSON_OPTION, _api_request, _build_body, _get_org_id, set_json_mode, should_skip_confirm
-from ac_cli.commands.envoy import _ENVOY
 from ac_cli.formatting import print_detail, print_json, print_table
+
+# Playbooks moved out of /envoy to top-level /api/v1/playbooks (ENG-592).
+_PLAYBOOKS = "/api/v1/playbooks"
 
 playbooks_app = typer.Typer(help="Playbook operations")
 
@@ -27,7 +29,7 @@ def playbooks_list(
     if limit is not None:
         params["limit"] = limit
 
-    resp = _api_request("get", f"{_ENVOY}/playbooks", params=params)
+    resp = _api_request("get", f"{_PLAYBOOKS}", params=params)
 
     data = resp.json()
     if json_output:
@@ -54,7 +56,7 @@ def playbooks_get(
 ) -> None:
     """Get a playbook by ID."""
     set_json_mode(json_output)
-    resp = _api_request("get", f"{_ENVOY}/playbooks/{playbook_id}")
+    resp = _api_request("get", f"{_PLAYBOOKS}/{playbook_id}")
 
     data = resp.json()
     if json_output:
@@ -90,7 +92,7 @@ def playbooks_create(
 
     body["organization_id"] = _get_org_id()
 
-    resp = _api_request("post", f"{_ENVOY}/playbooks", json=body)
+    resp = _api_request("post", f"{_PLAYBOOKS}", json=body)
 
     data = resp.json()
     if json_output:
@@ -120,7 +122,7 @@ def playbooks_update(
         rprint("[yellow]No fields to update.[/yellow]")
         raise typer.Exit(code=1)
 
-    resp = _api_request("patch", f"{_ENVOY}/playbooks/{playbook_id}", json=body)
+    resp = _api_request("patch", f"{_PLAYBOOKS}/{playbook_id}", json=body)
 
     data = resp.json()
     if json_output:
@@ -138,7 +140,7 @@ def playbooks_delete(
     if not should_skip_confirm(yes):
         typer.confirm(f"Delete playbook {playbook_id}?", abort=True)
 
-    _api_request("delete", f"{_ENVOY}/playbooks/{playbook_id}")
+    _api_request("delete", f"{_PLAYBOOKS}/{playbook_id}")
 
     rprint(f"[green]Deleted playbook {playbook_id}[/green]")
 
@@ -151,7 +153,7 @@ def playbooks_duplicate(
 ) -> None:
     """Duplicate a playbook."""
     set_json_mode(json_output)
-    resp = _api_request("post", f"{_ENVOY}/playbooks/{playbook_id}/duplicate")
+    resp = _api_request("post", f"{_PLAYBOOKS}/{playbook_id}/duplicate")
 
     data = resp.json()
     if json_output:

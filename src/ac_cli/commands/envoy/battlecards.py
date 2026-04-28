@@ -6,8 +6,10 @@ import typer
 from rich import print as rprint
 
 from ac_cli.commands._helpers import JSON_OPTION, _api_request, _build_body, _get_org_id, set_json_mode, should_skip_confirm
-from ac_cli.commands.envoy import _ENVOY
 from ac_cli.formatting import print_detail, print_json, print_table
+
+# Battlecards moved out of /envoy to top-level /api/v1/battlecards (ENG-592).
+_BATTLECARDS = "/api/v1/battlecards"
 
 battlecards_app = typer.Typer(help="Battlecard operations")
 
@@ -27,7 +29,7 @@ def battlecards_list(
     if limit is not None:
         params["limit"] = limit
 
-    resp = _api_request("get", f"{_ENVOY}/battlecards", params=params)
+    resp = _api_request("get", f"{_BATTLECARDS}", params=params)
 
     data = resp.json()
     if json_output:
@@ -55,7 +57,7 @@ def battlecards_get(
 ) -> None:
     """Get a battlecard by ID."""
     set_json_mode(json_output)
-    resp = _api_request("get", f"{_ENVOY}/battlecards/{battlecard_id}")
+    resp = _api_request("get", f"{_BATTLECARDS}/{battlecard_id}")
 
     data = resp.json()
     if json_output:
@@ -93,7 +95,7 @@ def battlecards_create(
 
     body["organization_id"] = _get_org_id()
 
-    resp = _api_request("post", f"{_ENVOY}/battlecards", json=body)
+    resp = _api_request("post", f"{_BATTLECARDS}", json=body)
 
     data = resp.json()
     if json_output:
@@ -123,7 +125,7 @@ def battlecards_update(
         rprint("[yellow]No fields to update.[/yellow]")
         raise typer.Exit(code=1)
 
-    resp = _api_request("patch", f"{_ENVOY}/battlecards/{battlecard_id}", json=body)
+    resp = _api_request("patch", f"{_BATTLECARDS}/{battlecard_id}", json=body)
 
     data = resp.json()
     if json_output:
@@ -141,7 +143,7 @@ def battlecards_delete(
     if not should_skip_confirm(yes):
         typer.confirm(f"Delete battlecard {battlecard_id}?", abort=True)
 
-    _api_request("delete", f"{_ENVOY}/battlecards/{battlecard_id}")
+    _api_request("delete", f"{_BATTLECARDS}/{battlecard_id}")
 
     rprint(f"[green]Deleted battlecard {battlecard_id}[/green]")
 
@@ -154,7 +156,7 @@ def battlecards_duplicate(
 ) -> None:
     """Duplicate a battlecard."""
     set_json_mode(json_output)
-    resp = _api_request("post", f"{_ENVOY}/battlecards/{battlecard_id}/duplicate")
+    resp = _api_request("post", f"{_BATTLECARDS}/{battlecard_id}/duplicate")
 
     data = resp.json()
     if json_output:

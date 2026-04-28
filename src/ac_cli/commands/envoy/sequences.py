@@ -212,3 +212,174 @@ def sequences_resume(
         print_json(data)
     else:
         rprint(f"[green]Resumed sequence {sequence_id}[/green]")
+
+
+@sequences_app.command("duplicate")
+def sequences_duplicate(
+    ctx: typer.Context,
+    sequence_id: str = typer.Argument(..., help="Sequence ID"),
+    json_output: bool = JSON_OPTION,
+) -> None:
+    """Duplicate a sequence."""
+    set_json_mode(json_output)
+    resp = _api_request("post", f"{_ENVOY}/sequences/{sequence_id}/duplicate")
+    data = resp.json()
+    if json_output:
+        print_json(data)
+    else:
+        rprint(f"[green]Duplicated sequence:[/green] {data.get('name', '?')} ({data.get('id')})")
+
+
+@sequences_app.command("archive")
+def sequences_archive(
+    ctx: typer.Context,
+    sequence_id: str = typer.Argument(..., help="Sequence ID"),
+    json_output: bool = JSON_OPTION,
+) -> None:
+    """Archive a sequence."""
+    set_json_mode(json_output)
+    resp = _api_request("post", f"{_ENVOY}/sequences/{sequence_id}/archive")
+    data = resp.json()
+    if json_output:
+        print_json(data)
+    else:
+        rprint(f"[green]Archived sequence {sequence_id}[/green]")
+
+
+@sequences_app.command("restore")
+def sequences_restore(
+    ctx: typer.Context,
+    sequence_id: str = typer.Argument(..., help="Sequence ID"),
+    json_output: bool = JSON_OPTION,
+) -> None:
+    """Restore an archived sequence."""
+    set_json_mode(json_output)
+    resp = _api_request("post", f"{_ENVOY}/sequences/{sequence_id}/restore")
+    data = resp.json()
+    if json_output:
+        print_json(data)
+    else:
+        rprint(f"[green]Restored sequence {sequence_id}[/green]")
+
+
+@sequences_app.command("impact-preview")
+def sequences_impact_preview(
+    ctx: typer.Context,
+    sequence_id: str = typer.Argument(..., help="Sequence ID"),
+    step_id: list[str] = typer.Option(..., "--step-id", help="Step ID about to delete (repeatable)"),
+    json_output: bool = JSON_OPTION,
+) -> None:
+    """Preview impact of deleting steps before saving."""
+    set_json_mode(json_output)
+    resp = _api_request(
+        "post",
+        f"{_ENVOY}/sequences/{sequence_id}/impact-preview",
+        json={"step_ids": step_id},
+    )
+    data = resp.json()
+    if json_output:
+        print_json(data)
+    else:
+        rprint(
+            f"[bold]Impact preview:[/bold] "
+            f"affected_recipients={data.get('affected_recipients', '?')}, "
+            f"pending_drafts={data.get('pending_drafts', '?')}"
+        )
+
+
+@sequences_app.command("bulk-remove-recipients")
+def sequences_bulk_remove_recipients(
+    ctx: typer.Context,
+    sequence_id: str = typer.Argument(..., help="Sequence ID"),
+    recipient_id: list[str] = typer.Option(..., "--recipient-id", help="Recipient ID (repeatable)"),
+    json_output: bool = JSON_OPTION,
+) -> None:
+    """Soft-delete a batch of recipients from a sequence."""
+    set_json_mode(json_output)
+    resp = _api_request(
+        "post",
+        f"{_ENVOY}/sequences/{sequence_id}/recipients/bulk-remove",
+        json={"recipient_ids": recipient_id},
+    )
+    data = resp.json()
+    if json_output:
+        print_json(data)
+    else:
+        rprint(f"[green]Removed {data.get('removed', '?')} recipients from {sequence_id}[/green]")
+
+
+@sequences_app.command("classify-step-subtype")
+def sequences_classify_step_subtype(
+    ctx: typer.Context,
+    instruction: str = typer.Argument(..., help="Step instruction text to classify"),
+    json_output: bool = JSON_OPTION,
+) -> None:
+    """Classify the subtype of a sequence step from its instruction text."""
+    set_json_mode(json_output)
+    resp = _api_request(
+        "post",
+        f"{_ENVOY}/sequences/classify-step-subtype",
+        json={"instruction": instruction},
+    )
+    data = resp.json()
+    if json_output:
+        print_json(data)
+    else:
+        rprint(f"[bold]Subtype:[/bold] {data.get('subtype', '?')}")
+
+
+@sequences_app.command("outputs")
+def sequences_outputs(
+    ctx: typer.Context,
+    sequence_id: str = typer.Argument(..., help="Sequence ID"),
+    limit: int = typer.Option(50, help="Max results"),
+    offset: int = typer.Option(0, help="Pagination offset"),
+    json_output: bool = JSON_OPTION,
+) -> None:
+    """List sequence outputs (generated drafts/results)."""
+    set_json_mode(json_output)
+    resp = _api_request(
+        "get",
+        f"{_ENVOY}/sequences/{sequence_id}/outputs",
+        params={"limit": limit, "offset": offset},
+    )
+    data = resp.json()
+    if json_output:
+        print_json(data)
+        return
+    items = data if isinstance(data, list) else data.get("data", [])
+    print_table(
+        items,
+        [
+            ("id", "ID"),
+            ("step_id", "Step"),
+            ("status", "Status"),
+            ("created_at", "Created"),
+        ],
+        title=f"Outputs ({data.get('total', len(items))} total)",
+    )
+
+
+@sequences_app.command("generate-drafts")
+def sequences_generate_drafts(
+    ctx: typer.Context,
+    sequence_id: str = typer.Argument(..., help="Sequence ID"),
+    step_id: str = typer.Argument(..., help="Step ID"),
+    workflow_id: str = typer.Option(..., "--workflow-id", help="Workflow ID to run drafts under"),
+    json_output: bool = JSON_OPTION,
+) -> None:
+    """Trigger draft generation for a sequence step."""
+    set_json_mode(json_output)
+    resp = _api_request(
+        "post",
+        f"{_ENVOY}/sequences/{sequence_id}/steps/{step_id}/generate-drafts",
+        json={"workflow_id": workflow_id},
+    )
+    data = resp.json()
+    if json_output:
+        print_json(data)
+    else:
+        rprint(
+            f"[green]Queued draft generation:[/green] "
+            f"run={data.get('run_id', '?')} status={data.get('status', '?')}"
+        )

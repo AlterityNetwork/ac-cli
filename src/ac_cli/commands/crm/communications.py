@@ -84,38 +84,6 @@ def communications_list(
     )
 
 
-@communications_app.command("get")
-def communications_get(
-    ctx: typer.Context,
-    communication_id: str = typer.Argument(..., help="Communication ID"),
-    json_output: bool = JSON_OPTION,
-) -> None:
-    """Get a single communication by ID."""
-    set_json_mode(json_output)
-    resp = _api_request("get", f"{_CRM}/communications/{communication_id}")
-
-    data = resp.json()
-    if json_output:
-        print_json(data)
-        return
-
-    print_detail(data, [
-        ("id", "ID"),
-        ("direction", "Direction"),
-        ("from_name", "From"),
-        ("from_email", "From Email"),
-        ("to_emails", "To"),
-        ("subject", "Subject"),
-        ("status", "Status"),
-        ("sentiment", "Sentiment"),
-        ("communication_date", "Date"),
-        ("thread_id", "Thread"),
-        ("company_id", "Company ID"),
-        ("contact_id", "Contact ID"),
-    ])
-    rprint(f"\n[bold]Content[/bold]\n{data.get('content', '')}")
-
-
 @communications_app.command("thread")
 def communications_thread(
     ctx: typer.Context,
@@ -492,3 +460,106 @@ def communications_unread_thread_ids(
     rprint(f"\n[bold]Unread Threads ({len(thread_ids)})[/bold]\n")
     for tid in thread_ids:
         rprint(f"  {tid}")
+
+
+# -- Approvals (awaiting_approval workflow) ----------------------------------
+
+
+@communications_app.command("pending-approvals")
+def communications_pending_approvals(
+    ctx: typer.Context,
+    sequence_id: str | None = typer.Option(None, "--sequence-id", help="Filter by sequence"),
+    step_id: str | None = typer.Option(None, "--step-id", help="Filter by step"),
+    limit: int = typer.Option(50, help="Max results"),
+    offset: int = typer.Option(0, help="Pagination offset"),
+    json_output: bool = JSON_OPTION,
+) -> None:
+    """List communications awaiting approval."""
+    set_json_mode(json_output)
+    params: dict = {"limit": limit, "offset": offset}
+    if sequence_id:
+        params["sequence_id"] = sequence_id
+    if step_id:
+        params["step_id"] = step_id
+
+    resp = _api_request(
+        "get", f"{_CRM}/communications/pending-approvals", params=params
+    )
+    data = resp.json()
+    if json_output:
+        print_json(data)
+        return
+    items = data if isinstance(data, list) else data.get("data", [])
+    print_table(
+        items,
+        [
+            ("id", "ID"),
+            ("subject", "Subject"),
+            ("to_emails", "To"),
+            ("sequence_id", "Sequence"),
+            ("step_id", "Step"),
+            ("status", "Status"),
+        ],
+        title=f"Pending approvals ({data.get('total', len(items))} total)",
+    )
+
+
+@communications_app.command("approve")
+def communications_approve(
+    ctx: typer.Context,
+    communication_id: str = typer.Argument(..., help="Communication ID"),
+    json_output: bool = JSON_OPTION,
+) -> None:
+    """Approve a pending communication so it sends."""
+    set_json_mode(json_output)
+    resp = _api_request(
+        "post", f"{_CRM}/communications/{communication_id}/approve"
+    )
+    data = resp.json()
+    if json_output:
+        print_json(data)
+    else:
+        rprint(f"[green]Approved communication {communication_id}[/green]")
+
+
+@communications_app.command("reject")
+def communications_reject(
+    ctx: typer.Context,
+    communication_id: str = typer.Argument(..., help="Communication ID"),
+    action: str = typer.Option(
+        ...,
+        "--action",
+        help="regenerate | remove_recipient | skip_send | manual_edit",
+    ),
+    reason: str | None = typer.Option(None, help="Optional rejection reason"),
+    json_output: bool = JSON_OPTION,
+) -> None:
+    """Reject a pending communication."""
+    set_json_mode(json_output)
+    body = _build_body(action=action, reason=reason)
+    resp = _api_request(
+        "post", f"{_CRM}/communications/{communication_id}/reject", json=body
+    )
+    data = resp.json()
+    if json_output:
+        print_json(data)
+    else:
+        rprint(f"[green]Rejected communication {communication_id} (action={action})[/green]")
+
+
+@communications_app.command("regenerate")
+def communications_regenerate(
+    ctx: typer.Context,
+    communication_id: str = typer.Argument(..., help="Communication ID"),
+    json_output: bool = JSON_OPTION,
+) -> None:
+    """Regenerate a pending communication's draft."""
+    set_json_mode(json_output)
+    resp = _api_request(
+        "post", f"{_CRM}/communications/{communication_id}/regenerate"
+    )
+    data = resp.json()
+    if json_output:
+        print_json(data)
+    else:
+        rprint(f"[green]Regenerated communication {communication_id}[/green]")

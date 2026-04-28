@@ -118,3 +118,95 @@ def test_sequences_resume(invoke, mock_api):
     result = invoke(["envoy", "sequences", "resume", "seq-1", "--workflow-id", "wf-1"])
     assert result.exit_code == 0
     assert "Resumed" in result.output
+
+
+def test_sequences_duplicate(invoke, mock_api):
+    mock_api.post("/api/v1/envoy/sequences/seq-1/duplicate").respond(
+        201, json={"id": "seq-2", "name": "Seq Copy"}
+    )
+    result = invoke(["envoy", "sequences", "duplicate", "seq-1"])
+    assert result.exit_code == 0
+    assert "Duplicated" in result.output
+
+
+def test_sequences_archive(invoke, mock_api):
+    mock_api.post("/api/v1/envoy/sequences/seq-1/archive").respond(
+        200, json={"id": "seq-1", "archived_at": "2026-04-15T00:00:00Z"}
+    )
+    result = invoke(["envoy", "sequences", "archive", "seq-1"])
+    assert result.exit_code == 0
+    assert "Archived" in result.output
+
+
+def test_sequences_restore(invoke, mock_api):
+    mock_api.post("/api/v1/envoy/sequences/seq-1/restore").respond(
+        200, json={"id": "seq-1", "archived_at": None}
+    )
+    result = invoke(["envoy", "sequences", "restore", "seq-1"])
+    assert result.exit_code == 0
+    assert "Restored" in result.output
+
+
+def test_sequences_impact_preview(invoke, mock_api):
+    mock_api.post("/api/v1/envoy/sequences/seq-1/impact-preview").respond(
+        200, json={"affected_recipients": 3, "pending_drafts": 5}
+    )
+    result = invoke(
+        [
+            "envoy", "sequences", "impact-preview", "seq-1",
+            "--step-id", "step-1", "--step-id", "step-2", "--json",
+        ]
+    )
+    assert result.exit_code == 0
+    parsed = json.loads(result.output)
+    assert parsed["affected_recipients"] == 3
+
+
+def test_sequences_bulk_remove_recipients(invoke, mock_api):
+    mock_api.post("/api/v1/envoy/sequences/seq-1/recipients/bulk-remove").respond(
+        200, json={"removed": 2}
+    )
+    result = invoke(
+        [
+            "envoy", "sequences", "bulk-remove-recipients", "seq-1",
+            "--recipient-id", "r1", "--recipient-id", "r2",
+        ]
+    )
+    assert result.exit_code == 0
+    assert "Removed" in result.output
+
+
+def test_sequences_classify_step_subtype(invoke, mock_api):
+    mock_api.post("/api/v1/envoy/sequences/classify-step-subtype").respond(
+        200, json={"subtype": "manual_email"}
+    )
+    result = invoke(
+        ["envoy", "sequences", "classify-step-subtype", "Send a manual follow-up", "--json"]
+    )
+    assert result.exit_code == 0
+    parsed = json.loads(result.output)
+    assert parsed["subtype"] == "manual_email"
+
+
+def test_sequences_outputs_list(invoke, mock_api):
+    mock_api.get("/api/v1/envoy/sequences/seq-1/outputs").respond(
+        200, json={"data": [{"id": "out-1", "step_id": "step-1"}], "total": 1}
+    )
+    result = invoke(["envoy", "sequences", "outputs", "seq-1", "--json"])
+    assert result.exit_code == 0
+    parsed = json.loads(result.output)
+    assert parsed["data"][0]["id"] == "out-1"
+
+
+def test_sequences_generate_drafts(invoke, mock_api):
+    mock_api.post(
+        "/api/v1/envoy/sequences/seq-1/steps/step-1/generate-drafts"
+    ).respond(202, json={"run_id": "run-1", "status": "queued"})
+    result = invoke(
+        [
+            "envoy", "sequences", "generate-drafts", "seq-1", "step-1",
+            "--workflow-id", "wf-1",
+        ]
+    )
+    assert result.exit_code == 0
+    assert "queued" in result.output.lower() or "run-1" in result.output

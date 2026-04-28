@@ -123,3 +123,53 @@ def test_chat_threads_generate_title(invoke, mock_api):
     result = invoke(["chat", "threads", "generate-title", "thread-1"])
     assert result.exit_code == 0
     assert "Auto-generated" in result.output
+
+
+def test_chat_threads_send(invoke, mock_api):
+    mock_api.post("/api/v1/chat/threads/thread-1/send").respond(
+        200, json={"id": "msg-1", "content": "ok"}
+    )
+    result = invoke(["chat", "threads", "send", "thread-1", "Hello"])
+    assert result.exit_code == 0
+    assert "Sent" in result.output
+
+
+def test_chat_threads_send_with_documents(invoke, mock_api):
+    route = mock_api.post("/api/v1/chat/threads/thread-1/send").respond(
+        200, json={"id": "msg-1"}
+    )
+    result = invoke(
+        [
+            "chat", "threads", "send", "thread-1", "Find me the spec",
+            "--document-id", "doc-1", "--document-id", "doc-2", "--json",
+        ]
+    )
+    assert result.exit_code == 0
+    body = json.loads(route.calls.last.request.content)
+    assert body["document_ids"] == ["doc-1", "doc-2"]
+
+
+def test_chat_threads_escalate(invoke, mock_api):
+    mock_api.post("/api/v1/chat/threads/thread-1/escalate").respond(
+        200, json={"id": "thread-1", "escalated": True}
+    )
+    result = invoke(["chat", "threads", "escalate", "thread-1", "--note", "needs help"])
+    assert result.exit_code == 0
+    assert "Escalated" in result.output
+
+
+def test_chat_messages_update_data(invoke, mock_api):
+    route = mock_api.patch("/api/v1/chat/messages/msg-1/data").respond(
+        200, json={"id": "msg-1", "data": {"foo": "bar"}}
+    )
+    result = invoke(
+        ["chat", "messages", "update-data", "msg-1", "--data", '{"foo": "bar"}']
+    )
+    assert result.exit_code == 0
+    sent = json.loads(route.calls.last.request.content)
+    assert sent == {"data": {"foo": "bar"}}
+
+
+def test_chat_messages_update_data_invalid_json(invoke, mock_api):
+    result = invoke(["chat", "messages", "update-data", "msg-1", "--data", "{not json"])
+    assert result.exit_code == 2
