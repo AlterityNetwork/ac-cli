@@ -49,29 +49,54 @@ SAMPLE_OUTBOUND = {
 
 
 def test_comms_list(invoke, mock_api):
-    mock_api.get("/api/v1/crm/communications").respond(200, json=[SAMPLE_COMMUNICATION])
+    mock_api.get("/api/v1/crm/communications").respond(
+        200,
+        json={
+            "data": [SAMPLE_COMMUNICATION],
+            "total": 1,
+            "limit": 20,
+            "offset": 0,
+            "has_more": False,
+        },
+    )
     result = invoke(["crm", "comms", "list"])
     assert result.exit_code == 0
     assert "Jane Doe" in result.output
 
 
 def test_comms_list_json(invoke, mock_api):
-    mock_api.get("/api/v1/crm/communications").respond(200, json=[SAMPLE_COMMUNICATION])
+    mock_api.get("/api/v1/crm/communications").respond(
+        200,
+        json={
+            "data": [SAMPLE_COMMUNICATION],
+            "total": 1,
+            "limit": 20,
+            "offset": 0,
+            "has_more": False,
+        },
+    )
     result = invoke(["crm", "comms", "list", "--json"])
     assert result.exit_code == 0
     parsed = json.loads(result.output)
-    assert parsed[0]["from_name"] == "Jane Doe"
+    assert parsed["data"][0]["from_name"] == "Jane Doe"
+    assert parsed["total"] == 1
 
 
 def test_comms_list_with_filters(invoke, mock_api):
-    mock_api.get("/api/v1/crm/communications").respond(200, json=[])
+    mock_api.get("/api/v1/crm/communications").respond(
+        200,
+        json={"data": [], "total": 0, "limit": 20, "offset": 0, "has_more": False},
+    )
     result = invoke(["crm", "comms", "list", "--direction", "inbound", "--type", "email"])
     assert result.exit_code == 0
 
 
 def test_comms_list_sentiment(invoke, mock_api):
     """--sentiment passes through as query param."""
-    route = mock_api.get("/api/v1/crm/communications").respond(200, json=[])
+    route = mock_api.get("/api/v1/crm/communications").respond(
+        200,
+        json={"data": [], "total": 0, "limit": 20, "offset": 0, "has_more": False},
+    )
     result = invoke(["crm", "comms", "list", "--sentiment", "negative", "--json"])
     assert result.exit_code == 0
     assert "sentiment=negative" in str(route.calls.last.request.url)
@@ -79,7 +104,10 @@ def test_comms_list_sentiment(invoke, mock_api):
 
 def test_comms_list_date_range(invoke, mock_api):
     """--since / --until flow through as ISO dates."""
-    route = mock_api.get("/api/v1/crm/communications").respond(200, json=[])
+    route = mock_api.get("/api/v1/crm/communications").respond(
+        200,
+        json={"data": [], "total": 0, "limit": 20, "offset": 0, "has_more": False},
+    )
     result = invoke(
         [
             "crm", "comms", "list",
@@ -96,7 +124,10 @@ def test_comms_list_date_range(invoke, mock_api):
 
 def test_comms_list_negative_sentiment_this_week(invoke, mock_api):
     """The composite 'negative sentiment this week' use case agents care about."""
-    route = mock_api.get("/api/v1/crm/communications").respond(200, json=[])
+    route = mock_api.get("/api/v1/crm/communications").respond(
+        200,
+        json={"data": [], "total": 0, "limit": 20, "offset": 0, "has_more": False},
+    )
     result = invoke(
         [
             "crm", "comms", "list",
@@ -115,7 +146,14 @@ def test_comms_list_negative_sentiment_this_week(invoke, mock_api):
 
 def test_comms_thread(invoke, mock_api):
     mock_api.get("/api/v1/crm/communications/thread/thread_jane_001").respond(
-        200, json=[SAMPLE_OUTBOUND, SAMPLE_COMMUNICATION]
+        200,
+        json={
+            "data": [SAMPLE_OUTBOUND, SAMPLE_COMMUNICATION],
+            "total": 2,
+            "limit": 200,
+            "offset": 0,
+            "has_more": False,
+        },
     )
     result = invoke(["crm", "comms", "thread", "thread_jane_001"])
     assert result.exit_code == 0
@@ -125,12 +163,20 @@ def test_comms_thread(invoke, mock_api):
 
 def test_comms_thread_json(invoke, mock_api):
     mock_api.get("/api/v1/crm/communications/thread/thread_jane_001").respond(
-        200, json=[SAMPLE_OUTBOUND, SAMPLE_COMMUNICATION]
+        200,
+        json={
+            "data": [SAMPLE_OUTBOUND, SAMPLE_COMMUNICATION],
+            "total": 2,
+            "limit": 200,
+            "offset": 0,
+            "has_more": False,
+        },
     )
     result = invoke(["crm", "comms", "thread", "thread_jane_001", "--json"])
     assert result.exit_code == 0
     parsed = json.loads(result.output)
-    assert len(parsed) == 2
+    assert len(parsed["data"]) == 2
+    assert parsed["total"] == 2
 
 
 def test_comms_unread(invoke, mock_api):

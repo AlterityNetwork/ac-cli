@@ -69,7 +69,8 @@ def communications_list(
         print_json(data)
         return
 
-    items = data if isinstance(data, list) else data.get("data", [])
+    items = data["data"] if isinstance(data, dict) else data
+    total = data.get("total", len(items)) if isinstance(data, dict) else len(items)
     print_table(
         items,
         [
@@ -80,7 +81,7 @@ def communications_list(
             ("communication_date", "Date"),
             ("thread_id", "Thread"),
         ],
-        title=f"Communications ({len(items)})",
+        title=f"Communications ({total} total)",
     )
 
 
@@ -99,7 +100,7 @@ def communications_thread(
         print_json(data)
         return
 
-    items = data if isinstance(data, list) else data.get("data", [])
+    items = data["data"] if isinstance(data, dict) else data
     if not items:
         rprint("[dim]No messages in this thread.[/dim]")
         return
