@@ -108,6 +108,27 @@ def test_lists_add_member_missing_id(invoke, mock_api):
     assert "Must specify" in result.output
 
 
+def test_lists_for_member_person(invoke, mock_api):
+    mock_api.get("/api/v1/crm/members/person/p1/lists").respond(200, json=[SAMPLE_LIST])
+    result = invoke(["crm", "lists", "lists-for-member", "--person-id", "p1"])
+    assert result.exit_code == 0
+    assert "Target Companies" in result.output
+
+
+def test_lists_for_member_company_json(invoke, mock_api):
+    mock_api.get("/api/v1/crm/members/company/c1/lists").respond(200, json=[SAMPLE_LIST])
+    result = invoke(["crm", "lists", "lists-for-member", "--company-id", "c1", "--json"])
+    assert result.exit_code == 0
+    parsed = json.loads(result.output)
+    assert parsed[0]["id"] == "l1"
+
+
+def test_lists_for_member_missing_id(invoke, mock_api):
+    result = invoke(["crm", "lists", "lists-for-member"])
+    assert result.exit_code == 1
+    assert "Must specify" in result.output
+
+
 def test_lists_remove_member(invoke, mock_api):
     mock_api.delete("/api/v1/crm/lists/l1/members/company/c1").respond(204)
     result = invoke(["crm", "lists", "remove-member", "l1", "--company-id", "c1"])

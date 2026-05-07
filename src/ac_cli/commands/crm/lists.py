@@ -156,6 +156,41 @@ def lists_members(
     )
 
 
+@lists_app.command("lists-for-member")
+def lists_for_member(
+    ctx: typer.Context,
+    person_id: str | None = typer.Option(None, "--person-id", help="Person ID"),
+    company_id: str | None = typer.Option(None, "--company-id", help="Company ID"),
+    json_output: bool = JSON_OPTION,
+) -> None:
+    """List CRM lists that contain the given person or company."""
+    set_json_mode(json_output)
+    if person_id:
+        member_type, member_id = "person", person_id
+    elif company_id:
+        member_type, member_id = "company", company_id
+    else:
+        rprint("[red]Must specify --person-id or --company-id[/red]")
+        raise typer.Exit(code=1)
+
+    resp = _api_request("get", f"{_CRM}/members/{member_type}/{member_id}/lists")
+    data = resp.json()
+    if json_output:
+        print_json(data)
+        return
+
+    print_table(
+        data,
+        [
+            ("id", "ID"),
+            ("name", "Name"),
+            ("type", "Type"),
+            ("member_type", "Member Type"),
+        ],
+        title=f"Lists for {member_type} {member_id} ({len(data)} total)",
+    )
+
+
 @lists_app.command("add-member")
 def lists_add_member(
     ctx: typer.Context,
