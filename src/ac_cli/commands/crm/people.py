@@ -103,6 +103,8 @@ def people_create(
     linkedin_url: str | None = typer.Option(None, "--linkedin-url", help="LinkedIn URL"),
     location: str | None = typer.Option(None, help="Location"),
     country: str | None = typer.Option(None, help="Country"),
+    phone_number: str | None = typer.Option(None, "--phone-number", help="Phone (E.164, e.g. +14155551234)"),
+    phone_source: str | None = typer.Option(None, "--phone-source", help="Provider/source of phone value"),
     json_output: bool = JSON_OPTION,
 ) -> None:
     """Create a new person."""
@@ -112,6 +114,7 @@ def people_create(
         email=email, full_name=full_name, current_title=current_title,
         company_id=resolved_company, lifecycle_stage=lifecycle_stage, tags=tags,
         linkedin_url=linkedin_url, location=location, country=country,
+        phone_number=phone_number, phone_source=phone_source,
     )
 
     body["organization_id"] = _get_org_id()
@@ -141,6 +144,8 @@ def people_update(
     linkedin_url: str | None = typer.Option(None, "--linkedin-url", help="LinkedIn URL"),
     location: str | None = typer.Option(None, help="Location"),
     country: str | None = typer.Option(None, help="Country"),
+    phone_number: str | None = typer.Option(None, "--phone-number", help="Phone (E.164, e.g. +14155551234)"),
+    phone_source: str | None = typer.Option(None, "--phone-source", help="Provider/source of phone value"),
     json_output: bool = JSON_OPTION,
 ) -> None:
     """Update an existing person."""
@@ -154,6 +159,7 @@ def people_update(
         email=email, full_name=full_name, current_title=current_title,
         company_id=resolved_company, lifecycle_stage=lifecycle_stage, tags=tags,
         linkedin_url=linkedin_url, location=location, country=country,
+        phone_number=phone_number, phone_source=phone_source,
     )
 
     if not body:

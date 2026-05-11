@@ -69,6 +69,37 @@ def test_people_update(invoke, mock_api):
     assert "Updated person" in result.output
 
 
+def test_people_create_with_phone(invoke, mock_api):
+    mock_api.get("/whoami").respond(200, json=WHOAMI_RESPONSE)
+    route = mock_api.post("/api/v1/crm/people").respond(
+        201, json={**SAMPLE_PERSON, "phone_number": "+14155551234", "phone_source": "monday-import-csv"}
+    )
+    result = invoke([
+        "crm", "people", "create",
+        "--email", "jane@acme.com",
+        "--full-name", "Jane Smith",
+        "--phone-number", "+14155551234",
+        "--phone-source", "monday-import-csv",
+    ])
+    assert result.exit_code == 0
+    body = json.loads(route.calls.last.request.content)
+    assert body["phone_number"] == "+14155551234"
+    assert body["phone_source"] == "monday-import-csv"
+
+
+def test_people_update_with_phone(invoke, mock_api):
+    updated = {**SAMPLE_PERSON, "phone_number": "+447443366339", "phone_source": "monday-import-csv"}
+    route = mock_api.patch("/api/v1/crm/people/p1").respond(200, json=updated)
+    result = invoke([
+        "crm", "people", "update", "p1",
+        "--phone-number", "+447443366339",
+        "--phone-source", "monday-import-csv",
+    ])
+    assert result.exit_code == 0
+    body = json.loads(route.calls.last.request.content)
+    assert body == {"phone_number": "+447443366339", "phone_source": "monday-import-csv"}
+
+
 def test_people_update_no_fields(invoke, mock_api):
     result = invoke(["crm", "people", "update", "p1"])
     assert result.exit_code == 1
