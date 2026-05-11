@@ -88,6 +88,36 @@ def test_activities_create(invoke, mock_api):
     assert "Created activity" in result.output
 
 
+def test_activities_create_assigned_to(invoke, mock_api):
+    """`--assigned-to` is sent in the create body."""
+    mock_api.get("/whoami").respond(200, json=WHOAMI_RESPONSE)
+    route = mock_api.post("/api/v1/crm/activities").respond(201, json=SAMPLE_ACTIVITY)
+    result = invoke([
+        "crm", "activities", "create",
+        "--type", "task",
+        "--title", "Follow up with Acme",
+        "--assigned-to", "user-42",
+    ])
+    assert result.exit_code == 0
+    body = json.loads(route.calls.last.request.content)
+    assert body["assigned_to"] == "user-42"
+
+
+def test_activities_create_assigned_to_me_sentinel(invoke, mock_api):
+    """`--assigned-to me` resolves to caller's user_id via /whoami."""
+    mock_api.get("/whoami").respond(200, json=WHOAMI_RESPONSE)
+    route = mock_api.post("/api/v1/crm/activities").respond(201, json=SAMPLE_ACTIVITY)
+    result = invoke([
+        "crm", "activities", "create",
+        "--type", "task",
+        "--title", "Follow up with Acme",
+        "--assigned-to", "me",
+    ])
+    assert result.exit_code == 0
+    body = json.loads(route.calls.last.request.content)
+    assert body["assigned_to"] == WHOAMI_RESPONSE["user_id"]
+
+
 def test_activities_update(invoke, mock_api):
     updated = {**SAMPLE_ACTIVITY, "title": "Updated task", "priority": "high"}
     mock_api.patch("/api/v1/crm/activities/a1").respond(200, json=updated)
@@ -103,6 +133,27 @@ def test_activities_update_json(invoke, mock_api):
     assert result.exit_code == 0
     parsed = json.loads(result.output)
     assert parsed["priority"] == "high"
+
+
+def test_activities_update_assigned_to(invoke, mock_api):
+    """`--assigned-to` is sent in the update body."""
+    updated = {**SAMPLE_ACTIVITY, "assigned_to": "user-42"}
+    route = mock_api.patch("/api/v1/crm/activities/a1").respond(200, json=updated)
+    result = invoke(["crm", "activities", "update", "a1", "--assigned-to", "user-42"])
+    assert result.exit_code == 0
+    body = json.loads(route.calls.last.request.content)
+    assert body["assigned_to"] == "user-42"
+
+
+def test_activities_update_assigned_to_me_sentinel(invoke, mock_api):
+    """`--assigned-to me` on update resolves to caller's user_id via /whoami."""
+    mock_api.get("/whoami").respond(200, json=WHOAMI_RESPONSE)
+    updated = {**SAMPLE_ACTIVITY, "assigned_to": WHOAMI_RESPONSE["user_id"]}
+    route = mock_api.patch("/api/v1/crm/activities/a1").respond(200, json=updated)
+    result = invoke(["crm", "activities", "update", "a1", "--assigned-to", "me"])
+    assert result.exit_code == 0
+    body = json.loads(route.calls.last.request.content)
+    assert body["assigned_to"] == WHOAMI_RESPONSE["user_id"]
 
 
 def test_activities_update_no_fields(invoke, mock_api):

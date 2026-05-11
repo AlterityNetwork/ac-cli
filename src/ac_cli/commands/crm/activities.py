@@ -134,6 +134,11 @@ def activities_create(
     contact_id: str | None = typer.Option(None, "--contact-id", help="Contact ID"),
     contact_name: str | None = typer.Option(None, "--contact-name", help="Contact name (auto-resolves to ID)"),
     description: str | None = typer.Option(None, help="Description"),
+    assigned_to: str | None = typer.Option(
+        None,
+        "--assigned-to",
+        help="Assignee user_id. Pass 'me' to resolve to the authenticated user.",
+    ),
     json_output: bool = JSON_OPTION,
 ) -> None:
     """Create a new activity."""
@@ -141,10 +146,14 @@ def activities_create(
     resolved_deal = _resolve_deal_id(deal_id, deal_name, _CRM)
     resolved_company = _resolve_company_id(company_id, company_name, _CRM)
     resolved_contact = _resolve_contact_id(contact_id, contact_name, _CRM)
+    if assigned_to == "me":
+        whoami = _api_request("get", "/whoami").json()
+        assigned_to = whoami.get("user_id") or assigned_to
     body = _build_body(
         type=activity_type, title=title, due_date=due_date,
         priority=priority, deal_id=resolved_deal, company_id=resolved_company,
         contact_id=resolved_contact, description=description,
+        assigned_to=assigned_to,
     )
 
     body["organization_id"] = _get_org_id()
@@ -174,6 +183,11 @@ def activities_update(
     company_name: str | None = typer.Option(None, "--company-name", help="Company name (auto-resolves to ID)"),
     contact_id: str | None = typer.Option(None, "--contact-id", help="Contact ID"),
     contact_name: str | None = typer.Option(None, "--contact-name", help="Contact name (auto-resolves to ID)"),
+    assigned_to: str | None = typer.Option(
+        None,
+        "--assigned-to",
+        help="Assignee user_id. Pass 'me' to resolve to the authenticated user.",
+    ),
     json_output: bool = JSON_OPTION,
 ) -> None:
     """Update an existing activity."""
@@ -181,10 +195,14 @@ def activities_update(
     resolved_deal = _resolve_deal_id(deal_id, deal_name, _CRM)
     resolved_company = _resolve_company_id(company_id, company_name, _CRM)
     resolved_contact = _resolve_contact_id(contact_id, contact_name, _CRM)
+    if assigned_to == "me":
+        whoami = _api_request("get", "/whoami").json()
+        assigned_to = whoami.get("user_id") or assigned_to
     body = _build_body(
         title=title, type=activity_type, status=status, priority=priority,
         due_date=due_date, description=description, deal_id=resolved_deal,
         company_id=resolved_company, contact_id=resolved_contact,
+        assigned_to=assigned_to,
     )
 
     if not body:
