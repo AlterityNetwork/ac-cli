@@ -48,7 +48,6 @@ def test_resolve_entity_with_explicit_id(invoke, mock_api):
     from ac_cli.commands._helpers import _resolve_entity
 
     result = _resolve_entity(
-        "company",
         entity_id="abc-123",
         entity_name=None,
         search_path="/api/v1/crm/companies",
@@ -61,7 +60,6 @@ def test_resolve_entity_neither_id_nor_name(invoke, mock_api):
     from ac_cli.commands._helpers import _resolve_entity
 
     result = _resolve_entity(
-        "company",
         entity_id=None,
         entity_name=None,
         search_path="/api/v1/crm/companies",
@@ -77,7 +75,6 @@ def test_resolve_entity_single_match(invoke, mock_api):
         200, json={"data": [{"id": "co-1", "name": "Acme Corp"}]}
     )
     result = _resolve_entity(
-        "company",
         entity_id=None,
         entity_name="Acme",
         search_path="/api/v1/crm/companies",
@@ -108,7 +105,6 @@ def test_resolve_entity_multiple_matches_exact(invoke, mock_api):
         },
     )
     result = _resolve_entity(
-        "company",
         entity_id=None,
         entity_name="Acme",
         search_path="/api/v1/crm/companies",

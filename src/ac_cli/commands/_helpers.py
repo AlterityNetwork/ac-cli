@@ -62,7 +62,6 @@ def _api_request(method: str, path: str, **kwargs: object) -> httpx.Response:
 
 
 def _resolve_entity(
-    entity_type: str,
     *,
     entity_id: str | None,
     entity_name: str | None,
@@ -132,7 +131,6 @@ def _resolve_company_id(
 ) -> str | None:
     """Resolve a company ID from ``--company-id`` or ``--company-name``."""
     return _resolve_entity(
-        "company",
         entity_id=company_id,
         entity_name=company_name,
         search_path=f"{crm_prefix}/companies",
@@ -148,7 +146,6 @@ def _resolve_contact_id(
 ) -> str | None:
     """Resolve a contact ID from ``--contact-id`` or ``--contact-name``."""
     return _resolve_entity(
-        "person",
         entity_id=contact_id,
         entity_name=contact_name,
         search_path=f"{crm_prefix}/people",
@@ -164,7 +161,6 @@ def _resolve_deal_id(
 ) -> str | None:
     """Resolve a deal ID from ``--deal-id`` or ``--deal-name``."""
     return _resolve_entity(
-        "deal",
         entity_id=deal_id,
         entity_name=deal_name,
         search_path=f"{crm_prefix}/deals",
