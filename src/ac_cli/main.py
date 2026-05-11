@@ -1,8 +1,11 @@
 """AgencyCore CLI entry point."""
 
+import os
+
 import typer
 
 from ac_cli import __version__
+from ac_cli.client import ACT_AS_ENV_VAR
 from ac_cli.commands import admin, apps, auth, chat, crm, env, files, health
 from ac_cli.commands import envoy
 from ac_cli.commands import hooks
@@ -36,8 +39,19 @@ def main(
     version: bool = typer.Option(
         False, "--version", "-V", help="Show version and exit", callback=_version_callback, is_eager=True,
     ),
+    act_as: str = typer.Option(
+        None,
+        "--act-as",
+        help=(
+            "Superadmin only: act on behalf of the user with this ID. "
+            "Equivalent to setting AC_ACT_AS=<user-id>. Every request adds "
+            "X-Act-As-User and is audit-logged server-side."
+        ),
+        envvar=ACT_AS_ENV_VAR,
+    ),
 ) -> None:
-    pass
+    if act_as:
+        os.environ[ACT_AS_ENV_VAR] = act_as.strip()
 
 # Register sub-command groups
 app.add_typer(admin.app, name="admin")

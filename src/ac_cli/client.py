@@ -1,9 +1,14 @@
 """Authenticated httpx client for the AgencyCore API."""
 
+import os
+
 import httpx
 import typer
 
 from ac_cli.config import load_config, save_config
+
+ACT_AS_ENV_VAR = "AC_ACT_AS"
+ACT_AS_HEADER = "X-Act-As-User"
 
 
 def _refresh_access_token(cfg: dict) -> str:
@@ -78,10 +83,15 @@ def get_api_client() -> httpx.Client:
         typer.echo("Not logged in. Run `ac login` first.")
         raise typer.Exit(code=1)
 
+    headers = {"Authorization": f"Bearer {access_token}"}
+    act_as = os.environ.get(ACT_AS_ENV_VAR, "").strip()
+    if act_as:
+        headers[ACT_AS_HEADER] = act_as
+
     return _AuthClient(
         cfg=cfg,
         base_url=api_url,
-        headers={"Authorization": f"Bearer {access_token}"},
+        headers=headers,
         timeout=30.0,
         follow_redirects=True,
     )
