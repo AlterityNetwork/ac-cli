@@ -81,7 +81,7 @@ nonzero on stale CLI paths or new API endpoints not yet covered.
 
 ## TDD Workflow
 
-For `feat:` and `fix:` changes, write tests first. See `.claude/rules/06-tdd-workflow.md`.
+For `feat:` and `fix:` changes, write tests first. See parent `agencycore/.claude/rules/06-tdd-workflow.md`.
 
 **Single test run:** `uv run pytest tests/test_<domain>_<group>.py -x`
 
