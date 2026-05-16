@@ -99,6 +99,7 @@ Every new command needs tests for: happy path, `--json` flag, error codes, and `
 - **Always use conventional commit prefixes** (`feat:`, `fix:`, `chore:`, etc.) — auto-bump and PyPI publishing depend on this.
 - **Credentials in `~/.agencycore/config.json`** (file mode 0600) — never commit.
 - **Dependencies**: use `uv add <pkg>` / `uv add --dev <pkg>`. Both `pyproject.toml` and `uv.lock` must stay in sync.
+- **API↔CLI parity**: every `ac-python-api` route change (new/removed/renamed/method/schema) must land alongside the matching CLI update in the same branch. Run `python scripts/audit_endpoints.py --strict` against a live API; it must report `CLI-ONLY: 0`, `API-ONLY: 0`, `METHOD-DIFF: 0`. New path-prefix constants must be added to `PATH_CONSTANTS` in that script. Intentionally CLI-omitted endpoints (webhooks, SSE streams, frontend-only) go in `OUT_OF_SCOPE` in the same script. Also propagate user-facing changes to `../ac-cli-plugin`.
 
 ## API Domains Not Exposed in CLI
 
