@@ -227,3 +227,29 @@ def test_sequences_generate_drafts(invoke, mock_api):
     )
     assert result.exit_code == 0
     assert "queued" in result.output.lower() or "run-1" in result.output
+
+
+def test_sequences_for_prospect(invoke, mock_api):
+    mock_api.get("/api/v1/envoy/sequences/by-prospect/p-1").respond(
+        200,
+        json=[{"id": "s-1", "name": "Outreach", "status": "active", "execution_mode": "manual"}],
+    )
+    result = invoke(["envoy", "sequences", "for-prospect", "p-1"])
+    assert result.exit_code == 0
+    assert "Outreach" in result.output
+
+
+def test_sequences_for_prospect_json(invoke, mock_api):
+    import json as _json
+
+    payload = [{"id": "s-1", "name": "Outreach", "status": "active", "execution_mode": "manual"}]
+    mock_api.get("/api/v1/envoy/sequences/by-prospect/p-1").respond(200, json=payload)
+    result = invoke(["envoy", "sequences", "for-prospect", "p-1", "--json"])
+    assert result.exit_code == 0
+    assert _json.loads(result.output) == payload
+
+
+def test_sequences_for_prospect_not_found(invoke, mock_api):
+    mock_api.get("/api/v1/envoy/sequences/by-prospect/missing").respond(404, json={"detail": "no"})
+    result = invoke(["envoy", "sequences", "for-prospect", "missing"])
+    assert result.exit_code == 3

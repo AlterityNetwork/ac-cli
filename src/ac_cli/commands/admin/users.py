@@ -15,6 +15,8 @@ from ac_cli.commands._helpers import (
 from ac_cli.commands.admin import _ADMIN
 from ac_cli.formatting import print_detail, print_json, print_table
 
+_IMPERSONATION = "/api/v1/impersonation"
+
 users_app = typer.Typer(help="User management")
 
 
@@ -228,6 +230,50 @@ def users_exit_impersonation() -> None:
     _api_request("post", f"{_ADMIN}/users/impersonate/exit")
 
     rprint("[green]Exited impersonation[/green]")
+
+
+@users_app.command("impersonation-status")
+def users_impersonation_status(
+    ctx: typer.Context,
+    session_id: str = typer.Option(..., "--session-id", help="Impersonation session ID"),
+    json_output: bool = JSON_OPTION,
+) -> None:
+    """Get the current state of an impersonation session."""
+    set_json_mode(json_output)
+    resp = _api_request("get", f"{_IMPERSONATION}/me", params={"session_id": session_id})
+
+    data = resp.json()
+    if json_output:
+        print_json(data)
+        return
+
+    print_detail(
+        data,
+        [
+            ("session_id", "Session"),
+            ("target_user_id", "Target"),
+            ("started_at", "Started"),
+            ("expires_at", "Expires"),
+            ("active", "Active"),
+        ],
+    )
+
+
+@users_app.command("impersonation-end")
+def users_impersonation_end(
+    ctx: typer.Context,
+    session_id: str = typer.Option(..., "--session-id", help="Impersonation session ID"),
+    json_output: bool = JSON_OPTION,
+) -> None:
+    """End an active impersonation session."""
+    set_json_mode(json_output)
+    resp = _api_request("post", f"{_IMPERSONATION}/me/end", json={"session_id": session_id})
+
+    data = resp.json() if resp.content else {"ok": True, "session_id": session_id}
+    if json_output:
+        print_json(data)
+    else:
+        rprint(f"[green]Ended impersonation session {session_id}[/green]")
 
 
 @users_app.command("generate-link")

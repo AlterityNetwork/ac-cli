@@ -22,6 +22,7 @@ from ac_cli.commands import (
     marketplace,
     messaging,
     network,
+    notifications,
     nylas,
     profiles,
     resources,
@@ -85,6 +86,7 @@ app.add_typer(managed_onboarding.app, name="onboarding")
 app.add_typer(marketplace.app, name="marketplace")
 app.add_typer(messaging.app, name="messaging")
 app.add_typer(network.app, name="network")
+app.add_typer(notifications.app, name="notifications")
 app.add_typer(nylas.app, name="nylas")
 app.add_typer(profiles.app, name="profiles")
 app.add_typer(resources.app, name="resources")

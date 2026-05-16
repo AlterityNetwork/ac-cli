@@ -102,6 +102,7 @@ from ac_cli.commands.admin.admin_resources import admin_resources_app  # noqa: E
 from ac_cli.commands.admin.ai_usage import ai_usage_app  # noqa: E402
 from ac_cli.commands.admin.app_usage import app_usage_app  # noqa: E402
 from ac_cli.commands.admin.chat_escalations import chat_escalations_app  # noqa: E402
+from ac_cli.commands.admin.crm import admin_crm_app  # noqa: E402
 from ac_cli.commands.admin.demo import demo_app  # noqa: E402
 from ac_cli.commands.admin.legal_documents import legal_docs_app  # noqa: E402
 from ac_cli.commands.admin.onboarding import onboarding_app  # noqa: E402
@@ -128,3 +129,4 @@ app.add_typer(searches_app, name="searches")
 app.add_typer(chat_escalations_app, name="chat-escalations")
 app.add_typer(subscriptions_app, name="subscriptions")
 app.add_typer(subscription_plans_app, name="subscription-plans")
+app.add_typer(admin_crm_app, name="crm")

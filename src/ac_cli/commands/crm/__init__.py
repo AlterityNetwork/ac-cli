@@ -187,6 +187,7 @@ from ac_cli.commands.crm.deals import deals_app  # noqa: E402
 from ac_cli.commands.crm.imports import imports_app  # noqa: E402
 from ac_cli.commands.crm.lists import lists_app  # noqa: E402
 from ac_cli.commands.crm.people import people_app  # noqa: E402
+from ac_cli.commands.crm.signals import signals_app  # noqa: E402
 
 app.add_typer(companies_app, name="companies")
 app.add_typer(people_app, name="people")
@@ -195,3 +196,4 @@ app.add_typer(activities_app, name="activities")
 app.add_typer(lists_app, name="lists")
 app.add_typer(communications_app, name="comms")
 app.add_typer(imports_app, name="import")
+app.add_typer(signals_app, name="signals")

@@ -200,3 +200,27 @@ def companies_delete(
         print_json({"ok": True, "id": resolved, "action": "delete"})
     else:
         rprint(f"[green]Deleted company {resolved}[/green]")
+
+
+@companies_app.command("bulk-delete")
+def companies_bulk_delete(
+    ids: str = typer.Option(..., "--ids", help="Comma-separated company IDs"),
+    yes: bool = typer.Option(False, "--yes", "-y", help="Skip confirmation"),
+    json_output: bool = JSON_OPTION,
+) -> None:
+    """Bulk delete companies by ID list."""
+    set_json_mode(json_output)
+    id_list = [i.strip() for i in ids.split(",") if i.strip()]
+    if not id_list:
+        rprint("[red]No IDs provided[/red]")
+        raise typer.Exit(code=1)
+
+    if not should_skip_confirm(yes):
+        typer.confirm(f"Delete {len(id_list)} companies?", abort=True)
+
+    _api_request("post", f"{_CRM}/companies/bulk-delete", json={"ids": id_list})
+
+    if json_output:
+        print_json({"ok": True, "ids": id_list, "count": len(id_list), "action": "bulk-delete"})
+    else:
+        rprint(f"[green]Deleted {len(id_list)} companies[/green]")

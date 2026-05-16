@@ -261,6 +261,49 @@ def lists_remove_member(
         rprint(f"[green]Removed {member_type} {member_id} from list {list_id}[/green]")
 
 
+@lists_app.command("bulk-remove-members")
+def lists_bulk_remove_members(
+    list_id: str = typer.Argument(..., help="List ID"),
+    member_type: str = typer.Option(..., "--member-type", help="person or company"),
+    ids: str = typer.Option(..., "--ids", help="Comma-separated member IDs"),
+    yes: bool = typer.Option(False, "--yes", "-y", help="Skip confirmation"),
+    json_output: bool = JSON_OPTION,
+) -> None:
+    """Bulk remove members (person or company) from a list."""
+    set_json_mode(json_output)
+    if member_type not in ("person", "company"):
+        rprint("[red]--member-type must be 'person' or 'company'[/red]")
+        raise typer.Exit(code=1)
+
+    id_list = [i.strip() for i in ids.split(",") if i.strip()]
+    if not id_list:
+        rprint("[red]No IDs provided[/red]")
+        raise typer.Exit(code=1)
+
+    if not should_skip_confirm(yes):
+        typer.confirm(f"Remove {len(id_list)} {member_type}(s) from list {list_id}?", abort=True)
+
+    _api_request(
+        "post",
+        f"{_CRM}/lists/{list_id}/members/bulk-remove",
+        json={"member_type": member_type, "member_ids": id_list},
+    )
+
+    if json_output:
+        print_json(
+            {
+                "ok": True,
+                "list_id": list_id,
+                "member_type": member_type,
+                "member_ids": id_list,
+                "count": len(id_list),
+                "action": "bulk-remove-members",
+            }
+        )
+    else:
+        rprint(f"[green]Removed {len(id_list)} {member_type}(s) from list {list_id}[/green]")
+
+
 @lists_app.command("delete")
 def lists_delete(
     list_id: str = typer.Argument(..., help="List ID"),

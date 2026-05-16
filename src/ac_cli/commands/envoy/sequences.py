@@ -381,6 +381,34 @@ def sequences_outputs(
     )
 
 
+@sequences_app.command("for-prospect")
+def sequences_for_prospect(
+    ctx: typer.Context,
+    prospect_id: str = typer.Argument(..., help="Prospect (person) ID"),
+    json_output: bool = JSON_OPTION,
+) -> None:
+    """List sequences that include a given prospect."""
+    set_json_mode(json_output)
+    resp = _api_request("get", f"{_ENVOY}/sequences/by-prospect/{prospect_id}")
+
+    data = resp.json()
+    if json_output:
+        print_json(data)
+        return
+
+    items = data if isinstance(data, list) else data.get("data", [])
+    print_table(
+        items,
+        [
+            ("name", "Name"),
+            ("status", "Status"),
+            ("execution_mode", "Mode"),
+            ("id", "ID"),
+        ],
+        title=f"Sequences for prospect {prospect_id} ({len(items)})",
+    )
+
+
 @sequences_app.command("generate-drafts")
 def sequences_generate_drafts(
     ctx: typer.Context,
