@@ -2,7 +2,6 @@
 
 import json
 
-
 SAMPLE_HEALTH = {"status": "healthy", "queues": 5, "workers": 3}
 SAMPLE_STATS = {"total_jobs": 1000, "completed": 950, "failed": 10, "pending": 40}
 SAMPLE_FAILED = {"job_id": "j-1", "error": "Timeout", "failed_at": "2026-01-01T00:00:00Z"}
@@ -57,7 +56,9 @@ def test_queues_send_to_sentry(invoke, mock_api):
 
 
 def test_queues_job_performance(invoke, mock_api):
-    mock_api.get("/api/v1/admin/queues/jobs/j-1/performance").respond(200, json={"duration_ms": 1500})
+    mock_api.get("/api/v1/admin/queues/jobs/j-1/performance").respond(
+        200, json={"duration_ms": 1500}
+    )
     result = invoke(["admin", "queues", "job-performance", "j-1"])
     assert result.exit_code == 0
 

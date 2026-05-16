@@ -47,9 +47,7 @@ def test_engagement_dashboard_json(invoke, mock_api):
 
 
 def test_engagement_dashboard_period_passed_as_param(invoke, mock_api):
-    route = mock_api.get("/api/v1/crm/engagement-dashboard").respond(
-        200, json=SAMPLE_ENGAGEMENT
-    )
+    route = mock_api.get("/api/v1/crm/engagement-dashboard").respond(200, json=SAMPLE_ENGAGEMENT)
     result = invoke(["crm", "engagement-dashboard", "--period", "7"])
     assert result.exit_code == 0
     url = str(route.calls.last.request.url)
@@ -57,17 +55,13 @@ def test_engagement_dashboard_period_passed_as_param(invoke, mock_api):
 
 
 def test_engagement_dashboard_forbidden(invoke, mock_api):
-    mock_api.get("/api/v1/crm/engagement-dashboard").respond(
-        403, json={"detail": "denied"}
-    )
+    mock_api.get("/api/v1/crm/engagement-dashboard").respond(403, json={"detail": "denied"})
     result = invoke(["crm", "engagement-dashboard"])
     assert result.exit_code == 4
 
 
 def test_engagement_dashboard_server_error_json(invoke, mock_api):
-    mock_api.get("/api/v1/crm/engagement-dashboard").respond(
-        500, json={"detail": "boom"}
-    )
+    mock_api.get("/api/v1/crm/engagement-dashboard").respond(500, json={"detail": "boom"})
     result = invoke(["crm", "engagement-dashboard", "--json"])
     assert result.exit_code == 1
     parsed = json.loads(result.output)

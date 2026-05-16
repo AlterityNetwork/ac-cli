@@ -7,7 +7,7 @@ import json
 import typer
 from rich import print as rprint
 
-from ac_cli.commands._helpers import _api_request, _build_body, JSON_OPTION, set_json_mode
+from ac_cli.commands._helpers import JSON_OPTION, _api_request, set_json_mode
 from ac_cli.commands.workflows import _WORKFLOWS
 from ac_cli.formatting import print_detail, print_json, print_table
 
@@ -95,14 +95,17 @@ def runs_get(
         print_json(data)
         return
 
-    print_detail(data, [
-        ("id", "ID"),
-        ("status", "Status"),
-        ("workflow_id", "Workflow ID"),
-        ("started_at", "Started"),
-        ("completed_at", "Completed"),
-        ("error", "Error"),
-    ])
+    print_detail(
+        data,
+        [
+            ("id", "ID"),
+            ("status", "Status"),
+            ("workflow_id", "Workflow ID"),
+            ("started_at", "Started"),
+            ("completed_at", "Completed"),
+            ("error", "Error"),
+        ],
+    )
 
 
 @runs_app.command("logs")

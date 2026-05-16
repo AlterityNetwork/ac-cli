@@ -25,14 +25,18 @@ def test_sync_thread_404(invoke, mock_api):
 
 
 def test_download_attachment(invoke, mock_api):
-    mock_api.get("/api/v1/nylas/sync/messages/m-1/attachments/a-1/download").respond(200, content=b"file-content")
+    mock_api.get("/api/v1/nylas/sync/messages/m-1/attachments/a-1/download").respond(
+        200, content=b"file-content"
+    )
     result = invoke(["nylas", "download-attachment", "m-1", "a-1"])
     assert result.exit_code == 0
     assert "12 bytes" in result.output
 
 
 def test_download_attachment_json(invoke, mock_api):
-    mock_api.get("/api/v1/nylas/sync/messages/m-1/attachments/a-1/download").respond(200, content=b"file-content")
+    mock_api.get("/api/v1/nylas/sync/messages/m-1/attachments/a-1/download").respond(
+        200, content=b"file-content"
+    )
     result = invoke(["nylas", "download-attachment", "m-1", "a-1", "--json"])
     assert result.exit_code == 0
     parsed = json.loads(result.output)

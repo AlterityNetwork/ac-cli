@@ -5,7 +5,13 @@ from __future__ import annotations
 import typer
 from rich import print as rprint
 
-from ac_cli.commands._helpers import _api_request, _build_body, should_skip_confirm, JSON_OPTION, set_json_mode
+from ac_cli.commands._helpers import (
+    JSON_OPTION,
+    _api_request,
+    _build_body,
+    set_json_mode,
+    should_skip_confirm,
+)
 from ac_cli.commands.admin import _ADMIN
 from ac_cli.formatting import print_json, print_table
 
@@ -31,12 +37,18 @@ def onboarding_create(
     user_website: str | None = typer.Option(None, "--user-website", help="User website URL"),
     logo_url: str | None = typer.Option(None, "--logo-url", help="Organization logo URL"),
     linkedin: str | None = typer.Option(None, help="LinkedIn URL"),
-    contact_number: str | None = typer.Option(None, "--contact-number", help="Contact phone number"),
+    contact_number: str | None = typer.Option(
+        None, "--contact-number", help="Contact phone number"
+    ),
     contact_email: str | None = typer.Option(None, "--contact-email", help="Contact email"),
     description: str | None = typer.Option(None, help="Organization description"),
-    products_services: str | None = typer.Option(None, "--products-services", help="Products/services"),
+    products_services: str | None = typer.Option(
+        None, "--products-services", help="Products/services"
+    ),
     calendly_url: str | None = typer.Option(None, "--calendly-url", help="Calendly URL"),
-    show_calendly: bool | None = typer.Option(None, "--show-calendly/--no-show-calendly", help="Show Calendly widget"),
+    show_calendly: bool | None = typer.Option(
+        None, "--show-calendly/--no-show-calendly", help="Show Calendly widget"
+    ),
     json_output: bool = JSON_OPTION,
 ) -> None:
     """Create a new managed onboarding account."""

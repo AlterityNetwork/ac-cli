@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import typer
 
-from ac_cli.commands._helpers import _api_request, JSON_OPTION, set_json_mode
+from ac_cli.commands._helpers import JSON_OPTION, _api_request, set_json_mode
 from ac_cli.commands.admin import _ADMIN
 from ac_cli.formatting import print_detail, print_json, print_table
 
@@ -36,12 +36,15 @@ def app_usage_summary(
         print_json(data)
         return
 
-    print_detail(data, [
-        ("total_opens", "Total Opens"),
-        ("total_runs", "Total Runs"),
-        ("total_events", "Total Events"),
-        ("unique_users", "Unique Users"),
-    ])
+    print_detail(
+        data,
+        [
+            ("total_opens", "Total Opens"),
+            ("total_runs", "Total Runs"),
+            ("total_events", "Total Events"),
+            ("unique_users", "Unique Users"),
+        ],
+    )
 
 
 @app_usage_app.command("users")
@@ -120,13 +123,16 @@ def app_usage_user(
         print_json(data)
         return
 
-    print_detail(data, [
-        ("email", "Email"),
-        ("full_name", "Name"),
-        ("total_opens", "Total Opens"),
-        ("total_runs", "Total Runs"),
-        ("total_events", "Total Events"),
-    ])
+    print_detail(
+        data,
+        [
+            ("email", "Email"),
+            ("full_name", "Name"),
+            ("total_opens", "Total Opens"),
+            ("total_runs", "Total Runs"),
+            ("total_events", "Total Events"),
+        ],
+    )
 
     by_app = data.get("by_app", [])
     if by_app:

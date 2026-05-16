@@ -7,7 +7,13 @@ import typer
 from rich import print as rprint
 
 from ac_cli.client import get_api_client
-from ac_cli.commands._helpers import JSON_OPTION, _handle_error, _api_request, set_json_mode, should_skip_confirm
+from ac_cli.commands._helpers import (
+    JSON_OPTION,
+    _api_request,
+    _handle_error,
+    set_json_mode,
+    should_skip_confirm,
+)
 from ac_cli.commands.workflows import _WORKFLOWS
 from ac_cli.formatting import print_json, print_table
 
@@ -20,7 +26,9 @@ def run_people_list(
     workflow_id: str = typer.Argument(..., help="Workflow ID"),
     limit: int = typer.Option(50, help="Max results"),
     offset: int = typer.Option(0, help="Offset"),
-    include_in_crm: bool = typer.Option(False, "--include-in-crm", help="Include people already in CRM"),
+    include_in_crm: bool = typer.Option(
+        False, "--include-in-crm", help="Include people already in CRM"
+    ),
     json_output: bool = JSON_OPTION,
 ) -> None:
     """List people discovered by a workflow (deduplicated)."""
@@ -148,7 +156,9 @@ def run_people_add_to_crm(
     ctx: typer.Context,
     workflow_id: str = typer.Argument(..., help="Workflow ID"),
     person_ids: str = typer.Option(..., "--person-ids", help="Comma-separated workflow person IDs"),
-    overrides_file: str | None = typer.Option(None, "--overrides-file", help="JSON file with company overrides"),
+    overrides_file: str | None = typer.Option(
+        None, "--overrides-file", help="JSON file with company overrides"
+    ),
     json_output: bool = JSON_OPTION,
 ) -> None:
     """Add workflow-discovered people to CRM."""

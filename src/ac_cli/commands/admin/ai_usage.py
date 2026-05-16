@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import typer
 
-from ac_cli.commands._helpers import _api_request, JSON_OPTION, set_json_mode
+from ac_cli.commands._helpers import JSON_OPTION, _api_request, set_json_mode
 from ac_cli.commands.admin import _ADMIN
 from ac_cli.formatting import print_detail, print_json, print_table
 
@@ -36,11 +36,14 @@ def ai_usage_summary(
         print_json(data)
         return
 
-    print_detail(data, [
-        ("total_requests", "Total Requests"),
-        ("total_tokens", "Total Tokens"),
-        ("total_cost", "Total Cost"),
-    ])
+    print_detail(
+        data,
+        [
+            ("total_requests", "Total Requests"),
+            ("total_tokens", "Total Tokens"),
+            ("total_cost", "Total Cost"),
+        ],
+    )
 
     by_model = data.get("by_model", [])
     if by_model:
@@ -133,13 +136,16 @@ def ai_usage_user(
         print_json(data)
         return
 
-    print_detail(data, [
-        ("email", "Email"),
-        ("full_name", "Name"),
-        ("total_cost", "Total Cost"),
-        ("total_tokens", "Total Tokens"),
-        ("total_requests", "Total Requests"),
-    ])
+    print_detail(
+        data,
+        [
+            ("email", "Email"),
+            ("full_name", "Name"),
+            ("total_cost", "Total Cost"),
+            ("total_tokens", "Total Tokens"),
+            ("total_requests", "Total Requests"),
+        ],
+    )
 
     by_model = data.get("by_model", [])
     if by_model:
@@ -294,7 +300,9 @@ def ai_usage_details(
     org_id: str | None = typer.Option(None, "--org-id", help="Filter by organization ID"),
     model_id: str | None = typer.Option(None, "--model-id", help="Filter by model ID"),
     user_id: str | None = typer.Option(None, "--user-id", help="Filter by user ID"),
-    workflow_run_id: str | None = typer.Option(None, "--workflow-run-id", help="Filter by workflow run ID"),
+    workflow_run_id: str | None = typer.Option(
+        None, "--workflow-run-id", help="Filter by workflow run ID"
+    ),
     json_output: bool = JSON_OPTION,
 ) -> None:
     """List detailed AI usage records."""

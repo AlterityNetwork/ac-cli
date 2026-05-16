@@ -4,7 +4,6 @@ import json
 
 from tests.conftest import WHOAMI_RESPONSE
 
-
 SAMPLE_SEQUENCE = {
     "id": "seq-1",
     "organization_id": "org-456",
@@ -153,8 +152,15 @@ def test_sequences_impact_preview(invoke, mock_api):
     )
     result = invoke(
         [
-            "envoy", "sequences", "impact-preview", "seq-1",
-            "--step-id", "step-1", "--step-id", "step-2", "--json",
+            "envoy",
+            "sequences",
+            "impact-preview",
+            "seq-1",
+            "--step-id",
+            "step-1",
+            "--step-id",
+            "step-2",
+            "--json",
         ]
     )
     assert result.exit_code == 0
@@ -168,8 +174,14 @@ def test_sequences_bulk_remove_recipients(invoke, mock_api):
     )
     result = invoke(
         [
-            "envoy", "sequences", "bulk-remove-recipients", "seq-1",
-            "--recipient-id", "r1", "--recipient-id", "r2",
+            "envoy",
+            "sequences",
+            "bulk-remove-recipients",
+            "seq-1",
+            "--recipient-id",
+            "r1",
+            "--recipient-id",
+            "r2",
         ]
     )
     assert result.exit_code == 0
@@ -199,13 +211,18 @@ def test_sequences_outputs_list(invoke, mock_api):
 
 
 def test_sequences_generate_drafts(invoke, mock_api):
-    mock_api.post(
-        "/api/v1/envoy/sequences/seq-1/steps/step-1/generate-drafts"
-    ).respond(202, json={"run_id": "run-1", "status": "queued"})
+    mock_api.post("/api/v1/envoy/sequences/seq-1/steps/step-1/generate-drafts").respond(
+        202, json={"run_id": "run-1", "status": "queued"}
+    )
     result = invoke(
         [
-            "envoy", "sequences", "generate-drafts", "seq-1", "step-1",
-            "--workflow-id", "wf-1",
+            "envoy",
+            "sequences",
+            "generate-drafts",
+            "seq-1",
+            "step-1",
+            "--workflow-id",
+            "wf-1",
         ]
     )
     assert result.exit_code == 0

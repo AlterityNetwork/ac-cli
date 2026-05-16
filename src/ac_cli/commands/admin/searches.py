@@ -67,8 +67,7 @@ def _walk_all(path: str, params: dict[str, Any]) -> list[dict[str, Any]]:
             break
         if len(out) >= _BULK_MAX_ITEMS:
             print(
-                f"warning: --all reached {_BULK_MAX_ITEMS} item cap; "
-                f"narrow your filters",
+                f"warning: --all reached {_BULK_MAX_ITEMS} item cap; narrow your filters",
                 file=sys.stderr,
             )
             break
@@ -79,18 +78,10 @@ def _walk_all(path: str, params: dict[str, Any]) -> list[dict[str, Any]]:
 @searches_app.command("summary")
 def searches_summary(
     ctx: typer.Context,
-    start_date: str | None = typer.Option(
-        None, "--start-date", help="Start date (YYYY-MM-DD)"
-    ),
-    end_date: str | None = typer.Option(
-        None, "--end-date", help="End date (YYYY-MM-DD)"
-    ),
-    source: str = typer.Option(
-        "both", "--source", help="sonar | headhunter | both"
-    ),
-    org_id: list[str] | None = typer.Option(
-        None, "--org-id", help="Filter by org ID (repeatable)"
-    ),
+    start_date: str | None = typer.Option(None, "--start-date", help="Start date (YYYY-MM-DD)"),
+    end_date: str | None = typer.Option(None, "--end-date", help="End date (YYYY-MM-DD)"),
+    source: str = typer.Option("both", "--source", help="sonar | headhunter | both"),
+    org_id: list[str] | None = typer.Option(None, "--org-id", help="Filter by org ID (repeatable)"),
     user_id: list[str] | None = typer.Option(
         None, "--user-id", help="Filter by user ID (repeatable)"
     ),

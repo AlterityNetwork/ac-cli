@@ -6,7 +6,6 @@ import httpx
 
 from tests.conftest import API_BASE
 
-
 SAMPLE_COMMUNICATION = {
     "id": "comm1",
     "organization_id": "org-456",
@@ -110,9 +109,13 @@ def test_comms_list_date_range(invoke, mock_api):
     )
     result = invoke(
         [
-            "crm", "comms", "list",
-            "--since", "2026-04-09",
-            "--until", "2026-04-16",
+            "crm",
+            "comms",
+            "list",
+            "--since",
+            "2026-04-09",
+            "--until",
+            "2026-04-16",
             "--json",
         ]
     )
@@ -130,10 +133,15 @@ def test_comms_list_negative_sentiment_this_week(invoke, mock_api):
     )
     result = invoke(
         [
-            "crm", "comms", "list",
-            "--sentiment", "negative",
-            "--since", "2026-04-09",
-            "--type", "email",
+            "crm",
+            "comms",
+            "list",
+            "--sentiment",
+            "negative",
+            "--since",
+            "2026-04-09",
+            "--type",
+            "email",
             "--json",
         ]
     )
@@ -199,14 +207,18 @@ def test_comms_unread_empty(invoke, mock_api):
 
 
 def test_comms_mark_read(invoke, mock_api):
-    mock_api.post("/api/v1/crm/communications/thread/thread_jane_001/mark-read").respond(200, json={})
+    mock_api.post("/api/v1/crm/communications/thread/thread_jane_001/mark-read").respond(
+        200, json={}
+    )
     result = invoke(["crm", "comms", "mark-read", "thread_jane_001"])
     assert result.exit_code == 0
     assert "Marked thread" in result.output
 
 
 def test_comms_mark_read_json(invoke, mock_api):
-    mock_api.post("/api/v1/crm/communications/thread/thread_jane_001/mark-read").respond(200, json={})
+    mock_api.post("/api/v1/crm/communications/thread/thread_jane_001/mark-read").respond(
+        200, json={}
+    )
     result = invoke(["crm", "comms", "mark-read", "thread_jane_001", "--json"])
     assert result.exit_code == 0
     parsed = json.loads(result.output)
@@ -379,25 +391,39 @@ SAMPLE_DRAFT = {
 
 def test_comms_draft_email(invoke, mock_api):
     mock_api.post("/api/v1/crm/communications/draft-email").respond(201, json=SAMPLE_DRAFT)
-    result = invoke([
-        "crm", "comms", "draft-email",
-        "--contact-id", "p1",
-        "--subject", "Partnership opportunity",
-        "--content", "Dear Jane...",
-    ])
+    result = invoke(
+        [
+            "crm",
+            "comms",
+            "draft-email",
+            "--contact-id",
+            "p1",
+            "--subject",
+            "Partnership opportunity",
+            "--content",
+            "Dear Jane...",
+        ]
+    )
     assert result.exit_code == 0
     assert "Draft created" in result.output
 
 
 def test_comms_draft_email_json(invoke, mock_api):
     mock_api.post("/api/v1/crm/communications/draft-email").respond(201, json=SAMPLE_DRAFT)
-    result = invoke([
-        "crm", "comms", "draft-email",
-        "--contact-id", "p1",
-        "--subject", "Partnership opportunity",
-        "--content", "Dear Jane...",
-        "--json",
-    ])
+    result = invoke(
+        [
+            "crm",
+            "comms",
+            "draft-email",
+            "--contact-id",
+            "p1",
+            "--subject",
+            "Partnership opportunity",
+            "--content",
+            "Dear Jane...",
+            "--json",
+        ]
+    )
     assert result.exit_code == 0
     parsed = json.loads(result.output)
     assert parsed["subject"] == "Partnership opportunity"
@@ -414,11 +440,17 @@ SAMPLE_GENERATED = {
 
 def test_comms_generate_draft(invoke, mock_api):
     mock_api.post("/api/v1/crm/communications/generate-draft").respond(200, json=SAMPLE_GENERATED)
-    result = invoke([
-        "crm", "comms", "generate-draft",
-        "--mode", "compose",
-        "--recipient-name", "Jane Doe",
-    ])
+    result = invoke(
+        [
+            "crm",
+            "comms",
+            "generate-draft",
+            "--mode",
+            "compose",
+            "--recipient-name",
+            "Jane Doe",
+        ]
+    )
     assert result.exit_code == 0
     assert "Generated Draft" in result.output
     assert "Re: Partnership" in result.output
@@ -426,13 +458,20 @@ def test_comms_generate_draft(invoke, mock_api):
 
 def test_comms_generate_draft_json(invoke, mock_api):
     mock_api.post("/api/v1/crm/communications/generate-draft").respond(200, json=SAMPLE_GENERATED)
-    result = invoke([
-        "crm", "comms", "generate-draft",
-        "--mode", "reply",
-        "--recipient-name", "Jane Doe",
-        "--original-subject", "Partnership",
-        "--json",
-    ])
+    result = invoke(
+        [
+            "crm",
+            "comms",
+            "generate-draft",
+            "--mode",
+            "reply",
+            "--recipient-name",
+            "Jane Doe",
+            "--original-subject",
+            "Partnership",
+            "--json",
+        ]
+    )
     assert result.exit_code == 0
     parsed = json.loads(result.output)
     assert parsed["subject"] == "Re: Partnership"
@@ -441,13 +480,21 @@ def test_comms_generate_draft_json(invoke, mock_api):
 def test_comms_generate_draft_with_user_draft(invoke, mock_api):
     """User draft fields are sent to API for refinement."""
     mock_api.post("/api/v1/crm/communications/generate-draft").respond(200, json=SAMPLE_GENERATED)
-    result = invoke([
-        "crm", "comms", "generate-draft",
-        "--mode", "compose",
-        "--recipient-name", "Jane Doe",
-        "--user-draft-subject", "Quick question",
-        "--user-draft-body", "Hi Jane, I wanted to ask about...",
-    ])
+    result = invoke(
+        [
+            "crm",
+            "comms",
+            "generate-draft",
+            "--mode",
+            "compose",
+            "--recipient-name",
+            "Jane Doe",
+            "--user-draft-subject",
+            "Quick question",
+            "--user-draft-body",
+            "Hi Jane, I wanted to ask about...",
+        ]
+    )
     assert result.exit_code == 0
     assert "Generated Draft" in result.output
 
@@ -455,13 +502,21 @@ def test_comms_generate_draft_with_user_draft(invoke, mock_api):
 def test_comms_generate_draft_with_extra_options(invoke, mock_api):
     """Recipient title and sender signature are sent to API."""
     mock_api.post("/api/v1/crm/communications/generate-draft").respond(200, json=SAMPLE_GENERATED)
-    result = invoke([
-        "crm", "comms", "generate-draft",
-        "--mode", "compose",
-        "--recipient-name", "Jane Doe",
-        "--recipient-title", "VP Sales",
-        "--sender-signature", "Best regards, Alex",
-    ])
+    result = invoke(
+        [
+            "crm",
+            "comms",
+            "generate-draft",
+            "--mode",
+            "compose",
+            "--recipient-name",
+            "Jane Doe",
+            "--recipient-title",
+            "VP Sales",
+            "--sender-signature",
+            "Best regards, Alex",
+        ]
+    )
     assert result.exit_code == 0
     assert "Generated Draft" in result.output
 
@@ -546,9 +601,7 @@ def test_comms_inbox_summary_passes_flags(invoke, mock_api):
             "recent_threads": [],
         },
     )
-    result = invoke(
-        ["crm", "comms", "inbox-summary", "--recent-limit", "3", "--window-days", "14"]
-    )
+    result = invoke(["crm", "comms", "inbox-summary", "--recent-limit", "3", "--window-days", "14"])
     assert result.exit_code == 0
     request = route.calls.last.request
     assert request.url.params.get("recent_limit") == "3"
@@ -591,8 +644,14 @@ def test_comms_pending_approvals_filters(invoke, mock_api):
     )
     result = invoke(
         [
-            "crm", "comms", "pending-approvals",
-            "--sequence-id", "seq-1", "--step-id", "step-1", "--json",
+            "crm",
+            "comms",
+            "pending-approvals",
+            "--sequence-id",
+            "seq-1",
+            "--step-id",
+            "step-1",
+            "--json",
         ]
     )
     assert result.exit_code == 0

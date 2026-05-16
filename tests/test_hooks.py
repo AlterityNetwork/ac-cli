@@ -40,9 +40,7 @@ def test_hooks_list_passes_capability(invoke, mock_api):
 
 def test_hooks_list_paginated_envelope(invoke, mock_api):
     """API may return either a bare list or {"data": [...]}; CLI handles both."""
-    mock_api.get("/api/v1/platform/hooks").respond(
-        200, json={"data": [SAMPLE_HOOK]}
-    )
+    mock_api.get("/api/v1/platform/hooks").respond(200, json={"data": [SAMPLE_HOOK]})
     result = invoke(["hooks", "list", "email"])
     assert result.exit_code == 0
     assert "email-send" in result.output

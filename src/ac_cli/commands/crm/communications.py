@@ -290,13 +290,16 @@ def communications_contact_by_email(
         print_json(data)
         return
 
-    print_detail(data, [
-        ("id", "ID"),
-        ("full_name", "Name"),
-        ("email", "Email"),
-        ("job_title", "Job Title"),
-        ("company_id", "Company ID"),
-    ])
+    print_detail(
+        data,
+        [
+            ("id", "ID"),
+            ("full_name", "Name"),
+            ("email", "Email"),
+            ("job_title", "Job Title"),
+            ("company_id", "Company ID"),
+        ],
+    )
 
 
 @communications_app.command("resolve-contact")
@@ -317,7 +320,9 @@ def communications_resolve_contact(
     if json_output:
         print_json(data)
     else:
-        rprint(f"[green]Resolved contact:[/green] {data.get('full_name', data.get('email', email))} ({data.get('id', '')})")
+        rprint(
+            f"[green]Resolved contact:[/green] {data.get('full_name', data.get('email', email))} ({data.get('id', '')})"
+        )
 
 
 @communications_app.command("draft-email")
@@ -328,15 +333,21 @@ def communications_draft_email(
     content: str = typer.Option(..., help="Email content"),
     company_id: str | None = typer.Option(None, "--company-id", help="Company ID"),
     deal_id: str | None = typer.Option(None, "--deal-id", help="Deal ID"),
-    to_emails: str | None = typer.Option(None, "--to-emails", help="Comma-separated recipient emails"),
+    to_emails: str | None = typer.Option(
+        None, "--to-emails", help="Comma-separated recipient emails"
+    ),
     from_email: str | None = typer.Option(None, "--from-email", help="Sender email"),
     json_output: bool = JSON_OPTION,
 ) -> None:
     """Create an email draft."""
     set_json_mode(json_output)
     body = _build_body(
-        contact_id=contact_id, subject=subject, content=content,
-        company_id=company_id, deal_id=deal_id, from_email=from_email,
+        contact_id=contact_id,
+        subject=subject,
+        content=content,
+        company_id=company_id,
+        deal_id=deal_id,
+        from_email=from_email,
     )
     if to_emails:
         body["to_emails"] = [e.strip() for e in to_emails.split(",")]
@@ -356,23 +367,38 @@ def communications_generate_draft(
     mode: str = typer.Option(..., help="compose or reply"),
     recipient_name: str = typer.Option(..., "--recipient-name", help="Recipient name"),
     recipient_email: str | None = typer.Option(None, "--recipient-email", help="Recipient email"),
-    recipient_title: str | None = typer.Option(None, "--recipient-title", help="Recipient job title"),
+    recipient_title: str | None = typer.Option(
+        None, "--recipient-title", help="Recipient job title"
+    ),
     company_name: str | None = typer.Option(None, "--company-name", help="Company name"),
     sender_name: str | None = typer.Option(None, "--sender-name", help="Sender name"),
-    sender_signature: str | None = typer.Option(None, "--sender-signature", help="Sender email signature"),
-    original_subject: str | None = typer.Option(None, "--original-subject", help="Original subject (for replies)"),
-    user_draft_subject: str | None = typer.Option(None, "--user-draft-subject", help="Draft subject to refine"),
-    user_draft_body: str | None = typer.Option(None, "--user-draft-body", help="Draft body to refine"),
+    sender_signature: str | None = typer.Option(
+        None, "--sender-signature", help="Sender email signature"
+    ),
+    original_subject: str | None = typer.Option(
+        None, "--original-subject", help="Original subject (for replies)"
+    ),
+    user_draft_subject: str | None = typer.Option(
+        None, "--user-draft-subject", help="Draft subject to refine"
+    ),
+    user_draft_body: str | None = typer.Option(
+        None, "--user-draft-body", help="Draft body to refine"
+    ),
     json_output: bool = JSON_OPTION,
 ) -> None:
     """Generate an AI-drafted email."""
     set_json_mode(json_output)
     body = _build_body(
-        mode=mode, recipient_name=recipient_name, recipient_email=recipient_email,
-        recipient_title=recipient_title, company_name=company_name,
-        sender_name=sender_name, sender_signature=sender_signature,
+        mode=mode,
+        recipient_name=recipient_name,
+        recipient_email=recipient_email,
+        recipient_title=recipient_title,
+        company_name=company_name,
+        sender_name=sender_name,
+        sender_signature=sender_signature,
         original_subject=original_subject,
-        user_draft_subject=user_draft_subject, user_draft_body=user_draft_body,
+        user_draft_subject=user_draft_subject,
+        user_draft_body=user_draft_body,
     )
 
     resp = _api_request("post", f"{_CRM}/communications/generate-draft", json=body)
@@ -381,7 +407,7 @@ def communications_generate_draft(
     if json_output:
         print_json(data)
     else:
-        rprint(f"[bold]Generated Draft[/bold]\n")
+        rprint("[bold]Generated Draft[/bold]\n")
         rprint(f"[bold]Subject:[/bold] {data.get('subject', '')}")
         rprint(f"\n{data.get('body', data.get('content', ''))}")
 
@@ -483,9 +509,7 @@ def communications_pending_approvals(
     if step_id:
         params["step_id"] = step_id
 
-    resp = _api_request(
-        "get", f"{_CRM}/communications/pending-approvals", params=params
-    )
+    resp = _api_request("get", f"{_CRM}/communications/pending-approvals", params=params)
     data = resp.json()
     if json_output:
         print_json(data)
@@ -513,9 +537,7 @@ def communications_approve(
 ) -> None:
     """Approve a pending communication so it sends."""
     set_json_mode(json_output)
-    resp = _api_request(
-        "post", f"{_CRM}/communications/{communication_id}/approve"
-    )
+    resp = _api_request("post", f"{_CRM}/communications/{communication_id}/approve")
     data = resp.json()
     if json_output:
         print_json(data)
@@ -538,9 +560,7 @@ def communications_reject(
     """Reject a pending communication."""
     set_json_mode(json_output)
     body = _build_body(action=action, reason=reason)
-    resp = _api_request(
-        "post", f"{_CRM}/communications/{communication_id}/reject", json=body
-    )
+    resp = _api_request("post", f"{_CRM}/communications/{communication_id}/reject", json=body)
     data = resp.json()
     if json_output:
         print_json(data)
@@ -556,9 +576,7 @@ def communications_regenerate(
 ) -> None:
     """Regenerate a pending communication's draft."""
     set_json_mode(json_output)
-    resp = _api_request(
-        "post", f"{_CRM}/communications/{communication_id}/regenerate"
-    )
+    resp = _api_request("post", f"{_CRM}/communications/{communication_id}/regenerate")
     data = resp.json()
     if json_output:
         print_json(data)

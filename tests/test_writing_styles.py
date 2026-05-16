@@ -4,7 +4,6 @@ import json
 
 from tests.conftest import WHOAMI_RESPONSE
 
-
 SAMPLE_STYLE = {
     "id": "ws-1",
     "organization_id": "org-456",
@@ -90,21 +89,27 @@ def test_styles_delete_aborted(invoke, mock_api):
 
 
 def test_styles_train(invoke, mock_api):
-    mock_api.post("/api/v1/writing-styles/ws-1/train").respond(200, json={"session_id": "ts-1", "status": "started"})
+    mock_api.post("/api/v1/writing-styles/ws-1/train").respond(
+        200, json={"session_id": "ts-1", "status": "started"}
+    )
     result = invoke(["styles", "train", "ws-1", "--sample-text", "This is a sample."])
     assert result.exit_code == 0
     assert "Training session" in result.output
 
 
 def test_styles_feedback(invoke, mock_api):
-    mock_api.post("/api/v1/writing-styles/training-sessions/ts-1/feedback").respond(200, json={"status": "received"})
+    mock_api.post("/api/v1/writing-styles/training-sessions/ts-1/feedback").respond(
+        200, json={"status": "received"}
+    )
     result = invoke(["styles", "feedback", "ts-1", "--rating", "5", "--comments", "Great"])
     assert result.exit_code == 0
     assert "Feedback submitted" in result.output
 
 
 def test_styles_iterate(invoke, mock_api):
-    mock_api.post("/api/v1/writing-styles/training-sessions/ts-1/iterate").respond(200, json={"status": "iterating"})
+    mock_api.post("/api/v1/writing-styles/training-sessions/ts-1/iterate").respond(
+        200, json={"status": "iterating"}
+    )
     result = invoke(["styles", "iterate", "ts-1", "--feedback", "More formal please"])
     assert result.exit_code == 0
     assert "Iteration submitted" in result.output

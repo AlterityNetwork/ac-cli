@@ -4,14 +4,18 @@ import json
 
 
 def test_config(invoke, mock_api):
-    mock_api.get("/api/v1/managed-onboarding/config").respond(200, json={"status": "active", "org_name": "Acme"})
+    mock_api.get("/api/v1/managed-onboarding/config").respond(
+        200, json={"status": "active", "org_name": "Acme"}
+    )
     result = invoke(["onboarding", "config"])
     assert result.exit_code == 0
     assert "Acme" in result.output
 
 
 def test_config_json(invoke, mock_api):
-    mock_api.get("/api/v1/managed-onboarding/config").respond(200, json={"status": "active", "org_name": "Acme"})
+    mock_api.get("/api/v1/managed-onboarding/config").respond(
+        200, json={"status": "active", "org_name": "Acme"}
+    )
     result = invoke(["onboarding", "config", "--json"])
     assert result.exit_code == 0
     parsed = json.loads(result.output)

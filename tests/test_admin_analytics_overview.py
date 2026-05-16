@@ -2,7 +2,6 @@
 
 import json
 
-
 SAMPLE_OVERVIEW = {
     "ai_requests_per_day": 42.5,
     "app_runs_per_day": 15.0,
@@ -20,9 +19,7 @@ SAMPLE_OVERVIEW = {
 
 
 def test_analytics_overview(invoke, mock_api):
-    mock_api.get("/api/v1/admin/analytics-overview/summary").respond(
-        200, json=SAMPLE_OVERVIEW
-    )
+    mock_api.get("/api/v1/admin/analytics-overview/summary").respond(200, json=SAMPLE_OVERVIEW)
     result = invoke(["admin", "analytics-overview"])
     assert result.exit_code == 0
     assert "Analytics Overview" in result.output
@@ -31,9 +28,7 @@ def test_analytics_overview(invoke, mock_api):
 
 
 def test_analytics_overview_json(invoke, mock_api):
-    mock_api.get("/api/v1/admin/analytics-overview/summary").respond(
-        200, json=SAMPLE_OVERVIEW
-    )
+    mock_api.get("/api/v1/admin/analytics-overview/summary").respond(200, json=SAMPLE_OVERVIEW)
     result = invoke(["admin", "analytics-overview", "--json"])
     assert result.exit_code == 0
     parsed = json.loads(result.output)
@@ -42,15 +37,19 @@ def test_analytics_overview_json(invoke, mock_api):
 
 
 def test_analytics_overview_with_filters(invoke, mock_api):
-    mock_api.get("/api/v1/admin/analytics-overview/summary").respond(
-        200, json=SAMPLE_OVERVIEW
+    mock_api.get("/api/v1/admin/analytics-overview/summary").respond(200, json=SAMPLE_OVERVIEW)
+    result = invoke(
+        [
+            "admin",
+            "analytics-overview",
+            "--start-date",
+            "2026-03-01",
+            "--end-date",
+            "2026-03-31",
+            "--org-id",
+            "org-123",
+        ]
     )
-    result = invoke([
-        "admin", "analytics-overview",
-        "--start-date", "2026-03-01",
-        "--end-date", "2026-03-31",
-        "--org-id", "org-123",
-    ])
     assert result.exit_code == 0
     assert "Analytics Overview" in result.output
 

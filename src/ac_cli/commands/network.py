@@ -5,7 +5,13 @@ from __future__ import annotations
 import typer
 from rich import print as rprint
 
-from ac_cli.commands._helpers import JSON_OPTION, _api_request, _build_body, set_json_mode, should_skip_confirm
+from ac_cli.commands._helpers import (
+    JSON_OPTION,
+    _api_request,
+    _build_body,
+    set_json_mode,
+    should_skip_confirm,
+)
 from ac_cli.formatting import print_detail, print_json, print_table
 
 app = typer.Typer(help="Network features")
@@ -45,7 +51,12 @@ def referrals_list(
     items = data if isinstance(data, list) else data.get("data", [])
     print_table(
         items,
-        [("id", "ID"), ("company_name", "Company"), ("status", "Status"), ("created_at", "Created")],
+        [
+            ("id", "ID"),
+            ("company_name", "Company"),
+            ("status", "Status"),
+            ("created_at", "Created"),
+        ],
         title=f"Referrals ({len(items)})",
     )
 
@@ -65,10 +76,16 @@ def referrals_get(
         print_json(data)
         return
 
-    print_detail(data, [
-        ("id", "ID"), ("company_name", "Company"), ("status", "Status"),
-        ("description", "Description"), ("created_at", "Created"),
-    ])
+    print_detail(
+        data,
+        [
+            ("id", "ID"),
+            ("company_name", "Company"),
+            ("status", "Status"),
+            ("description", "Description"),
+            ("created_at", "Created"),
+        ],
+    )
 
 
 @referrals_app.command("create")
@@ -83,8 +100,10 @@ def referrals_create(
     """Create a referral."""
     set_json_mode(json_output)
     body = _build_body(
-        company_name=company_name, description=description,
-        contact_name=contact_name, contact_email=contact_email,
+        company_name=company_name,
+        description=description,
+        contact_name=contact_name,
+        contact_email=contact_email,
     )
 
     resp = _api_request("post", f"{_NET}/referrals", json=body)

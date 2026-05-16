@@ -20,9 +20,7 @@ chat_escalations_app = typer.Typer(help="Triage chat escalations (super admin)")
 @chat_escalations_app.command("list")
 def chat_escalations_list(
     ctx: typer.Context,
-    status: str | None = typer.Option(
-        None, help="Filter by status: open | triaged | resolved"
-    ),
+    status: str | None = typer.Option(None, help="Filter by status: open | triaged | resolved"),
     json_output: bool = JSON_OPTION,
 ) -> None:
     """List chat escalations across all orgs."""
@@ -60,9 +58,7 @@ def chat_escalations_update(
     """Update an escalation's status (admin triage)."""
     set_json_mode(json_output)
     body = _build_body(status=status, note=note)
-    resp = _api_request(
-        "patch", f"{_ADMIN}/chat-escalations/{escalation_id}", json=body
-    )
+    resp = _api_request("patch", f"{_ADMIN}/chat-escalations/{escalation_id}", json=body)
     data = resp.json()
     if json_output:
         print_json(data)

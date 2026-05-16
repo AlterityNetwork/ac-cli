@@ -2,7 +2,6 @@
 
 import json
 
-
 SAMPLE_USER = {
     "id": "u-1",
     "email": "admin@test.com",
@@ -22,12 +21,15 @@ SAMPLE_AUTH_USER = {
 
 
 def test_users_list(invoke, mock_api):
-    mock_api.get("/api/v1/admin/users").respond(200, json={
-        "items": [SAMPLE_USER],
-        "total": 1,
-        "page": 1,
-        "page_size": 50,
-    })
+    mock_api.get("/api/v1/admin/users").respond(
+        200,
+        json={
+            "items": [SAMPLE_USER],
+            "total": 1,
+            "page": 1,
+            "page_size": 50,
+        },
+    )
     result = invoke(["admin", "users", "list"])
     assert result.exit_code == 0
     assert "admin@test.com" in result.output
@@ -58,7 +60,9 @@ def test_users_get_not_found(invoke, mock_api):
 
 def test_users_create(invoke, mock_api):
     mock_api.post("/api/v1/admin/users").respond(201, json={"id": "u-1"})
-    result = invoke(["admin", "users", "create", "--email", "admin@test.com", "--password", "secret123"])
+    result = invoke(
+        ["admin", "users", "create", "--email", "admin@test.com", "--password", "secret123"]
+    )
     assert result.exit_code == 0
     assert "Created user" in result.output
     assert "u-1" in result.output
@@ -66,7 +70,18 @@ def test_users_create(invoke, mock_api):
 
 def test_users_create_json(invoke, mock_api):
     mock_api.post("/api/v1/admin/users").respond(201, json={"id": "u-1"})
-    result = invoke(["admin", "users", "create", "--email", "admin@test.com", "--password", "secret123", "--json"])
+    result = invoke(
+        [
+            "admin",
+            "users",
+            "create",
+            "--email",
+            "admin@test.com",
+            "--password",
+            "secret123",
+            "--json",
+        ]
+    )
     assert result.exit_code == 0
     parsed = json.loads(result.output)
     assert parsed["id"] == "u-1"
@@ -155,7 +170,9 @@ def test_users_auth_search_json(invoke, mock_api):
 
 
 def test_users_auth_search_not_found(invoke, mock_api):
-    mock_api.get("/api/v1/admin/users/auth-search").respond(404, json={"detail": "Auth user not found"})
+    mock_api.get("/api/v1/admin/users/auth-search").respond(
+        404, json={"detail": "Auth user not found"}
+    )
     result = invoke(["admin", "users", "auth-search", "--email", "nobody@test.com"])
     assert result.exit_code == 3
     assert "404" in result.output
@@ -166,12 +183,19 @@ def test_users_auth_search_not_found(invoke, mock_api):
 
 def test_users_create_with_full_name(invoke, mock_api):
     route = mock_api.post("/api/v1/admin/users").respond(201, json={"id": "u-2"})
-    result = invoke([
-        "admin", "users", "create",
-        "--email", "new@test.com",
-        "--password", "secret123",
-        "--full-name", "Jane Doe",
-    ])
+    result = invoke(
+        [
+            "admin",
+            "users",
+            "create",
+            "--email",
+            "new@test.com",
+            "--password",
+            "secret123",
+            "--full-name",
+            "Jane Doe",
+        ]
+    )
     assert result.exit_code == 0
     assert "u-2" in result.output
     body = json.loads(route.calls[0].request.content)
@@ -182,12 +206,19 @@ def test_users_create_with_full_name(invoke, mock_api):
 
 def test_users_create_single_name(invoke, mock_api):
     route = mock_api.post("/api/v1/admin/users").respond(201, json={"id": "u-3"})
-    result = invoke([
-        "admin", "users", "create",
-        "--email", "mono@test.com",
-        "--password", "secret123",
-        "--full-name", "Cher",
-    ])
+    result = invoke(
+        [
+            "admin",
+            "users",
+            "create",
+            "--email",
+            "mono@test.com",
+            "--password",
+            "secret123",
+            "--full-name",
+            "Cher",
+        ]
+    )
     assert result.exit_code == 0
     body = json.loads(route.calls[0].request.content)
     assert body["first_name"] == "Cher"
@@ -208,12 +239,15 @@ def test_users_update_with_full_name(invoke, mock_api):
 
 
 def test_users_list_query_param(invoke, mock_api):
-    route = mock_api.get("/api/v1/admin/users").respond(200, json={
-        "items": [SAMPLE_USER],
-        "total": 1,
-        "page": 1,
-        "page_size": 50,
-    })
+    route = mock_api.get("/api/v1/admin/users").respond(
+        200,
+        json={
+            "items": [SAMPLE_USER],
+            "total": 1,
+            "page": 1,
+            "page_size": 50,
+        },
+    )
     result = invoke(["admin", "users", "list", "--query", "admin"])
     assert result.exit_code == 0
     request_url = str(route.calls[0].request.url)

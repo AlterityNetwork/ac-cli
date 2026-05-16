@@ -19,7 +19,9 @@ def steps_create(
     sequence_id: str = typer.Argument(..., help="Sequence ID"),
     step_type: str = typer.Option(..., "--type", help="Step type (message, delay, task)"),
     step_order: int | None = typer.Option(None, "--step-order", help="Position in sequence"),
-    message_template: str | None = typer.Option(None, "--message-template", help="Message template"),
+    message_template: str | None = typer.Option(
+        None, "--message-template", help="Message template"
+    ),
     prompt: str | None = typer.Option(None, help="AI prompt for message generation"),
     delay_value: int | None = typer.Option(None, "--delay-value", help="Delay value"),
     delay_unit: str | None = typer.Option(None, "--delay-unit", help="Delay unit (hours, days)"),
@@ -28,8 +30,12 @@ def steps_create(
     """Create a step in a sequence."""
     set_json_mode(json_output)
     body = _build_body(
-        type=step_type, step_order=step_order, message_template=message_template,
-        prompt=prompt, delay_value=delay_value, delay_unit=delay_unit,
+        type=step_type,
+        step_order=step_order,
+        message_template=message_template,
+        prompt=prompt,
+        delay_value=delay_value,
+        delay_unit=delay_unit,
     )
 
     resp = _api_request("post", f"{_ENVOY}/sequences/{sequence_id}/steps", json=body)
@@ -46,7 +52,9 @@ def steps_update(
     ctx: typer.Context,
     sequence_id: str = typer.Argument(..., help="Sequence ID"),
     step_id: str = typer.Argument(..., help="Step ID"),
-    message_template: str | None = typer.Option(None, "--message-template", help="Message template"),
+    message_template: str | None = typer.Option(
+        None, "--message-template", help="Message template"
+    ),
     prompt: str | None = typer.Option(None, help="AI prompt"),
     delay_value: int | None = typer.Option(None, "--delay-value", help="Delay value"),
     delay_unit: str | None = typer.Option(None, "--delay-unit", help="Delay unit"),
@@ -55,8 +63,10 @@ def steps_update(
     """Update a sequence step."""
     set_json_mode(json_output)
     body = _build_body(
-        message_template=message_template, prompt=prompt,
-        delay_value=delay_value, delay_unit=delay_unit,
+        message_template=message_template,
+        prompt=prompt,
+        delay_value=delay_value,
+        delay_unit=delay_unit,
     )
 
     if not body:
@@ -91,13 +101,17 @@ def steps_delete(
 def steps_reorder(
     ctx: typer.Context,
     sequence_id: str = typer.Argument(..., help="Sequence ID"),
-    step_ids: str = typer.Option(..., "--step-ids", help="Comma-separated step IDs in desired order"),
+    step_ids: str = typer.Option(
+        ..., "--step-ids", help="Comma-separated step IDs in desired order"
+    ),
     json_output: bool = JSON_OPTION,
 ) -> None:
     """Reorder steps in a sequence."""
     set_json_mode(json_output)
     ids_list = [s.strip() for s in step_ids.split(",")]
-    resp = _api_request("put", f"{_ENVOY}/sequences/{sequence_id}/steps/reorder", json={"step_ids": ids_list})
+    resp = _api_request(
+        "put", f"{_ENVOY}/sequences/{sequence_id}/steps/reorder", json={"step_ids": ids_list}
+    )
 
     data = resp.json()
     if json_output:

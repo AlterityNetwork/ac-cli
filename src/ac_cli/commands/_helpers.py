@@ -10,9 +10,7 @@ from rich import print as rprint
 from ac_cli.client import get_api_client
 from ac_cli.formatting import print_json
 
-_json_output: contextvars.ContextVar[bool] = contextvars.ContextVar(
-    "json_output", default=False
-)
+_json_output: contextvars.ContextVar[bool] = contextvars.ContextVar("json_output", default=False)
 
 JSON_OPTION = typer.Option(False, "--json", help="Output raw JSON")
 
@@ -98,7 +96,13 @@ def _resolve_entity(
             return exact[0]["id"]
         if _json_output.get():
             matches = [{"id": i["id"], name_field: i.get(name_field)} for i in items]
-            print_json({"error": True, "detail": f"Multiple {label}s match '{entity_name}'", "matches": matches})
+            print_json(
+                {
+                    "error": True,
+                    "detail": f"Multiple {label}s match '{entity_name}'",
+                    "matches": matches,
+                }
+            )
         else:
             rprint(f"[yellow]Multiple {label}s match '{entity_name}':[/yellow]")
             for item in items:

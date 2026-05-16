@@ -3,7 +3,13 @@
 import typer
 from rich import print as rprint
 
-from ac_cli.commands._helpers import JSON_OPTION, _api_request, _build_body, _handle_error, set_json_mode  # noqa: F401
+from ac_cli.commands._helpers import (  # noqa: F401
+    JSON_OPTION,
+    _api_request,
+    _build_body,
+    _handle_error,
+    set_json_mode,
+)
 from ac_cli.formatting import print_json, print_table
 
 app = typer.Typer(help="CRM commands")
@@ -99,18 +105,18 @@ def dashboard(
     for stage_name, stats in stages.items():
         rprint(f"    {stage_name}: {stats.get('count', 0)} deals (${stats.get('value', 0):,.2f})")
 
-    rprint(f"\n[bold]Active Pipeline[/bold]")
+    rprint("\n[bold]Active Pipeline[/bold]")
     rprint(f"  Active deals: {active.get('active_deals_count', 0)}")
     rprint(f"  Total value: ${active.get('total_value', 0):,.2f}")
     rprint(f"  Adjusted value: ${active.get('adjusted_value', 0):,.2f}")
 
-    rprint(f"\n[bold]Leads[/bold]")
+    rprint("\n[bold]Leads[/bold]")
     rprint(f"  This period: {leads.get('current_period', 0)}")
     rprint(f"  Previous: {leads.get('previous_period', 0)}")
     rprint(f"  Change: {leads.get('change', 0):+d}")
     rprint(f"  Total: {leads.get('total', 0)}")
 
-    rprint(f"\n[bold]Messages Sent[/bold]")
+    rprint("\n[bold]Messages Sent[/bold]")
     rprint(f"  This period: {messages.get('current_period', 0)}")
     rprint(f"  Previous: {messages.get('previous_period', 0)}")
     rprint(f"  Change: {messages.get('change', 0):+d}")
@@ -136,7 +142,9 @@ def engagement_dashboard(
         print_json(data)
         return
 
-    rprint(f"\n[bold]Email Engagement Dashboard[/bold] (last {data.get('period_days', period)} days)\n")
+    rprint(
+        f"\n[bold]Email Engagement Dashboard[/bold] (last {data.get('period_days', period)} days)\n"
+    )
 
     emails = data.get("emails_sent", {})
     rprint("[bold]Emails Sent[/bold]")
@@ -144,7 +152,7 @@ def engagement_dashboard(
     rprint(f"  Previous period: {emails.get('previous_period', 0)}")
     rprint(f"  Change: {emails.get('change', 0):+d}")
 
-    rprint(f"\n[bold]Engagement Rates[/bold]")
+    rprint("\n[bold]Engagement Rates[/bold]")
     rprint(f"  Open rate: {data.get('open_rate', 0):.1f}%")
     rprint(f"  Click rate: {data.get('click_rate', 0):.1f}%")
     rprint(f"  Reply rate: {data.get('reply_rate', 0):.1f}%")
@@ -152,13 +160,14 @@ def engagement_dashboard(
 
     health = data.get("email_health", {})
     if health:
-        rprint(f"\n[bold]Email Health[/bold]")
+        rprint("\n[bold]Email Health[/bold]")
         rprint(f"  Score: {health.get('score', 'N/A')}")
         rprint(f"  Status: {health.get('status', 'N/A')}")
 
     top_links = data.get("top_clicked_links", [])
     if top_links:
         from ac_cli.formatting import print_table
+
         print_table(
             top_links,
             [
@@ -171,13 +180,13 @@ def engagement_dashboard(
 
 # -- Register sub-command groups from submodules ------------------------------
 
-from ac_cli.commands.crm.companies import companies_app  # noqa: E402
-from ac_cli.commands.crm.people import people_app  # noqa: E402
-from ac_cli.commands.crm.deals import deals_app  # noqa: E402
 from ac_cli.commands.crm.activities import activities_app  # noqa: E402
-from ac_cli.commands.crm.lists import lists_app  # noqa: E402
 from ac_cli.commands.crm.communications import communications_app  # noqa: E402
+from ac_cli.commands.crm.companies import companies_app  # noqa: E402
+from ac_cli.commands.crm.deals import deals_app  # noqa: E402
 from ac_cli.commands.crm.imports import imports_app  # noqa: E402
+from ac_cli.commands.crm.lists import lists_app  # noqa: E402
+from ac_cli.commands.crm.people import people_app  # noqa: E402
 
 app.add_typer(companies_app, name="companies")
 app.add_typer(people_app, name="people")

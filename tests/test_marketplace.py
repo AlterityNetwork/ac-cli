@@ -2,8 +2,13 @@
 
 import json
 
-
-SAMPLE_APP = {"slug": "email-finder", "name": "Email Finder", "category": "data", "status": "active", "developer_name": "AgencyCore"}
+SAMPLE_APP = {
+    "slug": "email-finder",
+    "name": "Email Finder",
+    "category": "data",
+    "status": "active",
+    "developer_name": "AgencyCore",
+}
 SAMPLE_DEV = {"id": "dev-1", "name": "AgencyCore", "app_count": 3}
 
 

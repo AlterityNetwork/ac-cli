@@ -2,7 +2,6 @@
 
 import json
 
-
 SAMPLE_PRESET = {
     "id": "pre-1",
     "workflow_id": "wf-1",
@@ -36,7 +35,9 @@ def test_presets_get(invoke, mock_api):
 
 
 def test_presets_get_not_found(invoke, mock_api):
-    mock_api.get("/api/v1/workflows/wf-1/presets/pre-999").respond(404, json={"detail": "Not found"})
+    mock_api.get("/api/v1/workflows/wf-1/presets/pre-999").respond(
+        404, json={"detail": "Not found"}
+    )
     result = invoke(["workflows", "presets", "get", "wf-1", "pre-999"])
     assert result.exit_code == 3
 
@@ -50,7 +51,9 @@ def test_presets_create(invoke, mock_api):
 
 def test_presets_create_json(invoke, mock_api):
     mock_api.post("/api/v1/workflows/wf-1/presets").respond(201, json=SAMPLE_PRESET)
-    result = invoke(["workflows", "presets", "create", "wf-1", "--name", "Default Config", "--json"])
+    result = invoke(
+        ["workflows", "presets", "create", "wf-1", "--name", "Default Config", "--json"]
+    )
     assert result.exit_code == 0
     parsed = json.loads(result.output)
     assert parsed["name"] == "Default Config"

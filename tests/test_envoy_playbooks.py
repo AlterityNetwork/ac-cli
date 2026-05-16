@@ -4,7 +4,6 @@ import json
 
 from tests.conftest import WHOAMI_RESPONSE
 
-
 SAMPLE_PLAYBOOK = {
     "id": "pb-1",
     "organization_id": "org-456",

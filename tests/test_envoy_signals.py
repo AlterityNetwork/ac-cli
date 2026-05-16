@@ -1,6 +1,6 @@
 """Tests for envoy signals commands (`for` and `recent` sub-commands)."""
-import json
 
+import json
 
 SAMPLE_SIGNAL = {
     "id": "sig-1",
@@ -23,18 +23,14 @@ SAMPLE_RECENT_ROW = {
 
 
 def test_signals_for_get(invoke, mock_api):
-    mock_api.get("/api/v1/envoy/recipients/r-1/sales-signals").respond(
-        200, json=[SAMPLE_SIGNAL]
-    )
+    mock_api.get("/api/v1/envoy/recipients/r-1/sales-signals").respond(200, json=[SAMPLE_SIGNAL])
     result = invoke(["envoy", "signals", "for", "r-1"])
     assert result.exit_code == 0
     assert "Funding" in result.output
 
 
 def test_signals_for_get_json(invoke, mock_api):
-    mock_api.get("/api/v1/envoy/recipients/r-1/sales-signals").respond(
-        200, json=[SAMPLE_SIGNAL]
-    )
+    mock_api.get("/api/v1/envoy/recipients/r-1/sales-signals").respond(200, json=[SAMPLE_SIGNAL])
     result = invoke(["envoy", "signals", "for", "r-1", "--json"])
     assert result.exit_code == 0
     parsed = json.loads(result.output)
@@ -62,9 +58,7 @@ def test_signals_recent_default(invoke, mock_api):
 
 
 def test_signals_recent_since_days(invoke, mock_api):
-    route = mock_api.get("/api/v1/envoy/signals/recent").respond(
-        200, json=[SAMPLE_RECENT_ROW]
-    )
+    route = mock_api.get("/api/v1/envoy/signals/recent").respond(200, json=[SAMPLE_RECENT_ROW])
     result = invoke(["envoy", "signals", "recent", "--since-days", "14"])
     assert result.exit_code == 0
     request = route.calls.last.request

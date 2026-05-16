@@ -32,10 +32,14 @@ def onboarding_config(
         print_json(data)
         return
 
-    print_detail(data, [
-        ("status", "Status"), ("org_name", "Organization"),
-        ("completed_at", "Completed At"),
-    ])
+    print_detail(
+        data,
+        [
+            ("status", "Status"),
+            ("org_name", "Organization"),
+            ("completed_at", "Completed At"),
+        ],
+    )
 
 
 @app.command("complete")

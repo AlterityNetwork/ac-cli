@@ -2,7 +2,6 @@
 
 import json
 
-
 SAMPLE_UPLOAD_RESPONSE = {
     "key": "org-456/avatars/photo.png",
     "public_url": "https://cdn.example.com/org-456/avatars/photo.png",
@@ -44,7 +43,9 @@ def test_images_upload_json(invoke, mock_api, tmp_path):
 
 
 def test_images_upload_file_not_found(invoke, mock_api):
-    result = invoke(["files", "images", "upload", "/nonexistent/photo.png", "--category", "avatars"])
+    result = invoke(
+        ["files", "images", "upload", "/nonexistent/photo.png", "--category", "avatars"]
+    )
     assert result.exit_code == 1
     assert "File not found" in result.output
 
@@ -105,7 +106,8 @@ def test_images_upload_jpeg(invoke, mock_api, tmp_path):
 
 def test_images_delete_with_yes(invoke, mock_api):
     mock_api.delete("/api/v1/files/images/org-456/avatars/photo.png").respond(
-        200, json=SAMPLE_DELETE_RESPONSE,
+        200,
+        json=SAMPLE_DELETE_RESPONSE,
     )
     result = invoke(["files", "images", "delete", "org-456/avatars/photo.png", "--yes"])
     assert result.exit_code == 0
@@ -114,7 +116,8 @@ def test_images_delete_with_yes(invoke, mock_api):
 
 def test_images_delete_json(invoke, mock_api):
     mock_api.delete("/api/v1/files/images/org-456/avatars/photo.png").respond(
-        200, json=SAMPLE_DELETE_RESPONSE,
+        200,
+        json=SAMPLE_DELETE_RESPONSE,
     )
     result = invoke(["files", "images", "delete", "org-456/avatars/photo.png", "--yes", "--json"])
     assert result.exit_code == 0
@@ -129,7 +132,8 @@ def test_images_delete_aborted(invoke, mock_api):
 
 def test_images_delete_not_found(invoke, mock_api):
     mock_api.delete("/api/v1/files/images/org-456/avatars/photo.png").respond(
-        404, json={"detail": "Image not found"},
+        404,
+        json={"detail": "Image not found"},
     )
     result = invoke(["files", "images", "delete", "org-456/avatars/photo.png", "--yes"])
     assert result.exit_code == 3
@@ -138,7 +142,8 @@ def test_images_delete_not_found(invoke, mock_api):
 
 def test_images_delete_forbidden(invoke, mock_api):
     mock_api.delete("/api/v1/files/images/org-456/avatars/photo.png").respond(
-        403, json={"detail": "Forbidden"},
+        403,
+        json={"detail": "Forbidden"},
     )
     result = invoke(["files", "images", "delete", "org-456/avatars/photo.png", "--yes"])
     assert result.exit_code == 4

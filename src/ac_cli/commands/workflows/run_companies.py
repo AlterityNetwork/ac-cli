@@ -7,7 +7,13 @@ import typer
 from rich import print as rprint
 
 from ac_cli.client import get_api_client
-from ac_cli.commands._helpers import JSON_OPTION, _handle_error, _api_request, set_json_mode, should_skip_confirm
+from ac_cli.commands._helpers import (
+    JSON_OPTION,
+    _api_request,
+    _handle_error,
+    set_json_mode,
+    should_skip_confirm,
+)
 from ac_cli.commands.workflows import _WORKFLOWS
 from ac_cli.formatting import print_json, print_table
 
@@ -20,7 +26,9 @@ def run_companies_list(
     workflow_id: str = typer.Argument(..., help="Workflow ID"),
     limit: int = typer.Option(50, help="Max results"),
     offset: int = typer.Option(0, help="Offset"),
-    include_in_crm: bool = typer.Option(False, "--include-in-crm", help="Include companies already in CRM"),
+    include_in_crm: bool = typer.Option(
+        False, "--include-in-crm", help="Include companies already in CRM"
+    ),
     sort_by: str | None = typer.Option(
         None,
         "--sort-by",
@@ -89,7 +97,9 @@ def run_companies_list_by_run(
 def run_companies_add_to_crm(
     ctx: typer.Context,
     workflow_id: str = typer.Argument(..., help="Workflow ID"),
-    company_ids: str = typer.Option(..., "--company-ids", help="Comma-separated workflow company IDs"),
+    company_ids: str = typer.Option(
+        ..., "--company-ids", help="Comma-separated workflow company IDs"
+    ),
     json_output: bool = JSON_OPTION,
 ) -> None:
     """Add workflow-discovered companies to CRM."""
@@ -132,7 +142,9 @@ def run_companies_crm_count(
 def run_companies_delete(
     ctx: typer.Context,
     workflow_id: str = typer.Argument(..., help="Workflow ID"),
-    company_ids: str = typer.Option(..., "--company-ids", help="Comma-separated workflow company IDs"),
+    company_ids: str = typer.Option(
+        ..., "--company-ids", help="Comma-separated workflow company IDs"
+    ),
     yes: bool = typer.Option(False, "--yes", "-y", help="Skip confirmation"),
     json_output: bool = JSON_OPTION,
 ) -> None:

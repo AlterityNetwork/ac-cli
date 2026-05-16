@@ -4,7 +4,6 @@ import json
 
 from tests.conftest import WHOAMI_RESPONSE
 
-
 SAMPLE_CAMPAIGN = {
     "id": "camp-1",
     "organization_id": "org-456",
@@ -58,9 +57,7 @@ def test_campaigns_get(invoke, mock_api):
 
 
 def test_campaigns_get_not_found(invoke, mock_api):
-    mock_api.get("/api/v1/envoy/campaigns/bogus").respond(
-        404, json={"detail": "Not found"}
-    )
+    mock_api.get("/api/v1/envoy/campaigns/bogus").respond(404, json={"detail": "Not found"})
     result = invoke(["envoy", "campaigns", "get", "bogus"])
     assert result.exit_code == 3
 
@@ -76,9 +73,7 @@ def test_campaigns_create(invoke, mock_api):
 def test_campaigns_create_json(invoke, mock_api):
     mock_api.get("/whoami").respond(200, json=WHOAMI_RESPONSE)
     mock_api.post("/api/v1/envoy/campaigns").respond(201, json=SAMPLE_CAMPAIGN)
-    result = invoke(
-        ["envoy", "campaigns", "create", "--name", "Q2 Outreach", "--json"]
-    )
+    result = invoke(["envoy", "campaigns", "create", "--name", "Q2 Outreach", "--json"])
     assert result.exit_code == 0
     parsed = json.loads(result.output)
     assert parsed["id"] == "camp-1"
@@ -87,9 +82,7 @@ def test_campaigns_create_json(invoke, mock_api):
 def test_campaigns_update(invoke, mock_api):
     updated = {**SAMPLE_CAMPAIGN, "name": "Q2 Renamed"}
     mock_api.patch("/api/v1/envoy/campaigns/camp-1").respond(200, json=updated)
-    result = invoke(
-        ["envoy", "campaigns", "update", "camp-1", "--name", "Q2 Renamed"]
-    )
+    result = invoke(["envoy", "campaigns", "update", "camp-1", "--name", "Q2 Renamed"])
     assert result.exit_code == 0
     assert "Updated campaign" in result.output
 
@@ -120,9 +113,7 @@ def test_campaigns_archive(invoke, mock_api):
 
 
 def test_campaigns_unarchive(invoke, mock_api):
-    mock_api.post("/api/v1/envoy/campaigns/camp-1/unarchive").respond(
-        200, json=SAMPLE_CAMPAIGN
-    )
+    mock_api.post("/api/v1/envoy/campaigns/camp-1/unarchive").respond(200, json=SAMPLE_CAMPAIGN)
     result = invoke(["envoy", "campaigns", "unarchive", "camp-1"])
     assert result.exit_code == 0
     assert "Unarchived campaign" in result.output

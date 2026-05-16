@@ -67,7 +67,8 @@ def test_apps_uninstall_aborted(invoke, mock_api):
 def test_apps_usage_event(invoke, mock_api):
     mock_api.get("/whoami").respond(200, json=WHOAMI_RESPONSE)
     mock_api.post("/api/v1/orgs/org-456/apps/email-finder/events").respond(
-        201, json={"event_type": "search", "app_slug": "email-finder"},
+        201,
+        json={"event_type": "search", "app_slug": "email-finder"},
     )
     result = invoke(["apps", "usage-event", "email-finder", "--event-type", "search"])
     assert result.exit_code == 0
@@ -77,7 +78,12 @@ def test_apps_usage_event(invoke, mock_api):
 def test_apps_usage(invoke, mock_api):
     mock_api.get("/whoami").respond(200, json=WHOAMI_RESPONSE)
     mock_api.get("/api/v1/orgs/org-456/apps/email-finder/usage").respond(
-        200, json={"app_slug": "email-finder", "total_events": 42, "last_event_at": "2026-01-15T00:00:00Z"},
+        200,
+        json={
+            "app_slug": "email-finder",
+            "total_events": 42,
+            "last_event_at": "2026-01-15T00:00:00Z",
+        },
     )
     result = invoke(["apps", "usage", "email-finder"])
     assert result.exit_code == 0
@@ -86,7 +92,9 @@ def test_apps_usage(invoke, mock_api):
 
 def test_apps_configs(invoke, mock_api):
     mock_api.get("/whoami").respond(200, json=WHOAMI_RESPONSE)
-    mock_api.get("/api/v1/orgs/org-456/apps/email-finder/configs").respond(200, json=[SAMPLE_CONFIG])
+    mock_api.get("/api/v1/orgs/org-456/apps/email-finder/configs").respond(
+        200, json=[SAMPLE_CONFIG]
+    )
     result = invoke(["apps", "configs", "email-finder"])
     assert result.exit_code == 0
     assert "api_key" in result.output
@@ -105,7 +113,8 @@ def test_apps_configs_json(invoke, mock_api):
 def test_apps_update_config(invoke, mock_api):
     mock_api.get("/whoami").respond(200, json=WHOAMI_RESPONSE)
     mock_api.put("/api/v1/orgs/org-456/apps/email-finder/configs/api_key").respond(
-        200, json={"config_key": "api_key", "value": "sk-new"},
+        200,
+        json={"config_key": "api_key", "value": "sk-new"},
     )
     result = invoke(["apps", "update-config", "email-finder", "api_key", "--value", "sk-new"])
     assert result.exit_code == 0
@@ -127,7 +136,9 @@ def test_apps_delete_config_aborted(invoke, mock_api):
 
 def test_apps_install_error(invoke, mock_api):
     mock_api.get("/whoami").respond(200, json=WHOAMI_RESPONSE)
-    mock_api.post("/api/v1/orgs/org-456/apps/email-finder").respond(409, json={"detail": "Already installed"})
+    mock_api.post("/api/v1/orgs/org-456/apps/email-finder").respond(
+        409, json={"detail": "Already installed"}
+    )
     result = invoke(["apps", "install", "email-finder"])
     assert result.exit_code == 5
     assert "409" in result.output

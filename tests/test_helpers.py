@@ -2,8 +2,7 @@
 
 import json
 
-from tests.conftest import API_BASE, WHOAMI_RESPONSE
-
+from tests.conftest import WHOAMI_RESPONSE
 
 # -- _build_body ---------------------------------------------------------------
 
@@ -138,9 +137,7 @@ def test_get_org_id(invoke, mock_api):
 def test_get_org_id_used_in_create(invoke, mock_api):
     """Create commands use _get_org_id to set organization_id."""
     mock_api.get("/whoami").respond(200, json=WHOAMI_RESPONSE)
-    mock_api.post("/api/v1/crm/companies").respond(
-        201, json={"id": "co-new", "name": "NewCo"}
-    )
+    mock_api.post("/api/v1/crm/companies").respond(201, json={"id": "co-new", "name": "NewCo"})
     result = invoke(["crm", "companies", "create", "--name", "NewCo", "--json"])
     assert result.exit_code == 0
     parsed = json.loads(result.output)

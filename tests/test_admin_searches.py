@@ -156,9 +156,7 @@ def test_summary_json(invoke, mock_api):
 
 
 def test_summary_passes_source_filter(invoke, mock_api):
-    route = mock_api.get("/api/v1/admin/searches/summary").respond(
-        200, json=SAMPLE_SUMMARY
-    )
+    route = mock_api.get("/api/v1/admin/searches/summary").respond(200, json=SAMPLE_SUMMARY)
     result = invoke(["admin", "searches", "summary", "--source", "headhunter"])
     assert result.exit_code == 0
     assert route.calls.last.request.url.params["source"] == "headhunter"
@@ -206,12 +204,12 @@ def test_runs_json_with_multi_value_filters(invoke, mock_api):
 
 def test_runs_all_walks_pages(invoke, mock_api):
     """--all paginates until a short page is returned."""
-    mock_api.get(
-        "/api/v1/admin/searches/runs", params={"page": "1", "page_size": "100"}
-    ).respond(200, json=SAMPLE_RUNS_PAGE_FULL)
-    mock_api.get(
-        "/api/v1/admin/searches/runs", params={"page": "2", "page_size": "100"}
-    ).respond(200, json=SAMPLE_RUNS_PAGE_SHORT)
+    mock_api.get("/api/v1/admin/searches/runs", params={"page": "1", "page_size": "100"}).respond(
+        200, json=SAMPLE_RUNS_PAGE_FULL
+    )
+    mock_api.get("/api/v1/admin/searches/runs", params={"page": "2", "page_size": "100"}).respond(
+        200, json=SAMPLE_RUNS_PAGE_SHORT
+    )
 
     result = invoke(["admin", "searches", "runs", "--all"])
     assert result.exit_code == 0
@@ -222,9 +220,7 @@ def test_runs_all_walks_pages(invoke, mock_api):
 
 
 def test_run_detail(invoke, mock_api):
-    mock_api.get("/api/v1/admin/searches/runs/run-1").respond(
-        200, json=SAMPLE_RUN_DETAIL
-    )
+    mock_api.get("/api/v1/admin/searches/runs/run-1").respond(200, json=SAMPLE_RUN_DETAIL)
     result = invoke(["admin", "searches", "run", "run-1"])
     assert result.exit_code == 0
     assert "run-1" in result.output
@@ -232,9 +228,7 @@ def test_run_detail(invoke, mock_api):
 
 
 def test_run_detail_json(invoke, mock_api):
-    mock_api.get("/api/v1/admin/searches/runs/run-1").respond(
-        200, json=SAMPLE_RUN_DETAIL
-    )
+    mock_api.get("/api/v1/admin/searches/runs/run-1").respond(200, json=SAMPLE_RUN_DETAIL)
     result = invoke(["admin", "searches", "run", "run-1", "--json"])
     assert result.exit_code == 0
     parsed = json.loads(result.output)
@@ -243,18 +237,14 @@ def test_run_detail_json(invoke, mock_api):
 
 
 def test_companies(invoke, mock_api):
-    mock_api.get("/api/v1/admin/searches/companies").respond(
-        200, json=SAMPLE_COMPANIES
-    )
+    mock_api.get("/api/v1/admin/searches/companies").respond(200, json=SAMPLE_COMPANIES)
     result = invoke(["admin", "searches", "companies", "--source", "sonar"])
     assert result.exit_code == 0
     assert "Acme" in result.output
 
 
 def test_companies_json(invoke, mock_api):
-    mock_api.get("/api/v1/admin/searches/companies").respond(
-        200, json=SAMPLE_COMPANIES
-    )
+    mock_api.get("/api/v1/admin/searches/companies").respond(200, json=SAMPLE_COMPANIES)
     result = invoke(["admin", "searches", "companies", "--json"])
     assert result.exit_code == 0
     parsed = json.loads(result.output)
@@ -284,9 +274,7 @@ def test_people_table(invoke, mock_api):
 
 
 def test_summary_403_returns_exit_4(invoke, mock_api):
-    mock_api.get("/api/v1/admin/searches/summary").respond(
-        403, json={"detail": "Superadmin only"}
-    )
+    mock_api.get("/api/v1/admin/searches/summary").respond(403, json={"detail": "Superadmin only"})
     result = invoke(["admin", "searches", "summary", "--json"])
     assert result.exit_code == 4
     parsed = json.loads(result.output)

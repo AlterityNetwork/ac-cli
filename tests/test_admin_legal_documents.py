@@ -67,24 +67,38 @@ def test_legal_docs_get_json(invoke, mock_api):
 
 def test_legal_docs_create(invoke, mock_api):
     mock_api.post("/api/v1/admin/legal-documents").respond(200, json=SAMPLE_DOC)
-    result = invoke([
-        "admin", "legal-docs", "create",
-        "--document-type", "terms_of_service",
-        "--version", "1.0",
-        "--title", "Terms of Service",
-    ])
+    result = invoke(
+        [
+            "admin",
+            "legal-docs",
+            "create",
+            "--document-type",
+            "terms_of_service",
+            "--version",
+            "1.0",
+            "--title",
+            "Terms of Service",
+        ]
+    )
     assert result.exit_code == 0
 
 
 def test_legal_docs_create_json(invoke, mock_api):
     mock_api.post("/api/v1/admin/legal-documents").respond(200, json=SAMPLE_DOC)
-    result = invoke([
-        "admin", "legal-docs", "create",
-        "--document-type", "terms_of_service",
-        "--version", "1.0",
-        "--title", "Terms of Service",
-        "--json",
-    ])
+    result = invoke(
+        [
+            "admin",
+            "legal-docs",
+            "create",
+            "--document-type",
+            "terms_of_service",
+            "--version",
+            "1.0",
+            "--title",
+            "Terms of Service",
+            "--json",
+        ]
+    )
     assert result.exit_code == 0
     parsed = json.loads(result.output)
     assert parsed["id"] == "doc-1"

@@ -72,19 +72,22 @@ def campaigns_get(
         print_json(data)
         return
 
-    print_detail(data, [
-        ("id", "ID"),
-        ("name", "Name"),
-        ("description", "Description"),
-        ("goal", "Goal"),
-        ("source_app", "Source App"),
-        ("started_at", "Started"),
-        ("ended_at", "Ended"),
-        ("archived_at", "Archived"),
-        ("sequence_count", "Sequences"),
-        ("created_at", "Created"),
-        ("updated_at", "Updated"),
-    ])
+    print_detail(
+        data,
+        [
+            ("id", "ID"),
+            ("name", "Name"),
+            ("description", "Description"),
+            ("goal", "Goal"),
+            ("source_app", "Source App"),
+            ("started_at", "Started"),
+            ("ended_at", "Ended"),
+            ("archived_at", "Archived"),
+            ("sequence_count", "Sequences"),
+            ("created_at", "Created"),
+            ("updated_at", "Updated"),
+        ],
+    )
 
 
 @campaigns_app.command("create")

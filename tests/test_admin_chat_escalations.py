@@ -2,7 +2,6 @@
 
 import json
 
-
 SAMPLE_ESCALATION = {
     "id": "esc-1",
     "organization_id": "org-1",
@@ -26,9 +25,7 @@ def test_chat_escalations_list_status_filter(invoke, mock_api):
     route = mock_api.get("/api/v1/admin/chat-escalations").respond(
         200, json={"data": [], "total": 0}
     )
-    result = invoke(
-        ["admin", "chat-escalations", "list", "--status", "triaged", "--json"]
-    )
+    result = invoke(["admin", "chat-escalations", "list", "--status", "triaged", "--json"])
     assert result.exit_code == 0
     assert "status=triaged" in str(route.calls.last.request.url)
 
@@ -37,9 +34,7 @@ def test_chat_escalations_update(invoke, mock_api):
     mock_api.patch("/api/v1/admin/chat-escalations/esc-1").respond(
         200, json={**SAMPLE_ESCALATION, "status": "resolved"}
     )
-    result = invoke(
-        ["admin", "chat-escalations", "update", "esc-1", "--status", "resolved"]
-    )
+    result = invoke(["admin", "chat-escalations", "update", "esc-1", "--status", "resolved"])
     assert result.exit_code == 0
     assert "resolved" in result.output
 
@@ -50,8 +45,15 @@ def test_chat_escalations_update_with_note(invoke, mock_api):
     )
     result = invoke(
         [
-            "admin", "chat-escalations", "update", "esc-1",
-            "--status", "triaged", "--note", "looking", "--json",
+            "admin",
+            "chat-escalations",
+            "update",
+            "esc-1",
+            "--status",
+            "triaged",
+            "--note",
+            "looking",
+            "--json",
         ]
     )
     assert result.exit_code == 0
@@ -63,7 +65,5 @@ def test_chat_escalations_update_not_found(invoke, mock_api):
     mock_api.patch("/api/v1/admin/chat-escalations/bogus").respond(
         404, json={"detail": "Not found"}
     )
-    result = invoke(
-        ["admin", "chat-escalations", "update", "bogus", "--status", "open"]
-    )
+    result = invoke(["admin", "chat-escalations", "update", "bogus", "--status", "open"])
     assert result.exit_code == 3

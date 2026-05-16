@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import typer
 
-from ac_cli.commands._helpers import _api_request, JSON_OPTION, set_json_mode
+from ac_cli.commands._helpers import JSON_OPTION, _api_request, set_json_mode
 from ac_cli.commands.admin import _ADMIN
 from ac_cli.formatting import print_detail, print_json, print_table
 
@@ -36,10 +36,13 @@ def platform_activity_summary(
         print_json(data)
         return
 
-    print_detail(data, [
-        ("total_events", "Total Events"),
-        ("unique_users", "Unique Users"),
-    ])
+    print_detail(
+        data,
+        [
+            ("total_events", "Total Events"),
+            ("unique_users", "Unique Users"),
+        ],
+    )
 
     by_category = data.get("by_category", [])
     if by_category:
@@ -127,11 +130,14 @@ def platform_activity_user(
         print_json(data)
         return
 
-    print_detail(data, [
-        ("email", "Email"),
-        ("full_name", "Name"),
-        ("total_events", "Total Events"),
-    ])
+    print_detail(
+        data,
+        [
+            ("email", "Email"),
+            ("full_name", "Name"),
+            ("total_events", "Total Events"),
+        ],
+    )
 
     recent_events = data.get("recent_events", [])
     if recent_events:

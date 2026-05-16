@@ -52,12 +52,19 @@ def test_platform_activity_summary_json(invoke, mock_api):
 
 def test_platform_activity_summary_with_filters(invoke, mock_api):
     mock_api.get("/api/v1/admin/platform-activity/summary").respond(200, json=SAMPLE_SUMMARY)
-    result = invoke([
-        "admin", "platform-activity", "summary",
-        "--start-date", "2026-03-01",
-        "--end-date", "2026-03-20",
-        "--org-id", "org-123",
-    ])
+    result = invoke(
+        [
+            "admin",
+            "platform-activity",
+            "summary",
+            "--start-date",
+            "2026-03-01",
+            "--end-date",
+            "2026-03-20",
+            "--org-id",
+            "org-123",
+        ]
+    )
     assert result.exit_code == 0
 
 
@@ -77,7 +84,9 @@ def test_platform_activity_users_json(invoke, mock_api):
 
 
 def test_platform_activity_user(invoke, mock_api):
-    mock_api.get("/api/v1/admin/platform-activity/users/user-123").respond(200, json=SAMPLE_USER_DETAIL)
+    mock_api.get("/api/v1/admin/platform-activity/users/user-123").respond(
+        200, json=SAMPLE_USER_DETAIL
+    )
     result = invoke(["admin", "platform-activity", "user", "user-123"])
     assert result.exit_code == 0
     assert "alice@example.com" in result.output
@@ -85,7 +94,9 @@ def test_platform_activity_user(invoke, mock_api):
 
 
 def test_platform_activity_user_json(invoke, mock_api):
-    mock_api.get("/api/v1/admin/platform-activity/users/user-123").respond(200, json=SAMPLE_USER_DETAIL)
+    mock_api.get("/api/v1/admin/platform-activity/users/user-123").respond(
+        200, json=SAMPLE_USER_DETAIL
+    )
     result = invoke(["admin", "platform-activity", "user", "user-123", "--json"])
     assert result.exit_code == 0
     parsed = json.loads(result.output)

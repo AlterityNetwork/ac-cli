@@ -3,13 +3,11 @@
 import json
 from unittest.mock import patch
 
-import pytest
 from typer.testing import CliRunner
 
 from ac_cli.config import (
     DEFAULT_ENV,
     DEV_API_URL,
-    ENVIRONMENTS,
     STAGING_API_URL,
     STAGING_SUPABASE_ANON_KEY,
     STAGING_SUPABASE_URL,
@@ -22,6 +20,7 @@ runner = CliRunner()
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def _multi_env_config(active="staging", envs=None):
     """Build a multi-env config dict."""
@@ -45,6 +44,7 @@ def _patch_full_config(full):
 # ---------------------------------------------------------------------------
 # env list
 # ---------------------------------------------------------------------------
+
 
 class TestEnvList:
     def test_list_shows_all_envs(self):
@@ -82,6 +82,7 @@ class TestEnvList:
 # env show
 # ---------------------------------------------------------------------------
 
+
 class TestEnvShow:
     def test_show_active(self):
         full = _multi_env_config()
@@ -103,11 +104,11 @@ class TestEnvShow:
 # env use
 # ---------------------------------------------------------------------------
 
+
 class TestEnvUse:
     def test_use_valid(self):
         full = _multi_env_config()
-        with _patch_full_config(full), \
-             patch("ac_cli.commands.env.set_active_env") as mock_set:
+        with _patch_full_config(full), patch("ac_cli.commands.env.set_active_env") as mock_set:
             result = runner.invoke(app, ["env", "use", "production"])
         assert result.exit_code == 0
         mock_set.assert_called_once_with("production")
@@ -121,8 +122,7 @@ class TestEnvUse:
 
     def test_use_warns_not_logged_in(self):
         full = _multi_env_config(envs={})
-        with _patch_full_config(full), \
-             patch("ac_cli.commands.env.set_active_env"):
+        with _patch_full_config(full), patch("ac_cli.commands.env.set_active_env"):
             result = runner.invoke(app, ["env", "use", "local"])
         assert result.exit_code == 0
         assert "not logged in" in result.output
@@ -131,6 +131,7 @@ class TestEnvUse:
 # ---------------------------------------------------------------------------
 # Config migration (flat → multi-env)
 # ---------------------------------------------------------------------------
+
 
 class TestConfigMigration:
     def test_migrate_staging_config(self, tmp_path):
@@ -144,9 +145,12 @@ class TestConfigMigration:
         config_file = tmp_path / "config.json"
         config_file.write_text(json.dumps(flat))
 
-        with patch("ac_cli.config.CONFIG_FILE", config_file), \
-             patch("ac_cli.config.CONFIG_DIR", tmp_path):
+        with (
+            patch("ac_cli.config.CONFIG_FILE", config_file),
+            patch("ac_cli.config.CONFIG_DIR", tmp_path),
+        ):
             from ac_cli.config import load_full_config
+
             full = load_full_config()
 
         assert full["active"] == "staging"
@@ -163,9 +167,12 @@ class TestConfigMigration:
         config_file = tmp_path / "config.json"
         config_file.write_text(json.dumps(flat))
 
-        with patch("ac_cli.config.CONFIG_FILE", config_file), \
-             patch("ac_cli.config.CONFIG_DIR", tmp_path):
+        with (
+            patch("ac_cli.config.CONFIG_FILE", config_file),
+            patch("ac_cli.config.CONFIG_DIR", tmp_path),
+        ):
             from ac_cli.config import load_full_config
+
             full = load_full_config()
 
         assert full["active"] == "local"
@@ -176,9 +183,12 @@ class TestConfigMigration:
         config_file = tmp_path / "config.json"
         config_file.write_text(json.dumps(multi))
 
-        with patch("ac_cli.config.CONFIG_FILE", config_file), \
-             patch("ac_cli.config.CONFIG_DIR", tmp_path):
+        with (
+            patch("ac_cli.config.CONFIG_FILE", config_file),
+            patch("ac_cli.config.CONFIG_DIR", tmp_path),
+        ):
             from ac_cli.config import load_full_config
+
             full = load_full_config()
 
         assert full == multi
@@ -186,9 +196,12 @@ class TestConfigMigration:
     def test_empty_config(self, tmp_path):
         config_file = tmp_path / "config.json"
         # File doesn't exist
-        with patch("ac_cli.config.CONFIG_FILE", config_file), \
-             patch("ac_cli.config.CONFIG_DIR", tmp_path):
+        with (
+            patch("ac_cli.config.CONFIG_FILE", config_file),
+            patch("ac_cli.config.CONFIG_DIR", tmp_path),
+        ):
             from ac_cli.config import load_full_config
+
             full = load_full_config()
 
         assert full["active"] == DEFAULT_ENV
@@ -198,6 +211,7 @@ class TestConfigMigration:
 # ---------------------------------------------------------------------------
 # load_config / save_config backward compat
 # ---------------------------------------------------------------------------
+
 
 class TestLoadSaveCompat:
     def test_load_config_returns_flat_dict(self, tmp_path):
@@ -212,9 +226,12 @@ class TestLoadSaveCompat:
         config_file = tmp_path / "config.json"
         config_file.write_text(json.dumps(multi))
 
-        with patch("ac_cli.config.CONFIG_FILE", config_file), \
-             patch("ac_cli.config.CONFIG_DIR", tmp_path):
+        with (
+            patch("ac_cli.config.CONFIG_FILE", config_file),
+            patch("ac_cli.config.CONFIG_DIR", tmp_path),
+        ):
             from ac_cli.config import load_config
+
             cfg = load_config()
 
         assert cfg == env_data
@@ -225,9 +242,12 @@ class TestLoadSaveCompat:
         config_file.write_text(json.dumps(multi))
 
         new_data = {"api_url": STAGING_API_URL, "access_token": "new-tok"}
-        with patch("ac_cli.config.CONFIG_FILE", config_file), \
-             patch("ac_cli.config.CONFIG_DIR", tmp_path):
+        with (
+            patch("ac_cli.config.CONFIG_FILE", config_file),
+            patch("ac_cli.config.CONFIG_DIR", tmp_path),
+        ):
             from ac_cli.config import save_config
+
             save_config(new_data)
 
         saved = json.loads(config_file.read_text())

@@ -41,6 +41,7 @@ dev = [
     "pytest-watch>=4.2",
     "pytest-xdist>=3.8.0",
     "respx>=0.22",
+    "ruff>=0.15.13",
     "vulture>=2.16",
 ]
 
@@ -61,13 +62,41 @@ packages = ["src/ac_cli"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-addopts = "--cov=src/ac_cli --cov-report=term-missing:skip-covered -n auto --dist worksteal"
+addopts = "--cov=src/ac_cli --cov-report=term-missing:skip-covered --cov-fail-under=90 -n auto --dist worksteal --maxfail=1"
 
 [tool.coverage.run]
-# sys.monitoring backend (Python 3.12+, coverage>=7.6) — ~30% faster than the
-# default sys.settrace path. Combined with -n auto, full suite drops 92s → ~17s.
+# sys.monitoring backend (Python 3.12+, coverage>=7.6) — faster than the default
+# sys.settrace path. Combined with -n auto, the suite runs in a fraction of the
+# single-process time.
 core = "sysmon"
 source = ["src/ac_cli"]
+
+[tool.ruff]
+target-version = "py310"
+line-length = 100
+exclude = [
+    ".eggs", ".git", ".mypy_cache", ".venv",
+    "_build", "build", "dist", "htmlcov", "coverage",
+    "src/ac_cli/_version.py",
+]
+
+[tool.ruff.lint]
+select = [
+    "E",   # pycodestyle errors
+    "W",   # pycodestyle warnings
+    "F",   # pyflakes
+    "I",   # isort
+]
+ignore = [
+    "E203",  # whitespace before ':'
+    "E501",  # line too long (handled by formatter)
+]
+
+[tool.ruff.lint.isort]
+known-first-party = ["ac_cli"]
+
+[tool.ruff.format]
+quote-style = "double"
 
 [tool.deptry]
 known_first_party = ["ac_cli"]

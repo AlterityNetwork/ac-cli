@@ -82,16 +82,12 @@ def test_messaging_link_json(invoke, mock_api):
 
 
 def test_messaging_link_expired_token(invoke, mock_api):
-    mock_api.post("/api/v1/messaging/link").respond(
-        400, json={"detail": "Link token has expired"}
-    )
+    mock_api.post("/api/v1/messaging/link").respond(400, json={"detail": "Link token has expired"})
     result = invoke(["messaging", "link", "--token", "expired-jwt"])
     assert result.exit_code == 1
 
 
 def test_messaging_link_invalid_token(invoke, mock_api):
-    mock_api.post("/api/v1/messaging/link").respond(
-        400, json={"detail": "Invalid link token"}
-    )
+    mock_api.post("/api/v1/messaging/link").respond(400, json={"detail": "Invalid link token"})
     result = invoke(["messaging", "link", "--token", "garbage"])
     assert result.exit_code == 1

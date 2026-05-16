@@ -60,18 +60,21 @@ def sequences_get(
         print_json(data)
         return
 
-    print_detail(data, [
-        ("id", "ID"),
-        ("name", "Name"),
-        ("description", "Description"),
-        ("status", "Status"),
-        ("execution_mode", "Execution Mode"),
-        ("writing_style_id", "Writing Style ID"),
-        ("playbook_id", "Playbook ID"),
-        ("crm_list_id", "CRM List ID"),
-        ("created_at", "Created"),
-        ("updated_at", "Updated"),
-    ])
+    print_detail(
+        data,
+        [
+            ("id", "ID"),
+            ("name", "Name"),
+            ("description", "Description"),
+            ("status", "Status"),
+            ("execution_mode", "Execution Mode"),
+            ("writing_style_id", "Writing Style ID"),
+            ("playbook_id", "Playbook ID"),
+            ("crm_list_id", "CRM List ID"),
+            ("created_at", "Created"),
+            ("updated_at", "Updated"),
+        ],
+    )
 
     steps = data.get("steps", [])
     if steps:
@@ -91,7 +94,9 @@ def sequences_create(
     ctx: typer.Context,
     name: str = typer.Option(..., help="Sequence name"),
     description: str | None = typer.Option(None, help="Description"),
-    writing_style_id: str | None = typer.Option(None, "--writing-style-id", help="Writing style ID"),
+    writing_style_id: str | None = typer.Option(
+        None, "--writing-style-id", help="Writing style ID"
+    ),
     playbook_id: str | None = typer.Option(None, "--playbook-id", help="Playbook ID"),
     crm_list_id: str | None = typer.Option(None, "--crm-list-id", help="CRM list ID"),
     execution_mode: str | None = typer.Option(None, "--execution-mode", help="Execution mode"),
@@ -100,8 +105,12 @@ def sequences_create(
     """Create a new outreach sequence."""
     set_json_mode(json_output)
     body = _build_body(
-        name=name, description=description, writing_style_id=writing_style_id,
-        playbook_id=playbook_id, crm_list_id=crm_list_id, execution_mode=execution_mode,
+        name=name,
+        description=description,
+        writing_style_id=writing_style_id,
+        playbook_id=playbook_id,
+        crm_list_id=crm_list_id,
+        execution_mode=execution_mode,
     )
 
     body["organization_id"] = _get_org_id()
@@ -121,7 +130,9 @@ def sequences_update(
     sequence_id: str = typer.Argument(..., help="Sequence ID"),
     name: str | None = typer.Option(None, help="Sequence name"),
     description: str | None = typer.Option(None, help="Description"),
-    writing_style_id: str | None = typer.Option(None, "--writing-style-id", help="Writing style ID"),
+    writing_style_id: str | None = typer.Option(
+        None, "--writing-style-id", help="Writing style ID"
+    ),
     playbook_id: str | None = typer.Option(None, "--playbook-id", help="Playbook ID"),
     crm_list_id: str | None = typer.Option(None, "--crm-list-id", help="CRM list ID"),
     execution_mode: str | None = typer.Option(None, "--execution-mode", help="Execution mode"),
@@ -130,8 +141,12 @@ def sequences_update(
     """Update a sequence."""
     set_json_mode(json_output)
     body = _build_body(
-        name=name, description=description, writing_style_id=writing_style_id,
-        playbook_id=playbook_id, crm_list_id=crm_list_id, execution_mode=execution_mode,
+        name=name,
+        description=description,
+        writing_style_id=writing_style_id,
+        playbook_id=playbook_id,
+        crm_list_id=crm_list_id,
+        execution_mode=execution_mode,
     )
 
     if not body:
@@ -170,7 +185,9 @@ def sequences_launch(
 ) -> None:
     """Launch a sequence."""
     set_json_mode(json_output)
-    resp = _api_request("post", f"{_ENVOY}/sequences/{sequence_id}/launch", json={"workflow_id": workflow_id})
+    resp = _api_request(
+        "post", f"{_ENVOY}/sequences/{sequence_id}/launch", json={"workflow_id": workflow_id}
+    )
 
     data = resp.json()
     if json_output:
@@ -205,7 +222,9 @@ def sequences_resume(
 ) -> None:
     """Resume a paused sequence."""
     set_json_mode(json_output)
-    resp = _api_request("post", f"{_ENVOY}/sequences/{sequence_id}/resume", json={"workflow_id": workflow_id})
+    resp = _api_request(
+        "post", f"{_ENVOY}/sequences/{sequence_id}/resume", json={"workflow_id": workflow_id}
+    )
 
     data = resp.json()
     if json_output:
@@ -266,7 +285,9 @@ def sequences_restore(
 def sequences_impact_preview(
     ctx: typer.Context,
     sequence_id: str = typer.Argument(..., help="Sequence ID"),
-    step_id: list[str] = typer.Option(..., "--step-id", help="Step ID about to delete (repeatable)"),
+    step_id: list[str] = typer.Option(
+        ..., "--step-id", help="Step ID about to delete (repeatable)"
+    ),
     json_output: bool = JSON_OPTION,
 ) -> None:
     """Preview impact of deleting steps before saving."""

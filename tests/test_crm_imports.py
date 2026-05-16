@@ -2,7 +2,6 @@
 
 import json
 
-
 SAMPLE_PREVIEW = {
     "preview_id": "prev-123",
     "summary": {"new": 3, "updates": 1, "skipped": 0, "errors": 0},

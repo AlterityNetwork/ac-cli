@@ -2,7 +2,6 @@
 
 import json
 
-
 SAMPLE_THREADS = {
     "data": [
         {
@@ -135,13 +134,19 @@ def test_chat_threads_send(invoke, mock_api):
 
 
 def test_chat_threads_send_with_documents(invoke, mock_api):
-    route = mock_api.post("/api/v1/chat/threads/thread-1/send").respond(
-        200, json={"id": "msg-1"}
-    )
+    route = mock_api.post("/api/v1/chat/threads/thread-1/send").respond(200, json={"id": "msg-1"})
     result = invoke(
         [
-            "chat", "threads", "send", "thread-1", "Find me the spec",
-            "--document-id", "doc-1", "--document-id", "doc-2", "--json",
+            "chat",
+            "threads",
+            "send",
+            "thread-1",
+            "Find me the spec",
+            "--document-id",
+            "doc-1",
+            "--document-id",
+            "doc-2",
+            "--json",
         ]
     )
     assert result.exit_code == 0
@@ -162,9 +167,7 @@ def test_chat_messages_update_data(invoke, mock_api):
     route = mock_api.patch("/api/v1/chat/messages/msg-1/data").respond(
         200, json={"id": "msg-1", "data": {"foo": "bar"}}
     )
-    result = invoke(
-        ["chat", "messages", "update-data", "msg-1", "--data", '{"foo": "bar"}']
-    )
+    result = invoke(["chat", "messages", "update-data", "msg-1", "--data", '{"foo": "bar"}'])
     assert result.exit_code == 0
     sent = json.loads(route.calls.last.request.content)
     assert sent == {"data": {"foo": "bar"}}

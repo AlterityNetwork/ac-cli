@@ -2,7 +2,13 @@
 
 import typer
 
-from ac_cli.commands._helpers import JSON_OPTION, _api_request, _build_body, _handle_error, set_json_mode  # noqa: F401
+from ac_cli.commands._helpers import (  # noqa: F401
+    JSON_OPTION,
+    _api_request,
+    _build_body,
+    _handle_error,
+    set_json_mode,
+)
 
 app = typer.Typer(help="Envoy outreach commands")
 
@@ -16,16 +22,16 @@ def envoy_callback(ctx: typer.Context) -> None:
 
 # -- Register sub-command groups from submodules ------------------------------
 
-from ac_cli.commands.envoy.sequences import sequences_app  # noqa: E402
-from ac_cli.commands.envoy.steps import steps_app  # noqa: E402
-from ac_cli.commands.envoy.recipients import recipients_app  # noqa: E402
-from ac_cli.commands.envoy.outbox import outbox_app  # noqa: E402
 from ac_cli.commands.envoy.battlecards import battlecards_app  # noqa: E402
 from ac_cli.commands.envoy.campaigns import campaigns_app  # noqa: E402
-from ac_cli.commands.envoy.playbooks import playbooks_app  # noqa: E402
 from ac_cli.commands.envoy.dashboard import dashboard_command  # noqa: E402
 from ac_cli.commands.envoy.inbox import inbox_app  # noqa: E402
+from ac_cli.commands.envoy.outbox import outbox_app  # noqa: E402
+from ac_cli.commands.envoy.playbooks import playbooks_app  # noqa: E402
+from ac_cli.commands.envoy.recipients import recipients_app  # noqa: E402
+from ac_cli.commands.envoy.sequences import sequences_app  # noqa: E402
 from ac_cli.commands.envoy.signals import signals_app  # noqa: E402
+from ac_cli.commands.envoy.steps import steps_app  # noqa: E402
 
 app.add_typer(sequences_app, name="sequences")
 app.add_typer(campaigns_app, name="campaigns")
@@ -45,8 +51,9 @@ def inbox_count(
     json_output: bool = JSON_OPTION,
 ) -> None:
     """Get inbox thread count."""
-    from ac_cli.formatting import print_json
     from rich import print as rprint
+
+    from ac_cli.formatting import print_json
 
     set_json_mode(json_output)
     resp = _api_request("get", f"{_ENVOY}/dashboard/inbox-count")

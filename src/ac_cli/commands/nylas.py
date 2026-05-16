@@ -5,7 +5,13 @@ from __future__ import annotations
 import typer
 from rich import print as rprint
 
-from ac_cli.commands._helpers import JSON_OPTION, _api_request, _build_body, set_json_mode, should_skip_confirm
+from ac_cli.commands._helpers import (
+    JSON_OPTION,
+    _api_request,
+    _build_body,
+    set_json_mode,
+    should_skip_confirm,
+)
 from ac_cli.formatting import print_detail, print_json, print_table
 
 app = typer.Typer(help="Nylas email integration")
@@ -56,12 +62,15 @@ def account(
         print_json(data)
         return
 
-    print_detail(data, [
-        ("email", "Email"),
-        ("provider", "Provider"),
-        ("status", "Status"),
-        ("connected_at", "Connected At"),
-    ])
+    print_detail(
+        data,
+        [
+            ("email", "Email"),
+            ("provider", "Provider"),
+            ("status", "Status"),
+            ("connected_at", "Connected At"),
+        ],
+    )
 
 
 @app.command("org-accounts")
@@ -109,12 +118,16 @@ def send(
     to: str = typer.Option(..., "--to", help="Recipient email address"),
     subject: str = typer.Option(..., "--subject", help="Email subject"),
     body: str = typer.Option(..., "--body", help="Email body"),
-    reply_to_message_id: str | None = typer.Option(None, "--reply-to-message-id", help="Message ID to reply to"),
+    reply_to_message_id: str | None = typer.Option(
+        None, "--reply-to-message-id", help="Message ID to reply to"
+    ),
     json_output: bool = JSON_OPTION,
 ) -> None:
     """Send an email via Nylas."""
     set_json_mode(json_output)
-    payload = _build_body(to=to, subject=subject, body=body, reply_to_message_id=reply_to_message_id)
+    payload = _build_body(
+        to=to, subject=subject, body=body, reply_to_message_id=reply_to_message_id
+    )
 
     resp = _api_request("post", f"{_NYLAS}/email/send", json=payload)
 
@@ -150,7 +163,9 @@ def validate_signature(
 ) -> None:
     """Validate an email signature."""
     set_json_mode(json_output)
-    resp = _api_request("post", f"{_NYLAS}/email/account/signature/validate", json={"signature": signature})
+    resp = _api_request(
+        "post", f"{_NYLAS}/email/account/signature/validate", json={"signature": signature}
+    )
 
     data = resp.json()
     if json_output:
@@ -189,7 +204,9 @@ def download_attachment(
     from ac_cli.client import get_api_client
 
     with get_api_client() as client:
-        resp = client.get(f"{_NYLAS}/sync/messages/{message_id}/attachments/{attachment_id}/download")
+        resp = client.get(
+            f"{_NYLAS}/sync/messages/{message_id}/attachments/{attachment_id}/download"
+        )
         resp.raise_for_status()
 
     if json_output:

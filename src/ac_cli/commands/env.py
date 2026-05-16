@@ -4,15 +4,13 @@ import typer
 from rich import print as rprint
 from rich.table import Table
 
+from ac_cli.commands._helpers import JSON_OPTION, set_json_mode
 from ac_cli.config import (
     ENV_NAMES,
     ENVIRONMENTS,
-    get_active_env,
     load_full_config,
     set_active_env,
 )
-
-from ac_cli.commands._helpers import JSON_OPTION, set_json_mode
 
 app = typer.Typer(help="Manage CLI environments (local, staging, production)")
 

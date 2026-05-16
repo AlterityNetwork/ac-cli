@@ -3,10 +3,6 @@
 import json
 
 import httpx
-import respx
-
-from tests.conftest import WHOAMI_RESPONSE
-
 
 SAMPLE_COMPANY = {
     "id": "c1",
@@ -25,9 +21,7 @@ SAMPLE_COMPANY = {
 
 def test_companies_delete_not_found(invoke, mock_api):
     """Delete returns exit code 3 when company does not exist."""
-    mock_api.delete("/api/v1/crm/companies/nonexistent").respond(
-        404, json={"detail": "Not found"}
-    )
+    mock_api.delete("/api/v1/crm/companies/nonexistent").respond(404, json={"detail": "Not found"})
     result = invoke(["crm", "companies", "delete", "nonexistent", "--yes"])
     assert result.exit_code == 3
     assert "404" in result.output
@@ -35,9 +29,7 @@ def test_companies_delete_not_found(invoke, mock_api):
 
 def test_companies_delete_json_error(invoke, mock_api):
     """Delete with --json returns structured JSON error on 404."""
-    mock_api.delete("/api/v1/crm/companies/nonexistent").respond(
-        404, json={"detail": "Not found"}
-    )
+    mock_api.delete("/api/v1/crm/companies/nonexistent").respond(404, json={"detail": "Not found"})
     result = invoke(["crm", "companies", "delete", "nonexistent", "--yes", "--json"])
     assert result.exit_code == 3
     parsed = json.loads(result.output)
@@ -86,11 +78,20 @@ def test_companies_create_missing_required_name(invoke, mock_api):
     """Create without --name exits with error (Typer validation)."""
     result = invoke(["crm", "companies", "create"])
     assert result.exit_code != 0
-    assert "Missing" in result.output or "--name" in result.output or "required" in result.output.lower()
+    assert (
+        "Missing" in result.output
+        or "--name" in result.output
+        or "required" in result.output.lower()
+    )
 
 
 def test_companies_delete_missing_company_id(invoke, mock_api):
     """Delete without company_id argument exits with error (Typer validation)."""
     result = invoke(["crm", "companies", "delete"])
     assert result.exit_code != 0
-    assert "Missing" in result.output or "COMPANY_ID" in result.output or "required" in result.output.lower() or "--company-name" in result.output
+    assert (
+        "Missing" in result.output
+        or "COMPANY_ID" in result.output
+        or "required" in result.output.lower()
+        or "--company-name" in result.output
+    )

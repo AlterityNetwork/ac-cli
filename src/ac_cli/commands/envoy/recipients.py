@@ -98,7 +98,9 @@ def recipients_add(
         if items:
             rprint(f"[green]Added {len(items)} recipient(s) to sequence {sequence_id}[/green]")
         else:
-            rprint(f"[yellow]No new recipients added (all already in sequence {sequence_id})[/yellow]")
+            rprint(
+                f"[yellow]No new recipients added (all already in sequence {sequence_id})[/yellow]"
+            )
 
 
 @recipients_app.command("remove")

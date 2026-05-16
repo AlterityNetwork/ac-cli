@@ -4,7 +4,6 @@ import json
 
 from tests.conftest import WHOAMI_RESPONSE
 
-
 SAMPLE_PERSON = {
     "id": "p1",
     "organization_id": "org-456",
@@ -21,10 +20,13 @@ SAMPLE_PERSON = {
 
 
 def test_people_list(invoke, mock_api):
-    mock_api.get("/api/v1/crm/people").respond(200, json={
-        "data": [SAMPLE_PERSON],
-        "total": 1,
-    })
+    mock_api.get("/api/v1/crm/people").respond(
+        200,
+        json={
+            "data": [SAMPLE_PERSON],
+            "total": 1,
+        },
+    )
     result = invoke(["crm", "people", "list"])
     assert result.exit_code == 0
     assert "Jane Smith" in result.output
@@ -56,7 +58,9 @@ def test_people_get(invoke, mock_api):
 def test_people_create(invoke, mock_api):
     mock_api.get("/whoami").respond(200, json=WHOAMI_RESPONSE)
     mock_api.post("/api/v1/crm/people").respond(201, json=SAMPLE_PERSON)
-    result = invoke(["crm", "people", "create", "--email", "jane@acme.com", "--full-name", "Jane Smith"])
+    result = invoke(
+        ["crm", "people", "create", "--email", "jane@acme.com", "--full-name", "Jane Smith"]
+    )
     assert result.exit_code == 0
     assert "Created person" in result.output
 
@@ -72,15 +76,24 @@ def test_people_update(invoke, mock_api):
 def test_people_create_with_phone(invoke, mock_api):
     mock_api.get("/whoami").respond(200, json=WHOAMI_RESPONSE)
     route = mock_api.post("/api/v1/crm/people").respond(
-        201, json={**SAMPLE_PERSON, "phone_number": "+14155551234", "phone_source": "monday-import-csv"}
+        201,
+        json={**SAMPLE_PERSON, "phone_number": "+14155551234", "phone_source": "monday-import-csv"},
     )
-    result = invoke([
-        "crm", "people", "create",
-        "--email", "jane@acme.com",
-        "--full-name", "Jane Smith",
-        "--phone-number", "+14155551234",
-        "--phone-source", "monday-import-csv",
-    ])
+    result = invoke(
+        [
+            "crm",
+            "people",
+            "create",
+            "--email",
+            "jane@acme.com",
+            "--full-name",
+            "Jane Smith",
+            "--phone-number",
+            "+14155551234",
+            "--phone-source",
+            "monday-import-csv",
+        ]
+    )
     assert result.exit_code == 0
     body = json.loads(route.calls.last.request.content)
     assert body["phone_number"] == "+14155551234"
@@ -88,13 +101,24 @@ def test_people_create_with_phone(invoke, mock_api):
 
 
 def test_people_update_with_phone(invoke, mock_api):
-    updated = {**SAMPLE_PERSON, "phone_number": "+447443366339", "phone_source": "monday-import-csv"}
+    updated = {
+        **SAMPLE_PERSON,
+        "phone_number": "+447443366339",
+        "phone_source": "monday-import-csv",
+    }
     route = mock_api.patch("/api/v1/crm/people/p1").respond(200, json=updated)
-    result = invoke([
-        "crm", "people", "update", "p1",
-        "--phone-number", "+447443366339",
-        "--phone-source", "monday-import-csv",
-    ])
+    result = invoke(
+        [
+            "crm",
+            "people",
+            "update",
+            "p1",
+            "--phone-number",
+            "+447443366339",
+            "--phone-source",
+            "monday-import-csv",
+        ]
+    )
     assert result.exit_code == 0
     body = json.loads(route.calls.last.request.content)
     assert body == {"phone_number": "+447443366339", "phone_source": "monday-import-csv"}

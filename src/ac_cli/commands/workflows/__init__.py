@@ -88,11 +88,11 @@ def csv_parse(
 
 # -- Register sub-command groups from submodules ------------------------------
 
-from ac_cli.commands.workflows.runs import runs_app  # noqa: E402
-from ac_cli.commands.workflows.schedules import schedules_app  # noqa: E402
 from ac_cli.commands.workflows.presets import presets_app  # noqa: E402
 from ac_cli.commands.workflows.run_companies import run_companies_app  # noqa: E402
 from ac_cli.commands.workflows.run_people import run_people_app  # noqa: E402
+from ac_cli.commands.workflows.runs import runs_app  # noqa: E402
+from ac_cli.commands.workflows.schedules import schedules_app  # noqa: E402
 
 app.add_typer(runs_app, name="runs")
 app.add_typer(schedules_app, name="schedules")

@@ -5,7 +5,7 @@ from __future__ import annotations
 import typer
 from rich import print as rprint
 
-from ac_cli.commands._helpers import _api_request, should_skip_confirm, JSON_OPTION, set_json_mode
+from ac_cli.commands._helpers import JSON_OPTION, _api_request, set_json_mode, should_skip_confirm
 from ac_cli.commands.admin import _ADMIN
 from ac_cli.formatting import print_json, print_table
 

@@ -1,7 +1,6 @@
 """Tests for formatting helpers."""
 
 import json
-from io import StringIO
 
 from ac_cli.formatting import print_detail, print_json, print_table
 

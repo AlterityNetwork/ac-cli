@@ -2,7 +2,6 @@
 
 import json
 
-
 SAMPLE_APP = {"id": "app-1", "name": "Email Finder", "slug": "email-finder", "status": "active"}
 
 

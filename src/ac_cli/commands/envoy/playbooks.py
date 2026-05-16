@@ -5,7 +5,14 @@ from __future__ import annotations
 import typer
 from rich import print as rprint
 
-from ac_cli.commands._helpers import JSON_OPTION, _api_request, _build_body, _get_org_id, set_json_mode, should_skip_confirm
+from ac_cli.commands._helpers import (
+    JSON_OPTION,
+    _api_request,
+    _build_body,
+    _get_org_id,
+    set_json_mode,
+    should_skip_confirm,
+)
 from ac_cli.formatting import print_detail, print_json, print_table
 
 # Playbooks moved out of /envoy to top-level /api/v1/playbooks (ENG-592).
@@ -63,15 +70,18 @@ def playbooks_get(
         print_json(data)
         return
 
-    print_detail(data, [
-        ("id", "ID"),
-        ("name", "Name"),
-        ("description", "Description"),
-        ("status", "Status"),
-        ("competitor_name", "Competitor Name"),
-        ("created_at", "Created"),
-        ("updated_at", "Updated"),
-    ])
+    print_detail(
+        data,
+        [
+            ("id", "ID"),
+            ("name", "Name"),
+            ("description", "Description"),
+            ("status", "Status"),
+            ("competitor_name", "Competitor Name"),
+            ("created_at", "Created"),
+            ("updated_at", "Updated"),
+        ],
+    )
 
 
 @playbooks_app.command("create")
@@ -86,7 +96,9 @@ def playbooks_create(
     """Create a new playbook."""
     set_json_mode(json_output)
     body = _build_body(
-        name=name, description=description, status=status,
+        name=name,
+        description=description,
+        status=status,
         competitor_name=competitor_name,
     )
 
@@ -114,7 +126,9 @@ def playbooks_update(
     """Update a playbook."""
     set_json_mode(json_output)
     body = _build_body(
-        name=name, description=description, status=status,
+        name=name,
+        description=description,
+        status=status,
         competitor_name=competitor_name,
     )
 

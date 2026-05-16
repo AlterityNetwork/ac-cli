@@ -35,7 +35,9 @@ def activities_list(
         "--assigned-to",
         help="Filter by assignee user_id. Pass 'me' to resolve to the authenticated user.",
     ),
-    sort_by: str | None = typer.Option(None, "--sort-by", help="Sort field: due_date or created_at"),
+    sort_by: str | None = typer.Option(
+        None, "--sort-by", help="Sort field: due_date or created_at"
+    ),
     limit: int = typer.Option(100, help="Max results"),
     offset: int = typer.Option(0, help="Offset"),
     json_output: bool = JSON_OPTION,
@@ -102,37 +104,48 @@ def activities_get(
         print_json(data)
         return
 
-    print_detail(data, [
-        ("id", "ID"),
-        ("title", "Title"),
-        ("type", "Type"),
-        ("status", "Status"),
-        ("priority", "Priority"),
-        ("due_date", "Due Date"),
-        ("completed_at", "Completed At"),
-        ("description", "Description"),
-        ("company_id", "Company ID"),
-        ("contact_id", "Contact ID"),
-        ("deal_id", "Deal ID"),
-        ("assigned_to", "Assigned To"),
-        ("created_at", "Created"),
-        ("updated_at", "Updated"),
-    ])
+    print_detail(
+        data,
+        [
+            ("id", "ID"),
+            ("title", "Title"),
+            ("type", "Type"),
+            ("status", "Status"),
+            ("priority", "Priority"),
+            ("due_date", "Due Date"),
+            ("completed_at", "Completed At"),
+            ("description", "Description"),
+            ("company_id", "Company ID"),
+            ("contact_id", "Contact ID"),
+            ("deal_id", "Deal ID"),
+            ("assigned_to", "Assigned To"),
+            ("created_at", "Created"),
+            ("updated_at", "Updated"),
+        ],
+    )
 
 
 @activities_app.command("create")
 def activities_create(
     ctx: typer.Context,
-    activity_type: str = typer.Option(..., "--type", help="Activity type (call, meeting, email, task, note)"),
+    activity_type: str = typer.Option(
+        ..., "--type", help="Activity type (call, meeting, email, task, note)"
+    ),
     title: str = typer.Option(..., help="Activity title"),
     due_date: str | None = typer.Option(None, "--due-date", help="Due date (ISO format)"),
     priority: str | None = typer.Option(None, help="Priority (low, medium, high, urgent)"),
     deal_id: str | None = typer.Option(None, "--deal-id", help="Deal ID"),
-    deal_name: str | None = typer.Option(None, "--deal-name", help="Deal name (auto-resolves to ID)"),
+    deal_name: str | None = typer.Option(
+        None, "--deal-name", help="Deal name (auto-resolves to ID)"
+    ),
     company_id: str | None = typer.Option(None, "--company-id", help="Company ID"),
-    company_name: str | None = typer.Option(None, "--company-name", help="Company name (auto-resolves to ID)"),
+    company_name: str | None = typer.Option(
+        None, "--company-name", help="Company name (auto-resolves to ID)"
+    ),
     contact_id: str | None = typer.Option(None, "--contact-id", help="Contact ID"),
-    contact_name: str | None = typer.Option(None, "--contact-name", help="Contact name (auto-resolves to ID)"),
+    contact_name: str | None = typer.Option(
+        None, "--contact-name", help="Contact name (auto-resolves to ID)"
+    ),
     description: str | None = typer.Option(None, help="Description"),
     assigned_to: str | None = typer.Option(
         None,
@@ -150,9 +163,14 @@ def activities_create(
         whoami = _api_request("get", "/whoami").json()
         assigned_to = whoami.get("user_id") or assigned_to
     body = _build_body(
-        type=activity_type, title=title, due_date=due_date,
-        priority=priority, deal_id=resolved_deal, company_id=resolved_company,
-        contact_id=resolved_contact, description=description,
+        type=activity_type,
+        title=title,
+        due_date=due_date,
+        priority=priority,
+        deal_id=resolved_deal,
+        company_id=resolved_company,
+        contact_id=resolved_contact,
+        description=description,
         assigned_to=assigned_to,
     )
 
@@ -172,17 +190,27 @@ def activities_update(
     ctx: typer.Context,
     activity_id: str = typer.Argument(..., help="Activity ID"),
     title: str | None = typer.Option(None, help="Activity title"),
-    activity_type: str | None = typer.Option(None, "--type", help="Activity type (call, meeting, email, task, note)"),
-    status: str | None = typer.Option(None, help="Status (pending, in_progress, completed, cancelled)"),
+    activity_type: str | None = typer.Option(
+        None, "--type", help="Activity type (call, meeting, email, task, note)"
+    ),
+    status: str | None = typer.Option(
+        None, help="Status (pending, in_progress, completed, cancelled)"
+    ),
     priority: str | None = typer.Option(None, help="Priority (low, medium, high, urgent)"),
     due_date: str | None = typer.Option(None, "--due-date", help="Due date (ISO format)"),
     description: str | None = typer.Option(None, help="Description"),
     deal_id: str | None = typer.Option(None, "--deal-id", help="Deal ID"),
-    deal_name: str | None = typer.Option(None, "--deal-name", help="Deal name (auto-resolves to ID)"),
+    deal_name: str | None = typer.Option(
+        None, "--deal-name", help="Deal name (auto-resolves to ID)"
+    ),
     company_id: str | None = typer.Option(None, "--company-id", help="Company ID"),
-    company_name: str | None = typer.Option(None, "--company-name", help="Company name (auto-resolves to ID)"),
+    company_name: str | None = typer.Option(
+        None, "--company-name", help="Company name (auto-resolves to ID)"
+    ),
     contact_id: str | None = typer.Option(None, "--contact-id", help="Contact ID"),
-    contact_name: str | None = typer.Option(None, "--contact-name", help="Contact name (auto-resolves to ID)"),
+    contact_name: str | None = typer.Option(
+        None, "--contact-name", help="Contact name (auto-resolves to ID)"
+    ),
     assigned_to: str | None = typer.Option(
         None,
         "--assigned-to",
@@ -199,9 +227,15 @@ def activities_update(
         whoami = _api_request("get", "/whoami").json()
         assigned_to = whoami.get("user_id") or assigned_to
     body = _build_body(
-        title=title, type=activity_type, status=status, priority=priority,
-        due_date=due_date, description=description, deal_id=resolved_deal,
-        company_id=resolved_company, contact_id=resolved_contact,
+        title=title,
+        type=activity_type,
+        status=status,
+        priority=priority,
+        due_date=due_date,
+        description=description,
+        deal_id=resolved_deal,
+        company_id=resolved_company,
+        contact_id=resolved_contact,
         assigned_to=assigned_to,
     )
 

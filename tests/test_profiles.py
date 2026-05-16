@@ -26,8 +26,20 @@ SAMPLE_UPDATED = {
 
 SAMPLE_MEMBERS = {
     "data": [
-        {"id": "user-1", "first_name": "Jane", "last_name": "Smith", "email": "jane@example.com", "job_title": "Developer"},
-        {"id": "user-2", "first_name": "Bob", "last_name": "Jones", "email": "bob@example.com", "job_title": "Designer"},
+        {
+            "id": "user-1",
+            "first_name": "Jane",
+            "last_name": "Smith",
+            "email": "jane@example.com",
+            "job_title": "Developer",
+        },
+        {
+            "id": "user-2",
+            "first_name": "Bob",
+            "last_name": "Jones",
+            "email": "bob@example.com",
+            "job_title": "Designer",
+        },
     ],
     "total": 2,
 }
@@ -122,9 +134,7 @@ def test_profiles_subscription(invoke, mock_api):
 
 
 def test_profiles_subscription_json(invoke, mock_api):
-    mock_api.get("/api/v1/subscriptions/me").respond(
-        200, json={"id": "sub-1", "plan_id": "pro"}
-    )
+    mock_api.get("/api/v1/subscriptions/me").respond(200, json={"id": "sub-1", "plan_id": "pro"})
     result = invoke(["profiles", "subscription", "--json"])
     assert result.exit_code == 0
     parsed = json.loads(result.output)

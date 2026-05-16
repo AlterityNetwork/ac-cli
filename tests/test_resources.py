@@ -4,8 +4,18 @@ import json
 
 SAMPLE_RESOURCES = {
     "data": [
-        {"id": "res-1", "source_name": "Product Guide", "status": "completed", "created_at": "2026-03-20T10:00:00Z"},
-        {"id": "res-2", "source_name": "FAQ Document", "status": "processing", "created_at": "2026-03-19T08:00:00Z"},
+        {
+            "id": "res-1",
+            "source_name": "Product Guide",
+            "status": "completed",
+            "created_at": "2026-03-20T10:00:00Z",
+        },
+        {
+            "id": "res-2",
+            "source_name": "FAQ Document",
+            "status": "processing",
+            "created_at": "2026-03-19T08:00:00Z",
+        },
     ],
     "total": 2,
 }

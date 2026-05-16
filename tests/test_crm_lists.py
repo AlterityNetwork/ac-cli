@@ -6,7 +6,6 @@ import httpx
 
 from tests.conftest import API_BASE, WHOAMI_RESPONSE
 
-
 SAMPLE_LIST = {
     "id": "l1",
     "organization_id": "org-456",
@@ -30,10 +29,13 @@ SAMPLE_MEMBER = {
 
 
 def test_lists_list(invoke, mock_api):
-    mock_api.get("/api/v1/crm/lists").respond(200, json={
-        "data": [SAMPLE_LIST],
-        "total": 1,
-    })
+    mock_api.get("/api/v1/crm/lists").respond(
+        200,
+        json={
+            "data": [SAMPLE_LIST],
+            "total": 1,
+        },
+    )
     result = invoke(["crm", "lists", "list"])
     assert result.exit_code == 0
     assert "Target Companies" in result.output
@@ -58,7 +60,9 @@ def test_lists_get(invoke, mock_api):
 def test_lists_create(invoke, mock_api):
     mock_api.get("/whoami").respond(200, json=WHOAMI_RESPONSE)
     mock_api.post("/api/v1/crm/lists").respond(201, json=SAMPLE_LIST)
-    result = invoke(["crm", "lists", "create", "--name", "Target Companies", "--member-type", "company"])
+    result = invoke(
+        ["crm", "lists", "create", "--name", "Target Companies", "--member-type", "company"]
+    )
     assert result.exit_code == 0
     assert "Created list" in result.output
 
@@ -86,10 +90,13 @@ def test_lists_update_no_fields(invoke, mock_api):
 
 
 def test_lists_members(invoke, mock_api):
-    mock_api.get("/api/v1/crm/lists/l1/members").respond(200, json={
-        "data": [SAMPLE_MEMBER],
-        "total": 1,
-    })
+    mock_api.get("/api/v1/crm/lists/l1/members").respond(
+        200,
+        json={
+            "data": [SAMPLE_MEMBER],
+            "total": 1,
+        },
+    )
     result = invoke(["crm", "lists", "members", "l1"])
     assert result.exit_code == 0
     assert "c1" in result.output

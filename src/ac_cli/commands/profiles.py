@@ -32,16 +32,19 @@ def profiles_me(
         print_json(data)
         return
 
-    print_detail(data, [
-        ("id", "ID"),
-        ("first_name", "First Name"),
-        ("last_name", "Last Name"),
-        ("email", "Email"),
-        ("job_title", "Job Title"),
-        ("bio", "Bio"),
-        ("is_superadmin", "Superadmin"),
-        ("selected_organization", "Organization"),
-    ])
+    print_detail(
+        data,
+        [
+            ("id", "ID"),
+            ("first_name", "First Name"),
+            ("last_name", "Last Name"),
+            ("email", "Email"),
+            ("job_title", "Job Title"),
+            ("bio", "Bio"),
+            ("is_superadmin", "Superadmin"),
+            ("selected_organization", "Organization"),
+        ],
+    )
 
 
 @app.command("update")
@@ -76,7 +79,7 @@ def profiles_update(
     if json_output:
         print_json(data)
     else:
-        rprint(f"[green]Profile updated.[/green]")
+        rprint("[green]Profile updated.[/green]")
 
 
 @app.command("set-organization")
@@ -125,15 +128,18 @@ def profiles_subscription(
     if json_output:
         print_json(data)
         return
-    print_detail(data, [
-        ("id", "ID"),
-        ("plan_id", "Plan"),
-        ("billing_period", "Billing"),
-        ("status", "Status"),
-        ("started_at", "Started"),
-        ("ended_at", "Ended"),
-        ("trial_ends_at", "Trial Ends"),
-    ])
+    print_detail(
+        data,
+        [
+            ("id", "ID"),
+            ("plan_id", "Plan"),
+            ("billing_period", "Billing"),
+            ("status", "Status"),
+            ("started_at", "Started"),
+            ("ended_at", "Ended"),
+            ("trial_ends_at", "Trial Ends"),
+        ],
+    )
 
 
 @app.command("members")

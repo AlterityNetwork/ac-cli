@@ -96,14 +96,17 @@ def deals_list(
 def deals_get(
     ctx: typer.Context,
     deal_id: str | None = typer.Argument(None, help="Deal ID"),
-    deal_name: str | None = typer.Option(None, "--deal-name", help="Deal name (auto-resolves to ID)"),
+    deal_name: str | None = typer.Option(
+        None, "--deal-name", help="Deal name (auto-resolves to ID)"
+    ),
     json_output: bool = JSON_OPTION,
 ) -> None:
     """Get a deal by ID or name."""
     set_json_mode(json_output)
     resolved = _require_id(
         _resolve_deal_id(deal_id, deal_name, _CRM),
-        id_label="deal ID", name_flag="--deal-name",
+        id_label="deal ID",
+        name_flag="--deal-name",
     )
     resp = _api_request("get", f"{_CRM}/deals/{resolved}")
 
@@ -112,24 +115,27 @@ def deals_get(
         print_json(data)
         return
 
-    print_detail(data, [
-        ("id", "ID"),
-        ("name", "Name"),
-        ("stage", "Stage"),
-        ("amount", "Amount"),
-        ("currency", "Currency"),
-        ("probability", "Probability"),
-        ("expected_close_date", "Expected Close"),
-        ("actual_close_date", "Actual Close"),
-        ("company_id", "Company ID"),
-        ("primary_contact_id", "Contact ID"),
-        ("owner_user_id", "Owner ID"),
-        ("tags", "Tags"),
-        ("next_steps", "Next Steps"),
-        ("lost_reason", "Lost Reason"),
-        ("created_at", "Created"),
-        ("updated_at", "Updated"),
-    ])
+    print_detail(
+        data,
+        [
+            ("id", "ID"),
+            ("name", "Name"),
+            ("stage", "Stage"),
+            ("amount", "Amount"),
+            ("currency", "Currency"),
+            ("probability", "Probability"),
+            ("expected_close_date", "Expected Close"),
+            ("actual_close_date", "Actual Close"),
+            ("company_id", "Company ID"),
+            ("primary_contact_id", "Contact ID"),
+            ("owner_user_id", "Owner ID"),
+            ("tags", "Tags"),
+            ("next_steps", "Next Steps"),
+            ("lost_reason", "Lost Reason"),
+            ("created_at", "Created"),
+            ("updated_at", "Updated"),
+        ],
+    )
 
 
 @deals_app.command("create")
@@ -140,9 +146,13 @@ def deals_create(
     amount: float | None = typer.Option(None, help="Deal amount"),
     currency: str | None = typer.Option(None, help="Currency code"),
     company_id: str | None = typer.Option(None, "--company-id", help="Company ID"),
-    company_name: str | None = typer.Option(None, "--company-name", help="Company name (auto-resolves to ID)"),
+    company_name: str | None = typer.Option(
+        None, "--company-name", help="Company name (auto-resolves to ID)"
+    ),
     contact_id: str | None = typer.Option(None, "--contact-id", help="Primary contact ID"),
-    contact_name: str | None = typer.Option(None, "--contact-name", help="Contact name (auto-resolves to ID)"),
+    contact_name: str | None = typer.Option(
+        None, "--contact-name", help="Contact name (auto-resolves to ID)"
+    ),
     expected_close_date: str | None = typer.Option(None, "--expected-close-date", help="ISO date"),
     tags: str | None = typer.Option(None, help="Comma-separated tags"),
     next_steps: str | None = typer.Option(None, "--next-steps", help="Next steps"),
@@ -153,9 +163,14 @@ def deals_create(
     resolved_company = _resolve_company_id(company_id, company_name, _CRM)
     resolved_contact = _resolve_contact_id(contact_id, contact_name, _CRM)
     body = _build_body(
-        name=name, stage=stage, amount=amount, currency=currency,
-        company_id=resolved_company, expected_close_date=expected_close_date,
-        tags=tags, next_steps=next_steps,
+        name=name,
+        stage=stage,
+        amount=amount,
+        currency=currency,
+        company_id=resolved_company,
+        expected_close_date=expected_close_date,
+        tags=tags,
+        next_steps=next_steps,
     )
     if resolved_contact is not None:
         body["primary_contact_id"] = resolved_contact
@@ -175,15 +190,21 @@ def deals_create(
 def deals_update(
     ctx: typer.Context,
     deal_id: str | None = typer.Argument(None, help="Deal ID"),
-    deal_name: str | None = typer.Option(None, "--deal-name", help="Deal name (auto-resolves to ID)"),
+    deal_name: str | None = typer.Option(
+        None, "--deal-name", help="Deal name (auto-resolves to ID)"
+    ),
     name: str | None = typer.Option(None, help="New deal name"),
     stage: str | None = typer.Option(None, help="Deal stage"),
     amount: float | None = typer.Option(None, help="Deal amount"),
     currency: str | None = typer.Option(None, help="Currency code"),
     company_id: str | None = typer.Option(None, "--company-id", help="Company ID"),
-    company_name: str | None = typer.Option(None, "--company-name", help="Company name (auto-resolves to ID)"),
+    company_name: str | None = typer.Option(
+        None, "--company-name", help="Company name (auto-resolves to ID)"
+    ),
     contact_id: str | None = typer.Option(None, "--contact-id", help="Primary contact ID"),
-    contact_name: str | None = typer.Option(None, "--contact-name", help="Contact name (auto-resolves to ID)"),
+    contact_name: str | None = typer.Option(
+        None, "--contact-name", help="Contact name (auto-resolves to ID)"
+    ),
     expected_close_date: str | None = typer.Option(None, "--expected-close-date", help="ISO date"),
     tags: str | None = typer.Option(None, help="Comma-separated tags"),
     next_steps: str | None = typer.Option(None, "--next-steps", help="Next steps"),
@@ -193,14 +214,20 @@ def deals_update(
     set_json_mode(json_output)
     resolved = _require_id(
         _resolve_deal_id(deal_id, deal_name, _CRM),
-        id_label="deal ID", name_flag="--deal-name",
+        id_label="deal ID",
+        name_flag="--deal-name",
     )
     resolved_company = _resolve_company_id(company_id, company_name, _CRM)
     resolved_contact = _resolve_contact_id(contact_id, contact_name, _CRM)
     body = _build_body(
-        name=name, stage=stage, amount=amount, currency=currency,
-        company_id=resolved_company, expected_close_date=expected_close_date,
-        tags=tags, next_steps=next_steps,
+        name=name,
+        stage=stage,
+        amount=amount,
+        currency=currency,
+        company_id=resolved_company,
+        expected_close_date=expected_close_date,
+        tags=tags,
+        next_steps=next_steps,
     )
     if resolved_contact is not None:
         body["primary_contact_id"] = resolved_contact
@@ -222,7 +249,9 @@ def deals_update(
 def deals_move(
     ctx: typer.Context,
     deal_id: str | None = typer.Argument(None, help="Deal ID"),
-    deal_name: str | None = typer.Option(None, "--deal-name", help="Deal name (auto-resolves to ID)"),
+    deal_name: str | None = typer.Option(
+        None, "--deal-name", help="Deal name (auto-resolves to ID)"
+    ),
     stage: str = typer.Option(..., help="New stage"),
     json_output: bool = JSON_OPTION,
 ) -> None:
@@ -230,7 +259,8 @@ def deals_move(
     set_json_mode(json_output)
     resolved = _require_id(
         _resolve_deal_id(deal_id, deal_name, _CRM),
-        id_label="deal ID", name_flag="--deal-name",
+        id_label="deal ID",
+        name_flag="--deal-name",
     )
     resp = _api_request("patch", f"{_CRM}/deals/{resolved}/stage", json={"stage": stage})
 
@@ -263,7 +293,9 @@ def deals_order(
 @deals_app.command("delete")
 def deals_delete(
     deal_id: str | None = typer.Argument(None, help="Deal ID"),
-    deal_name: str | None = typer.Option(None, "--deal-name", help="Deal name (auto-resolves to ID)"),
+    deal_name: str | None = typer.Option(
+        None, "--deal-name", help="Deal name (auto-resolves to ID)"
+    ),
     yes: bool = typer.Option(False, "--yes", "-y", help="Skip confirmation"),
     json_output: bool = JSON_OPTION,
 ) -> None:
@@ -271,7 +303,8 @@ def deals_delete(
     set_json_mode(json_output)
     resolved = _require_id(
         _resolve_deal_id(deal_id, deal_name, _CRM),
-        id_label="deal ID", name_flag="--deal-name",
+        id_label="deal ID",
+        name_flag="--deal-name",
     )
     if not should_skip_confirm(yes):
         typer.confirm(f"Delete deal {resolved}?", abort=True)

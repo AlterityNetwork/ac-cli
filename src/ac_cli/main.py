@@ -6,20 +6,30 @@ import typer
 
 from ac_cli import __version__
 from ac_cli.client import ACT_AS_ENV_VAR
-from ac_cli.commands import admin, apps, auth, chat, crm, env, files, health
-from ac_cli.commands import envoy
-from ac_cli.commands import hooks
-from ac_cli.commands import legal_documents
-from ac_cli.commands import managed_onboarding
-from ac_cli.commands import marketplace
-from ac_cli.commands import messaging
-from ac_cli.commands import network
-from ac_cli.commands import nylas
-from ac_cli.commands import profiles
-from ac_cli.commands import resources
-from ac_cli.commands import tos
-from ac_cli.commands import workflows
-from ac_cli.commands import writing_styles
+from ac_cli.commands import (
+    admin,
+    apps,
+    auth,
+    chat,
+    crm,
+    env,
+    envoy,
+    files,
+    health,
+    hooks,
+    legal_documents,
+    managed_onboarding,
+    marketplace,
+    messaging,
+    network,
+    nylas,
+    profiles,
+    resources,
+    tos,
+    workflows,
+    writing_styles,
+)
+
 
 def _version_callback(value: bool) -> None:
     if value:
@@ -37,7 +47,12 @@ app = typer.Typer(
 @app.callback()
 def main(
     version: bool = typer.Option(
-        False, "--version", "-V", help="Show version and exit", callback=_version_callback, is_eager=True,
+        False,
+        "--version",
+        "-V",
+        help="Show version and exit",
+        callback=_version_callback,
+        is_eager=True,
     ),
     act_as: str = typer.Option(
         None,
@@ -52,6 +67,7 @@ def main(
 ) -> None:
     if act_as:
         os.environ[ACT_AS_ENV_VAR] = act_as.strip()
+
 
 # Register sub-command groups
 app.add_typer(admin.app, name="admin")

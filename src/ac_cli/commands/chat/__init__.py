@@ -16,8 +16,8 @@ def chat_callback(ctx: typer.Context) -> None:
 
 # -- Register sub-command groups from submodules ------------------------------
 
-from ac_cli.commands.chat.threads import threads_app  # noqa: E402
 from ac_cli.commands.chat.messages import messages_app  # noqa: E402
+from ac_cli.commands.chat.threads import threads_app  # noqa: E402
 
 app.add_typer(threads_app, name="threads")
 app.add_typer(messages_app, name="messages")

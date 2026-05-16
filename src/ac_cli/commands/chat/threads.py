@@ -68,7 +68,9 @@ def update_thread(
     ctx: typer.Context,
     thread_id: str = typer.Argument(..., help="Thread ID"),
     title: str | None = typer.Option(None, "--title", help="New thread title"),
-    archived: bool | None = typer.Option(None, "--archived/--no-archived", help="Archive or unarchive"),
+    archived: bool | None = typer.Option(
+        None, "--archived/--no-archived", help="Archive or unarchive"
+    ),
     json_output: bool = JSON_OPTION,
 ) -> None:
     """Update a chat thread."""
@@ -186,7 +188,9 @@ def escalate_thread(
     ctx: typer.Context,
     thread_id: str = typer.Argument(..., help="Thread ID"),
     note: str | None = typer.Option(None, help="Optional escalation note"),
-    message_id: str | None = typer.Option(None, "--message-id", help="Specific message to escalate"),
+    message_id: str | None = typer.Option(
+        None, "--message-id", help="Specific message to escalate"
+    ),
     json_output: bool = JSON_OPTION,
 ) -> None:
     """Escalate a chat thread to a human."""

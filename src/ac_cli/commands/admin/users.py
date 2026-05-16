@@ -5,7 +5,13 @@ from __future__ import annotations
 import typer
 from rich import print as rprint
 
-from ac_cli.commands._helpers import JSON_OPTION, _api_request, _build_body, set_json_mode, should_skip_confirm
+from ac_cli.commands._helpers import (
+    JSON_OPTION,
+    _api_request,
+    _build_body,
+    set_json_mode,
+    should_skip_confirm,
+)
 from ac_cli.commands.admin import _ADMIN
 from ac_cli.formatting import print_detail, print_json, print_table
 
@@ -64,14 +70,17 @@ def users_get(
         print_json(data)
         return
 
-    print_detail(data, [
-        ("id", "ID"),
-        ("email", "Email"),
-        ("full_name", "Full Name"),
-        ("organization_id", "Organization ID"),
-        ("is_superadmin", "Superadmin"),
-        ("created_at", "Created"),
-    ])
+    print_detail(
+        data,
+        [
+            ("id", "ID"),
+            ("email", "Email"),
+            ("full_name", "Full Name"),
+            ("organization_id", "Organization ID"),
+            ("is_superadmin", "Superadmin"),
+            ("created_at", "Created"),
+        ],
+    )
 
 
 @users_app.command("create")
@@ -160,13 +169,16 @@ def users_auth_search(
     if json_output:
         print_json(data)
     else:
-        print_detail(data, [
-            ("id", "ID"),
-            ("email", "Email"),
-            ("created_at", "Created"),
-            ("email_confirmed_at", "Email Confirmed"),
-            ("last_sign_in_at", "Last Sign In"),
-        ])
+        print_detail(
+            data,
+            [
+                ("id", "ID"),
+                ("email", "Email"),
+                ("created_at", "Created"),
+                ("email_confirmed_at", "Email Confirmed"),
+                ("last_sign_in_at", "Last Sign In"),
+            ],
+        )
 
 
 @users_app.command("search")

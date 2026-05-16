@@ -21,7 +21,9 @@ def legal_callback(ctx: typer.Context) -> None:
 @app.command("current")
 def get_current(
     ctx: typer.Context,
-    document_type: str = typer.Argument(..., help="Document type (e.g. terms-of-service, privacy-policy)"),
+    document_type: str = typer.Argument(
+        ..., help="Document type (e.g. terms-of-service, privacy-policy)"
+    ),
     json_output: bool = JSON_OPTION,
 ) -> None:
     """Get the current version of a legal document."""
@@ -33,10 +35,16 @@ def get_current(
         print_json(data)
         return
 
-    print_detail(data, [
-        ("id", "ID"), ("type", "Type"), ("version", "Version"),
-        ("effective_date", "Effective Date"), ("url", "URL"),
-    ])
+    print_detail(
+        data,
+        [
+            ("id", "ID"),
+            ("type", "Type"),
+            ("version", "Version"),
+            ("effective_date", "Effective Date"),
+            ("url", "URL"),
+        ],
+    )
 
 
 @app.command("status")
@@ -72,7 +80,9 @@ def accept(
 ) -> None:
     """Accept a legal document."""
     set_json_mode(json_output)
-    resp = _api_request("post", f"{_LEGAL}/accept", json={"document_type": document_type, "version": version})
+    resp = _api_request(
+        "post", f"{_LEGAL}/accept", json={"document_type": document_type, "version": version}
+    )
 
     data = resp.json()
     if json_output:

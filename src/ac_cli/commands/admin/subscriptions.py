@@ -67,18 +67,21 @@ def subscriptions_get(
     if json_output:
         print_json(data)
         return
-    print_detail(data, [
-        ("id", "ID"),
-        ("organization_id", "Org"),
-        ("plan_id", "Plan"),
-        ("billing_period", "Billing"),
-        ("status", "Status"),
-        ("started_at", "Started"),
-        ("ended_at", "Ended"),
-        ("trial_ends_at", "Trial Ends"),
-        ("stripe_customer_id", "Stripe Customer"),
-        ("stripe_subscription_id", "Stripe Sub"),
-    ])
+    print_detail(
+        data,
+        [
+            ("id", "ID"),
+            ("organization_id", "Org"),
+            ("plan_id", "Plan"),
+            ("billing_period", "Billing"),
+            ("status", "Status"),
+            ("started_at", "Started"),
+            ("ended_at", "Ended"),
+            ("trial_ends_at", "Trial Ends"),
+            ("stripe_customer_id", "Stripe Customer"),
+            ("stripe_subscription_id", "Stripe Sub"),
+        ],
+    )
 
 
 @subscriptions_app.command("create")

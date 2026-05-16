@@ -2,8 +2,6 @@
 
 import json
 
-from tests.conftest import WHOAMI_RESPONSE
-
 
 def test_inbox_count_happy(invoke, mock_api):
     """inbox-count displays the count."""

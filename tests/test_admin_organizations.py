@@ -2,7 +2,6 @@
 
 import json
 
-
 SAMPLE_ORG = {
     "id": "org-1",
     "name": "Test Corp",
@@ -19,12 +18,15 @@ SAMPLE_MEMBER = {
 
 
 def test_orgs_list(invoke, mock_api):
-    mock_api.get("/api/v1/admin/organizations").respond(200, json={
-        "data": [SAMPLE_ORG],
-        "total": 1,
-        "page": 1,
-        "page_size": 50,
-    })
+    mock_api.get("/api/v1/admin/organizations").respond(
+        200,
+        json={
+            "data": [SAMPLE_ORG],
+            "total": 1,
+            "page": 1,
+            "page_size": 50,
+        },
+    )
     result = invoke(["admin", "orgs", "list"])
     assert result.exit_code == 0
     assert "Test Corp" in result.output
@@ -88,10 +90,13 @@ def test_orgs_delete_aborted(invoke, mock_api):
 
 
 def test_orgs_members(invoke, mock_api):
-    mock_api.get("/api/v1/admin/organizations/org-1/members").respond(200, json={
-        "data": [SAMPLE_MEMBER],
-        "total": 1,
-    })
+    mock_api.get("/api/v1/admin/organizations/org-1/members").respond(
+        200,
+        json={
+            "data": [SAMPLE_MEMBER],
+            "total": 1,
+        },
+    )
     result = invoke(["admin", "orgs", "members", "org-1"])
     assert result.exit_code == 0
     assert "member@test.com" in result.output
@@ -106,7 +111,9 @@ def test_orgs_add_member(invoke, mock_api):
 
 def test_orgs_update_member(invoke, mock_api):
     updated_member = {**SAMPLE_MEMBER, "role": "member"}
-    mock_api.patch("/api/v1/admin/organizations/org-1/members/u-1").respond(200, json=updated_member)
+    mock_api.patch("/api/v1/admin/organizations/org-1/members/u-1").respond(
+        200, json=updated_member
+    )
     result = invoke(["admin", "orgs", "update-member", "org-1", "u-1", "--role", "member"])
     assert result.exit_code == 0
     assert "Updated member" in result.output
@@ -128,6 +135,8 @@ def test_orgs_transfer_ownership(invoke, mock_api):
     mock_api.post("/api/v1/admin/organizations/org-1/transfer-ownership").respond(
         200, json={"status": "ok"}
     )
-    result = invoke(["admin", "orgs", "transfer-ownership", "org-1", "--new-owner-id", "u-2", "--yes"])
+    result = invoke(
+        ["admin", "orgs", "transfer-ownership", "org-1", "--new-owner-id", "u-2", "--yes"]
+    )
     assert result.exit_code == 0
     assert "Transferred" in result.output

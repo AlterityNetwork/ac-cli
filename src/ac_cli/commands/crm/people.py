@@ -58,14 +58,17 @@ def people_list(
 def people_get(
     ctx: typer.Context,
     person_id: str | None = typer.Argument(None, help="Person ID"),
-    person_name: str | None = typer.Option(None, "--person-name", help="Person name (auto-resolves to ID)"),
+    person_name: str | None = typer.Option(
+        None, "--person-name", help="Person name (auto-resolves to ID)"
+    ),
     json_output: bool = JSON_OPTION,
 ) -> None:
     """Get a person by ID or name."""
     set_json_mode(json_output)
     resolved = _require_id(
         _resolve_contact_id(person_id, person_name, _CRM),
-        id_label="person ID", name_flag="--person-name",
+        id_label="person ID",
+        name_flag="--person-name",
     )
     resp = _api_request("get", f"{_CRM}/people/{resolved}")
 
@@ -74,20 +77,23 @@ def people_get(
         print_json(data)
         return
 
-    print_detail(data, [
-        ("id", "ID"),
-        ("full_name", "Name"),
-        ("email", "Email"),
-        ("current_title", "Title"),
-        ("current_company_text", "Company"),
-        ("lifecycle_stage", "Stage"),
-        ("location", "Location"),
-        ("country", "Country"),
-        ("tags", "Tags"),
-        ("summary", "Summary"),
-        ("created_at", "Created"),
-        ("updated_at", "Updated"),
-    ])
+    print_detail(
+        data,
+        [
+            ("id", "ID"),
+            ("full_name", "Name"),
+            ("email", "Email"),
+            ("current_title", "Title"),
+            ("current_company_text", "Company"),
+            ("lifecycle_stage", "Stage"),
+            ("location", "Location"),
+            ("country", "Country"),
+            ("tags", "Tags"),
+            ("summary", "Summary"),
+            ("created_at", "Created"),
+            ("updated_at", "Updated"),
+        ],
+    )
 
 
 @people_app.command("create")
@@ -97,24 +103,37 @@ def people_create(
     full_name: str | None = typer.Option(None, "--full-name", help="Full name"),
     current_title: str | None = typer.Option(None, "--current-title", help="Job title"),
     company_id: str | None = typer.Option(None, "--company-id", help="Company ID"),
-    company_name: str | None = typer.Option(None, "--company-name", help="Company name (auto-resolves to ID)"),
+    company_name: str | None = typer.Option(
+        None, "--company-name", help="Company name (auto-resolves to ID)"
+    ),
     lifecycle_stage: str | None = typer.Option(None, "--lifecycle-stage", help="Lifecycle stage"),
     tags: str | None = typer.Option(None, help="Comma-separated tags"),
     linkedin_url: str | None = typer.Option(None, "--linkedin-url", help="LinkedIn URL"),
     location: str | None = typer.Option(None, help="Location"),
     country: str | None = typer.Option(None, help="Country"),
-    phone_number: str | None = typer.Option(None, "--phone-number", help="Phone (E.164, e.g. +14155551234)"),
-    phone_source: str | None = typer.Option(None, "--phone-source", help="Provider/source of phone value"),
+    phone_number: str | None = typer.Option(
+        None, "--phone-number", help="Phone (E.164, e.g. +14155551234)"
+    ),
+    phone_source: str | None = typer.Option(
+        None, "--phone-source", help="Provider/source of phone value"
+    ),
     json_output: bool = JSON_OPTION,
 ) -> None:
     """Create a new person."""
     set_json_mode(json_output)
     resolved_company = _resolve_company_id(company_id, company_name, _CRM)
     body = _build_body(
-        email=email, full_name=full_name, current_title=current_title,
-        company_id=resolved_company, lifecycle_stage=lifecycle_stage, tags=tags,
-        linkedin_url=linkedin_url, location=location, country=country,
-        phone_number=phone_number, phone_source=phone_source,
+        email=email,
+        full_name=full_name,
+        current_title=current_title,
+        company_id=resolved_company,
+        lifecycle_stage=lifecycle_stage,
+        tags=tags,
+        linkedin_url=linkedin_url,
+        location=location,
+        country=country,
+        phone_number=phone_number,
+        phone_source=phone_source,
     )
 
     body["organization_id"] = _get_org_id()
@@ -133,33 +152,49 @@ def people_create(
 def people_update(
     ctx: typer.Context,
     person_id: str | None = typer.Argument(None, help="Person ID"),
-    person_name: str | None = typer.Option(None, "--person-name", help="Person name (auto-resolves to ID)"),
+    person_name: str | None = typer.Option(
+        None, "--person-name", help="Person name (auto-resolves to ID)"
+    ),
     email: str | None = typer.Option(None, help="Email address"),
     full_name: str | None = typer.Option(None, "--full-name", help="New full name"),
     current_title: str | None = typer.Option(None, "--current-title", help="Job title"),
     company_id: str | None = typer.Option(None, "--company-id", help="Company ID"),
-    company_name: str | None = typer.Option(None, "--company-name", help="Company name (auto-resolves to ID)"),
+    company_name: str | None = typer.Option(
+        None, "--company-name", help="Company name (auto-resolves to ID)"
+    ),
     lifecycle_stage: str | None = typer.Option(None, "--lifecycle-stage", help="Lifecycle stage"),
     tags: str | None = typer.Option(None, help="Comma-separated tags"),
     linkedin_url: str | None = typer.Option(None, "--linkedin-url", help="LinkedIn URL"),
     location: str | None = typer.Option(None, help="Location"),
     country: str | None = typer.Option(None, help="Country"),
-    phone_number: str | None = typer.Option(None, "--phone-number", help="Phone (E.164, e.g. +14155551234)"),
-    phone_source: str | None = typer.Option(None, "--phone-source", help="Provider/source of phone value"),
+    phone_number: str | None = typer.Option(
+        None, "--phone-number", help="Phone (E.164, e.g. +14155551234)"
+    ),
+    phone_source: str | None = typer.Option(
+        None, "--phone-source", help="Provider/source of phone value"
+    ),
     json_output: bool = JSON_OPTION,
 ) -> None:
     """Update an existing person."""
     set_json_mode(json_output)
     resolved = _require_id(
         _resolve_contact_id(person_id, person_name, _CRM),
-        id_label="person ID", name_flag="--person-name",
+        id_label="person ID",
+        name_flag="--person-name",
     )
     resolved_company = _resolve_company_id(company_id, company_name, _CRM)
     body = _build_body(
-        email=email, full_name=full_name, current_title=current_title,
-        company_id=resolved_company, lifecycle_stage=lifecycle_stage, tags=tags,
-        linkedin_url=linkedin_url, location=location, country=country,
-        phone_number=phone_number, phone_source=phone_source,
+        email=email,
+        full_name=full_name,
+        current_title=current_title,
+        company_id=resolved_company,
+        lifecycle_stage=lifecycle_stage,
+        tags=tags,
+        linkedin_url=linkedin_url,
+        location=location,
+        country=country,
+        phone_number=phone_number,
+        phone_source=phone_source,
     )
 
     if not body:
@@ -179,7 +214,9 @@ def people_update(
 @people_app.command("delete")
 def people_delete(
     person_id: str | None = typer.Argument(None, help="Person ID"),
-    person_name: str | None = typer.Option(None, "--person-name", help="Person name (auto-resolves to ID)"),
+    person_name: str | None = typer.Option(
+        None, "--person-name", help="Person name (auto-resolves to ID)"
+    ),
     yes: bool = typer.Option(False, "--yes", "-y", help="Skip confirmation"),
     json_output: bool = JSON_OPTION,
 ) -> None:
@@ -187,7 +224,8 @@ def people_delete(
     set_json_mode(json_output)
     resolved = _require_id(
         _resolve_contact_id(person_id, person_name, _CRM),
-        id_label="person ID", name_flag="--person-name",
+        id_label="person ID",
+        name_flag="--person-name",
     )
     if not should_skip_confirm(yes):
         typer.confirm(f"Delete person {resolved}?", abort=True)

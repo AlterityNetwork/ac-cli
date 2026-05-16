@@ -8,7 +8,7 @@ from rich import print as rprint
 from ac_cli.commands._helpers import JSON_OPTION, set_json_mode
 from ac_cli.commands.crm import _api_request, _build_body
 from ac_cli.commands.envoy import _ENVOY
-from ac_cli.formatting import print_detail, print_json, print_table
+from ac_cli.formatting import print_json, print_table
 
 outbox_app = typer.Typer(help="Outbox / draft approval operations")
 
@@ -100,7 +100,12 @@ def outbox_step_drafts(
 ) -> None:
     """List all drafts for a specific step."""
     set_json_mode(json_output)
-    params: dict = {"sequence_id": sequence_id, "step_id": step_id, "limit": limit, "offset": offset}
+    params: dict = {
+        "sequence_id": sequence_id,
+        "step_id": step_id,
+        "limit": limit,
+        "offset": offset,
+    }
     resp = _api_request("get", f"{_ENVOY}/outbox/step-drafts", params=params)
 
     data = resp.json()

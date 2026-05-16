@@ -4,7 +4,6 @@ import json
 
 from tests.conftest import WHOAMI_RESPONSE
 
-
 SAMPLE_ACTIVITY = {
     "id": "a1",
     "organization_id": "org-456",
@@ -42,9 +41,7 @@ def test_activities_list_with_filters(invoke, mock_api):
 def test_activities_list_assigned_to(invoke, mock_api):
     """`--assigned-to` passes assigned_to query param to the backend."""
     route = mock_api.get("/api/v1/crm/activities").respond(200, json=[SAMPLE_ACTIVITY])
-    result = invoke(
-        ["crm", "activities", "list", "--assigned-to", "user-42", "--json"]
-    )
+    result = invoke(["crm", "activities", "list", "--assigned-to", "user-42", "--json"])
     assert result.exit_code == 0
     assert route.called
     request = route.calls.last.request
@@ -59,9 +56,7 @@ def test_activities_list_assigned_to_me_sentinel(invoke, mock_api):
     """
     mock_api.get("/whoami").respond(200, json=WHOAMI_RESPONSE)
     route = mock_api.get("/api/v1/crm/activities").respond(200, json=[SAMPLE_ACTIVITY])
-    result = invoke(
-        ["crm", "activities", "list", "--assigned-to", "me", "--json"]
-    )
+    result = invoke(["crm", "activities", "list", "--assigned-to", "me", "--json"])
     assert result.exit_code == 0
     assert route.called
     request = route.calls.last.request
@@ -79,11 +74,17 @@ def test_activities_get(invoke, mock_api):
 def test_activities_create(invoke, mock_api):
     mock_api.get("/whoami").respond(200, json=WHOAMI_RESPONSE)
     mock_api.post("/api/v1/crm/activities").respond(201, json=SAMPLE_ACTIVITY)
-    result = invoke([
-        "crm", "activities", "create",
-        "--type", "task",
-        "--title", "Follow up with Acme",
-    ])
+    result = invoke(
+        [
+            "crm",
+            "activities",
+            "create",
+            "--type",
+            "task",
+            "--title",
+            "Follow up with Acme",
+        ]
+    )
     assert result.exit_code == 0
     assert "Created activity" in result.output
 
@@ -92,12 +93,19 @@ def test_activities_create_assigned_to(invoke, mock_api):
     """`--assigned-to` is sent in the create body."""
     mock_api.get("/whoami").respond(200, json=WHOAMI_RESPONSE)
     route = mock_api.post("/api/v1/crm/activities").respond(201, json=SAMPLE_ACTIVITY)
-    result = invoke([
-        "crm", "activities", "create",
-        "--type", "task",
-        "--title", "Follow up with Acme",
-        "--assigned-to", "user-42",
-    ])
+    result = invoke(
+        [
+            "crm",
+            "activities",
+            "create",
+            "--type",
+            "task",
+            "--title",
+            "Follow up with Acme",
+            "--assigned-to",
+            "user-42",
+        ]
+    )
     assert result.exit_code == 0
     body = json.loads(route.calls.last.request.content)
     assert body["assigned_to"] == "user-42"
@@ -107,12 +115,19 @@ def test_activities_create_assigned_to_me_sentinel(invoke, mock_api):
     """`--assigned-to me` resolves to caller's user_id via /whoami."""
     mock_api.get("/whoami").respond(200, json=WHOAMI_RESPONSE)
     route = mock_api.post("/api/v1/crm/activities").respond(201, json=SAMPLE_ACTIVITY)
-    result = invoke([
-        "crm", "activities", "create",
-        "--type", "task",
-        "--title", "Follow up with Acme",
-        "--assigned-to", "me",
-    ])
+    result = invoke(
+        [
+            "crm",
+            "activities",
+            "create",
+            "--type",
+            "task",
+            "--title",
+            "Follow up with Acme",
+            "--assigned-to",
+            "me",
+        ]
+    )
     assert result.exit_code == 0
     body = json.loads(route.calls.last.request.content)
     assert body["assigned_to"] == WHOAMI_RESPONSE["user_id"]
@@ -121,7 +136,9 @@ def test_activities_create_assigned_to_me_sentinel(invoke, mock_api):
 def test_activities_update(invoke, mock_api):
     updated = {**SAMPLE_ACTIVITY, "title": "Updated task", "priority": "high"}
     mock_api.patch("/api/v1/crm/activities/a1").respond(200, json=updated)
-    result = invoke(["crm", "activities", "update", "a1", "--title", "Updated task", "--priority", "high"])
+    result = invoke(
+        ["crm", "activities", "update", "a1", "--title", "Updated task", "--priority", "high"]
+    )
     assert result.exit_code == 0
     assert "Updated activity" in result.output
 

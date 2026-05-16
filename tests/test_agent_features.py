@@ -6,7 +6,6 @@ from unittest.mock import patch
 
 from tests.conftest import WHOAMI_RESPONSE
 
-
 # -- Structured JSON errors ---------------------------------------------------
 
 
@@ -45,7 +44,9 @@ def test_json_error_422(invoke, mock_api):
 def test_json_error_409(invoke, mock_api):
     """When --json is active, 409 errors return structured JSON with exit code 5."""
     mock_api.get("/whoami").respond(200, json=WHOAMI_RESPONSE)
-    mock_api.post("/api/v1/orgs/org-456/apps/email-finder").respond(409, json={"detail": "Already installed"})
+    mock_api.post("/api/v1/orgs/org-456/apps/email-finder").respond(
+        409, json={"detail": "Already installed"}
+    )
     result = invoke(["apps", "install", "email-finder", "--json"])
     assert result.exit_code == 5
     parsed = json.loads(result.output)
@@ -95,7 +96,6 @@ def test_exit_code_500(invoke, mock_api):
 
 def test_health_check_json(invoke, mock_api, mock_config):
     """health --json check returns JSON output."""
-    import httpx
     import respx
 
     with respx.mock:

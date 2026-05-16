@@ -4,7 +4,6 @@ import json
 
 from tests.conftest import WHOAMI_RESPONSE
 
-
 SAMPLE_COMPANY = {
     "id": "c1",
     "organization_id": "org-456",
@@ -21,10 +20,13 @@ SAMPLE_COMPANY = {
 
 
 def test_companies_list(invoke, mock_api):
-    mock_api.get("/api/v1/crm/companies").respond(200, json={
-        "data": [SAMPLE_COMPANY],
-        "total": 1,
-    })
+    mock_api.get("/api/v1/crm/companies").respond(
+        200,
+        json={
+            "data": [SAMPLE_COMPANY],
+            "total": 1,
+        },
+    )
     result = invoke(["crm", "companies", "list"])
     assert result.exit_code == 0
     assert "Acme Corp" in result.output
@@ -65,12 +67,19 @@ def test_companies_create(invoke, mock_api):
 def test_companies_create_with_tags(invoke, mock_api):
     mock_api.get("/whoami").respond(200, json=WHOAMI_RESPONSE)
     mock_api.post("/api/v1/crm/companies").respond(201, json=SAMPLE_COMPANY)
-    result = invoke([
-        "crm", "companies", "create",
-        "--name", "Acme Corp",
-        "--tags", "saas,target",
-        "--industry", "SaaS",
-    ])
+    result = invoke(
+        [
+            "crm",
+            "companies",
+            "create",
+            "--name",
+            "Acme Corp",
+            "--tags",
+            "saas,target",
+            "--industry",
+            "SaaS",
+        ]
+    )
     assert result.exit_code == 0
 
 

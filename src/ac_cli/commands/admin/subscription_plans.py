@@ -74,18 +74,21 @@ def plans_get(
     if json_output:
         print_json(data)
         return
-    print_detail(data, [
-        ("id", "ID"),
-        ("slug", "Slug"),
-        ("name", "Name"),
-        ("description", "Description"),
-        ("monthly_price_cents", "Monthly ¢"),
-        ("annual_price_cents", "Annual ¢"),
-        ("is_active", "Active"),
-        ("features", "Features"),
-        ("created_at", "Created"),
-        ("updated_at", "Updated"),
-    ])
+    print_detail(
+        data,
+        [
+            ("id", "ID"),
+            ("slug", "Slug"),
+            ("name", "Name"),
+            ("description", "Description"),
+            ("monthly_price_cents", "Monthly ¢"),
+            ("annual_price_cents", "Annual ¢"),
+            ("is_active", "Active"),
+            ("features", "Features"),
+            ("created_at", "Created"),
+            ("updated_at", "Updated"),
+        ],
+    )
 
 
 @subscription_plans_app.command("create")
@@ -93,8 +96,12 @@ def plans_create(
     ctx: typer.Context,
     slug: str = typer.Option(..., help="Plan slug"),
     name: str = typer.Option(..., help="Plan name"),
-    monthly_price_cents: int = typer.Option(..., "--monthly-price-cents", help="Monthly price (cents)"),
-    annual_price_cents: int = typer.Option(..., "--annual-price-cents", help="Annual price (cents)"),
+    monthly_price_cents: int = typer.Option(
+        ..., "--monthly-price-cents", help="Monthly price (cents)"
+    ),
+    annual_price_cents: int = typer.Option(
+        ..., "--annual-price-cents", help="Annual price (cents)"
+    ),
     description: str | None = typer.Option(None, help="Description"),
     features: str | None = typer.Option(None, help="JSON object of feature flags"),
     is_active: bool | None = typer.Option(None, "--active/--inactive", help="Active state"),

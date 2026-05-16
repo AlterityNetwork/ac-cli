@@ -5,7 +5,14 @@ from __future__ import annotations
 import typer
 from rich import print as rprint
 
-from ac_cli.commands._helpers import JSON_OPTION, _api_request, _build_body, _get_org_id, set_json_mode, should_skip_confirm
+from ac_cli.commands._helpers import (
+    JSON_OPTION,
+    _api_request,
+    _build_body,
+    _get_org_id,
+    set_json_mode,
+    should_skip_confirm,
+)
 from ac_cli.formatting import print_detail, print_json, print_table
 
 app = typer.Typer(help="Writing style operations")
@@ -21,7 +28,9 @@ def styles_callback(ctx: typer.Context) -> None:
 @app.command("list")
 def styles_list(
     ctx: typer.Context,
-    include_inactive: bool = typer.Option(False, "--include-inactive", help="Include inactive styles"),
+    include_inactive: bool = typer.Option(
+        False, "--include-inactive", help="Include inactive styles"
+    ),
     json_output: bool = JSON_OPTION,
 ) -> None:
     """List writing styles."""
@@ -65,16 +74,19 @@ def styles_get(
         print_json(data)
         return
 
-    print_detail(data, [
-        ("id", "ID"),
-        ("name", "Name"),
-        ("description", "Description"),
-        ("tone", "Tone"),
-        ("formality", "Formality"),
-        ("status", "Status"),
-        ("created_at", "Created"),
-        ("updated_at", "Updated"),
-    ])
+    print_detail(
+        data,
+        [
+            ("id", "ID"),
+            ("name", "Name"),
+            ("description", "Description"),
+            ("tone", "Tone"),
+            ("formality", "Formality"),
+            ("status", "Status"),
+            ("created_at", "Created"),
+            ("updated_at", "Updated"),
+        ],
+    )
 
 
 @app.command("create")
@@ -89,7 +101,10 @@ def styles_create(
     """Create a new writing style."""
     set_json_mode(json_output)
     body = _build_body(
-        name=name, description=description, tone=tone, formality=formality,
+        name=name,
+        description=description,
+        tone=tone,
+        formality=formality,
     )
 
     body["organization_id"] = _get_org_id()
@@ -116,7 +131,10 @@ def styles_update(
     """Update an existing writing style."""
     set_json_mode(json_output)
     body = _build_body(
-        name=name, description=description, tone=tone, formality=formality,
+        name=name,
+        description=description,
+        tone=tone,
+        formality=formality,
     )
 
     if not body:
@@ -196,7 +214,9 @@ def styles_iterate(
 ) -> None:
     """Iterate on a training session."""
     set_json_mode(json_output)
-    resp = _api_request("post", f"{_STYLES}/training-sessions/{session_id}/iterate", json={"feedback": feedback})
+    resp = _api_request(
+        "post", f"{_STYLES}/training-sessions/{session_id}/iterate", json={"feedback": feedback}
+    )
 
     data = resp.json()
     if json_output:

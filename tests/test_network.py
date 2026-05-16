@@ -2,8 +2,12 @@
 
 import json
 
-
-SAMPLE_REFERRAL = {"id": "ref-1", "company_name": "Acme Corp", "status": "pending", "created_at": "2026-01-01"}
+SAMPLE_REFERRAL = {
+    "id": "ref-1",
+    "company_name": "Acme Corp",
+    "status": "pending",
+    "created_at": "2026-01-01",
+}
 SAMPLE_NEWS = {"id": "news-1", "title": "Q1 Update", "created_at": "2026-01-01"}
 
 
@@ -41,7 +45,9 @@ def test_referrals_get_json(invoke, mock_api):
 
 
 def test_referrals_create(invoke, mock_api):
-    mock_api.post("/api/v1/network/referrals").respond(201, json={"id": "ref-2", "company_name": "NewCo"})
+    mock_api.post("/api/v1/network/referrals").respond(
+        201, json={"id": "ref-2", "company_name": "NewCo"}
+    )
     result = invoke(["network", "referrals", "create", "--company-name", "NewCo"])
     assert result.exit_code == 0
     assert "Created" in result.output
@@ -56,7 +62,9 @@ def test_referrals_create_json(invoke, mock_api):
 
 
 def test_referrals_update(invoke, mock_api):
-    mock_api.patch("/api/v1/network/referrals/ref-1").respond(200, json={**SAMPLE_REFERRAL, "status": "claimed"})
+    mock_api.patch("/api/v1/network/referrals/ref-1").respond(
+        200, json={**SAMPLE_REFERRAL, "status": "claimed"}
+    )
     result = invoke(["network", "referrals", "update", "ref-1", "--status", "claimed"])
     assert result.exit_code == 0
     assert "Updated" in result.output
@@ -124,14 +132,18 @@ def test_news_create(invoke, mock_api):
 
 def test_news_create_json(invoke, mock_api):
     mock_api.post("/api/v1/network/news").respond(201, json={"id": "news-2"})
-    result = invoke(["network", "news", "create", "--title", "New Post", "--content", "Body", "--json"])
+    result = invoke(
+        ["network", "news", "create", "--title", "New Post", "--content", "Body", "--json"]
+    )
     assert result.exit_code == 0
     parsed = json.loads(result.output)
     assert parsed["id"] == "news-2"
 
 
 def test_news_update(invoke, mock_api):
-    mock_api.patch("/api/v1/network/news/news-1").respond(200, json={**SAMPLE_NEWS, "title": "Updated"})
+    mock_api.patch("/api/v1/network/news/news-1").respond(
+        200, json={**SAMPLE_NEWS, "title": "Updated"}
+    )
     result = invoke(["network", "news", "update", "news-1", "--title", "Updated"])
     assert result.exit_code == 0
 
@@ -152,7 +164,9 @@ def test_news_delete(invoke, mock_api):
 
 
 def test_slack_status(invoke, mock_api):
-    mock_api.get("/api/v1/network/slack-invites/status").respond(200, json={"status": "pending", "requested_at": "2026-01-01"})
+    mock_api.get("/api/v1/network/slack-invites/status").respond(
+        200, json={"status": "pending", "requested_at": "2026-01-01"}
+    )
     result = invoke(["network", "slack-invites", "status"])
     assert result.exit_code == 0
     assert "pending" in result.output.lower()

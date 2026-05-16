@@ -2,7 +2,6 @@
 
 import json
 
-
 SAMPLE_RECIPIENT = {
     "id": "r1",
     "sequence_id": "seq-1",
@@ -30,7 +29,9 @@ def test_recipients_list_json(invoke, mock_api):
 
 def test_recipients_list_with_filters(invoke, mock_api):
     mock_api.get("/api/v1/envoy/sequences/seq-1/recipients").respond(200, json=[])
-    result = invoke(["envoy", "recipients", "list", "seq-1", "--status", "active", "--step-id", "step-1"])
+    result = invoke(
+        ["envoy", "recipients", "list", "seq-1", "--status", "active", "--step-id", "step-1"]
+    )
     assert result.exit_code == 0
 
 

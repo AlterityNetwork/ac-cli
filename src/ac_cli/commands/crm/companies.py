@@ -52,14 +52,17 @@ def companies_list(
 def companies_get(
     ctx: typer.Context,
     company_id: str | None = typer.Argument(None, help="Company ID"),
-    company_name: str | None = typer.Option(None, "--company-name", help="Company name (auto-resolves to ID)"),
+    company_name: str | None = typer.Option(
+        None, "--company-name", help="Company name (auto-resolves to ID)"
+    ),
     json_output: bool = JSON_OPTION,
 ) -> None:
     """Get a company by ID or name."""
     set_json_mode(json_output)
     resolved = _require_id(
         _resolve_company_id(company_id, company_name, _CRM),
-        id_label="company ID", name_flag="--company-name",
+        id_label="company ID",
+        name_flag="--company-name",
     )
     resp = _api_request("get", f"{_CRM}/companies/{resolved}")
 
@@ -68,20 +71,23 @@ def companies_get(
         print_json(data)
         return
 
-    print_detail(data, [
-        ("id", "ID"),
-        ("name", "Name"),
-        ("website", "Website"),
-        ("industry", "Industry"),
-        ("lifecycle_stage", "Stage"),
-        ("location", "Location"),
-        ("country", "Country"),
-        ("employee_count_band", "Size"),
-        ("tags", "Tags"),
-        ("description", "Description"),
-        ("created_at", "Created"),
-        ("updated_at", "Updated"),
-    ])
+    print_detail(
+        data,
+        [
+            ("id", "ID"),
+            ("name", "Name"),
+            ("website", "Website"),
+            ("industry", "Industry"),
+            ("lifecycle_stage", "Stage"),
+            ("location", "Location"),
+            ("country", "Country"),
+            ("employee_count_band", "Size"),
+            ("tags", "Tags"),
+            ("description", "Description"),
+            ("created_at", "Created"),
+            ("updated_at", "Updated"),
+        ],
+    )
 
 
 @companies_app.command("create")
@@ -100,9 +106,14 @@ def companies_create(
     """Create a new company."""
     set_json_mode(json_output)
     body = _build_body(
-        name=name, website=website, industry=industry,
-        lifecycle_stage=lifecycle_stage, tags=tags,
-        location=location, country=country, description=description,
+        name=name,
+        website=website,
+        industry=industry,
+        lifecycle_stage=lifecycle_stage,
+        tags=tags,
+        location=location,
+        country=country,
+        description=description,
     )
 
     body["organization_id"] = _get_org_id()
@@ -120,7 +131,9 @@ def companies_create(
 def companies_update(
     ctx: typer.Context,
     company_id: str | None = typer.Argument(None, help="Company ID"),
-    company_name: str | None = typer.Option(None, "--company-name", help="Company name (auto-resolves to ID)"),
+    company_name: str | None = typer.Option(
+        None, "--company-name", help="Company name (auto-resolves to ID)"
+    ),
     name: str | None = typer.Option(None, help="New company name"),
     website: str | None = typer.Option(None, help="Website URL"),
     industry: str | None = typer.Option(None, help="Industry"),
@@ -135,12 +148,18 @@ def companies_update(
     set_json_mode(json_output)
     resolved = _require_id(
         _resolve_company_id(company_id, company_name, _CRM),
-        id_label="company ID", name_flag="--company-name",
+        id_label="company ID",
+        name_flag="--company-name",
     )
     body = _build_body(
-        name=name, website=website, industry=industry,
-        lifecycle_stage=lifecycle_stage, tags=tags,
-        location=location, country=country, description=description,
+        name=name,
+        website=website,
+        industry=industry,
+        lifecycle_stage=lifecycle_stage,
+        tags=tags,
+        location=location,
+        country=country,
+        description=description,
     )
 
     if not body:
@@ -159,7 +178,9 @@ def companies_update(
 @companies_app.command("delete")
 def companies_delete(
     company_id: str | None = typer.Argument(None, help="Company ID"),
-    company_name: str | None = typer.Option(None, "--company-name", help="Company name (auto-resolves to ID)"),
+    company_name: str | None = typer.Option(
+        None, "--company-name", help="Company name (auto-resolves to ID)"
+    ),
     yes: bool = typer.Option(False, "--yes", "-y", help="Skip confirmation"),
     json_output: bool = JSON_OPTION,
 ) -> None:
@@ -167,7 +188,8 @@ def companies_delete(
     set_json_mode(json_output)
     resolved = _require_id(
         _resolve_company_id(company_id, company_name, _CRM),
-        id_label="company ID", name_flag="--company-name",
+        id_label="company ID",
+        name_flag="--company-name",
     )
     if not should_skip_confirm(yes):
         typer.confirm(f"Delete company {resolved}?", abort=True)

@@ -2,7 +2,6 @@
 
 import json
 
-
 SAMPLE_DASHBOARD = {
     "period_days": 30,
     "generated_at": "2026-03-12T00:00:00Z",

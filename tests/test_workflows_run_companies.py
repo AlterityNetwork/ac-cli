@@ -2,9 +2,6 @@
 
 import json
 
-import respx
-
-
 SAMPLE_COMPANY = {
     "id": "wrc-1",
     "name": "Acme Corp",
@@ -16,13 +13,16 @@ SAMPLE_COMPANY = {
 
 
 def test_run_companies_list(invoke, mock_api):
-    mock_api.get("/api/v1/workflows/wf-1/runs/companies").respond(200, json={
-        "data": [SAMPLE_COMPANY],
-        "total": 1,
-        "limit": 50,
-        "offset": 0,
-        "has_more": False,
-    })
+    mock_api.get("/api/v1/workflows/wf-1/runs/companies").respond(
+        200,
+        json={
+            "data": [SAMPLE_COMPANY],
+            "total": 1,
+            "limit": 50,
+            "offset": 0,
+            "has_more": False,
+        },
+    )
     result = invoke(["workflows", "run-companies", "list", "wf-1"])
     assert result.exit_code == 0
     assert "Acme Corp" in result.output
@@ -57,13 +57,18 @@ def test_run_companies_list_sort_by_lead_score(invoke, mock_api):
 
 
 def test_run_companies_add_to_crm(invoke, mock_api):
-    mock_api.post("/api/v1/workflows/wf-1/runs/companies/add-to-crm").respond(200, json={
-        "added_count": 2,
-        "updated_count": 0,
-        "skipped_count": 1,
-        "company_ids": ["c-1", "c-2"],
-    })
-    result = invoke(["workflows", "run-companies", "add-to-crm", "wf-1", "--company-ids", "wrc-1,wrc-2,wrc-3"])
+    mock_api.post("/api/v1/workflows/wf-1/runs/companies/add-to-crm").respond(
+        200,
+        json={
+            "added_count": 2,
+            "updated_count": 0,
+            "skipped_count": 1,
+            "company_ids": ["c-1", "c-2"],
+        },
+    )
+    result = invoke(
+        ["workflows", "run-companies", "add-to-crm", "wf-1", "--company-ids", "wrc-1,wrc-2,wrc-3"]
+    )
     assert result.exit_code == 0
     assert "Added 2 companies" in result.output
 
@@ -71,21 +76,27 @@ def test_run_companies_add_to_crm(invoke, mock_api):
 def test_run_companies_add_to_crm_json(invoke, mock_api):
     payload = {"added_count": 1, "updated_count": 0, "skipped_count": 0, "company_ids": ["c-1"]}
     mock_api.post("/api/v1/workflows/wf-1/runs/companies/add-to-crm").respond(200, json=payload)
-    result = invoke(["workflows", "run-companies", "add-to-crm", "wf-1", "--company-ids", "wrc-1", "--json"])
+    result = invoke(
+        ["workflows", "run-companies", "add-to-crm", "wf-1", "--company-ids", "wrc-1", "--json"]
+    )
     assert result.exit_code == 0
     parsed = json.loads(result.output)
     assert parsed["added_count"] == 1
 
 
 def test_run_companies_crm_count(invoke, mock_api):
-    mock_api.get("/api/v1/workflows/wf-1/runs/companies/added-to-crm-count").respond(200, json={"count": 5})
+    mock_api.get("/api/v1/workflows/wf-1/runs/companies/added-to-crm-count").respond(
+        200, json={"count": 5}
+    )
     result = invoke(["workflows", "run-companies", "crm-count", "wf-1"])
     assert result.exit_code == 0
     assert "5" in result.output
 
 
 def test_run_companies_crm_count_json(invoke, mock_api):
-    mock_api.get("/api/v1/workflows/wf-1/runs/companies/added-to-crm-count").respond(200, json={"count": 5})
+    mock_api.get("/api/v1/workflows/wf-1/runs/companies/added-to-crm-count").respond(
+        200, json={"count": 5}
+    )
     result = invoke(["workflows", "run-companies", "crm-count", "wf-1", "--json"])
     assert result.exit_code == 0
     parsed = json.loads(result.output)
@@ -96,7 +107,9 @@ def test_run_companies_delete_with_yes(invoke, mock_api):
     mock_api.route(method="DELETE", url="/api/v1/workflows/wf-1/runs/companies").respond(
         200, json={"deleted_count": 2}
     )
-    result = invoke(["workflows", "run-companies", "delete", "wf-1", "--company-ids", "wrc-1,wrc-2", "--yes"])
+    result = invoke(
+        ["workflows", "run-companies", "delete", "wf-1", "--company-ids", "wrc-1,wrc-2", "--yes"]
+    )
     assert result.exit_code == 0
     assert "Deleted 2" in result.output
 
@@ -113,7 +126,18 @@ def test_run_companies_delete_json(invoke, mock_api):
     mock_api.route(method="DELETE", url="/api/v1/workflows/wf-1/runs/companies").respond(
         200, json={"deleted_count": 1}
     )
-    result = invoke(["workflows", "run-companies", "delete", "wf-1", "--company-ids", "wrc-1", "--yes", "--json"])
+    result = invoke(
+        [
+            "workflows",
+            "run-companies",
+            "delete",
+            "wf-1",
+            "--company-ids",
+            "wrc-1",
+            "--yes",
+            "--json",
+        ]
+    )
     assert result.exit_code == 0
     parsed = json.loads(result.output)
     assert parsed["deleted_count"] == 1
@@ -121,7 +145,9 @@ def test_run_companies_delete_json(invoke, mock_api):
 
 def test_run_companies_list_not_found(invoke, mock_api):
     """Workflow not found returns exit code 3."""
-    mock_api.get("/api/v1/workflows/bad-wf/runs/companies").respond(404, json={"detail": "Workflow not found"})
+    mock_api.get("/api/v1/workflows/bad-wf/runs/companies").respond(
+        404, json={"detail": "Workflow not found"}
+    )
     result = invoke(["workflows", "run-companies", "list", "bad-wf"])
     assert result.exit_code == 3
     assert "404" in result.output
@@ -129,7 +155,9 @@ def test_run_companies_list_not_found(invoke, mock_api):
 
 def test_run_companies_list_not_found_json(invoke, mock_api):
     """Workflow not found with --json returns structured JSON error."""
-    mock_api.get("/api/v1/workflows/bad-wf/runs/companies").respond(404, json={"detail": "Workflow not found"})
+    mock_api.get("/api/v1/workflows/bad-wf/runs/companies").respond(
+        404, json={"detail": "Workflow not found"}
+    )
     result = invoke(["workflows", "run-companies", "list", "bad-wf", "--json"])
     assert result.exit_code == 3
     parsed = json.loads(result.output)

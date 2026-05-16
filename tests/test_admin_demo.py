@@ -2,7 +2,6 @@
 
 import json
 
-
 SAMPLE_ACCOUNT = {
     "org_id": "org-demo-1",
     "org_name": "Demo Corp",
@@ -24,13 +23,17 @@ def test_demo_scrape_website(invoke, mock_api):
 
 
 def test_demo_generate_org(invoke, mock_api):
-    mock_api.post("/api/v1/admin/demo/generate-random-org").respond(200, json={"name": "Random Corp"})
+    mock_api.post("/api/v1/admin/demo/generate-random-org").respond(
+        200, json={"name": "Random Corp"}
+    )
     result = invoke(["admin", "demo", "generate-org"])
     assert result.exit_code == 0
 
 
 def test_demo_generate_profile(invoke, mock_api):
-    mock_api.post("/api/v1/admin/demo/generate-random-profile").respond(200, json={"name": "John Doe"})
+    mock_api.post("/api/v1/admin/demo/generate-random-profile").respond(
+        200, json={"name": "John Doe"}
+    )
     result = invoke(["admin", "demo", "generate-profile"])
     assert result.exit_code == 0
 
@@ -42,12 +45,15 @@ def test_demo_prepare_account(invoke, mock_api):
 
 
 def test_demo_list_accounts(invoke, mock_api):
-    mock_api.get("/api/v1/admin/demo/accounts").respond(200, json={
-        "data": [SAMPLE_ACCOUNT],
-        "total": 1,
-        "page": 1,
-        "page_size": 50,
-    })
+    mock_api.get("/api/v1/admin/demo/accounts").respond(
+        200,
+        json={
+            "data": [SAMPLE_ACCOUNT],
+            "total": 1,
+            "page": 1,
+            "page_size": 50,
+        },
+    )
     result = invoke(["admin", "demo", "list-accounts"])
     assert result.exit_code == 0
     assert "Demo Corp" in result.output

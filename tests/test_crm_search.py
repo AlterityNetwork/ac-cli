@@ -2,18 +2,16 @@
 
 import json
 
-import httpx
-import respx
-
-from tests.conftest import WHOAMI_RESPONSE
-
 
 def test_search_happy_path(invoke, mock_api):
-    mock_api.get("/api/v1/crm/search").respond(200, json={
-        "companies": [{"name": "Acme", "industry": "SaaS", "id": "c1"}],
-        "contacts": [{"full_name": "Jane", "email": "jane@acme.com", "id": "p1"}],
-        "deals": [{"name": "Big Deal", "stage": "lead", "id": "d1"}],
-    })
+    mock_api.get("/api/v1/crm/search").respond(
+        200,
+        json={
+            "companies": [{"name": "Acme", "industry": "SaaS", "id": "c1"}],
+            "contacts": [{"full_name": "Jane", "email": "jane@acme.com", "id": "p1"}],
+            "deals": [{"name": "Big Deal", "stage": "lead", "id": "d1"}],
+        },
+    )
     result = invoke(["crm", "search", "acme"])
     assert result.exit_code == 0
     assert "Acme" in result.output
@@ -35,9 +33,14 @@ def test_search_json_flag(invoke, mock_api):
 
 
 def test_search_no_results(invoke, mock_api):
-    mock_api.get("/api/v1/crm/search").respond(200, json={
-        "companies": [], "contacts": [], "deals": [],
-    })
+    mock_api.get("/api/v1/crm/search").respond(
+        200,
+        json={
+            "companies": [],
+            "contacts": [],
+            "deals": [],
+        },
+    )
     result = invoke(["crm", "search", "nonexistent"])
     assert result.exit_code == 0
     assert "No results found" in result.output

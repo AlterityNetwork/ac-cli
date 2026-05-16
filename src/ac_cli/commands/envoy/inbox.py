@@ -7,7 +7,7 @@ from rich import print as rprint
 
 from ac_cli.commands._helpers import JSON_OPTION, _api_request, _build_body, set_json_mode
 from ac_cli.commands.envoy import _ENVOY
-from ac_cli.formatting import print_detail, print_json, print_table
+from ac_cli.formatting import print_json, print_table
 
 inbox_app = typer.Typer(help="Inbox thread operations")
 
@@ -126,7 +126,9 @@ def inbox_assign(
 ) -> None:
     """Assign a thread to a user."""
     set_json_mode(json_output)
-    resp = _api_request("post", f"{_ENVOY}/inbox/threads/{thread_id}/assign", json={"assigned_to": user_id})
+    resp = _api_request(
+        "post", f"{_ENVOY}/inbox/threads/{thread_id}/assign", json={"assigned_to": user_id}
+    )
 
     data = resp.json()
     if json_output:
@@ -144,7 +146,9 @@ def inbox_snooze(
 ) -> None:
     """Snooze a thread until a given time."""
     set_json_mode(json_output)
-    resp = _api_request("post", f"{_ENVOY}/inbox/threads/{thread_id}/snooze", json={"snooze_until": until})
+    resp = _api_request(
+        "post", f"{_ENVOY}/inbox/threads/{thread_id}/snooze", json={"snooze_until": until}
+    )
 
     data = resp.json()
     if json_output:
@@ -179,7 +183,9 @@ def inbox_update_status(
 ) -> None:
     """Update the status of a thread."""
     set_json_mode(json_output)
-    resp = _api_request("patch", f"{_ENVOY}/inbox/threads/{thread_id}/status", json={"status": status})
+    resp = _api_request(
+        "patch", f"{_ENVOY}/inbox/threads/{thread_id}/status", json={"status": status}
+    )
 
     data = resp.json()
     if json_output:
@@ -218,15 +224,19 @@ def inbox_remove_tags(
     set_json_mode(json_output)
     tags_list = [t.strip() for t in tags.split(",")]
     # httpx delete() doesn't accept json body; use request() directly
-    from ac_cli.client import get_api_client
     import httpx
+
+    from ac_cli.client import get_api_client
 
     with get_api_client() as client:
         try:
-            resp = client.request("DELETE", f"{_ENVOY}/inbox/threads/{thread_id}/tags", json=tags_list)
+            resp = client.request(
+                "DELETE", f"{_ENVOY}/inbox/threads/{thread_id}/tags", json=tags_list
+            )
             resp.raise_for_status()
         except httpx.HTTPStatusError as exc:
             from ac_cli.commands._helpers import _handle_error
+
             _handle_error(exc)
         except httpx.HTTPError as exc:
             rprint(f"[red]Connection error:[/red] {exc}")

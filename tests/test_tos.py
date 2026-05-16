@@ -4,14 +4,18 @@ import json
 
 
 def test_config(invoke, mock_api):
-    mock_api.get("/api/v1/tos/config").respond(200, json={"version": "3.0", "embed_url": "https://termly.io/tos"})
+    mock_api.get("/api/v1/tos/config").respond(
+        200, json={"version": "3.0", "embed_url": "https://termly.io/tos"}
+    )
     result = invoke(["tos", "config"])
     assert result.exit_code == 0
     assert "3.0" in result.output
 
 
 def test_config_json(invoke, mock_api):
-    mock_api.get("/api/v1/tos/config").respond(200, json={"version": "3.0", "embed_url": "https://termly.io/tos"})
+    mock_api.get("/api/v1/tos/config").respond(
+        200, json={"version": "3.0", "embed_url": "https://termly.io/tos"}
+    )
     result = invoke(["tos", "config", "--json"])
     assert result.exit_code == 0
     parsed = json.loads(result.output)

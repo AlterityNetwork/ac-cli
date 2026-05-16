@@ -5,7 +5,14 @@ from __future__ import annotations
 import typer
 from rich import print as rprint
 
-from ac_cli.commands._helpers import JSON_OPTION, _api_request, _build_body, _get_org_id, set_json_mode, should_skip_confirm
+from ac_cli.commands._helpers import (
+    JSON_OPTION,
+    _api_request,
+    _build_body,
+    _get_org_id,
+    set_json_mode,
+    should_skip_confirm,
+)
 from ac_cli.formatting import print_detail, print_json, print_table
 
 # Battlecards moved out of /envoy to top-level /api/v1/battlecards (ENG-592).
@@ -64,17 +71,20 @@ def battlecards_get(
         print_json(data)
         return
 
-    print_detail(data, [
-        ("id", "ID"),
-        ("name", "Name"),
-        ("description", "Description"),
-        ("competitor_name", "Competitor"),
-        ("status", "Status"),
-        ("strengths", "Strengths"),
-        ("weaknesses", "Weaknesses"),
-        ("created_at", "Created"),
-        ("updated_at", "Updated"),
-    ])
+    print_detail(
+        data,
+        [
+            ("id", "ID"),
+            ("name", "Name"),
+            ("description", "Description"),
+            ("competitor_name", "Competitor"),
+            ("status", "Status"),
+            ("strengths", "Strengths"),
+            ("weaknesses", "Weaknesses"),
+            ("created_at", "Created"),
+            ("updated_at", "Updated"),
+        ],
+    )
 
 
 @battlecards_app.command("create")
@@ -89,7 +99,9 @@ def battlecards_create(
     """Create a new battlecard."""
     set_json_mode(json_output)
     body = _build_body(
-        name=name, description=description, competitor_name=competitor_name,
+        name=name,
+        description=description,
+        competitor_name=competitor_name,
         status=status,
     )
 
@@ -117,7 +129,9 @@ def battlecards_update(
     """Update a battlecard."""
     set_json_mode(json_output)
     body = _build_body(
-        name=name, description=description, competitor_name=competitor_name,
+        name=name,
+        description=description,
+        competitor_name=competitor_name,
         status=status,
     )
 

@@ -5,7 +5,13 @@ from __future__ import annotations
 import typer
 from rich import print as rprint
 
-from ac_cli.commands._helpers import _api_request, _build_body, JSON_OPTION, set_json_mode, should_skip_confirm
+from ac_cli.commands._helpers import (
+    JSON_OPTION,
+    _api_request,
+    _build_body,
+    set_json_mode,
+    should_skip_confirm,
+)
 from ac_cli.commands.admin import _ADMIN
 from ac_cli.formatting import print_detail, print_json, print_table
 
@@ -15,7 +21,9 @@ legal_docs_app = typer.Typer(help="Legal document management")
 @legal_docs_app.command("list")
 def legal_docs_list(
     ctx: typer.Context,
-    document_type: str | None = typer.Option(None, "--document-type", help="Filter by document type"),
+    document_type: str | None = typer.Option(
+        None, "--document-type", help="Filter by document type"
+    ),
     json_output: bool = JSON_OPTION,
 ) -> None:
     """List legal documents."""
@@ -61,17 +69,20 @@ def legal_docs_get(
         print_json(data)
         return
 
-    print_detail(data, [
-        ("id", "ID"),
-        ("document_type", "Type"),
-        ("version", "Version"),
-        ("title", "Title"),
-        ("content_html", "Content HTML"),
-        ("is_current", "Current"),
-        ("published_at", "Published"),
-        ("created_at", "Created"),
-        ("updated_at", "Updated"),
-    ])
+    print_detail(
+        data,
+        [
+            ("id", "ID"),
+            ("document_type", "Type"),
+            ("version", "Version"),
+            ("title", "Title"),
+            ("content_html", "Content HTML"),
+            ("is_current", "Current"),
+            ("published_at", "Published"),
+            ("created_at", "Created"),
+            ("updated_at", "Updated"),
+        ],
+    )
 
 
 @legal_docs_app.command("create")
@@ -86,7 +97,9 @@ def legal_docs_create(
     """Create a new legal document."""
     set_json_mode(json_output)
     body = _build_body(
-        document_type=document_type, version=version, title=title,
+        document_type=document_type,
+        version=version,
+        title=title,
         content_html=content_html,
     )
 
@@ -110,7 +123,8 @@ def legal_docs_update(
     """Update an existing legal document."""
     set_json_mode(json_output)
     body = _build_body(
-        title=title, content_html=content_html,
+        title=title,
+        content_html=content_html,
     )
 
     if not body:
@@ -158,11 +172,14 @@ def legal_docs_set_current(
         print_json(data)
         return
 
-    print_detail(data, [
-        ("id", "ID"),
-        ("document_type", "Type"),
-        ("version", "Version"),
-        ("title", "Title"),
-        ("is_current", "Current"),
-        ("published_at", "Published"),
-    ])
+    print_detail(
+        data,
+        [
+            ("id", "ID"),
+            ("document_type", "Type"),
+            ("version", "Version"),
+            ("title", "Title"),
+            ("is_current", "Current"),
+            ("published_at", "Published"),
+        ],
+    )

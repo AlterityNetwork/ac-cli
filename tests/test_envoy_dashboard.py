@@ -2,7 +2,6 @@
 
 import json
 
-
 SAMPLE_DASHBOARD = {
     "reply_rate": 0.24,
     "emails_sent": 150,
@@ -46,18 +45,14 @@ def test_envoy_dashboard_server_error_json(invoke, mock_api):
 
 
 def test_envoy_inbox_count(invoke, mock_api):
-    mock_api.get("/api/v1/envoy/dashboard/inbox-count").respond(
-        200, json={"count": 7}
-    )
+    mock_api.get("/api/v1/envoy/dashboard/inbox-count").respond(200, json={"count": 7})
     result = invoke(["envoy", "inbox-count"])
     assert result.exit_code == 0
     assert "7" in result.output
 
 
 def test_envoy_inbox_count_json(invoke, mock_api):
-    mock_api.get("/api/v1/envoy/dashboard/inbox-count").respond(
-        200, json={"count": 0}
-    )
+    mock_api.get("/api/v1/envoy/dashboard/inbox-count").respond(200, json={"count": 0})
     result = invoke(["envoy", "inbox-count", "--json"])
     assert result.exit_code == 0
     parsed = json.loads(result.output)

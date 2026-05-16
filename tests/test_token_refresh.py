@@ -131,12 +131,19 @@ def test_refresh_updates_client_headers(mock_api):
             httpx.Response(200, json=WHOAMI_RESPONSE),
         ]
     )
-    mock_api.post("/api/v1/crm/companies").respond(201, json={
-        "id": "c1", "organization_id": "org-456", "name": "Test",
-        "lifecycle_stage": "target", "tags": [],
-        "created_at": "2026-01-01T00:00:00Z", "updated_at": "2026-01-01T00:00:00Z",
-        "data_version": 1,
-    })
+    mock_api.post("/api/v1/crm/companies").respond(
+        201,
+        json={
+            "id": "c1",
+            "organization_id": "org-456",
+            "name": "Test",
+            "lifecycle_stage": "target",
+            "tags": [],
+            "created_at": "2026-01-01T00:00:00Z",
+            "updated_at": "2026-01-01T00:00:00Z",
+            "data_version": 1,
+        },
+    )
 
     session = _make_mock_session()
     mock_sb = _make_mock_supabase(session)

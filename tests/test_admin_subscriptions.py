@@ -2,7 +2,6 @@
 
 import json
 
-
 SAMPLE_PLAN = {
     "id": "plan-1",
     "slug": "pro",
@@ -51,11 +50,19 @@ def test_plans_create(invoke, mock_api):
     route = mock_api.post("/api/v1/admin/subscription-plans").respond(201, json=SAMPLE_PLAN)
     result = invoke(
         [
-            "admin", "subscription-plans", "create",
-            "--slug", "pro", "--name", "Pro",
-            "--monthly-price-cents", "4900",
-            "--annual-price-cents", "49000",
-            "--features", '{"seats": 10}',
+            "admin",
+            "subscription-plans",
+            "create",
+            "--slug",
+            "pro",
+            "--name",
+            "Pro",
+            "--monthly-price-cents",
+            "4900",
+            "--annual-price-cents",
+            "49000",
+            "--features",
+            '{"seats": 10}',
         ]
     )
     assert result.exit_code == 0
@@ -67,11 +74,19 @@ def test_plans_create(invoke, mock_api):
 def test_plans_create_invalid_features(invoke, mock_api):
     result = invoke(
         [
-            "admin", "subscription-plans", "create",
-            "--slug", "pro", "--name", "Pro",
-            "--monthly-price-cents", "4900",
-            "--annual-price-cents", "49000",
-            "--features", "{not json",
+            "admin",
+            "subscription-plans",
+            "create",
+            "--slug",
+            "pro",
+            "--name",
+            "Pro",
+            "--monthly-price-cents",
+            "4900",
+            "--annual-price-cents",
+            "49000",
+            "--features",
+            "{not json",
         ]
     )
     assert result.exit_code == 2
@@ -81,9 +96,7 @@ def test_plans_update(invoke, mock_api):
     mock_api.patch("/api/v1/admin/subscription-plans/plan-1").respond(
         200, json={**SAMPLE_PLAN, "name": "Pro Plus"}
     )
-    result = invoke(
-        ["admin", "subscription-plans", "update", "plan-1", "--name", "Pro Plus"]
-    )
+    result = invoke(["admin", "subscription-plans", "update", "plan-1", "--name", "Pro Plus"])
     assert result.exit_code == 0
     assert "Updated plan" in result.output
 
@@ -118,9 +131,7 @@ def test_subscriptions_list(invoke, mock_api):
 
 
 def test_subscriptions_list_org_filter(invoke, mock_api):
-    route = mock_api.get("/api/v1/admin/subscriptions").respond(
-        200, json={"data": [], "total": 0}
-    )
+    route = mock_api.get("/api/v1/admin/subscriptions").respond(200, json={"data": [], "total": 0})
     result = invoke(
         ["admin", "subscriptions", "list", "--org-id", "org-1", "--status", "active", "--json"]
     )
@@ -141,9 +152,17 @@ def test_subscriptions_create(invoke, mock_api):
     mock_api.post("/api/v1/admin/subscriptions").respond(201, json=SAMPLE_SUB)
     result = invoke(
         [
-            "admin", "subscriptions", "create",
-            "--org-id", "org-1", "--plan-id", "plan-1",
-            "--billing-period", "monthly", "--started-at", "2026-04-01",
+            "admin",
+            "subscriptions",
+            "create",
+            "--org-id",
+            "org-1",
+            "--plan-id",
+            "plan-1",
+            "--billing-period",
+            "monthly",
+            "--started-at",
+            "2026-04-01",
         ]
     )
     assert result.exit_code == 0
@@ -154,9 +173,7 @@ def test_subscriptions_update(invoke, mock_api):
     mock_api.patch("/api/v1/admin/subscriptions/sub-1").respond(
         200, json={**SAMPLE_SUB, "status": "cancelled"}
     )
-    result = invoke(
-        ["admin", "subscriptions", "update", "sub-1", "--status", "cancelled"]
-    )
+    result = invoke(["admin", "subscriptions", "update", "sub-1", "--status", "cancelled"])
     assert result.exit_code == 0
     assert "Updated subscription" in result.output
 

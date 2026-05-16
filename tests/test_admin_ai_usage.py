@@ -7,8 +7,20 @@ SAMPLE_SUMMARY = {
     "total_tokens": 500000,
     "total_cost": 12.50,
     "by_model": [
-        {"model_id": "gpt-4", "provider": "openai", "requests": 600, "tokens": 300000, "cost": 9.00},
-        {"model_id": "claude-3", "provider": "anthropic", "requests": 400, "tokens": 200000, "cost": 3.50},
+        {
+            "model_id": "gpt-4",
+            "provider": "openai",
+            "requests": 600,
+            "tokens": 300000,
+            "cost": 9.00,
+        },
+        {
+            "model_id": "claude-3",
+            "provider": "anthropic",
+            "requests": 400,
+            "tokens": 200000,
+            "cost": 3.50,
+        },
     ],
 }
 
@@ -33,7 +45,13 @@ SAMPLE_USER_DETAIL = {
     "total_tokens": 300000,
     "total_requests": 600,
     "by_model": [
-        {"model_id": "gpt-4", "provider": "openai", "requests": 400, "tokens": 200000, "cost": 6.00},
+        {
+            "model_id": "gpt-4",
+            "provider": "openai",
+            "requests": 400,
+            "tokens": 200000,
+            "cost": 6.00,
+        },
     ],
     "by_workflow": [
         {"workflow_id": "wf-enrich", "requests": 300, "tokens": 150000, "cost": 4.50},
@@ -42,7 +60,13 @@ SAMPLE_USER_DETAIL = {
 
 SAMPLE_BY_MODEL = [
     {"model_id": "gpt-4", "provider": "openai", "requests": 600, "tokens": 300000, "cost": 9.00},
-    {"model_id": "claude-3", "provider": "anthropic", "requests": 400, "tokens": 200000, "cost": 3.50},
+    {
+        "model_id": "claude-3",
+        "provider": "anthropic",
+        "requests": 400,
+        "tokens": 200000,
+        "cost": 3.50,
+    },
 ]
 
 SAMPLE_BY_WORKFLOW = [
@@ -82,12 +106,19 @@ def test_ai_usage_summary_json(invoke, mock_api):
 
 def test_ai_usage_summary_with_filters(invoke, mock_api):
     mock_api.get("/api/v1/admin/ai-usage/summary").respond(200, json=SAMPLE_SUMMARY)
-    result = invoke([
-        "admin", "ai-usage", "summary",
-        "--start-date", "2026-03-01",
-        "--end-date", "2026-03-20",
-        "--org-id", "org-123",
-    ])
+    result = invoke(
+        [
+            "admin",
+            "ai-usage",
+            "summary",
+            "--start-date",
+            "2026-03-01",
+            "--end-date",
+            "2026-03-20",
+            "--org-id",
+            "org-123",
+        ]
+    )
     assert result.exit_code == 0
 
 
@@ -108,14 +139,23 @@ def test_ai_usage_users_json(invoke, mock_api):
 
 def test_ai_usage_users_with_options(invoke, mock_api):
     mock_api.get("/api/v1/admin/ai-usage/users").respond(200, json=SAMPLE_USERS)
-    result = invoke([
-        "admin", "ai-usage", "users",
-        "--sort", "total_cost",
-        "--order", "desc",
-        "--page", "2",
-        "--page-size", "10",
-        "--search", "alice",
-    ])
+    result = invoke(
+        [
+            "admin",
+            "ai-usage",
+            "users",
+            "--sort",
+            "total_cost",
+            "--order",
+            "desc",
+            "--page",
+            "2",
+            "--page-size",
+            "10",
+            "--search",
+            "alice",
+        ]
+    )
     assert result.exit_code == 0
 
 
@@ -185,12 +225,21 @@ def test_ai_usage_details_json(invoke, mock_api):
 
 def test_ai_usage_details_with_filters(invoke, mock_api):
     mock_api.get("/api/v1/admin/ai-usage/details").respond(200, json=SAMPLE_DETAILS)
-    result = invoke([
-        "admin", "ai-usage", "details",
-        "--model-id", "gpt-4",
-        "--user-id", "user-123",
-        "--workflow-run-id", "run-456",
-        "--limit", "10",
-        "--offset", "5",
-    ])
+    result = invoke(
+        [
+            "admin",
+            "ai-usage",
+            "details",
+            "--model-id",
+            "gpt-4",
+            "--user-id",
+            "user-123",
+            "--workflow-run-id",
+            "run-456",
+            "--limit",
+            "10",
+            "--offset",
+            "5",
+        ]
+    )
     assert result.exit_code == 0

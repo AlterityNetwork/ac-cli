@@ -2,7 +2,6 @@
 
 import json
 
-
 SAMPLE_RUN = {
     "id": "run-1",
     "workflow_id": "wf-1",
@@ -20,7 +19,9 @@ SAMPLE_LOG = {
 
 
 def test_runs_create(invoke, mock_api):
-    route = mock_api.post("/api/v1/workflows/wf-1/runs").respond(202, json={"workflow_run_id": "run-1", "status": "queued"})
+    route = mock_api.post("/api/v1/workflows/wf-1/runs").respond(
+        202, json={"workflow_run_id": "run-1", "status": "queued"}
+    )
     result = invoke(["workflows", "runs", "create", "wf-1"])
     assert result.exit_code == 0
     assert "Run created" in result.output
@@ -31,7 +32,9 @@ def test_runs_create(invoke, mock_api):
 
 
 def test_runs_create_json(invoke, mock_api):
-    mock_api.post("/api/v1/workflows/wf-1/runs").respond(202, json={"workflow_run_id": "run-1", "status": "queued"})
+    mock_api.post("/api/v1/workflows/wf-1/runs").respond(
+        202, json={"workflow_run_id": "run-1", "status": "queued"}
+    )
     result = invoke(["workflows", "runs", "create", "wf-1", "--json"])
     assert result.exit_code == 0
     parsed = json.loads(result.output)
@@ -39,7 +42,9 @@ def test_runs_create_json(invoke, mock_api):
 
 
 def test_runs_create_with_input(invoke, mock_api):
-    route = mock_api.post("/api/v1/workflows/wf-1/runs").respond(202, json={"workflow_run_id": "run-1", "status": "queued"})
+    route = mock_api.post("/api/v1/workflows/wf-1/runs").respond(
+        202, json={"workflow_run_id": "run-1", "status": "queued"}
+    )
     result = invoke(["workflows", "runs", "create", "wf-1", "--input", '{"key": "value"}'])
     assert result.exit_code == 0
     assert "Run created" in result.output
@@ -49,7 +54,9 @@ def test_runs_create_with_input(invoke, mock_api):
 
 
 def test_runs_create_with_idempotency_key(invoke, mock_api):
-    route = mock_api.post("/api/v1/workflows/wf-1/runs").respond(202, json={"workflow_run_id": "run-1", "status": "queued"})
+    route = mock_api.post("/api/v1/workflows/wf-1/runs").respond(
+        202, json={"workflow_run_id": "run-1", "status": "queued"}
+    )
     result = invoke(["workflows", "runs", "create", "wf-1", "--idempotency-key", "key-123"])
     assert result.exit_code == 0
     assert "Run created" in result.output
@@ -63,14 +70,18 @@ def test_runs_create_invalid_input_json(invoke, mock_api):
 
 
 def test_runs_list(invoke, mock_api):
-    mock_api.get("/api/v1/workflows/wf-1/runs").respond(200, json={"data": [SAMPLE_RUN], "total": 1})
+    mock_api.get("/api/v1/workflows/wf-1/runs").respond(
+        200, json={"data": [SAMPLE_RUN], "total": 1}
+    )
     result = invoke(["workflows", "runs", "list", "wf-1"])
     assert result.exit_code == 0
     assert "run-1" in result.output
 
 
 def test_runs_list_json(invoke, mock_api):
-    mock_api.get("/api/v1/workflows/wf-1/runs").respond(200, json={"data": [SAMPLE_RUN], "total": 1})
+    mock_api.get("/api/v1/workflows/wf-1/runs").respond(
+        200, json={"data": [SAMPLE_RUN], "total": 1}
+    )
     result = invoke(["workflows", "runs", "list", "wf-1", "--json"])
     assert result.exit_code == 0
     parsed = json.loads(result.output)

@@ -32,9 +32,14 @@ def tos_config(
         print_json(data)
         return
 
-    print_detail(data, [
-        ("version", "Version"), ("embed_url", "Embed URL"), ("updated_at", "Updated"),
-    ])
+    print_detail(
+        data,
+        [
+            ("version", "Version"),
+            ("embed_url", "Embed URL"),
+            ("updated_at", "Updated"),
+        ],
+    )
 
 
 @app.command("status")

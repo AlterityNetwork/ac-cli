@@ -56,16 +56,19 @@ def lists_get(
         print_json(data)
         return
 
-    print_detail(data, [
-        ("id", "ID"),
-        ("name", "Name"),
-        ("description", "Description"),
-        ("type", "Type"),
-        ("member_type", "Member Type"),
-        ("member_count", "Members"),
-        ("created_at", "Created"),
-        ("updated_at", "Updated"),
-    ])
+    print_detail(
+        data,
+        [
+            ("id", "ID"),
+            ("name", "Name"),
+            ("description", "Description"),
+            ("type", "Type"),
+            ("member_type", "Member Type"),
+            ("member_count", "Members"),
+            ("created_at", "Created"),
+            ("updated_at", "Updated"),
+        ],
+    )
 
 
 @lists_app.command("create")
@@ -80,7 +83,10 @@ def lists_create(
     """Create a new list."""
     set_json_mode(json_output)
     body = _build_body(
-        name=name, type=list_type, member_type=member_type, description=description,
+        name=name,
+        type=list_type,
+        member_type=member_type,
+        description=description,
     )
 
     body["organization_id"] = _get_org_id()
@@ -107,7 +113,10 @@ def lists_update(
     """Update an existing list."""
     set_json_mode(json_output)
     body = _build_body(
-        name=name, description=description, type=list_type, member_type=member_type,
+        name=name,
+        description=description,
+        type=list_type,
+        member_type=member_type,
     )
 
     if not body:
@@ -239,13 +248,15 @@ def lists_remove_member(
     _api_request("delete", f"{_CRM}/lists/{list_id}/members/{member_type}/{member_id}")
 
     if json_output:
-        print_json({
-            "ok": True,
-            "list_id": list_id,
-            "member_type": member_type,
-            "member_id": member_id,
-            "action": "remove-member",
-        })
+        print_json(
+            {
+                "ok": True,
+                "list_id": list_id,
+                "member_type": member_type,
+                "member_id": member_id,
+                "action": "remove-member",
+            }
+        )
     else:
         rprint(f"[green]Removed {member_type} {member_id} from list {list_id}[/green]")
 

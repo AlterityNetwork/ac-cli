@@ -2,7 +2,6 @@
 
 import json
 
-
 SAMPLE_RESOURCE = {"id": "r-1", "name": "Guide.pdf", "status": "processed", "type": "pdf"}
 SAMPLE_CHUNK = {"id": "ch-1", "index": 0, "token_count": 128}
 
@@ -50,14 +49,18 @@ def test_resources_chunks_json(invoke, mock_api):
 
 
 def test_resources_preview_url(invoke, mock_api):
-    mock_api.get("/api/v1/admin/resources/r-1/preview-url").respond(200, json={"url": "https://example.com/preview"})
+    mock_api.get("/api/v1/admin/resources/r-1/preview-url").respond(
+        200, json={"url": "https://example.com/preview"}
+    )
     result = invoke(["admin", "resources", "preview-url", "r-1"])
     assert result.exit_code == 0
     assert "preview" in result.output.lower()
 
 
 def test_resources_preview_url_json(invoke, mock_api):
-    mock_api.get("/api/v1/admin/resources/r-1/preview-url").respond(200, json={"url": "https://example.com/preview"})
+    mock_api.get("/api/v1/admin/resources/r-1/preview-url").respond(
+        200, json={"url": "https://example.com/preview"}
+    )
     result = invoke(["admin", "resources", "preview-url", "r-1", "--json"])
     assert result.exit_code == 0
     parsed = json.loads(result.output)
@@ -65,7 +68,9 @@ def test_resources_preview_url_json(invoke, mock_api):
 
 
 def test_resources_update(invoke, mock_api):
-    mock_api.patch("/api/v1/admin/resources/r-1").respond(200, json={**SAMPLE_RESOURCE, "name": "Updated.pdf"})
+    mock_api.patch("/api/v1/admin/resources/r-1").respond(
+        200, json={**SAMPLE_RESOURCE, "name": "Updated.pdf"}
+    )
     result = invoke(["admin", "resources", "update", "r-1", "--name", "Updated.pdf"])
     assert result.exit_code == 0
     assert "Updated" in result.output
@@ -89,14 +94,18 @@ def test_resources_delete_abort(invoke, mock_api):
 
 
 def test_resources_reprocess(invoke, mock_api):
-    mock_api.post("/api/v1/admin/resources/r-1/reprocess").respond(200, json={"status": "processing"})
+    mock_api.post("/api/v1/admin/resources/r-1/reprocess").respond(
+        200, json={"status": "processing"}
+    )
     result = invoke(["admin", "resources", "reprocess", "r-1"])
     assert result.exit_code == 0
     assert "Reprocessing" in result.output
 
 
 def test_resources_reprocess_json(invoke, mock_api):
-    mock_api.post("/api/v1/admin/resources/r-1/reprocess").respond(200, json={"status": "processing"})
+    mock_api.post("/api/v1/admin/resources/r-1/reprocess").respond(
+        200, json={"status": "processing"}
+    )
     result = invoke(["admin", "resources", "reprocess", "r-1", "--json"])
     assert result.exit_code == 0
     parsed = json.loads(result.output)

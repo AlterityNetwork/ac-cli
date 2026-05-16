@@ -4,7 +4,6 @@ import json
 
 from tests.conftest import WHOAMI_RESPONSE
 
-
 SAMPLE_DEAL = {
     "id": "d1",
     "organization_id": "org-456",
@@ -45,9 +44,7 @@ def test_deals_list_with_filters(invoke, mock_api):
 def test_deals_list_sort_by_value_desc(invoke, mock_api):
     """--sort-by value --order desc maps to sort_by/order query params."""
     route = mock_api.get("/api/v1/crm/deals").respond(200, json=[])
-    result = invoke(
-        ["crm", "deals", "list", "--sort-by", "value", "--order", "desc", "--json"]
-    )
+    result = invoke(["crm", "deals", "list", "--sort-by", "value", "--order", "desc", "--json"])
     assert result.exit_code == 0
     assert route.called
     request = route.calls.last.request
@@ -60,9 +57,13 @@ def test_deals_list_close_date_range(invoke, mock_api):
     route = mock_api.get("/api/v1/crm/deals").respond(200, json=[])
     result = invoke(
         [
-            "crm", "deals", "list",
-            "--close-after", "2026-04-01",
-            "--close-before", "2026-04-30",
+            "crm",
+            "deals",
+            "list",
+            "--close-after",
+            "2026-04-01",
+            "--close-before",
+            "2026-04-30",
             "--json",
         ]
     )
@@ -94,7 +95,9 @@ def test_deals_get(invoke, mock_api):
 def test_deals_create(invoke, mock_api):
     mock_api.get("/whoami").respond(200, json=WHOAMI_RESPONSE)
     mock_api.post("/api/v1/crm/deals").respond(201, json=SAMPLE_DEAL)
-    result = invoke(["crm", "deals", "create", "--name", "Enterprise Contract", "--amount", "50000"])
+    result = invoke(
+        ["crm", "deals", "create", "--name", "Enterprise Contract", "--amount", "50000"]
+    )
     assert result.exit_code == 0
     assert "Created deal" in result.output
 

@@ -2,7 +2,6 @@
 
 import json
 
-
 SAMPLE_MSG = {"id": "msg-1", "message": "Violation of terms"}
 
 
@@ -28,14 +27,18 @@ def test_suspension_messages_403(invoke, mock_api):
 
 
 def test_suspend_user(invoke, mock_api):
-    mock_api.post("/api/v1/admin/users/u-1/suspend").respond(200, json={"id": "u-1", "status": "suspended"})
+    mock_api.post("/api/v1/admin/users/u-1/suspend").respond(
+        200, json={"id": "u-1", "status": "suspended"}
+    )
     result = invoke(["admin", "users", "suspend", "u-1", "--yes"])
     assert result.exit_code == 0
     assert "Suspended" in result.output
 
 
 def test_suspend_user_json(invoke, mock_api):
-    mock_api.post("/api/v1/admin/users/u-1/suspend").respond(200, json={"id": "u-1", "status": "suspended"})
+    mock_api.post("/api/v1/admin/users/u-1/suspend").respond(
+        200, json={"id": "u-1", "status": "suspended"}
+    )
     result = invoke(["admin", "users", "suspend", "u-1", "--yes", "--json"])
     assert result.exit_code == 0
     parsed = json.loads(result.output)
@@ -49,14 +52,18 @@ def test_suspend_user_404(invoke, mock_api):
 
 
 def test_activate_user(invoke, mock_api):
-    mock_api.post("/api/v1/admin/users/u-1/activate").respond(200, json={"id": "u-1", "status": "active"})
+    mock_api.post("/api/v1/admin/users/u-1/activate").respond(
+        200, json={"id": "u-1", "status": "active"}
+    )
     result = invoke(["admin", "users", "activate", "u-1"])
     assert result.exit_code == 0
     assert "Activated" in result.output
 
 
 def test_activate_user_json(invoke, mock_api):
-    mock_api.post("/api/v1/admin/users/u-1/activate").respond(200, json={"id": "u-1", "status": "active"})
+    mock_api.post("/api/v1/admin/users/u-1/activate").respond(
+        200, json={"id": "u-1", "status": "active"}
+    )
     result = invoke(["admin", "users", "activate", "u-1", "--json"])
     assert result.exit_code == 0
     parsed = json.loads(result.output)

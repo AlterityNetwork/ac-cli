@@ -36,9 +36,7 @@ def update_message_data(
         rprint("[red]--data must be a JSON object[/red]")
         raise typer.Exit(code=2)
 
-    resp = _api_request(
-        "patch", f"{_CHAT}/messages/{message_id}/data", json={"data": parsed}
-    )
+    resp = _api_request("patch", f"{_CHAT}/messages/{message_id}/data", json={"data": parsed})
     body = resp.json()
     if json_output:
         print_json(body)

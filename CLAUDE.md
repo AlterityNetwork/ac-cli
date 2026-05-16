@@ -61,7 +61,7 @@ src/ac_cli/
     _helpers.py        → Shared helpers (_api_request, _build_body, _get_org_id, exit codes)
 tests/                 → One test file per command group (test_<domain>_<group>.py)
 scripts/               → bump.sh (manual version), auto-version-tag.sh (post-commit hook),
-                         audit_endpoints.py (CLI vs API endpoint diff)
+                         lint.sh (ruff lint + format), audit_endpoints.py (CLI vs API endpoint diff)
 ```
 
 ## Running Checks
@@ -70,10 +70,14 @@ scripts/               → bump.sh (manual version), auto-version-tag.sh (post-c
 uv run pytest                              # All tests
 uv run pytest tests/test_crm_companies.py  # Single file
 uv run python -m ac_cli.main --help        # Verify CLI loads
+./scripts/lint.sh                          # Ruff lint + format check
+./scripts/lint.sh --fix                    # Ruff auto-fix + format
+uv run vulture src/                        # Dead-code scan
+uv run deptry src/                         # Dependency hygiene
 python scripts/audit_endpoints.py --strict # Diff CLI calls vs live OpenAPI
 ```
 
-No lint or type-check tooling is configured — pytest is the only check.
+Pytest defaults (`pyproject.toml`): `-n auto --dist worksteal --maxfail=1 --cov-fail-under=90`. No mypy/type-check tooling is configured.
 
 `audit_endpoints.py` requires the API on `localhost:8008` (or pass `--api-url`).
 Run before merging changes that touch routers or `_api_request` calls — exits

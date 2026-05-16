@@ -62,10 +62,17 @@ def apps_get(
         print_json(data)
         return
 
-    print_detail(data, [
-        ("slug", "Slug"), ("name", "Name"), ("description", "Description"),
-        ("category", "Category"), ("status", "Status"), ("developer_name", "Developer"),
-    ])
+    print_detail(
+        data,
+        [
+            ("slug", "Slug"),
+            ("name", "Name"),
+            ("description", "Description"),
+            ("category", "Category"),
+            ("status", "Status"),
+            ("developer_name", "Developer"),
+        ],
+    )
 
 
 @app.command("developers")

@@ -14,7 +14,6 @@ from ac_cli.config import (
     get_active_env,
     load_full_config,
     save_full_config,
-    set_active_env,
 )
 
 app = typer.Typer(help="Authentication commands")
@@ -68,9 +67,7 @@ def login(
 
     try:
         client = create_client(supabase_url, supabase_anon_key)
-        response = client.auth.sign_in_with_password(
-            {"email": email, "password": password}
-        )
+        response = client.auth.sign_in_with_password({"email": email, "password": password})
     except Exception as exc:
         rprint(f"[red]Login failed:[/red] {exc}")
         raise typer.Exit(code=1) from exc
@@ -144,7 +141,9 @@ def whoami(
                 detail = exc.response.text
             exit_code = _EXIT_CODES.get(exc.response.status_code, 1)
             if json_output:
-                print_json({"error": True, "status_code": exc.response.status_code, "detail": detail})
+                print_json(
+                    {"error": True, "status_code": exc.response.status_code, "detail": detail}
+                )
             else:
                 rprint(f"[red]Error {exc.response.status_code}:[/red] {detail}")
             raise typer.Exit(code=exit_code)

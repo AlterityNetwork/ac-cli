@@ -56,10 +56,16 @@ def resources_get(
         print_json(data)
         return
 
-    print_detail(data, [
-        ("id", "ID"), ("name", "Name"), ("status", "Status"),
-        ("type", "Type"), ("created_at", "Created"),
-    ])
+    print_detail(
+        data,
+        [
+            ("id", "ID"),
+            ("name", "Name"),
+            ("status", "Status"),
+            ("type", "Type"),
+            ("created_at", "Created"),
+        ],
+    )
 
 
 @admin_resources_app.command("upload")
@@ -102,7 +108,9 @@ def resources_chunks(
         return
 
     items = data if isinstance(data, list) else data.get("chunks", [])
-    print_table(items, [("id", "ID"), ("index", "Index"), ("token_count", "Tokens")], title="Chunks")
+    print_table(
+        items, [("id", "ID"), ("index", "Index"), ("token_count", "Tokens")], title="Chunks"
+    )
 
 
 @admin_resources_app.command("preview-url")

@@ -9,9 +9,7 @@ from pathlib import Path
 import typer
 from rich import print as rprint
 
-from ac_cli.commands._helpers import should_skip_confirm, JSON_OPTION, set_json_mode
-
-from ac_cli.commands._helpers import _api_request
+from ac_cli.commands._helpers import JSON_OPTION, _api_request, set_json_mode, should_skip_confirm
 from ac_cli.commands.files import _FILES
 from ac_cli.formatting import print_detail, print_json
 
@@ -66,14 +64,17 @@ def images_upload(
     if json_output:
         print_json(data)
     else:
-        print_detail(data, [
-            ("key", "Key"),
-            ("public_url", "URL"),
-            ("filename", "Filename"),
-            ("content_type", "Content-Type"),
-            ("size", "Size"),
-            ("category", "Category"),
-        ])
+        print_detail(
+            data,
+            [
+                ("key", "Key"),
+                ("public_url", "URL"),
+                ("filename", "Filename"),
+                ("content_type", "Content-Type"),
+                ("size", "Size"),
+                ("category", "Category"),
+            ],
+        )
 
 
 @images_app.command("delete")

@@ -6,10 +6,14 @@ import json
 def test_people_bulk_upsert(invoke, mock_api, tmp_path):
     mock_api.put("/api/v1/crm/people/bulk").respond(200, json={"count": 2})
     data_file = tmp_path / "people.json"
-    data_file.write_text(json.dumps([
-        {"email": "a@example.com", "full_name": "Alice"},
-        {"email": "b@example.com", "full_name": "Bob"},
-    ]))
+    data_file.write_text(
+        json.dumps(
+            [
+                {"email": "a@example.com", "full_name": "Alice"},
+                {"email": "b@example.com", "full_name": "Bob"},
+            ]
+        )
+    )
     result = invoke(["crm", "people", "bulk-upsert", "--file", str(data_file)])
     assert result.exit_code == 0
     assert "Upserted 2 people" in result.output

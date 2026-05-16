@@ -9,6 +9,7 @@
   "what's been discovered in the last 7 days" path and the Launchpad
   hottest-signals view.
 """
+
 from __future__ import annotations
 
 import typer

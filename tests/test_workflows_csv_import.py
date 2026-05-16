@@ -2,11 +2,22 @@
 
 import json
 
-
 SAMPLE_PARSE_RESPONSE = {
     "companies": [
-        {"name": "Acme Corp", "website": "https://acme.com", "industry": "SaaS", "location": "SF", "source_type": "csv"},
-        {"name": "Beta Inc", "website": None, "industry": "Fintech", "location": "NYC", "source_type": "crm"},
+        {
+            "name": "Acme Corp",
+            "website": "https://acme.com",
+            "industry": "SaaS",
+            "location": "SF",
+            "source_type": "csv",
+        },
+        {
+            "name": "Beta Inc",
+            "website": None,
+            "industry": "Fintech",
+            "location": "NYC",
+            "source_type": "crm",
+        },
     ],
     "total_rows": 2,
     "truncated": False,
@@ -16,7 +27,9 @@ SAMPLE_PARSE_RESPONSE = {
 def test_csv_parse(invoke, mock_api, tmp_path):
     mock_api.post("/api/v1/workflows/csv/parse-companies").respond(200, json=SAMPLE_PARSE_RESPONSE)
     csv_file = tmp_path / "companies.csv"
-    csv_file.write_text("name,website,industry\nAcme Corp,https://acme.com,SaaS\nBeta Inc,,Fintech\n")
+    csv_file.write_text(
+        "name,website,industry\nAcme Corp,https://acme.com,SaaS\nBeta Inc,,Fintech\n"
+    )
     result = invoke(["workflows", "csv-parse", str(csv_file)])
     assert result.exit_code == 0
     assert "Acme Corp" in result.output

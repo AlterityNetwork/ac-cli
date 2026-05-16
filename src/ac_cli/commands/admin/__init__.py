@@ -55,21 +55,21 @@ def analytics_overview(
     rprint(f"  AI requests/day: {data.get('ai_requests_per_day', 0):.1f}")
     rprint(f"  App runs/day: {data.get('app_runs_per_day', 0):.1f}")
     rprint(f"  Platform events/day: {data.get('platform_events_per_day', 0):.1f}")
-    rprint(f"\n[bold]Active Users[/bold]")
+    rprint("\n[bold]Active Users[/bold]")
     rprint(f"  Active user rate: {data.get('active_user_rate', 0):.1f}%")
     rprint(f"  Total active: {data.get('total_active_users', 0)}")
     rprint(f"  Total org members: {data.get('total_org_members', 0)}")
-    rprint(f"\n[bold]AI Usage[/bold]")
+    rprint("\n[bold]AI Usage[/bold]")
     rprint(f"  Total cost: ${data.get('ai_total_cost', 0):.2f}")
     change_cost = data.get("ai_change_cost")
     if change_cost is not None:
         rprint(f"  Cost change: {change_cost:+.1f}%")
-    rprint(f"\n[bold]App Usage[/bold]")
+    rprint("\n[bold]App Usage[/bold]")
     rprint(f"  Total runs: {data.get('app_total_runs', 0)}")
     change_runs = data.get("app_change_runs")
     if change_runs is not None:
         rprint(f"  Runs change: {change_runs:+.1f}%")
-    rprint(f"\n[bold]Platform Activity[/bold]")
+    rprint("\n[bold]Platform Activity[/bold]")
     rprint(f"  Total events: {data.get('platform_total_events', 0)}")
     change_events = data.get("platform_change_events")
     if change_events is not None:
@@ -97,21 +97,21 @@ def cache_stats(
 
 # -- Register sub-command groups from submodules ------------------------------
 
-from ac_cli.commands.admin.users import users_app  # noqa: E402
-from ac_cli.commands.admin.organizations import organizations_app  # noqa: E402
-from ac_cli.commands.admin.queues import queues_app  # noqa: E402
-from ac_cli.commands.admin.demo import demo_app  # noqa: E402
-from ac_cli.commands.admin.onboarding import onboarding_app  # noqa: E402
-from ac_cli.commands.admin.app_usage import app_usage_app  # noqa: E402
-from ac_cli.commands.admin.ai_usage import ai_usage_app  # noqa: E402
-from ac_cli.commands.admin.platform_activity import platform_activity_app  # noqa: E402
-from ac_cli.commands.admin.legal_documents import legal_docs_app  # noqa: E402
-from ac_cli.commands.admin.admin_resources import admin_resources_app  # noqa: E402
 from ac_cli.commands.admin.admin_apps import admin_apps_app  # noqa: E402
-from ac_cli.commands.admin.searches import searches_app  # noqa: E402
+from ac_cli.commands.admin.admin_resources import admin_resources_app  # noqa: E402
+from ac_cli.commands.admin.ai_usage import ai_usage_app  # noqa: E402
+from ac_cli.commands.admin.app_usage import app_usage_app  # noqa: E402
 from ac_cli.commands.admin.chat_escalations import chat_escalations_app  # noqa: E402
-from ac_cli.commands.admin.subscriptions import subscriptions_app  # noqa: E402
+from ac_cli.commands.admin.demo import demo_app  # noqa: E402
+from ac_cli.commands.admin.legal_documents import legal_docs_app  # noqa: E402
+from ac_cli.commands.admin.onboarding import onboarding_app  # noqa: E402
+from ac_cli.commands.admin.organizations import organizations_app  # noqa: E402
+from ac_cli.commands.admin.platform_activity import platform_activity_app  # noqa: E402
+from ac_cli.commands.admin.queues import queues_app  # noqa: E402
+from ac_cli.commands.admin.searches import searches_app  # noqa: E402
 from ac_cli.commands.admin.subscription_plans import subscription_plans_app  # noqa: E402
+from ac_cli.commands.admin.subscriptions import subscriptions_app  # noqa: E402
+from ac_cli.commands.admin.users import users_app  # noqa: E402
 
 app.add_typer(users_app, name="users")
 app.add_typer(organizations_app, name="orgs")

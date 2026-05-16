@@ -15,7 +15,9 @@ runner = CliRunner()
 
 def _invoke_health(args, config_url=API_BASE):
     """Invoke health command with mocked config."""
-    with patch("ac_cli.commands.health.load_config", return_value={**MOCK_CONFIG, "api_url": config_url}):
+    with patch(
+        "ac_cli.commands.health.load_config", return_value={**MOCK_CONFIG, "api_url": config_url}
+    ):
         return runner.invoke(app, ["health", "check"] + args)
 
 
