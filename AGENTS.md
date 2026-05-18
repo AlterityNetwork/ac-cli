@@ -87,7 +87,7 @@ src/ac_cli/
     _helpers.py        → Shared helpers (_api_request, _build_body, _get_org_id, exit codes)
 tests/                 → One test file per command group (test_<domain>_<group>.py)
 scripts/               → bump.sh (manual version), auto-version-tag.sh (post-commit hook),
-                         audit_endpoints.py (CLI vs API endpoint diff)
+                         lint.sh (ruff lint + format), audit_endpoints.py (CLI vs API endpoint diff)
 ```
 
 ## Running Checks
@@ -96,10 +96,14 @@ scripts/               → bump.sh (manual version), auto-version-tag.sh (post-c
 uv run pytest                              # All tests
 uv run pytest tests/test_crm_companies.py  # Single file
 uv run python -m ac_cli.main --help        # Verify CLI loads
+./scripts/lint.sh                          # Ruff lint + format check
+./scripts/lint.sh --fix                    # Ruff auto-fix + format
+uv run vulture src/                        # Dead-code scan
+uv run deptry src/                         # Dependency hygiene
 python scripts/audit_endpoints.py --strict # Diff CLI calls vs live OpenAPI
 ```
 
-No lint or type-check tooling is configured — pytest is the only check.
+Pytest defaults (`pyproject.toml`): `-n auto --dist worksteal --maxfail=1 --cov-fail-under=90`. No mypy/type-check tooling is configured.
 
 `audit_endpoints.py` requires the API on `localhost:8008` (or pass `--api-url`).
 Run before merging changes that touch routers or `_api_request` calls — exits
@@ -121,6 +125,7 @@ Every new command needs tests for: happy path, `--json` flag, error codes, and `
 - **Always use conventional commit prefixes** (`feat:`, `fix:`, `chore:`, etc.) — auto-bump and PyPI publishing depend on this.
 - **Credentials in `~/.agencycore/config.json`** (file mode 0600) — never commit.
 - **Dependencies**: use `uv add <pkg>` / `uv add --dev <pkg>`. Both `pyproject.toml` and `uv.lock` must stay in sync.
+- **API↔CLI parity**: every `ac-python-api` route change (new/removed/renamed/method/schema) must land alongside the matching CLI update in the same branch. Run `python scripts/audit_endpoints.py --strict` against a live API; it must report `CLI-ONLY: 0`, `API-ONLY: 0`, `METHOD-DIFF: 0`. New path-prefix constants must be added to `PATH_CONSTANTS` in that script. Intentionally CLI-omitted endpoints (webhooks, SSE streams, frontend-only) go in `OUT_OF_SCOPE` in the same script. Also propagate user-facing changes to `../ac-cli-plugin`.
 
 ## API Domains Not Exposed in CLI
 
