@@ -214,6 +214,102 @@ def test_outbox_reject_json(invoke, mock_api):
     assert parsed["rejected"] is True
 
 
+# ----- ENG-712: `ac envoy outbox edit` (PATCH /crm/communications/{id}) -----
+# These edits hit the new canonical communications endpoint rather than the
+# legacy /envoy/outbox/* PATCH so the new awaiting_approval edit-tracking
+# (is_edited + edit_summary on communication_ai_metadata) fires server-side.
+
+
+def test_outbox_edit_subject_only(invoke, mock_api):
+    route = mock_api.patch("/api/v1/crm/communications/draft-1").respond(
+        200, json={"id": "draft-1", "subject": "Edited subject"}
+    )
+    result = invoke(["envoy", "outbox", "edit", "draft-1", "--subject", "Edited subject"])
+    assert result.exit_code == 0
+    assert "Edited draft" in result.output
+    body = json.loads(route.calls[0].request.content.decode())
+    assert body == {"subject": "Edited subject"}
+
+
+def test_outbox_edit_body_only(invoke, mock_api):
+    route = mock_api.patch("/api/v1/crm/communications/draft-1").respond(
+        200, json={"id": "draft-1", "content": "Edited body"}
+    )
+    result = invoke(["envoy", "outbox", "edit", "draft-1", "--body", "Edited body"])
+    assert result.exit_code == 0
+    body = json.loads(route.calls[0].request.content.decode())
+    # CLI must map --body → API field "content" (the canonical communications schema).
+    assert body == {"content": "Edited body"}
+
+
+def test_outbox_edit_both_subject_and_body(invoke, mock_api):
+    route = mock_api.patch("/api/v1/crm/communications/draft-1").respond(
+        200, json={"id": "draft-1"}
+    )
+    result = invoke(
+        [
+            "envoy",
+            "outbox",
+            "edit",
+            "draft-1",
+            "--subject",
+            "Edited subject",
+            "--body",
+            "Edited body",
+        ]
+    )
+    assert result.exit_code == 0
+    body = json.loads(route.calls[0].request.content.decode())
+    assert body == {"subject": "Edited subject", "content": "Edited body"}
+
+
+def test_outbox_edit_json_flag(invoke, mock_api):
+    mock_api.patch("/api/v1/crm/communications/draft-1").respond(
+        200, json={"id": "draft-1", "subject": "Edited"}
+    )
+    result = invoke(["envoy", "outbox", "edit", "draft-1", "--subject", "Edited", "--json"])
+    assert result.exit_code == 0
+    parsed = json.loads(result.output)
+    assert parsed["id"] == "draft-1"
+
+
+def test_outbox_edit_missing_all_fields_errors(invoke, mock_api):
+    result = invoke(["envoy", "outbox", "edit", "draft-1"])
+    assert result.exit_code == 2  # BadParameter → typer exits 2
+    assert "subject" in result.output.lower() or "body" in result.output.lower()
+
+
+def test_outbox_edit_body_and_body_file_mutually_exclusive(invoke, mock_api, tmp_path):
+    body_file = tmp_path / "draft.txt"
+    body_file.write_text("From file")
+    result = invoke(
+        [
+            "envoy",
+            "outbox",
+            "edit",
+            "draft-1",
+            "--body",
+            "inline",
+            "--body-file",
+            str(body_file),
+        ]
+    )
+    assert result.exit_code == 2
+    assert "body" in result.output.lower()
+
+
+def test_outbox_edit_body_file_sends_file_contents(invoke, mock_api, tmp_path):
+    body_file = tmp_path / "draft.txt"
+    body_file.write_text("Body loaded from file\n\nSecond paragraph.")
+    route = mock_api.patch("/api/v1/crm/communications/draft-1").respond(
+        200, json={"id": "draft-1"}
+    )
+    result = invoke(["envoy", "outbox", "edit", "draft-1", "--body-file", str(body_file)])
+    assert result.exit_code == 0
+    body = json.loads(route.calls[0].request.content.decode())
+    assert body == {"content": "Body loaded from file\n\nSecond paragraph."}
+
+
 def test_outbox_regenerate(invoke, mock_api):
     mock_api.post("/api/v1/envoy/outbox/pending/draft-1/regenerate").respond(
         200, json={"regenerated": True}

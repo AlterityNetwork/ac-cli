@@ -2,11 +2,13 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+
 import typer
 from rich import print as rprint
 
 from ac_cli.commands._helpers import JSON_OPTION, set_json_mode
-from ac_cli.commands.crm import _api_request, _build_body
+from ac_cli.commands.crm import _CRM, _api_request, _build_body
 from ac_cli.commands.envoy import _ENVOY
 from ac_cli.formatting import print_json, print_table
 
@@ -149,6 +151,48 @@ def outbox_update_draft(
         print_json(data)
     else:
         rprint(f"[green]Updated draft {draft_id}[/green]")
+
+
+@outbox_app.command("edit")
+def outbox_edit(
+    ctx: typer.Context,
+    draft_id: str = typer.Argument(..., help="Draft (communication) ID"),
+    subject: str | None = typer.Option(None, help="New subject"),
+    body: str | None = typer.Option(
+        None, help="New body content (mutually exclusive with --body-file)"
+    ),
+    body_file: Path | None = typer.Option(
+        None,
+        "--body-file",
+        help="Path to a file whose contents become the new body",
+        exists=True,
+        dir_okay=False,
+        readable=True,
+    ),
+    json_output: bool = JSON_OPTION,
+) -> None:
+    """Save edits to a pending-approval draft without sending (ENG-712).
+
+    Hits PATCH /crm/communications/{draft_id} — the canonical endpoint that
+    also writes is_edited + edit_summary to communication_ai_metadata when
+    subject or content actually change on an awaiting_approval row.
+    """
+    set_json_mode(json_output)
+
+    if body is not None and body_file is not None:
+        raise typer.BadParameter("--body and --body-file are mutually exclusive")
+    if subject is None and body is None and body_file is None:
+        raise typer.BadParameter("Provide at least one of --subject, --body, or --body-file")
+
+    content = body_file.read_text() if body_file is not None else body
+    update_body = _build_body(subject=subject, content=content)
+    resp = _api_request("patch", f"{_CRM}/communications/{draft_id}", json=update_body)
+
+    data = resp.json()
+    if json_output:
+        print_json(data)
+    else:
+        rprint(f"[green]Edited draft {draft_id}[/green]")
 
 
 @outbox_app.command("approve")
