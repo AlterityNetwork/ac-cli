@@ -87,3 +87,25 @@ def test_notifications_read_not_found(invoke, mock_api):
     mock_api.post("/api/v1/notifications/missing/read").respond(404, json={"detail": "no"})
     result = invoke(["notifications", "read", "missing"])
     assert result.exit_code == 3
+
+
+def test_notifications_reset_preferences(invoke, mock_api):
+    route = mock_api.delete("/api/v1/notifications/preferences").respond(204)
+    result = invoke(["notifications", "reset-preferences", "--yes"])
+    assert result.exit_code == 0
+    assert route.called
+    assert "Reset" in result.output or "reset" in result.output
+
+
+def test_notifications_reset_preferences_json(invoke, mock_api):
+    mock_api.delete("/api/v1/notifications/preferences").respond(204)
+    result = invoke(["notifications", "reset-preferences", "--yes", "--json"])
+    assert result.exit_code == 0
+    assert json.loads(result.output) == {"ok": True, "action": "reset-preferences"}
+
+
+def test_notifications_reset_preferences_abort(invoke, mock_api):
+    route = mock_api.delete("/api/v1/notifications/preferences").respond(204)
+    result = invoke(["notifications", "reset-preferences"], input="n\n")
+    assert result.exit_code != 0
+    assert not route.called
