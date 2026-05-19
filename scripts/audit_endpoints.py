@@ -88,6 +88,8 @@ OUT_OF_SCOPE: set[tuple[str, str]] = {
     ("POST", "/api/v1/organizations/scrape-website-stream"),
     ("GET", "/api/v1/envoy/sequences/{id}/step-stats/stream"),
     ("GET", "/api/v1/workflows/{id}/runs/{id}/events"),
+    # SSE stream — frontend-only consumer (ENG-769)
+    ("GET", "/api/v1/notifications/stream"),
     ("GET", "/api/v1/resources/{id}/stream"),
     ("GET", "/api/v1/resources/{id}/preview-url"),
     ("PATCH", "/api/v1/resources/{id}"),
