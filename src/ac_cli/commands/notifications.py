@@ -9,6 +9,7 @@ from ac_cli.commands._helpers import (
     JSON_OPTION,
     _api_request,
     set_json_mode,
+    should_skip_confirm,
 )
 from ac_cli.formatting import print_json, print_table
 
@@ -147,3 +148,23 @@ def notifications_set_preference(
     else:
         state = "enabled" if enabled else "disabled"
         rprint(f"[green]Preference {type_}/{channel} {state}[/green]")
+
+
+@app.command("reset-preferences")
+def notifications_reset_preferences(
+    ctx: typer.Context,
+    yes: bool = typer.Option(False, "--yes", "-y", help="Skip confirmation"),
+    json_output: bool = JSON_OPTION,
+) -> None:
+    """Reset all notification preferences to defaults (opt-in)."""
+    set_json_mode(json_output)
+    if not should_skip_confirm(yes):
+        typer.confirm(
+            "Reset all notification preferences to defaults?",
+            abort=True,
+        )
+    _api_request("delete", f"{_NOTIFICATIONS}/preferences")
+    if json_output:
+        print_json({"ok": True, "action": "reset-preferences"})
+    else:
+        rprint("[green]Reset notification preferences[/green]")
