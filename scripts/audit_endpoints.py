@@ -77,6 +77,9 @@ OUT_OF_SCOPE: set[tuple[str, str]] = {
     ("POST", "/api/v1/test/simulate-reply"),
     ("GET", "/api/v1/test/sent-emails"),
     ("DELETE", "/api/v1/test/sent-emails"),
+    # ENG-783: e2e-only launchpad fixture seed/cleanup used by Playwright auth.setup.ts.
+    ("POST", "/api/v1/test/seed-launchpad"),
+    ("POST", "/api/v1/test/cleanup-launchpad"),
     ("POST", "/api/v1/eval/run"),
     ("PATCH", "/api/v1/eval/runs/{id}"),
     ("DELETE", "/api/v1/eval/run/live/{id}"),
