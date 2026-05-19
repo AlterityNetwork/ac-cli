@@ -261,6 +261,56 @@ def lists_remove_member(
         rprint(f"[green]Removed {member_type} {member_id} from list {list_id}[/green]")
 
 
+@lists_app.command("add-members")
+def lists_add_members(
+    list_id: str = typer.Argument(..., help="List ID"),
+    member_type: str = typer.Option(..., "--member-type", help="person or company"),
+    ids: str = typer.Option(..., "--ids", help="Comma-separated member IDs"),
+    json_output: bool = JSON_OPTION,
+) -> None:
+    """Bulk-add members (person or company) to a list with server-side dedup."""
+    set_json_mode(json_output)
+    if member_type not in ("person", "company"):
+        rprint("[red]--member-type must be 'person' or 'company'[/red]")
+        raise typer.Exit(code=1)
+
+    id_list = [i.strip() for i in ids.split(",") if i.strip()]
+    if not id_list:
+        rprint("[red]No IDs provided[/red]")
+        raise typer.Exit(code=1)
+
+    resp = _api_request(
+        "post",
+        f"{_CRM}/lists/{list_id}/members/bulk-add",
+        json={"member_type": member_type, "member_ids": id_list},
+    )
+    body = resp.json() if resp.content else {}
+    added = int(body.get("added_count", 0))
+    duplicates = int(body.get("duplicate_count", 0))
+
+    if json_output:
+        print_json(
+            {
+                "ok": True,
+                "list_id": list_id,
+                "member_type": member_type,
+                "member_ids": id_list,
+                "added_count": added,
+                "duplicate_count": duplicates,
+                "action": "add-members",
+            }
+        )
+        return
+
+    if duplicates:
+        rprint(
+            f"[green]Added {added} {member_type}(s) to list {list_id}[/green] "
+            f"[dim]({duplicates} already on the list)[/dim]"
+        )
+    else:
+        rprint(f"[green]Added {added} {member_type}(s) to list {list_id}[/green]")
+
+
 @lists_app.command("bulk-remove-members")
 def lists_bulk_remove_members(
     list_id: str = typer.Argument(..., help="List ID"),

@@ -296,3 +296,124 @@ def test_lists_bulk_remove_json(invoke, mock_api):
     parsed = json.loads(result.output)
     assert parsed["count"] == 2
     assert parsed["member_type"] == "company"
+
+
+def test_lists_bulk_add_persons(invoke, mock_api):
+    """Bulk add posts the right body and surfaces added/duplicate counts."""
+    route = mock_api.post("/api/v1/crm/lists/l1/members/bulk-add").respond(
+        200, json={"added_count": 3, "duplicate_count": 0}
+    )
+    result = invoke(
+        [
+            "crm",
+            "lists",
+            "add-members",
+            "l1",
+            "--member-type",
+            "person",
+            "--ids",
+            "p1,p2,p3",
+        ]
+    )
+    assert result.exit_code == 0
+    assert "Added 3" in result.output
+    body = json.loads(route.calls.last.request.content)
+    assert body == {"member_type": "person", "member_ids": ["p1", "p2", "p3"]}
+
+
+def test_lists_bulk_add_reports_duplicates(invoke, mock_api):
+    mock_api.post("/api/v1/crm/lists/l1/members/bulk-add").respond(
+        200, json={"added_count": 2, "duplicate_count": 3}
+    )
+    result = invoke(
+        [
+            "crm",
+            "lists",
+            "add-members",
+            "l1",
+            "--member-type",
+            "person",
+            "--ids",
+            "p1,p2,p3,p4,p5",
+        ]
+    )
+    assert result.exit_code == 0
+    assert "Added 2" in result.output
+    assert "3" in result.output and "already" in result.output
+
+
+def test_lists_bulk_add_invalid_member_type(invoke, mock_api):
+    result = invoke(
+        [
+            "crm",
+            "lists",
+            "add-members",
+            "l1",
+            "--member-type",
+            "robot",
+            "--ids",
+            "p1",
+        ]
+    )
+    assert result.exit_code == 1
+    assert "person" in result.output
+
+
+def test_lists_bulk_add_empty_ids(invoke, mock_api):
+    result = invoke(
+        [
+            "crm",
+            "lists",
+            "add-members",
+            "l1",
+            "--member-type",
+            "company",
+            "--ids",
+            " , ",
+        ]
+    )
+    assert result.exit_code == 1
+
+
+def test_lists_bulk_add_json(invoke, mock_api):
+    mock_api.post("/api/v1/crm/lists/l1/members/bulk-add").respond(
+        200, json={"added_count": 2, "duplicate_count": 1}
+    )
+    result = invoke(
+        [
+            "crm",
+            "lists",
+            "add-members",
+            "l1",
+            "--member-type",
+            "company",
+            "--ids",
+            "c1,c2,c3",
+            "--json",
+        ]
+    )
+    assert result.exit_code == 0
+    parsed = json.loads(result.output)
+    assert parsed["added_count"] == 2
+    assert parsed["duplicate_count"] == 1
+    assert parsed["member_type"] == "company"
+
+
+def test_lists_bulk_add_propagates_400(invoke, mock_api):
+    """A 400 from the API (e.g. wrong member_type for list) surfaces as exit 1."""
+    mock_api.post("/api/v1/crm/lists/l1/members/bulk-add").respond(
+        400, json={"detail": "Cannot add person to a company-only list"}
+    )
+    result = invoke(
+        [
+            "crm",
+            "lists",
+            "add-members",
+            "l1",
+            "--member-type",
+            "person",
+            "--ids",
+            "p1",
+        ]
+    )
+    assert result.exit_code == 1
