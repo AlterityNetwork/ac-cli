@@ -56,6 +56,34 @@ def test_notifications_read_all(invoke, mock_api):
     assert result.exit_code == 0
 
 
+def test_notifications_delete(invoke, mock_api):
+    route = mock_api.delete("/api/v1/notifications/n-1").respond(204)
+    result = invoke(["notifications", "delete", "n-1", "--yes"])
+    assert result.exit_code == 0
+    assert route.called
+    assert "Deleted notification n-1" in result.output
+
+
+def test_notifications_delete_json(invoke, mock_api):
+    mock_api.delete("/api/v1/notifications/n-1").respond(204)
+    result = invoke(["notifications", "delete", "n-1", "--yes", "--json"])
+    assert result.exit_code == 0
+    assert json.loads(result.output) == {"ok": True, "id": "n-1", "action": "delete"}
+
+
+def test_notifications_delete_abort(invoke, mock_api):
+    route = mock_api.delete("/api/v1/notifications/n-1").respond(204)
+    result = invoke(["notifications", "delete", "n-1"], input="n\n")
+    assert result.exit_code != 0
+    assert not route.called
+
+
+def test_notifications_delete_not_found(invoke, mock_api):
+    mock_api.delete("/api/v1/notifications/missing").respond(404, json={"detail": "no"})
+    result = invoke(["notifications", "delete", "missing", "--yes"])
+    assert result.exit_code == 3
+
+
 def test_notifications_preferences(invoke, mock_api):
     mock_api.get("/api/v1/notifications/preferences").respond(
         200, json=[{"type": "mention", "channel": "email", "enabled": True}]

@@ -104,6 +104,28 @@ def notifications_read_all(
         rprint("[green]Marked all notifications read[/green]")
 
 
+@app.command("delete")
+def notifications_delete(
+    ctx: typer.Context,
+    notification_id: str = typer.Argument(..., help="Notification ID"),
+    yes: bool = typer.Option(False, "--yes", "-y", help="Skip confirmation"),
+    json_output: bool = JSON_OPTION,
+) -> None:
+    """Delete a notification."""
+    set_json_mode(json_output)
+    if not should_skip_confirm(yes):
+        typer.confirm(
+            f"Delete notification {notification_id}?",
+            abort=True,
+        )
+    _api_request("delete", f"{_NOTIFICATIONS}/{notification_id}")
+
+    if json_output:
+        print_json({"ok": True, "id": notification_id, "action": "delete"})
+    else:
+        rprint(f"[green]Deleted notification {notification_id}[/green]")
+
+
 @app.command("preferences")
 def notifications_preferences(
     ctx: typer.Context,
