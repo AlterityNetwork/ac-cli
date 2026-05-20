@@ -80,6 +80,8 @@ OUT_OF_SCOPE: set[tuple[str, str]] = {
     # ENG-783: e2e-only launchpad fixture seed/cleanup used by Playwright auth.setup.ts.
     ("POST", "/api/v1/test/seed-launchpad"),
     ("POST", "/api/v1/test/cleanup-launchpad"),
+    # ENG-794: e2e-only notification trigger for two-context SSE Playwright spec.
+    ("POST", "/api/v1/test/seed-notification"),
     ("POST", "/api/v1/eval/run"),
     ("PATCH", "/api/v1/eval/runs/{id}"),
     ("DELETE", "/api/v1/eval/run/live/{id}"),
