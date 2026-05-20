@@ -26,6 +26,18 @@ def people_list(
     company_id: str | None = typer.Option(None, "--company-id", help="Filter by company"),
     limit: int = typer.Option(100, help="Max results"),
     offset: int = typer.Option(0, help="Offset"),
+    approved: bool | None = typer.Option(
+        None,
+        "--approved/--unapproved",
+        help="Filter by approval state (--approved = human-vetted, "
+        "--unapproved = not yet approved)",
+    ),
+    added_by_type: str | None = typer.Option(
+        None, "--added-by-type", help="Filter by who added: 'user' or 'agent'"
+    ),
+    added_by_user: str | None = typer.Option(
+        None, "--added-by-user", help="Filter to records added by a specific user ID"
+    ),
     json_output: bool = JSON_OPTION,
 ) -> None:
     """List people."""
@@ -33,6 +45,12 @@ def people_list(
     params: dict = {"limit": limit, "offset": offset}
     if company_id:
         params["company_id"] = company_id
+    if approved is not None:
+        params["approved"] = approved
+    if added_by_type:
+        params["added_by_type"] = added_by_type
+    if added_by_user:
+        params["added_by_user_id"] = added_by_user
 
     resp = _api_request("get", f"{_CRM}/people", params=params)
 
@@ -92,6 +110,9 @@ def people_get(
             ("summary", "Summary"),
             ("created_at", "Created"),
             ("updated_at", "Updated"),
+            ("created_by_user_id", "Added By (user)"),
+            ("approved_by", "Approved By"),
+            ("approved_at", "Approved At"),
         ],
     )
 
@@ -295,3 +316,43 @@ def people_bulk_delete(
         print_json({"ok": True, "ids": id_list, "count": len(id_list), "action": "bulk-delete"})
     else:
         rprint(f"[green]Deleted {len(id_list)} people[/green]")
+
+
+def _split_ids(ids: str) -> list[str]:
+    id_list = [i.strip() for i in ids.split(",") if i.strip()]
+    if not id_list:
+        rprint("[red]No IDs provided[/red]")
+        raise typer.Exit(code=1)
+    return id_list
+
+
+@people_app.command("approve")
+def people_approve(
+    ids: str = typer.Option(..., "--ids", help="Comma-separated people IDs"),
+    json_output: bool = JSON_OPTION,
+) -> None:
+    """Mark people as human-approved (ENG-819)."""
+    set_json_mode(json_output)
+    id_list = _split_ids(ids)
+    resp = _api_request("post", f"{_CRM}/people/approve", json={"ids": id_list, "approved": True})
+    data = resp.json()
+    if json_output:
+        print_json(data)
+    else:
+        rprint(f"[green]Approved {data.get('updated_count', 0)} people[/green]")
+
+
+@people_app.command("unapprove")
+def people_unapprove(
+    ids: str = typer.Option(..., "--ids", help="Comma-separated people IDs"),
+    json_output: bool = JSON_OPTION,
+) -> None:
+    """Clear human approval on people (ENG-819)."""
+    set_json_mode(json_output)
+    id_list = _split_ids(ids)
+    resp = _api_request("post", f"{_CRM}/people/approve", json={"ids": id_list, "approved": False})
+    data = resp.json()
+    if json_output:
+        print_json(data)
+    else:
+        rprint(f"[yellow]Unapproved {data.get('updated_count', 0)} people[/yellow]")

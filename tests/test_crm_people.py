@@ -147,3 +147,51 @@ def test_people_delete_json(invoke, mock_api):
 def test_people_delete_aborted(invoke, mock_api):
     result = invoke(["crm", "people", "delete", "p1"], input="n\n")
     assert result.exit_code == 1
+
+
+def test_people_approve(invoke, mock_api):
+    route = mock_api.post("/api/v1/crm/people/approve").respond(200, json={"updated_count": 2})
+    result = invoke(["crm", "people", "approve", "--ids", "p1,p2"])
+    assert result.exit_code == 0
+    assert "Approved 2 people" in result.output
+    body = json.loads(route.calls.last.request.content)
+    assert body == {"ids": ["p1", "p2"], "approved": True}
+
+
+def test_people_unapprove(invoke, mock_api):
+    route = mock_api.post("/api/v1/crm/people/approve").respond(200, json={"updated_count": 1})
+    result = invoke(["crm", "people", "unapprove", "--ids", "p1"])
+    assert result.exit_code == 0
+    assert "Unapproved 1 people" in result.output
+    body = json.loads(route.calls.last.request.content)
+    assert body == {"ids": ["p1"], "approved": False}
+
+
+def test_people_approve_empty_ids(invoke, mock_api):
+    result = invoke(["crm", "people", "approve", "--ids", " "])
+    assert result.exit_code == 1
+    assert "No IDs" in result.output
+
+
+def test_people_list_provenance_filters(invoke, mock_api):
+    route = mock_api.get("/api/v1/crm/people").respond(
+        200,
+        json={"data": [], "total": 0, "limit": 100, "offset": 0, "has_more": False},
+    )
+    result = invoke(
+        [
+            "crm",
+            "people",
+            "list",
+            "--unapproved",
+            "--added-by-type",
+            "user",
+            "--added-by-user",
+            "u1",
+        ]
+    )
+    assert result.exit_code == 0
+    url = str(route.calls.last.request.url)
+    assert "approved=false" in url
+    assert "added_by_type=user" in url
+    assert "added_by_user_id=u1" in url
