@@ -114,6 +114,8 @@ OUT_OF_SCOPE: set[tuple[str, str]] = {
     ("GET", "/api/v1/nylas/webhook"),
     ("POST", "/api/v1/nylas/webhook"),
     ("GET", "/api/v1/nylas/email/unsubscribe"),
+    # Resend bounce/complaint webhook (signature-verified server-to-server) [ENG-768]
+    ("POST", "/api/v1/webhooks/resend"),
     # Frontend-only activity logger
     ("POST", "/api/v1/orgs/{id}/activity-events"),
     # Cross-org outputs feed (admin-style, not exposed to CLI today)
