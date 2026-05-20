@@ -96,6 +96,25 @@ def test_test_send_json(invoke, mock_api):
     assert parsed["email_sent"] is False
 
 
+def test_test_send_with_to_override(invoke, mock_api):
+    route = mock_api.post("/api/v1/crm/digests/test-send").respond(
+        200,
+        json={
+            "notification_id": None,
+            "email_sent": True,
+            "is_empty": False,
+            "recipient_email": "qa@example.com",
+        },
+    )
+    result = invoke(["crm", "digests", "test-send", "--to", "qa@example.com"])
+    assert result.exit_code == 0
+    assert route.called
+    sent_body = json.loads(route.calls.last.request.content)
+    assert sent_body == {"recipient_email": "qa@example.com"}
+    assert "Email dispatched to qa@example.com" in result.output
+    assert "In-app dispatch skipped" in result.output
+
+
 def test_test_send_server_error(invoke, mock_api):
     mock_api.post("/api/v1/crm/digests/test-send").respond(500, json={"detail": "boom"})
     result = invoke(["crm", "digests", "test-send", "--json"])

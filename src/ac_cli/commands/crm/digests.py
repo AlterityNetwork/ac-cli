@@ -38,11 +38,21 @@ def digest_preview(
 @digests_app.command("test-send")
 def digest_test_send(
     ctx: typer.Context,
+    to: str = typer.Option(
+        None,
+        "--to",
+        help=(
+            "Redirect the email to this address (superadmin-only). Skips the "
+            "in-app notification dispatch so the digest does not land in "
+            "another user's bell."
+        ),
+    ),
     json_output: bool = JSON_OPTION,
 ) -> None:
     """Dispatch a digest to your inbox now (and email if you've opted in)."""
     set_json_mode(json_output)
-    resp = _api_request("post", f"{_CRM}/digests/test-send")
+    body = {"recipient_email": to} if to else None
+    resp = _api_request("post", f"{_CRM}/digests/test-send", json=body)
     data = resp.json()
     if json_output:
         print_json(data)
@@ -55,9 +65,12 @@ def digest_test_send(
     notif_id = data.get("notification_id")
     if notif_id:
         rprint(f"[green]✓[/green] In-app notification sent (id={notif_id}).")
+    elif to:
+        rprint("[dim]In-app dispatch skipped (email override mode).[/dim]")
     else:
         rprint("[yellow]⚠[/yellow] In-app notification deduped or muted.")
     if data.get("email_sent"):
-        rprint("[green]✓[/green] Email dispatched.")
+        target = data.get("recipient_email") or to or "your inbox"
+        rprint(f"[green]✓[/green] Email dispatched to {target}.")
     else:
         rprint("[dim]Email not sent (opt-in via /settings/notifications to enable).[/dim]")
