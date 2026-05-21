@@ -156,6 +156,47 @@ def test_companies_bulk_delete_api_error(invoke, mock_api):
     assert result.exit_code == 2
 
 
+def test_companies_by_ids(invoke, mock_api):
+    rows = [
+        {"id": "c1", "name": "Co1"},
+        {"id": "c2", "name": "Co2"},
+    ]
+    route = mock_api.post("/api/v1/crm/companies/by-ids").respond(
+        200,
+        json={"data": rows, "total": 2, "limit": 2, "offset": 0, "has_more": False},
+    )
+    result = invoke(["crm", "companies", "by-ids", "--ids", "c1,c2"])
+    assert result.exit_code == 0
+    assert "Fetched 2 companies" in result.output
+    body = json.loads(route.calls.last.request.content)
+    assert body == {"ids": ["c1", "c2"]}
+
+
+def test_companies_by_ids_json(invoke, mock_api):
+    rows = [{"id": "c1", "name": "Co1"}]
+    mock_api.post("/api/v1/crm/companies/by-ids").respond(
+        200,
+        json={"data": rows, "total": 1, "limit": 1, "offset": 0, "has_more": False},
+    )
+    result = invoke(["crm", "companies", "by-ids", "--ids", "c1", "--json"])
+    assert result.exit_code == 0
+    parsed = json.loads(result.output)
+    assert parsed["total"] == 1
+    assert parsed["data"][0]["id"] == "c1"
+
+
+def test_companies_by_ids_empty(invoke, mock_api):
+    result = invoke(["crm", "companies", "by-ids", "--ids", " , "])
+    assert result.exit_code == 1
+    assert "No IDs" in result.output
+
+
+def test_companies_by_ids_api_error(invoke, mock_api):
+    mock_api.post("/api/v1/crm/companies/by-ids").respond(422, json={"detail": "ids too long"})
+    result = invoke(["crm", "companies", "by-ids", "--ids", "c1"])
+    assert result.exit_code == 2
+
+
 def test_companies_approve(invoke, mock_api):
     route = mock_api.post("/api/v1/crm/companies/approve").respond(200, json={"updated_count": 2})
     result = invoke(["crm", "companies", "approve", "--ids", "c1,c2"])
