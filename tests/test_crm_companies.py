@@ -20,7 +20,7 @@ SAMPLE_COMPANY = {
 
 
 def test_companies_list(invoke, mock_api):
-    mock_api.get("/api/v1/crm/companies").respond(
+    route = mock_api.get("/api/v1/crm/companies").respond(
         200,
         json={
             "data": [SAMPLE_COMPANY],
@@ -30,6 +30,37 @@ def test_companies_list(invoke, mock_api):
     result = invoke(["crm", "companies", "list"])
     assert result.exit_code == 0
     assert "Acme Corp" in result.output
+    # Default projection sent as `view=full` so the server keeps the wide
+    # list shape used by the CRM table.
+    assert route.calls.last.request.url.params.get("view") == "full"
+
+
+def test_companies_list_view_options(invoke, mock_api):
+    """ENG-933: ``--view options`` forwards ``view=options`` to the API."""
+    route = mock_api.get("/api/v1/crm/companies").respond(
+        200, json={"data": [SAMPLE_COMPANY], "total": 1}
+    )
+    result = invoke(["crm", "companies", "list", "--view", "options"])
+    assert result.exit_code == 0
+    assert route.calls.last.request.url.params.get("view") == "options"
+
+
+def test_companies_list_lean_alias(invoke, mock_api):
+    """ENG-933: ``--lean`` is a shortcut for ``--view options``."""
+    route = mock_api.get("/api/v1/crm/companies").respond(
+        200, json={"data": [SAMPLE_COMPANY], "total": 1}
+    )
+    result = invoke(["crm", "companies", "list", "--lean"])
+    assert result.exit_code == 0
+    assert route.calls.last.request.url.params.get("view") == "options"
+
+
+def test_companies_list_rejects_invalid_view(invoke, mock_api):
+    """ENG-933: unknown ``--view`` values are rejected by Typer before
+    the request fires."""
+    result = invoke(["crm", "companies", "list", "--view", "tiny"])
+    assert result.exit_code != 0
+    assert not mock_api.calls.called
 
 
 def test_companies_list_json(invoke, mock_api):
