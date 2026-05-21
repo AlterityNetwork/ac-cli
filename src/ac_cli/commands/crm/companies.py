@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from enum import Enum
+
 import typer
 from rich import print as rprint
 
@@ -15,6 +17,18 @@ from ac_cli.commands._helpers import (
 )
 from ac_cli.commands.crm import _CRM, _api_request, _build_body
 from ac_cli.formatting import print_detail, print_json, print_table
+
+
+class CompaniesListView(str, Enum):
+    """Projection mode for ``ac crm companies list`` (ENG-933).
+
+    ``full`` (default) returns the wide list payload used by the CRM table.
+    ``options`` switches to the slim selector / picker / hover-card shape.
+    """
+
+    full = "full"
+    options = "options"
+
 
 companies_app = typer.Typer(help="Company operations")
 
@@ -36,11 +50,28 @@ def companies_list(
     added_by_user: str | None = typer.Option(
         None, "--added-by-user", help="Filter to records added by a specific user ID"
     ),
+    view: CompaniesListView = typer.Option(
+        CompaniesListView.full,
+        "--view",
+        case_sensitive=False,
+        help="Projection mode: 'full' (default, wide CRM table shape) or "
+        "'options' (slim selector / picker / hover-card payload — ENG-933).",
+    ),
+    lean: bool = typer.Option(
+        False,
+        "--lean",
+        help="Shortcut for --view options (ENG-933).",
+    ),
     json_output: bool = JSON_OPTION,
 ) -> None:
     """List companies."""
     set_json_mode(json_output)
-    params: dict[str, object] = {"limit": limit, "offset": offset}
+    effective_view = CompaniesListView.options if lean else view
+    params: dict[str, object] = {
+        "limit": limit,
+        "offset": offset,
+        "view": effective_view.value,
+    }
     if approved is not None:
         params["approved"] = approved
     if added_by_type:
