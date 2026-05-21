@@ -248,6 +248,29 @@ def companies_bulk_delete(
         rprint(f"[green]Deleted {len(id_list)} companies[/green]")
 
 
+@companies_app.command("by-ids")
+def companies_by_ids(
+    ids: str = typer.Option(..., "--ids", help="Comma-separated company IDs (max 200)"),
+    json_output: bool = JSON_OPTION,
+) -> None:
+    """Batch-fetch companies by ID list in a single request (ENG-924).
+
+    Replaces N parallel ``GET /crm/companies/{id}`` calls when hydrating linked
+    companies for multiple rows. Returns the same paginated shape as ``list``;
+    unknown / soft-deleted / cross-org ids are silently dropped.
+    """
+    set_json_mode(json_output)
+    id_list = _split_ids(ids)
+
+    resp = _api_request("post", f"{_CRM}/companies/by-ids", json={"ids": id_list})
+    data = resp.json()
+
+    if json_output:
+        print_json(data)
+    else:
+        rprint(f"[green]Fetched {data.get('total', 0)} companies[/green]")
+
+
 def _split_ids(ids: str) -> list[str]:
     id_list = [i.strip() for i in ids.split(",") if i.strip()]
     if not id_list:
