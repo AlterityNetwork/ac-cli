@@ -62,6 +62,30 @@ def test_inbox_list_with_offset(invoke, mock_api):
     assert "offset=10" in str(req.url)
 
 
+# ENG-963 — Inbox tab badge uses --needs-response to count threads where the
+# latest message is inbound and the thread is still open.
+def test_inbox_list_needs_response_flag(invoke, mock_api):
+    route = mock_api.get("/api/v1/envoy/inbox/threads").respond(
+        200,
+        json={"data": [SAMPLE_THREAD], "total": 1, "limit": 50, "offset": 0, "has_more": False},
+    )
+    result = invoke(["envoy", "inbox", "list", "--needs-response"])
+    assert result.exit_code == 0
+    req = route.calls[0].request
+    assert "needs_response=true" in str(req.url)
+
+
+def test_inbox_list_no_needs_response_by_default(invoke, mock_api):
+    route = mock_api.get("/api/v1/envoy/inbox/threads").respond(
+        200,
+        json={"data": [], "total": 0, "limit": 50, "offset": 0, "has_more": False},
+    )
+    result = invoke(["envoy", "inbox", "list"])
+    assert result.exit_code == 0
+    req = route.calls[0].request
+    assert "needs_response" not in str(req.url)
+
+
 def test_inbox_messages(invoke, mock_api):
     mock_api.get("/api/v1/envoy/inbox/threads/t-1/messages").respond(
         200, json={"messages": [SAMPLE_MESSAGE]}

@@ -19,6 +19,14 @@ def inbox_list(
     sentiment: str | None = typer.Option(None, help="Filter by sentiment"),
     sequence_id: str | None = typer.Option(None, "--sequence-id", help="Filter by sequence"),
     assigned_to: str | None = typer.Option(None, "--assigned-to", help="Filter by assignee"),
+    needs_response: bool = typer.Option(
+        False,
+        "--needs-response",
+        help=(
+            "Only threads where the latest message is inbound (we owe a reply) "
+            "AND status='open'. Overrides --status. ENG-963 Inbox badge filter."
+        ),
+    ),
     limit: int = typer.Option(50, help="Max results"),
     offset: int = typer.Option(0, help="Pagination offset"),
     json_output: bool = JSON_OPTION,
@@ -34,6 +42,8 @@ def inbox_list(
         params["sequence_id"] = sequence_id
     if assigned_to:
         params["assigned_to"] = assigned_to
+    if needs_response:
+        params["needs_response"] = "true"
 
     resp = _api_request("get", f"{_ENVOY}/inbox/threads", params=params)
 
