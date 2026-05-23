@@ -37,6 +37,11 @@ def signals_list(
         None, "--company-ids", help="Comma-separated company IDs"
     ),
     person_id: str | None = typer.Option(None, "--person-id", help="Filter by person"),
+    workflow_run_company_id: str | None = typer.Option(
+        None,
+        "--workflow-run-company-id",
+        help="Filter by workflow_run_companies.id (signals produced by a specific run row)",
+    ),
     limit: int = typer.Option(50, help="Max results"),
     offset: int = typer.Option(0, help="Offset"),
     json_output: bool = JSON_OPTION,
@@ -52,6 +57,8 @@ def signals_list(
         params["company_ids"] = company_ids
     if person_id:
         params["person_id"] = person_id
+    if workflow_run_company_id:
+        params["workflow_run_company_id"] = workflow_run_company_id
 
     resp = _api_request("get", f"{_CRM}/signals", params=params)
 

@@ -50,6 +50,27 @@ def test_signals_list_filters(invoke, mock_api):
     assert qs["limit"] == "10"
 
 
+def test_signals_list_workflow_run_company_id(invoke, mock_api):
+    """ENG-961 F10: --workflow-run-company-id forwards to /crm/signals as a query param."""
+    route = mock_api.get("/api/v1/crm/signals").respond(
+        200, json={"data": [], "total": 0, "limit": 50, "offset": 0, "has_more": False}
+    )
+    result = invoke(
+        [
+            "crm",
+            "signals",
+            "list",
+            "--workflow-run-company-id",
+            "wrc-123",
+            "--json",
+        ]
+    )
+    assert result.exit_code == 0
+    assert route.called
+    qs = route.calls.last.request.url.params
+    assert qs["workflow_run_company_id"] == "wrc-123"
+
+
 def test_signals_get(invoke, mock_api):
     mock_api.get("/api/v1/crm/signals/sig-1").respond(200, json=SIGNAL)
     result = invoke(["crm", "signals", "get", "sig-1", "--json"])
