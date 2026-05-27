@@ -83,6 +83,9 @@ OUT_OF_SCOPE: set[tuple[str, str]] = {
     ("POST", "/api/v1/test/cleanup-launchpad"),
     # ENG-794: e2e-only notification trigger for two-context SSE Playwright spec.
     ("POST", "/api/v1/test/seed-notification"),
+    # e2e-only headhunter fixture seed/cleanup used by Playwright runs.
+    ("POST", "/api/v1/test/seed-headhunter"),
+    ("POST", "/api/v1/test/cleanup-headhunter"),
     ("POST", "/api/v1/eval/run"),
     ("PATCH", "/api/v1/eval/runs/{id}"),
     ("DELETE", "/api/v1/eval/run/live/{id}"),
