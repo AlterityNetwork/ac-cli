@@ -152,7 +152,7 @@ def pipeline_stages_reorder(
     ),
     json_output: bool = JSON_OPTION,
 ) -> None:
-    """Atomically reorder stages."""
+    """Reorder stages."""
     set_json_mode(json_output)
     try:
         parsed = _json.loads(items)
