@@ -69,6 +69,7 @@ OUT_OF_SCOPE: set[tuple[str, str]] = {
     ("POST", "/api/v1/messaging/slack/events"),
     ("GET", "/api/v1/nylas/oauth/callback"),
     ("GET", "/api/v1/email/unsubscribe"),
+    ("POST", "/api/v1/email/unsubscribe"),
     ("GET", "/api/v1/demo/nylas/account"),
     ("GET", "/api/v1/demo/nylas/messages/{id}/attachments/{id}/download"),
     ("POST", "/api/v1/demo/nylas/disconnect"),
@@ -116,6 +117,7 @@ OUT_OF_SCOPE: set[tuple[str, str]] = {
     ("GET", "/api/v1/nylas/webhook"),
     ("POST", "/api/v1/nylas/webhook"),
     ("GET", "/api/v1/nylas/email/unsubscribe"),
+    ("POST", "/api/v1/nylas/email/unsubscribe"),
     # Resend bounce/complaint webhook (signature-verified server-to-server) [ENG-768]
     ("POST", "/api/v1/webhooks/resend"),
     # Frontend-only activity logger
