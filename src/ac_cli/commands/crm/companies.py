@@ -30,6 +30,13 @@ class CompaniesListView(str, Enum):
     options = "options"
 
 
+class EnrichmentProvider(str, Enum):
+    """Selectable enrichment providers for ``ac crm companies enrich`` (ENG-1060)."""
+
+    hunter = "hunter"
+    explorium = "explorium"
+
+
 companies_app = typer.Typer(help="Company operations")
 
 
@@ -352,3 +359,51 @@ def companies_unapprove(
         print_json(data)
     else:
         rprint(f"[yellow]Unapproved {data.get('updated_count', 0)} companies[/yellow]")
+
+
+@companies_app.command("enrich")
+def companies_enrich(
+    url: str = typer.Argument(..., help="Company website URL or bare domain"),
+    provider: EnrichmentProvider | None = typer.Option(
+        None,
+        "--provider",
+        help="Override the configured enrichment provider (hunter | explorium)",
+    ),
+    json_output: bool = JSON_OPTION,
+) -> None:
+    """Run provider-agnostic company autofill against a URL (ENG-1060).
+
+    Returns the enriched OrganizationExtract together with the ``source`` that
+    produced it (the picked provider, or ``scrape`` when the provider missed
+    and the terminal homepage-scrape fallback ran).
+    """
+    set_json_mode(json_output)
+    body: dict[str, str] = {"url": url}
+    if provider is not None:
+        body["provider"] = provider.value
+    resp = _api_request("post", f"{_CRM}/companies/enrich", json=body)
+    data = resp.json()
+    if json_output:
+        print_json(data)
+    else:
+        source = data.get("source", "unknown")
+        record = data.get("data") or {}
+        rprint(f"[green]Enriched via {source}[/green]")
+        print_detail(
+            record,
+            [
+                ("company_name", "Name"),
+                ("website_url", "Website"),
+                ("industry", "Industry"),
+                ("description", "Description"),
+                ("employee_count", "Employees"),
+                ("revenue_band", "Revenue band"),
+                ("country", "Country"),
+                ("city", "City"),
+                ("region", "Region"),
+                ("postal_code", "Postal code"),
+                ("street", "Street"),
+                ("linkedin", "LinkedIn"),
+                ("logo_url", "Logo"),
+            ],
+        )

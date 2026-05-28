@@ -290,3 +290,64 @@ def test_companies_list_provenance_filters(invoke, mock_api):
     assert "approved=true" in url
     assert "added_by_type=agent" in url
     assert "added_by_user_id=u1" in url
+
+
+SAMPLE_ENRICH_RESPONSE = {
+    "data": {
+        "company_name": "Reddit, Inc.",
+        "website_url": "https://www.redditinc.com",
+        "industry": "Social Networking Platforms",
+        "employee_count": "1001-5000",
+        "revenue_band": "1B-10B",
+        "country": "US",
+        "city": "San Francisco",
+        "region": "California",
+    },
+    "source": "explorium",
+}
+
+
+def test_companies_enrich(invoke, mock_api):
+    route = mock_api.post("/api/v1/crm/companies/enrich").respond(200, json=SAMPLE_ENRICH_RESPONSE)
+    result = invoke(["crm", "companies", "enrich", "https://reddit.com"])
+    assert result.exit_code == 0, result.output
+    assert "Reddit, Inc." in result.output
+    assert "explorium" in result.output  # source label surfaced
+    body = json.loads(route.calls.last.request.content)
+    assert body == {"url": "https://reddit.com"}
+
+
+def test_companies_enrich_with_provider(invoke, mock_api):
+    route = mock_api.post("/api/v1/crm/companies/enrich").respond(200, json=SAMPLE_ENRICH_RESPONSE)
+    result = invoke(
+        [
+            "crm",
+            "companies",
+            "enrich",
+            "https://reddit.com",
+            "--provider",
+            "hunter",
+        ]
+    )
+    assert result.exit_code == 0
+    body = json.loads(route.calls.last.request.content)
+    assert body == {"url": "https://reddit.com", "provider": "hunter"}
+
+
+def test_companies_enrich_json(invoke, mock_api):
+    mock_api.post("/api/v1/crm/companies/enrich").respond(200, json=SAMPLE_ENRICH_RESPONSE)
+    result = invoke(["crm", "companies", "enrich", "https://reddit.com", "--json"])
+    assert result.exit_code == 0
+    payload = json.loads(result.output)
+    assert payload["source"] == "explorium"
+    assert payload["data"]["company_name"] == "Reddit, Inc."
+
+
+def test_companies_enrich_unknown_provider_rejected(invoke, mock_api):
+    # Validation happens at the API layer (422). The CLI surfaces semantic
+    # exit code 2.
+    mock_api.post("/api/v1/crm/companies/enrich").respond(
+        422, json={"detail": [{"msg": "Invalid provider"}]}
+    )
+    result = invoke(["crm", "companies", "enrich", "https://reddit.com", "--provider", "banana"])
+    assert result.exit_code == 2
