@@ -120,6 +120,11 @@ def companies_get(
     company_name: str | None = typer.Option(
         None, "--company-name", help="Company name (auto-resolves to ID)"
     ),
+    view: str = typer.Option(
+        "full",
+        "--view",
+        help="Response projection: 'full' (default) or 'compact' (header-row subset, ENG-1115)",
+    ),
     json_output: bool = JSON_OPTION,
 ) -> None:
     """Get a company by ID or name."""
@@ -129,7 +134,8 @@ def companies_get(
         id_label="company ID",
         name_flag="--company-name",
     )
-    resp = _api_request("get", f"{_CRM}/companies/{resolved}")
+    params: dict[str, str] | None = {"view": view} if view and view != "full" else None
+    resp = _api_request("get", f"{_CRM}/companies/{resolved}", params=params)
 
     data = resp.json()
     if json_output:
