@@ -35,6 +35,15 @@ def test_companies_list(invoke, mock_api):
     assert route.calls.last.request.url.params.get("view") == "full"
 
 
+def test_companies_list_search_query(invoke, mock_api):
+    route = mock_api.get("/api/v1/crm/companies").respond(
+        200, json={"data": [SAMPLE_COMPANY], "total": 1}
+    )
+    result = invoke(["crm", "companies", "list", "--search", "Stripe"])
+    assert result.exit_code == 0
+    assert route.calls.last.request.url.params.get("q") == "Stripe"
+
+
 def test_companies_list_view_options(invoke, mock_api):
     """ENG-933: ``--view options`` forwards ``view=options`` to the API."""
     route = mock_api.get("/api/v1/crm/companies").respond(
