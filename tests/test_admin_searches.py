@@ -35,7 +35,7 @@ SAMPLE_SUMMARY = {
 
 
 SAMPLE_RUNS_PAGE_FULL = {
-    "items": [
+    "data": [
         {
             "id": f"run-{i}",
             "workflow_id": "wf-1",
@@ -49,14 +49,15 @@ SAMPLE_RUNS_PAGE_FULL = {
         }
         for i in range(100)
     ],
-    "total_count": 250,
-    "page": 1,
-    "page_size": 100,
+    "total": 250,
+    "limit": 100,
+    "offset": 0,
+    "has_more": True,
 }
 
 
 SAMPLE_RUNS_PAGE_SHORT = {
-    "items": [
+    "data": [
         {
             "id": f"run-{i}",
             "workflow_id": "wf-1",
@@ -70,9 +71,10 @@ SAMPLE_RUNS_PAGE_SHORT = {
         }
         for i in range(20)
     ],
-    "total_count": 220,
-    "page": 2,
-    "page_size": 100,
+    "total": 220,
+    "limit": 100,
+    "offset": 100,
+    "has_more": False,
 }
 
 
@@ -95,7 +97,7 @@ SAMPLE_RUN_DETAIL = {
 
 
 SAMPLE_COMPANIES = {
-    "items": [
+    "data": [
         {
             "id": "c1",
             "workflow_run_id": "r1",
@@ -110,14 +112,15 @@ SAMPLE_COMPANIES = {
             "discovered_at": "2026-04-20T10:01:00Z",
         }
     ],
-    "total_count": 1,
-    "page": 1,
-    "page_size": 25,
+    "total": 1,
+    "limit": 25,
+    "offset": 0,
+    "has_more": False,
 }
 
 
 SAMPLE_PEOPLE = {
-    "items": [
+    "data": [
         {
             "id": "p1",
             "workflow_run_id": "r1",
@@ -132,9 +135,10 @@ SAMPLE_PEOPLE = {
             "discovered_at": "2026-04-20T10:01:00Z",
         }
     ],
-    "total_count": 1,
-    "page": 1,
-    "page_size": 25,
+    "total": 1,
+    "limit": 25,
+    "offset": 0,
+    "has_more": False,
 }
 
 
@@ -164,7 +168,7 @@ def test_summary_passes_source_filter(invoke, mock_api):
 
 def test_runs_table(invoke, mock_api):
     mock_api.get("/api/v1/admin/searches/runs").respond(
-        200, json={**SAMPLE_RUNS_PAGE_FULL, "items": SAMPLE_RUNS_PAGE_FULL["items"][:1]}
+        200, json={**SAMPLE_RUNS_PAGE_FULL, "data": SAMPLE_RUNS_PAGE_FULL["data"][:1]}
     )
     result = invoke(["admin", "searches", "runs"])
     assert result.exit_code == 0
@@ -173,7 +177,7 @@ def test_runs_table(invoke, mock_api):
 
 def test_runs_json_with_multi_value_filters(invoke, mock_api):
     route = mock_api.get("/api/v1/admin/searches/runs").respond(
-        200, json={**SAMPLE_RUNS_PAGE_FULL, "items": SAMPLE_RUNS_PAGE_FULL["items"][:2]}
+        200, json={**SAMPLE_RUNS_PAGE_FULL, "data": SAMPLE_RUNS_PAGE_FULL["data"][:2]}
     )
     result = invoke(
         [
@@ -204,10 +208,10 @@ def test_runs_json_with_multi_value_filters(invoke, mock_api):
 
 def test_runs_all_walks_pages(invoke, mock_api):
     """--all paginates until a short page is returned."""
-    mock_api.get("/api/v1/admin/searches/runs", params={"page": "1", "page_size": "100"}).respond(
+    mock_api.get("/api/v1/admin/searches/runs", params={"limit": "100", "offset": "0"}).respond(
         200, json=SAMPLE_RUNS_PAGE_FULL
     )
-    mock_api.get("/api/v1/admin/searches/runs", params={"page": "2", "page_size": "100"}).respond(
+    mock_api.get("/api/v1/admin/searches/runs", params={"limit": "100", "offset": "100"}).respond(
         200, json=SAMPLE_RUNS_PAGE_SHORT
     )
 
@@ -248,7 +252,7 @@ def test_companies_json(invoke, mock_api):
     result = invoke(["admin", "searches", "companies", "--json"])
     assert result.exit_code == 0
     parsed = json.loads(result.output)
-    assert parsed["items"][0]["name"] == "Acme"
+    assert parsed["data"][0]["name"] == "Acme"
 
 
 def test_people_excludes_pii(invoke, mock_api):
@@ -256,7 +260,7 @@ def test_people_excludes_pii(invoke, mock_api):
     result = invoke(["admin", "searches", "people", "--json"])
     assert result.exit_code == 0
     parsed = json.loads(result.output)
-    item = parsed["items"][0]
+    item = parsed["data"][0]
     # No PII keys.
     for forbidden in ("full_name", "email", "linkedin_url", "avatar_url"):
         assert forbidden not in item

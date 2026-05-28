@@ -24,13 +24,13 @@ def organizations_list(
     query: str | None = typer.Option(None, "--query", "-q", help="Search query"),
     sort: str | None = typer.Option(None, help="Sort field"),
     order: str | None = typer.Option(None, help="Sort order (asc/desc)"),
-    page: int = typer.Option(1, help="Page number"),
-    page_size: int = typer.Option(50, "--page-size", help="Page size"),
+    limit: int = typer.Option(50, "--limit", help="Page size"),
+    offset: int = typer.Option(0, "--offset", help="Row offset"),
     json_output: bool = JSON_OPTION,
 ) -> None:
     """List organizations."""
     set_json_mode(json_output)
-    params: dict = {"page": page, "page_size": page_size}
+    params: dict = {"limit": limit, "offset": offset}
     if query:
         params["query"] = query
     if sort:

@@ -23,8 +23,9 @@ def test_orgs_list(invoke, mock_api):
         json={
             "data": [SAMPLE_ORG],
             "total": 1,
-            "page": 1,
-            "page_size": 50,
+            "limit": 50,
+            "offset": 0,
+            "has_more": False,
         },
     )
     result = invoke(["admin", "orgs", "list"])
@@ -33,7 +34,7 @@ def test_orgs_list(invoke, mock_api):
 
 
 def test_orgs_list_json(invoke, mock_api):
-    payload = {"data": [SAMPLE_ORG], "total": 1, "page": 1, "page_size": 50}
+    payload = {"data": [SAMPLE_ORG], "total": 1, "limit": 50, "offset": 0, "has_more": False}
     mock_api.get("/api/v1/admin/organizations").respond(200, json=payload)
     result = invoke(["admin", "orgs", "list", "--json"])
     assert result.exit_code == 0

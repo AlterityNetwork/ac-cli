@@ -53,17 +53,17 @@ def _walk_all(path: str, params: dict[str, Any]) -> list[dict[str, Any]]:
 
     Returns the merged list of items across pages.
     """
-    page = 1
+    offset = 0
     out: list[dict[str, Any]] = []
     while True:
         page_params = dict(params)
-        page_params["page"] = page
-        page_params["page_size"] = _BULK_PAGE_SIZE
+        page_params["limit"] = _BULK_PAGE_SIZE
+        page_params["offset"] = offset
         resp = _api_request("get", path, params=page_params)
         data = resp.json()
-        items = data.get("items") or []
+        items = data.get("data") or []
         out.extend(items)
-        if len(items) < _BULK_PAGE_SIZE:
+        if not data.get("has_more"):
             break
         if len(out) >= _BULK_MAX_ITEMS:
             print(
@@ -71,7 +71,7 @@ def _walk_all(path: str, params: dict[str, Any]) -> list[dict[str, Any]]:
                 file=sys.stderr,
             )
             break
-        page += 1
+        offset += _BULK_PAGE_SIZE
     return out
 
 
@@ -148,8 +148,8 @@ def searches_runs(
         None, "--status", help="pending | running | completed | failed"
     ),
     q: str | None = typer.Option(None, "-q", "--query"),
-    page: int = typer.Option(1, "--page"),
-    page_size: int = typer.Option(25, "--page-size"),
+    limit: int = typer.Option(50, "--limit"),
+    offset: int = typer.Option(0, "--offset"),
     all_: bool = typer.Option(False, "--all", help="Paginate through every page"),
     json_output: bool = JSON_OPTION,
 ) -> None:
@@ -173,15 +173,15 @@ def searches_runs(
         print_json(items)
         return
 
-    params["page"] = page
-    params["page_size"] = page_size
+    params["limit"] = limit
+    params["offset"] = offset
     resp = _api_request("get", f"{_BASE}/runs", params=params)
     data = resp.json()
     if json_output:
         print_json(data)
         return
 
-    items = data.get("items") or []
+    items = data.get("data") or []
     print_table(
         items,
         [
@@ -194,7 +194,7 @@ def searches_runs(
             ("companies_count", "Companies"),
             ("people_count", "People"),
         ],
-        title=f"Search Runs ({data.get('total_count', '?')} total)",
+        title=f"Search Runs ({data.get('total', '?')} total)",
     )
 
 
@@ -239,8 +239,8 @@ def searches_companies(
     org_id: list[str] | None = typer.Option(None, "--org-id"),
     user_id: list[str] | None = typer.Option(None, "--user-id"),
     q: str | None = typer.Option(None, "-q", "--query"),
-    page: int = typer.Option(1, "--page"),
-    page_size: int = typer.Option(25, "--page-size"),
+    limit: int = typer.Option(50, "--limit"),
+    offset: int = typer.Option(0, "--offset"),
     all_: bool = typer.Option(False, "--all"),
     json_output: bool = JSON_OPTION,
 ) -> None:
@@ -262,15 +262,15 @@ def searches_companies(
         print_json(items)
         return
 
-    params["page"] = page
-    params["page_size"] = page_size
+    params["limit"] = limit
+    params["offset"] = offset
     resp = _api_request("get", f"{_BASE}/companies", params=params)
     data = resp.json()
     if json_output:
         print_json(data)
         return
 
-    items = data.get("items") or []
+    items = data.get("data") or []
     print_table(
         items,
         [
@@ -282,7 +282,7 @@ def searches_companies(
             ("country", "Country"),
             ("discovered_at", "Discovered"),
         ],
-        title=f"Discovered Companies ({data.get('total_count', '?')} total)",
+        title=f"Discovered Companies ({data.get('total', '?')} total)",
     )
 
 
@@ -294,8 +294,8 @@ def searches_people(
     source: str = typer.Option("headhunter", "--source"),
     org_id: list[str] | None = typer.Option(None, "--org-id"),
     user_id: list[str] | None = typer.Option(None, "--user-id"),
-    page: int = typer.Option(1, "--page"),
-    page_size: int = typer.Option(25, "--page-size"),
+    limit: int = typer.Option(50, "--limit"),
+    offset: int = typer.Option(0, "--offset"),
     all_: bool = typer.Option(False, "--all"),
     json_output: bool = JSON_OPTION,
 ) -> None:
@@ -316,15 +316,15 @@ def searches_people(
         print_json(items)
         return
 
-    params["page"] = page
-    params["page_size"] = page_size
+    params["limit"] = limit
+    params["offset"] = offset
     resp = _api_request("get", f"{_BASE}/people", params=params)
     data = resp.json()
     if json_output:
         print_json(data)
         return
 
-    items = data.get("items") or []
+    items = data.get("data") or []
     print_table(
         items,
         [
@@ -336,5 +336,5 @@ def searches_people(
             ("organization_id", "Org"),
             ("discovered_at", "Discovered"),
         ],
-        title=f"Discovered People ({data.get('total_count', '?')} total)",
+        title=f"Discovered People ({data.get('total', '?')} total)",
     )
