@@ -38,6 +38,16 @@ def run_companies_list(
             "'top-scoring companies' queries)."
         ),
     ),
+    approved: bool | None = typer.Option(
+        None,
+        "--approved/--unapproved",
+        help=(
+            "ENG-912 Actioned filter. --unapproved hides rows whose "
+            "linked CRM company has been Actioned (any of note, manual "
+            "outbound comm, list-add, sequence-enrol); --approved shows "
+            "only Actioned rows. Omit for the union of both."
+        ),
+    ),
     json_output: bool = JSON_OPTION,
 ) -> None:
     """List companies discovered by a workflow (deduplicated)."""
@@ -45,6 +55,8 @@ def run_companies_list(
     params: dict = {"limit": limit, "offset": offset, "include_in_crm": include_in_crm}
     if sort_by:
         params["sort_by"] = sort_by
+    if approved is not None:
+        params["approved"] = approved
     resp = _api_request("get", f"{_WORKFLOWS}/{workflow_id}/runs/companies", params=params)
 
     data = resp.json()
