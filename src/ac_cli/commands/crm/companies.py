@@ -38,6 +38,12 @@ def companies_list(
     ctx: typer.Context,
     limit: int = typer.Option(100, help="Max results"),
     offset: int = typer.Option(0, help="Offset"),
+    query: str | None = typer.Option(
+        None,
+        "--query",
+        "--search",
+        help="Search company names. Sends the API's canonical `q` query parameter.",
+    ),
     approved: bool | None = typer.Option(
         None,
         "--approved/--unapproved",
@@ -74,6 +80,8 @@ def companies_list(
     }
     if approved is not None:
         params["approved"] = approved
+    if query:
+        params["q"] = query
     if added_by_type:
         params["added_by_type"] = added_by_type
     if added_by_user:
