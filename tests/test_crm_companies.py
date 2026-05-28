@@ -288,6 +288,50 @@ def test_companies_approve_empty_ids(invoke, mock_api):
     assert "No IDs" in result.output
 
 
+def test_companies_mark_actioned(invoke, mock_api):
+    route = mock_api.post("/api/v1/crm/companies/mark-actioned").respond(
+        200, json={"updated_count": 2}
+    )
+    result = invoke(["crm", "companies", "mark-actioned", "--ids", "c1,c2"])
+    assert result.exit_code == 0
+    assert "Marked 2 companies actioned" in result.output
+    body = json.loads(route.calls.last.request.content)
+    assert body == {"ids": ["c1", "c2"], "note": None}
+
+
+def test_companies_mark_actioned_with_note(invoke, mock_api):
+    route = mock_api.post("/api/v1/crm/companies/mark-actioned").respond(
+        200, json={"updated_count": 1}
+    )
+    result = invoke(
+        [
+            "crm",
+            "companies",
+            "mark-actioned",
+            "--ids",
+            "c1",
+            "--note",
+            "Sent LinkedIn connection",
+        ]
+    )
+    assert result.exit_code == 0
+    body = json.loads(route.calls.last.request.content)
+    assert body == {"ids": ["c1"], "note": "Sent LinkedIn connection"}
+
+
+def test_companies_mark_actioned_json(invoke, mock_api):
+    mock_api.post("/api/v1/crm/companies/mark-actioned").respond(200, json={"updated_count": 2})
+    result = invoke(["crm", "companies", "mark-actioned", "--ids", "c1,c2", "--json"])
+    assert result.exit_code == 0
+    assert json.loads(result.output) == {"updated_count": 2}
+
+
+def test_companies_mark_actioned_empty_ids(invoke, mock_api):
+    result = invoke(["crm", "companies", "mark-actioned", "--ids", " "])
+    assert result.exit_code == 1
+    assert "No IDs" in result.output
+
+
 def test_companies_list_provenance_filters(invoke, mock_api):
     route = mock_api.get("/api/v1/crm/companies").respond(
         200,

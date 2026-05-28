@@ -367,6 +367,36 @@ def companies_unapprove(
         rprint(f"[yellow]Unapproved {data.get('updated_count', 0)} companies[/yellow]")
 
 
+@companies_app.command("mark-actioned")
+def companies_mark_actioned(
+    ids: str = typer.Option(..., "--ids", help="Comma-separated company IDs"),
+    note: str | None = typer.Option(
+        None,
+        "--note",
+        help="Optional free-text note. Saved as a CRM activity per company.",
+    ),
+    json_output: bool = JSON_OPTION,
+) -> None:
+    """Mark companies as actioned (ENG-912).
+
+    Stamps approved_by / approved_at on each company; with --note, also
+    writes a crm_activities row (type=note, source_app=manual) per company.
+    Backs the Sonar / Headhunter Actioned button.
+    """
+    set_json_mode(json_output)
+    id_list = _split_ids(ids)
+    resp = _api_request(
+        "post",
+        f"{_CRM}/companies/mark-actioned",
+        json={"ids": id_list, "note": note},
+    )
+    data = resp.json()
+    if json_output:
+        print_json(data)
+    else:
+        rprint(f"[green]Marked {data.get('updated_count', 0)} companies actioned[/green]")
+
+
 @companies_app.command("enrich")
 def companies_enrich(
     url: str = typer.Argument(..., help="Company website URL or bare domain"),
