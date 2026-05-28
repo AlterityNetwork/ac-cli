@@ -48,6 +48,22 @@ def deals_list(
         "--close-before",
         help="Filter deals with expected_close_date <= this ISO date (YYYY-MM-DD).",
     ),
+    query: str | None = typer.Option(
+        None,
+        "--query",
+        "-q",
+        help="ENG-1113: case-insensitive ILIKE filter over deal name + description.",
+    ),
+    min_amount: float | None = typer.Option(
+        None,
+        "--min-amount",
+        help="ENG-1113: include only deals with amount >= this value.",
+    ),
+    max_amount: float | None = typer.Option(
+        None,
+        "--max-amount",
+        help="ENG-1113: include only deals with amount <= this value.",
+    ),
     limit: int = typer.Option(100, help="Max results"),
     offset: int = typer.Option(0, help="Offset"),
     json_output: bool = JSON_OPTION,
@@ -69,6 +85,12 @@ def deals_list(
         params["close_after"] = close_after
     if close_before:
         params["close_before"] = close_before
+    if query:
+        params["q"] = query
+    if min_amount is not None:
+        params["min_amount"] = min_amount
+    if max_amount is not None:
+        params["max_amount"] = max_amount
 
     resp = _api_request("get", f"{_CRM}/deals", params=params)
 
