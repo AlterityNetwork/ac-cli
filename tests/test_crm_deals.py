@@ -84,6 +84,30 @@ def test_deals_list_limit_top_5(invoke, mock_api):
     assert "limit=5" in str(request.url)
 
 
+def test_deals_list_query_min_max_amount(invoke, mock_api):
+    """ENG-1113: --query / --min-amount / --max-amount forward as q/min_amount/max_amount."""
+    route = mock_api.get("/api/v1/crm/deals").respond(200, json=[])
+    result = invoke(
+        [
+            "crm",
+            "deals",
+            "list",
+            "--query",
+            "acme",
+            "--min-amount",
+            "1000",
+            "--max-amount",
+            "50000",
+            "--json",
+        ]
+    )
+    assert result.exit_code == 0
+    url = str(route.calls.last.request.url)
+    assert "q=acme" in url
+    assert "min_amount=1000" in url
+    assert "max_amount=50000" in url
+
+
 def test_deals_get(invoke, mock_api):
     mock_api.get("/api/v1/crm/deals/d1").respond(200, json=SAMPLE_DEAL)
     result = invoke(["crm", "deals", "get", "d1"])
