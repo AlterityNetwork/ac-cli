@@ -10,7 +10,7 @@ SAMPLE_SUMMARY = {
 }
 
 SAMPLE_USERS = {
-    "items": [
+    "data": [
         {
             "email": "alice@example.com",
             "full_name": "Alice Smith",
@@ -21,6 +21,9 @@ SAMPLE_USERS = {
         },
     ],
     "total": 1,
+    "limit": 50,
+    "offset": 0,
+    "has_more": False,
 }
 
 SAMPLE_USER_DETAIL = {
@@ -83,7 +86,7 @@ def test_app_usage_users_json(invoke, mock_api):
     result = invoke(["admin", "app-usage", "users", "--json"])
     assert result.exit_code == 0
     parsed = json.loads(result.output)
-    assert parsed["items"][0]["email"] == "alice@example.com"
+    assert parsed["data"][0]["email"] == "alice@example.com"
 
 
 def test_app_usage_users_with_options(invoke, mock_api):
@@ -97,9 +100,9 @@ def test_app_usage_users_with_options(invoke, mock_api):
             "total_opens",
             "--order",
             "desc",
-            "--page",
-            "2",
-            "--page-size",
+            "--limit",
+            "10",
+            "--offset",
             "10",
             "--search",
             "alice",

@@ -26,6 +26,7 @@ def playbooks_list(
     ctx: typer.Context,
     query: str | None = typer.Option(None, "--query", "-q", help="Search query"),
     limit: int | None = typer.Option(None, help="Max results to return"),
+    offset: int | None = typer.Option(None, help="Row offset"),
     json_output: bool = JSON_OPTION,
 ) -> None:
     """List playbooks."""
@@ -35,6 +36,8 @@ def playbooks_list(
         params["q"] = query
     if limit is not None:
         params["limit"] = limit
+    if offset is not None:
+        params["offset"] = offset
 
     resp = _api_request("get", f"{_PLAYBOOKS}", params=params)
 

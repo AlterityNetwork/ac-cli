@@ -13,7 +13,7 @@ SAMPLE_SUMMARY = {
 }
 
 SAMPLE_USERS = {
-    "items": [
+    "data": [
         {
             "email": "alice@example.com",
             "full_name": "Alice Smith",
@@ -22,6 +22,9 @@ SAMPLE_USERS = {
         },
     ],
     "total": 1,
+    "limit": 50,
+    "offset": 0,
+    "has_more": False,
 }
 
 SAMPLE_USER_DETAIL = {
@@ -80,7 +83,7 @@ def test_platform_activity_users_json(invoke, mock_api):
     result = invoke(["admin", "platform-activity", "users", "--json"])
     assert result.exit_code == 0
     parsed = json.loads(result.output)
-    assert parsed["items"][0]["email"] == "alice@example.com"
+    assert parsed["data"][0]["email"] == "alice@example.com"
 
 
 def test_platform_activity_user(invoke, mock_api):

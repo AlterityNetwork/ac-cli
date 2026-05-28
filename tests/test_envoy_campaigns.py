@@ -23,7 +23,8 @@ SAMPLE_CAMPAIGN = {
 
 def test_campaigns_list(invoke, mock_api):
     mock_api.get("/api/v1/envoy/campaigns").respond(
-        200, json={"data": [SAMPLE_CAMPAIGN], "next_cursor": None}
+        200,
+        json={"data": [SAMPLE_CAMPAIGN], "total": 1, "limit": 50, "offset": 0, "has_more": False},
     )
     result = invoke(["envoy", "campaigns", "list"])
     assert result.exit_code == 0
@@ -32,7 +33,8 @@ def test_campaigns_list(invoke, mock_api):
 
 def test_campaigns_list_json(invoke, mock_api):
     mock_api.get("/api/v1/envoy/campaigns").respond(
-        200, json={"data": [SAMPLE_CAMPAIGN], "next_cursor": None}
+        200,
+        json={"data": [SAMPLE_CAMPAIGN], "total": 1, "limit": 50, "offset": 0, "has_more": False},
     )
     result = invoke(["envoy", "campaigns", "list", "--json"])
     assert result.exit_code == 0
@@ -42,7 +44,7 @@ def test_campaigns_list_json(invoke, mock_api):
 
 def test_campaigns_list_archived_filter(invoke, mock_api):
     route = mock_api.get("/api/v1/envoy/campaigns").respond(
-        200, json={"data": [], "next_cursor": None}
+        200, json={"data": [], "total": 0, "limit": 50, "offset": 0, "has_more": False}
     )
     result = invoke(["envoy", "campaigns", "list", "--archived"])
     assert result.exit_code == 0

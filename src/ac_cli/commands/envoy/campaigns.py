@@ -24,8 +24,8 @@ def campaigns_list(
     ctx: typer.Context,
     archived: bool = typer.Option(False, "--archived", help="Show archived campaigns"),
     query: str | None = typer.Option(None, "--query", "-q", help="Search query"),
-    cursor: str | None = typer.Option(None, help="Pagination cursor"),
     limit: int | None = typer.Option(None, help="Max results"),
+    offset: int | None = typer.Option(None, help="Row offset"),
     json_output: bool = JSON_OPTION,
 ) -> None:
     """List campaigns."""
@@ -33,10 +33,10 @@ def campaigns_list(
     params: dict = {"archived": "true" if archived else "false"}
     if query:
         params["q"] = query
-    if cursor:
-        params["cursor"] = cursor
     if limit is not None:
         params["limit"] = limit
+    if offset is not None:
+        params["offset"] = offset
 
     resp = _api_request("get", f"{_ENVOY}/campaigns", params=params)
     data = resp.json()
