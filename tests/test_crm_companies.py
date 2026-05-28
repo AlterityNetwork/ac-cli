@@ -88,6 +88,26 @@ def test_companies_get(invoke, mock_api):
     assert "Acme Corp" in result.output
 
 
+def test_companies_get_compact_view(invoke, mock_api):
+    """ENG-1115: --view compact forwards ?view=compact to the API."""
+    route = mock_api.get(
+        "/api/v1/crm/companies/c1",
+        params={"view": "compact"},
+    ).respond(200, json=SAMPLE_COMPANY)
+    result = invoke(["crm", "companies", "get", "c1", "--view", "compact"])
+    assert result.exit_code == 0
+    assert route.called
+
+
+def test_companies_get_full_view_omits_query_param(invoke, mock_api):
+    """Default --view full sends no query param (backwards compat)."""
+    route = mock_api.get("/api/v1/crm/companies/c1").respond(200, json=SAMPLE_COMPANY)
+    result = invoke(["crm", "companies", "get", "c1"])
+    assert result.exit_code == 0
+    assert route.called
+    assert "view=" not in str(route.calls.last.request.url)
+
+
 def test_companies_get_not_found(invoke, mock_api):
     mock_api.get("/api/v1/crm/companies/bad").respond(404, json={"detail": "Not found"})
     result = invoke(["crm", "companies", "get", "bad"])
