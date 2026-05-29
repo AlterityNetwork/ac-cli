@@ -5,9 +5,9 @@ from __future__ import annotations
 import typer
 from rich import print as rprint
 
-from ac_cli.commands._helpers import JSON_OPTION, _api_request, set_json_mode, should_skip_confirm
+from ac_cli.commands._helpers import JSON_OPTION, _api_request, set_json_mode
 from ac_cli.commands.admin import _ADMIN
-from ac_cli.formatting import print_json, print_table
+from ac_cli.formatting import print_json
 
 queues_app = typer.Typer(help="Queue management")
 
@@ -100,69 +100,3 @@ def queues_job_performance(
         print_json(data)
     else:
         rprint(data)
-
-
-@queues_app.command("failed")
-def queues_failed(
-    ctx: typer.Context,
-    queue_name: str = typer.Argument(..., help="Queue name"),
-    limit: int = typer.Option(50, help="Max results"),
-    json_output: bool = JSON_OPTION,
-) -> None:
-    """List failed jobs in a queue."""
-    set_json_mode(json_output)
-    resp = _api_request("get", f"{_ADMIN}/queues/{queue_name}/failed", params={"limit": limit})
-
-    data = resp.json()
-    if json_output:
-        print_json(data)
-        return
-
-    items = data if isinstance(data, list) else data.get("data", [])
-    print_table(
-        items,
-        [
-            ("job_id", "Job ID"),
-            ("error", "Error"),
-            ("failed_at", "Failed At"),
-        ],
-        title=f"Failed Jobs ({len(items)})",
-    )
-
-
-@queues_app.command("retry-all")
-def queues_retry_all(
-    queue_name: str = typer.Argument(..., help="Queue name"),
-    yes: bool = typer.Option(False, "--yes", "-y", help="Skip confirmation"),
-) -> None:
-    """Retry all failed jobs in a queue."""
-    if not should_skip_confirm(yes):
-        typer.confirm(f"Retry all failed jobs in queue {queue_name}?", abort=True)
-
-    _api_request("post", f"{_ADMIN}/queues/{queue_name}/failed/retry")
-
-    rprint(f"[green]Retrying all failed jobs in queue {queue_name}[/green]")
-
-
-@queues_app.command("retry-job")
-def queues_retry_job(
-    job_id: str = typer.Argument(..., help="Job ID"),
-) -> None:
-    """Retry a specific failed job."""
-    _api_request("post", f"{_ADMIN}/queues/jobs/{job_id}/retry")
-
-    rprint(f"[green]Retrying job {job_id}[/green]")
-
-
-@queues_app.command("clear-failed")
-def queues_clear_failed(
-    queue_name: str = typer.Argument(..., help="Queue name"),
-    yes: bool = typer.Option(False, "--yes", "-y", help="Skip confirmation"),
-) -> None:
-    """Clear all failed jobs in a queue."""
-    if not should_skip_confirm(yes):
-        typer.confirm(f"Clear all failed jobs in queue {queue_name}?", abort=True)
-
-    _api_request("delete", f"{_ADMIN}/queues/{queue_name}/failed")
-
-    rprint(f"[green]Cleared failed jobs in queue {queue_name}[/green]")
