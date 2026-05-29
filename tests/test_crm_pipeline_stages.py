@@ -2,7 +2,6 @@
 
 import json
 
-
 SAMPLE_STAGE = {
     "id": "s1",
     "organization_id": "org-456",
@@ -102,12 +101,8 @@ def test_reorder(invoke, mock_api):
         {"id": "s2", "sort_order": 2},
     ]
     reordered = [SAMPLE_STAGE, {**SAMPLE_STAGE, "id": "s2", "key": "qualified"}]
-    route = mock_api.post("/api/v1/crm/pipeline/stages/reorder").respond(
-        200, json=reordered
-    )
-    result = invoke(
-        ["crm", "pipeline", "reorder", "--items", json.dumps(items)]
-    )
+    route = mock_api.post("/api/v1/crm/pipeline/stages/reorder").respond(200, json=reordered)
+    result = invoke(["crm", "pipeline", "reorder", "--items", json.dumps(items)])
     assert result.exit_code == 0, result.output
     body = json.loads(route.calls.last.request.content)
     assert body == {"items": items}

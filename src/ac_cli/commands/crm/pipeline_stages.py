@@ -25,8 +25,7 @@ from ac_cli.commands._helpers import (
     should_skip_confirm,
 )
 from ac_cli.commands.crm import _CRM
-from ac_cli.formatting import print_detail, print_json, print_table
-
+from ac_cli.formatting import print_json, print_table
 
 pipeline_app = typer.Typer(help="Per-org deal pipeline stages")
 
@@ -83,9 +82,7 @@ def pipeline_stages_update(
     ctx: typer.Context,
     stage_id: str = typer.Argument(..., help="Stage UUID"),
     label: str | None = typer.Option(None, help="New label"),
-    default_probability: int | None = typer.Option(
-        None, "--default-probability", min=0, max=100
-    ),
+    default_probability: int | None = typer.Option(None, "--default-probability", min=0, max=100),
     sort_order: int | None = typer.Option(None, "--sort-order", min=0),
     json_output: bool = JSON_OPTION,
 ) -> None:
@@ -132,9 +129,7 @@ def pipeline_stages_delete(
     if reassign_to:
         params["reassign_to"] = reassign_to
 
-    _api_request(
-        "delete", f"{_CRM}/pipeline/stages/{stage_id}", params=params or None
-    )
+    _api_request("delete", f"{_CRM}/pipeline/stages/{stage_id}", params=params or None)
 
     if json_output:
         print_json({"deleted": True, "id": stage_id, "reassign_to": reassign_to})
