@@ -342,6 +342,36 @@ def people_approve(
         rprint(f"[green]Approved {data.get('updated_count', 0)} people[/green]")
 
 
+@people_app.command("mark-actioned")
+def people_mark_actioned(
+    ids: str = typer.Option(..., "--ids", help="Comma-separated people IDs"),
+    note: str | None = typer.Option(
+        None,
+        "--note",
+        help="Optional free-text note. Saved as a CRM activity per person.",
+    ),
+    json_output: bool = JSON_OPTION,
+) -> None:
+    """Mark people as actioned (ENG-1127).
+
+    Stamps approved_by / approved_at on each person; with --note, also
+    writes a crm_activities row (type=note, source_app=manual) per person.
+    Backs the Headhunter Mark done button.
+    """
+    set_json_mode(json_output)
+    id_list = _split_ids(ids)
+    resp = _api_request(
+        "post",
+        f"{_CRM}/people/mark-actioned",
+        json={"ids": id_list, "note": note},
+    )
+    data = resp.json()
+    if json_output:
+        print_json(data)
+    else:
+        rprint(f"[green]Marked {data.get('updated_count', 0)} people actioned[/green]")
+
+
 @people_app.command("unapprove")
 def people_unapprove(
     ids: str = typer.Option(..., "--ids", help="Comma-separated people IDs"),
