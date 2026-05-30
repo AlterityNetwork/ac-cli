@@ -38,6 +38,15 @@ def test_activities_list_with_filters(invoke, mock_api):
     assert result.exit_code == 0
 
 
+def test_activities_list_search(invoke, mock_api):
+    """`--search` passes the search query param to the backend (ENG-1143 C1)."""
+    route = mock_api.get("/api/v1/crm/activities").respond(200, json=[SAMPLE_ACTIVITY])
+    result = invoke(["crm", "activities", "list", "--search", "acme", "--json"])
+    assert result.exit_code == 0
+    assert route.called
+    assert "search=acme" in str(route.calls.last.request.url)
+
+
 def test_activities_list_assigned_to(invoke, mock_api):
     """`--assigned-to` passes assigned_to query param to the backend."""
     route = mock_api.get("/api/v1/crm/activities").respond(200, json=[SAMPLE_ACTIVITY])

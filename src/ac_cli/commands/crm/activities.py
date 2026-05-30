@@ -30,6 +30,9 @@ def activities_list(
     contact_id: str | None = typer.Option(None, "--contact-id", help="Filter by contact"),
     activity_type: str | None = typer.Option(None, "--type", help="Filter by type"),
     status: str | None = typer.Option(None, help="Filter by status"),
+    search: str | None = typer.Option(
+        None, "--search", help="Search activity title and description"
+    ),
     assigned_to: str | None = typer.Option(
         None,
         "--assigned-to",
@@ -55,6 +58,8 @@ def activities_list(
         params["type"] = activity_type
     if status:
         params["status"] = status
+    if search:
+        params["search"] = search
     if assigned_to:
         # Sentinel: 'me' resolves to the authenticated user via /whoami so
         # agents don't have to pre-resolve the user_id.
