@@ -24,6 +24,8 @@ def organizations_list(
     query: str | None = typer.Option(None, "--query", "-q", help="Search query"),
     sort: str | None = typer.Option(None, help="Sort field"),
     order: str | None = typer.Option(None, help="Sort order (asc/desc)"),
+    country: str | None = typer.Option(None, "--country", help="Filter by ISO country code"),
+    status: str | None = typer.Option(None, "--status", help="Filter by status: demo or live"),
     limit: int = typer.Option(50, "--limit", help="Page size"),
     offset: int = typer.Option(0, "--offset", help="Row offset"),
     json_output: bool = JSON_OPTION,
@@ -37,6 +39,10 @@ def organizations_list(
         params["sort"] = sort
     if order:
         params["order"] = order
+    if country:
+        params["country"] = country
+    if status:
+        params["status"] = status
 
     resp = _api_request("get", f"{_ADMIN}/organizations", params=params)
 

@@ -33,6 +33,17 @@ def test_orgs_list(invoke, mock_api):
     assert "Test Corp" in result.output
 
 
+def test_orgs_list_country_and_status_filters(invoke, mock_api):
+    """ENG-1143 C2: --country and --status reach the API as query params."""
+    payload = {"data": [], "total": 0, "limit": 50, "offset": 0, "has_more": False}
+    route = mock_api.get("/api/v1/admin/organizations").respond(200, json=payload)
+    result = invoke(["admin", "orgs", "list", "--country", "GB", "--status", "live", "--json"])
+    assert result.exit_code == 0
+    url = str(route.calls.last.request.url)
+    assert "country=GB" in url
+    assert "status=live" in url
+
+
 def test_orgs_list_json(invoke, mock_api):
     payload = {"data": [SAMPLE_ORG], "total": 1, "limit": 50, "offset": 0, "has_more": False}
     mock_api.get("/api/v1/admin/organizations").respond(200, json=payload)
