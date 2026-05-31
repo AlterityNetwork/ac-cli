@@ -99,8 +99,11 @@ def deals_list(
         print_json(data)
         return
 
-    # API returns a flat list
+    # Paginated envelope: {data, total, limit, offset, has_more}. Keep the
+    # bare-list fallback for safety, but show the server total so a paged
+    # result makes the full count visible (ENG-1145).
     items = data if isinstance(data, list) else data.get("data", [])
+    total = len(items) if isinstance(data, list) else data.get("total", len(items))
     print_table(
         items,
         [
@@ -110,7 +113,45 @@ def deals_list(
             ("expected_close_date", "Close Date"),
             ("id", "ID"),
         ],
-        title=f"Deals ({len(items)})",
+        title=f"Deals ({total} total)",
+    )
+
+
+@deals_app.command("pipeline-stats")
+def deals_pipeline_stats(
+    ctx: typer.Context,
+    json_output: bool = JSON_OPTION,
+) -> None:
+    """Show pipeline totals (count/value/weighted) per currency, overall and
+    per stage, computed server-side over every deal (not just a loaded page)."""
+    set_json_mode(json_output)
+    resp = _api_request("get", f"{_CRM}/deals/pipeline-stats")
+
+    data = resp.json()
+    if json_output:
+        print_json(data)
+        return
+
+    print_table(
+        data.get("by_currency", []),
+        [
+            ("currency", "Currency"),
+            ("total_deals", "Deals"),
+            ("total_value", "Value"),
+            ("total_weighted", "Weighted"),
+        ],
+        title="Pipeline totals by currency",
+    )
+    print_table(
+        data.get("by_stage", []),
+        [
+            ("stage", "Stage"),
+            ("currency", "Currency"),
+            ("deal_count", "Deals"),
+            ("total_amount", "Value"),
+            ("weighted_amount", "Weighted"),
+        ],
+        title="Pipeline by stage",
     )
 
 

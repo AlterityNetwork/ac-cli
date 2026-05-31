@@ -181,3 +181,77 @@ def test_deals_delete_json(invoke, mock_api):
 def test_deals_delete_aborted(invoke, mock_api):
     result = invoke(["crm", "deals", "delete", "d1"], input="n\n")
     assert result.exit_code == 1
+
+
+# ---------------------------------------------------------------------------
+# Pagination envelope + pipeline-stats (ENG-1145)
+# ---------------------------------------------------------------------------
+
+
+def test_deals_list_paginated_envelope_shows_total(invoke, mock_api):
+    """List now consumes the {data,total,...} envelope and shows the server
+    total so a paged result reveals the full count, not just the page size."""
+    mock_api.get("/api/v1/crm/deals").respond(
+        200,
+        json={
+            "data": [SAMPLE_DEAL],
+            "total": 4200,
+            "limit": 100,
+            "offset": 0,
+            "has_more": True,
+        },
+    )
+    result = invoke(["crm", "deals", "list"])
+    assert result.exit_code == 0
+    assert "Enterprise Contract" in result.output
+    assert "4200 total" in result.output
+
+
+def test_deals_pipeline_stats(invoke, mock_api):
+    mock_api.get("/api/v1/crm/deals/pipeline-stats").respond(
+        200,
+        json={
+            "by_currency": [
+                {
+                    "currency": "GBP",
+                    "total_deals": 2,
+                    "total_value": 3000.0,
+                    "total_weighted": 1000.0,
+                }
+            ],
+            "by_stage": [
+                {
+                    "stage": "identified",
+                    "currency": "GBP",
+                    "deal_count": 2,
+                    "total_amount": 3000.0,
+                    "weighted_amount": 1000.0,
+                }
+            ],
+        },
+    )
+    result = invoke(["crm", "deals", "pipeline-stats"])
+    assert result.exit_code == 0
+    assert "identified" in result.output
+    assert "GBP" in result.output
+
+
+def test_deals_pipeline_stats_json(invoke, mock_api):
+    mock_api.get("/api/v1/crm/deals/pipeline-stats").respond(
+        200,
+        json={
+            "by_currency": [
+                {
+                    "currency": "GBP",
+                    "total_deals": 2,
+                    "total_value": 3000.0,
+                    "total_weighted": 1000.0,
+                }
+            ],
+            "by_stage": [],
+        },
+    )
+    result = invoke(["crm", "deals", "pipeline-stats", "--json"])
+    assert result.exit_code == 0
+    parsed = json.loads(result.output)
+    assert parsed["by_currency"][0]["total_weighted"] == 1000.0
