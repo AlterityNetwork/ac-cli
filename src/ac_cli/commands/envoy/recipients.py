@@ -65,9 +65,24 @@ def recipients_add(
     source: str | None = typer.Option(
         None, help="Raw JSON source object (advanced, overrides other options)"
     ),
+    reenroll: bool = typer.Option(
+        False,
+        "--reenroll",
+        "--force",
+        help=(
+            "Reactivate prospects previously removed/completed/errored in this "
+            "sequence. Without this they are reported and skipped (ENG-1188)."
+        ),
+    ),
     json_output: bool = JSON_OPTION,
 ) -> None:
-    """Add recipients to a sequence from prospect IDs or a CRM list."""
+    """Add recipients to a sequence from prospect IDs or a CRM list.
+
+    Re-adding a prospect previously removed (or whose enrolment completed or
+    errored) is not silent: it is reported under ``requires_confirmation`` and
+    only reactivated with ``--reenroll`` (or after confirming the prompt).
+    Re-adding an already-active prospect is a safe skip (ENG-1188).
+    """
     set_json_mode(json_output)
 
     if source:
@@ -88,19 +103,55 @@ def recipients_add(
         rprint("[red]Provide --prospect-ids, --crm-list-id, or --source[/red]")
         raise typer.Exit(code=1)
 
-    resp = _api_request("post", f"{_ENVOY}/sequences/{sequence_id}/recipients", json=body)
+    body["reenroll"] = reenroll
 
+    resp = _api_request("post", f"{_ENVOY}/sequences/{sequence_id}/recipients", json=body)
     data = resp.json()
+
     if json_output:
         print_json(data)
-    else:
-        items = data if isinstance(data, list) else []
-        if items:
-            rprint(f"[green]Added {len(items)} recipient(s) to sequence {sequence_id}[/green]")
-        else:
-            rprint(
-                f"[yellow]No new recipients added (all already in sequence {sequence_id})[/yellow]"
+        return
+
+    added = data.get("added", []) if isinstance(data, dict) else []
+    already_active = data.get("already_active", []) if isinstance(data, dict) else []
+    needs_confirm = data.get("requires_confirmation", []) if isinstance(data, dict) else []
+
+    # Previously-enrolled prospects: warn, then re-call with reenroll=true after
+    # an explicit confirmation (honouring AC_YES) unless --reenroll was passed.
+    if needs_confirm and not reenroll:
+        names = ", ".join((p.get("full_name") or p.get("prospect_id", "?")) for p in needs_confirm)
+        rprint(
+            f"[yellow]{len(needs_confirm)} prospect(s) were previously in this "
+            f"sequence (removed/completed/error) and were NOT re-added: {names}[/yellow]"
+        )
+        rprint("[yellow]Re-adding them may send them outreach again.[/yellow]")
+        proceed = should_skip_confirm(False) or typer.confirm(
+            "Re-add these previously-contacted people?", default=False
+        )
+        if proceed:
+            reenrol_ids = [p["prospect_id"] for p in needs_confirm]
+            resp2 = _api_request(
+                "post",
+                f"{_ENVOY}/sequences/{sequence_id}/recipients",
+                json={
+                    "source": {"type": "explicit", "prospect_ids": reenrol_ids},
+                    "reenroll": True,
+                },
             )
+            added = added + (resp2.json().get("added", []) or [])
+            needs_confirm = []
+
+    if added:
+        rprint(f"[green]Added {len(added)} recipient(s) to sequence {sequence_id}[/green]")
+    if already_active:
+        rprint(f"[dim]{len(already_active)} already enrolled (skipped)[/dim]")
+    if needs_confirm:
+        rprint(
+            f"[yellow]{len(needs_confirm)} previously-enrolled prospect(s) not re-added. "
+            f"Re-run with --reenroll to reactivate them.[/yellow]"
+        )
+    if not added and not already_active and not needs_confirm:
+        rprint(f"[yellow]No recipients added to sequence {sequence_id}[/yellow]")
 
 
 @recipients_app.command("remove")
