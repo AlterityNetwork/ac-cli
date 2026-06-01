@@ -190,6 +190,80 @@ def activities_create(
         rprint(f"[green]Created activity:[/green] {data['title']} ({data['id']})")
 
 
+@activities_app.command("bulk-create")
+def activities_bulk_create(
+    ctx: typer.Context,
+    title: str = typer.Option(..., help="Activity title (applied to every record)"),
+    member_type: str = typer.Option(..., "--member-type", help="person or company"),
+    ids: str = typer.Option(..., "--ids", help="Comma-separated person or company IDs"),
+    activity_type: str = typer.Option(
+        "task", "--type", help="Activity type (task, note, call, meeting)"
+    ),
+    description: str | None = typer.Option(None, help="Description"),
+    due_date: str | None = typer.Option(None, "--due-date", help="Due date (ISO format)"),
+    priority: str | None = typer.Option(None, help="Priority (low, medium, high, urgent)"),
+    assigned_to: str | None = typer.Option(
+        None,
+        "--assigned-to",
+        help="Assignee user_id. Pass 'me' to resolve to the authenticated user.",
+    ),
+    duration_minutes: int | None = typer.Option(
+        None, "--duration-minutes", help="Duration in minutes (call/meeting)"
+    ),
+    location: str | None = typer.Option(None, help="Location (meeting)"),
+    source_app: str = typer.Option(
+        "manual",
+        "--source-app",
+        help="Source slug; 'manual' stamps the records Actioned/Approved",
+    ),
+    json_output: bool = JSON_OPTION,
+) -> None:
+    """Create one activity per selected person/company (bulk).
+
+    The same content is applied to every record, mirroring the People/Companies
+    list 'Create activity' action. organization_id comes from the authenticated
+    user, not the body.
+    """
+    set_json_mode(json_output)
+    if member_type not in ("person", "company"):
+        rprint("[red]--member-type must be 'person' or 'company'[/red]")
+        raise typer.Exit(code=1)
+
+    id_list = [i.strip() for i in ids.split(",") if i.strip()]
+    if not id_list:
+        rprint("[red]No IDs provided[/red]")
+        raise typer.Exit(code=1)
+
+    if assigned_to == "me":
+        whoami = _api_request("get", "/whoami").json()
+        assigned_to = whoami.get("user_id") or assigned_to
+
+    body = _build_body(
+        type=activity_type,
+        title=title,
+        description=description,
+        due_date=due_date,
+        priority=priority,
+        assigned_to=assigned_to,
+        duration_minutes=duration_minutes,
+        location=location,
+        source_app=source_app,
+    )
+    body["member_type"] = member_type
+    body["member_ids"] = id_list
+
+    resp = _api_request("post", f"{_CRM}/activities/bulk-create", json=body)
+
+    data = resp.json()
+    if json_output:
+        print_json(data)
+        return
+
+    created = int(data.get("created_count", 0))
+    noun = activity_type if created == 1 else f"{activity_type}s"
+    rprint(f"[green]Created {created} {noun}[/green] for {len(id_list)} {member_type}(s)")
+
+
 @activities_app.command("update")
 def activities_update(
     ctx: typer.Context,
