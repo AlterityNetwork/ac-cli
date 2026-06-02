@@ -34,7 +34,7 @@ def get_output_mode() -> OutputMode:
 
 
 def _display_row(row: dict, keys: list[str]) -> dict:
-    return {key: row.get(key, "") for key in keys}
+    return {key: row[key] for key in keys if key in row}
 
 
 def print_table(
@@ -48,7 +48,7 @@ def print_table(
     """
     if get_output_mode() == OutputMode.json:
         keys = [key for key, _ in columns]
-        print_json([_display_row(row, keys) for row in data])
+        print_json([_display_row(row, keys) for row in data], sort_keys=True)
         return
 
     table = Table(title=title, show_lines=False)
@@ -67,7 +67,7 @@ def print_detail(data: dict, fields: list[tuple[str, str]]) -> None:
     fields: list of (key, label) tuples.
     """
     if get_output_mode() == OutputMode.json:
-        print_json({key: data.get(key, "") for key, _ in fields})
+        print_json({key: data[key] for key, _ in fields if key in data}, sort_keys=True)
         return
 
     for key, label in fields:
@@ -75,6 +75,6 @@ def print_detail(data: dict, fields: list[tuple[str, str]]) -> None:
         console.print(f"[bold]{label}:[/bold] {value}")
 
 
-def print_json(data: object) -> None:
+def print_json(data: object, *, sort_keys: bool = False) -> None:
     """Dump data as JSON to stdout (for piping/scripting)."""
-    sys.stdout.write(json.dumps(data, indent=2, sort_keys=True, default=str) + "\n")
+    sys.stdout.write(json.dumps(data, indent=2, sort_keys=sort_keys, default=str) + "\n")
