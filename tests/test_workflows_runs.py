@@ -118,6 +118,12 @@ def test_runs_archive_json(invoke, mock_api):
     assert json.loads(result.output)["archived_count"] == 1
 
 
+def test_runs_archive_aborted(invoke, mock_api):
+    result = invoke(["workflows", "runs", "archive", "wf-1", "run-1"], input="n\n")
+    assert result.exit_code == 1
+    assert not mock_api.calls
+
+
 def test_runs_archive_in_flight_error(invoke, mock_api):
     mock_api.post("/api/v1/workflows/wf-1/runs/archive").respond(
         422, json={"detail": "In-flight runs cannot be archived"}
@@ -146,6 +152,23 @@ def test_runs_restore_json(invoke, mock_api):
     result = invoke(["workflows", "runs", "restore", "wf-1", "run-1", "--yes", "--json"])
     assert result.exit_code == 0
     assert json.loads(result.output)["restored_count"] == 1
+
+
+def test_runs_restore_aborted(invoke, mock_api):
+    result = invoke(["workflows", "runs", "restore", "wf-1", "run-1"], input="n\n")
+    assert result.exit_code == 1
+    assert not mock_api.calls
+
+
+def test_runs_restore_error(invoke, mock_api):
+    mock_api.post("/api/v1/workflows/wf-1/runs/restore").respond(
+        422, json={"detail": "Invalid run id"}
+    )
+    result = invoke(["workflows", "runs", "restore", "wf-1", "run-1", "--yes", "--json"])
+    assert result.exit_code == 2
+    parsed = json.loads(result.output)
+    assert parsed["status_code"] == 422
+    assert parsed["detail"] == "Invalid run id"
 
 
 def test_runs_get(invoke, mock_api):
