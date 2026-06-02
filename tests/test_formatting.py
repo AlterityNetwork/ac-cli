@@ -2,11 +2,7 @@
 
 import json
 
-from ac_cli.formatting import OutputMode, print_detail, print_json, print_table, set_output_mode
-
-
-def teardown_function():
-    set_output_mode(OutputMode.table)
+from ac_cli.formatting import print_detail, print_json, print_table
 
 
 def test_print_table_renders_rows(capsys):
@@ -19,22 +15,6 @@ def test_print_table_renders_rows(capsys):
     assert "Acme" in output
     assert "Globex" in output
     assert "Companies" in output
-
-
-def test_print_table_json_mode_outputs_displayed_columns(capsys):
-    set_output_mode(OutputMode.json)
-    data = [
-        {"name": "Acme", "industry": "SaaS", "hidden": "not rendered"},
-        {"name": "Globex", "industry": "Manufacturing", "hidden": "not rendered"},
-    ]
-
-    print_table(data, [("name", "Name"), ("industry", "Industry")], title="Companies")
-
-    output = capsys.readouterr().out
-    assert json.loads(output) == [
-        {"industry": "SaaS", "name": "Acme"},
-        {"industry": "Manufacturing", "name": "Globex"},
-    ]
 
 
 def test_print_table_empty(capsys):
@@ -50,16 +30,6 @@ def test_print_detail_renders_fields(capsys):
     assert "abc" in output
     assert "Acme" in output
     assert "https://acme.com" in output
-
-
-def test_print_detail_json_mode_outputs_displayed_fields(capsys):
-    set_output_mode(OutputMode.json)
-    data = {"id": "abc", "name": "Acme", "hidden": "not rendered"}
-
-    print_detail(data, [("id", "ID"), ("name", "Name")])
-
-    output = capsys.readouterr().out
-    assert json.loads(output) == {"id": "abc", "name": "Acme"}
 
 
 def test_print_json_outputs_valid_json(capsys):

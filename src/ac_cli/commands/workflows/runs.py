@@ -60,9 +60,7 @@ def runs_list(
     workflow_id: str = typer.Argument(..., help="Workflow ID"),
     limit: int = typer.Option(50, help="Max results"),
     offset: int = typer.Option(0, help="Offset"),
-    include_archived: bool = typer.Option(
-        False, "--include-archived", help="Include archived runs"
-    ),
+    include_archived: bool = typer.Option(False, "--include-archived", help="Include archived runs"),
     json_output: bool = JSON_OPTION,
 ) -> None:
     """List runs for a workflow."""
