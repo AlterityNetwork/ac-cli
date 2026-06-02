@@ -86,6 +86,11 @@ OUT_OF_SCOPE: set[tuple[str, str]] = {
     # e2e-only headhunter fixture seed/cleanup used by Playwright runs.
     ("POST", "/api/v1/test/seed-headhunter"),
     ("POST", "/api/v1/test/cleanup-headhunter"),
+    # ENG-1137: e2e/QA-only Sonar + Envoy installed-app fixture seed/cleanup.
+    ("POST", "/api/v1/test/seed-sonar"),
+    ("POST", "/api/v1/test/cleanup-sonar"),
+    ("POST", "/api/v1/test/seed-envoy"),
+    ("POST", "/api/v1/test/cleanup-envoy"),
     ("POST", "/api/v1/eval/run"),
     ("PATCH", "/api/v1/eval/runs/{id}"),
     ("DELETE", "/api/v1/eval/run/live/{id}"),
