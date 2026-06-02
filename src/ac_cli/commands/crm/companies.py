@@ -238,6 +238,11 @@ def companies_update(
         id_label="company ID",
         name_flag="--company-name",
     )
+    if reset_lead_score_to_auto and lead_score is not None:
+        raise typer.BadParameter(
+            "Cannot use --lead-score with --reset-lead-score-to-auto",
+            param_hint="--lead-score",
+        )
     body = _build_body(
         name=name,
         website=website,

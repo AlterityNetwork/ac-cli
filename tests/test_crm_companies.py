@@ -179,9 +179,59 @@ def test_companies_update_lead_score_override(invoke, mock_api):
     }
 
 
+def test_companies_update_lead_score_override_json(invoke, mock_api):
+    updated = {
+        **SAMPLE_COMPANY,
+        "lead_score": 8,
+        "lead_reason": "Strategic account",
+        "lead_score_source": "manual",
+    }
+    route = mock_api.patch("/api/v1/crm/companies/c1").respond(200, json=updated)
+    result = invoke(
+        [
+            "crm",
+            "companies",
+            "update",
+            "c1",
+            "--lead-score",
+            "8",
+            "--lead-reason",
+            "Strategic account",
+            "--json",
+        ]
+    )
+    assert result.exit_code == 0
+    assert json.loads(route.calls.last.request.content) == {
+        "lead_score": 8,
+        "lead_reason": "Strategic account",
+    }
+    assert json.loads(result.output)["lead_score_source"] == "manual"
+
+
 def test_companies_update_rejects_out_of_range_lead_score(invoke):
     result = invoke(["crm", "companies", "update", "c1", "--lead-score", "11"])
     assert result.exit_code != 0
+
+
+def test_companies_update_rejects_negative_lead_score(invoke):
+    result = invoke(["crm", "companies", "update", "c1", "--lead-score", "-1"])
+    assert result.exit_code != 0
+
+
+def test_companies_update_rejects_score_with_reset_to_auto(invoke):
+    result = invoke(
+        [
+            "crm",
+            "companies",
+            "update",
+            "c1",
+            "--lead-score",
+            "8",
+            "--reset-lead-score-to-auto",
+        ]
+    )
+    assert result.exit_code != 0
+    assert "Cannot use --lead-score" in result.output
 
 
 def test_companies_update_reset_lead_score_to_auto(invoke, mock_api):
