@@ -88,6 +88,66 @@ def test_runs_list_json(invoke, mock_api):
     assert parsed["data"][0]["id"] == "run-1"
 
 
+def test_runs_list_include_archived(invoke, mock_api):
+    route = mock_api.get("/api/v1/workflows/wf-1/runs").respond(
+        200, json={"data": [SAMPLE_RUN], "total": 1}
+    )
+    result = invoke(["workflows", "runs", "list", "wf-1", "--include-archived"])
+    assert result.exit_code == 0
+    assert route.calls[0].request.url.params["include_archived"] == "true"
+
+
+def test_runs_archive(invoke, mock_api):
+    route = mock_api.post("/api/v1/workflows/wf-1/runs/archive").respond(
+        200, json={"archived_count": 2}
+    )
+    result = invoke(["workflows", "runs", "archive", "wf-1", "run-1", "run-2", "--yes"])
+    assert result.exit_code == 0
+    assert "Archived 2 runs" in result.output
+    assert json.loads(route.calls[0].request.content) == {
+        "run_ids": ["run-1", "run-2"]
+    }
+
+
+def test_runs_archive_json(invoke, mock_api):
+    mock_api.post("/api/v1/workflows/wf-1/runs/archive").respond(
+        200, json={"archived_count": 1}
+    )
+    result = invoke(["workflows", "runs", "archive", "wf-1", "run-1", "--yes", "--json"])
+    assert result.exit_code == 0
+    assert json.loads(result.output)["archived_count"] == 1
+
+
+def test_runs_archive_in_flight_error(invoke, mock_api):
+    mock_api.post("/api/v1/workflows/wf-1/runs/archive").respond(
+        422, json={"detail": "In-flight runs cannot be archived"}
+    )
+    result = invoke(["workflows", "runs", "archive", "wf-1", "run-1", "--yes", "--json"])
+    assert result.exit_code == 2
+    parsed = json.loads(result.output)
+    assert parsed["status_code"] == 422
+    assert "In-flight" in parsed["detail"]
+
+
+def test_runs_restore(invoke, mock_api):
+    route = mock_api.post("/api/v1/workflows/wf-1/runs/restore").respond(
+        200, json={"restored_count": 1}
+    )
+    result = invoke(["workflows", "runs", "restore", "wf-1", "run-1", "--yes"])
+    assert result.exit_code == 0
+    assert "Restored 1 run" in result.output
+    assert json.loads(route.calls[0].request.content) == {"run_ids": ["run-1"]}
+
+
+def test_runs_restore_json(invoke, mock_api):
+    mock_api.post("/api/v1/workflows/wf-1/runs/restore").respond(
+        200, json={"restored_count": 1}
+    )
+    result = invoke(["workflows", "runs", "restore", "wf-1", "run-1", "--yes", "--json"])
+    assert result.exit_code == 0
+    assert json.loads(result.output)["restored_count"] == 1
+
+
 def test_runs_get(invoke, mock_api):
     mock_api.get("/api/v1/workflows/wf-1/runs/run-1").respond(200, json=SAMPLE_RUN)
     result = invoke(["workflows", "runs", "get", "wf-1", "run-1"])
