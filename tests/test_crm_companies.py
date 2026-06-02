@@ -145,10 +145,51 @@ def test_companies_create_with_tags(invoke, mock_api):
 
 def test_companies_update(invoke, mock_api):
     updated = {**SAMPLE_COMPANY, "name": "Acme Inc"}
-    mock_api.patch("/api/v1/crm/companies/c1").respond(200, json=updated)
+    route = mock_api.patch("/api/v1/crm/companies/c1").respond(200, json=updated)
     result = invoke(["crm", "companies", "update", "c1", "--name", "Acme Inc"])
     assert result.exit_code == 0
     assert "Updated company" in result.output
+    assert json.loads(route.calls.last.request.content) == {"name": "Acme Inc"}
+
+
+def test_companies_update_lead_score_override(invoke, mock_api):
+    updated = {
+        **SAMPLE_COMPANY,
+        "lead_score": 8,
+        "lead_reason": "Strategic account",
+        "lead_score_source": "manual",
+    }
+    route = mock_api.patch("/api/v1/crm/companies/c1").respond(200, json=updated)
+    result = invoke(
+        [
+            "crm",
+            "companies",
+            "update",
+            "c1",
+            "--lead-score",
+            "8",
+            "--lead-reason",
+            "Strategic account",
+        ]
+    )
+    assert result.exit_code == 0
+    assert json.loads(route.calls.last.request.content) == {
+        "lead_score": 8,
+        "lead_reason": "Strategic account",
+    }
+
+
+def test_companies_update_rejects_out_of_range_lead_score(invoke):
+    result = invoke(["crm", "companies", "update", "c1", "--lead-score", "11"])
+    assert result.exit_code != 0
+
+
+def test_companies_update_reset_lead_score_to_auto(invoke, mock_api):
+    updated = {**SAMPLE_COMPANY, "lead_score_source": "sonar"}
+    route = mock_api.patch("/api/v1/crm/companies/c1").respond(200, json=updated)
+    result = invoke(["crm", "companies", "update", "c1", "--reset-lead-score-to-auto"])
+    assert result.exit_code == 0
+    assert json.loads(route.calls.last.request.content) == {"reset_lead_score_to_auto": True}
 
 
 def test_companies_update_no_fields(invoke, mock_api):

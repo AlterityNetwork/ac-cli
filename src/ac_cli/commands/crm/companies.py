@@ -216,6 +216,19 @@ def companies_update(
     location: str | None = typer.Option(None, help="Location"),
     country: str | None = typer.Option(None, help="Country"),
     description: str | None = typer.Option(None, help="Description"),
+    lead_score: int | None = typer.Option(
+        None,
+        "--lead-score",
+        min=0,
+        max=10,
+        help="Lead score override on the 0-10 scale",
+    ),
+    lead_reason: str | None = typer.Option(None, "--lead-reason", help="Lead score reason"),
+    reset_lead_score_to_auto: bool = typer.Option(
+        False,
+        "--reset-lead-score-to-auto",
+        help="Clear the manual lead score lock so Sonar can update it",
+    ),
     json_output: bool = JSON_OPTION,
 ) -> None:
     """Update an existing company."""
@@ -234,6 +247,9 @@ def companies_update(
         location=location,
         country=country,
         description=description,
+        lead_score=lead_score,
+        lead_reason=lead_reason,
+        reset_lead_score_to_auto=reset_lead_score_to_auto or None,
     )
 
     if not body:
