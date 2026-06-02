@@ -30,6 +30,7 @@ from ac_cli.commands import (
     workflows,
     writing_styles,
 )
+from ac_cli.formatting import OutputMode, set_output_mode
 
 
 def _version_callback(value: bool) -> None:
@@ -47,6 +48,7 @@ app = typer.Typer(
 
 @app.callback()
 def main(
+    ctx: typer.Context,
     version: bool = typer.Option(
         False,
         "--version",
@@ -65,7 +67,17 @@ def main(
         ),
         envvar=ACT_AS_ENV_VAR,
     ),
+    output: OutputMode = typer.Option(
+        OutputMode.table,
+        "--output",
+        "-o",
+        help="Output format",
+        case_sensitive=False,
+    ),
 ) -> None:
+    ctx.obj = ctx.obj or {}
+    ctx.obj["output"] = output.value
+    set_output_mode(output)
     if act_as:
         os.environ[ACT_AS_ENV_VAR] = act_as.strip()
 

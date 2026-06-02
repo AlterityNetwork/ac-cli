@@ -8,7 +8,7 @@ import typer
 from rich import print as rprint
 
 from ac_cli.client import get_api_client
-from ac_cli.formatting import print_json
+from ac_cli.formatting import OutputMode, get_output_mode, print_json, set_output_mode
 
 _json_output: contextvars.ContextVar[bool] = contextvars.ContextVar("json_output", default=False)
 
@@ -19,7 +19,11 @@ _EXIT_CODES = {401: 4, 403: 4, 404: 3, 409: 5, 422: 2}
 
 def set_json_mode(enabled: bool) -> None:
     """Set the JSON output mode for the current context."""
-    _json_output.set(enabled)
+    if enabled:
+        set_output_mode(OutputMode.json)
+        _json_output.set(True)
+        return
+    _json_output.set(get_output_mode() == OutputMode.json)
 
 
 def should_skip_confirm(yes_flag: bool) -> bool:

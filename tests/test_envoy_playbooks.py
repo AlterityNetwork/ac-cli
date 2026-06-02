@@ -31,11 +31,30 @@ def test_playbooks_list_json(invoke, mock_api):
     assert parsed[0]["name"] == "Competitor Battlecard"
 
 
+def test_playbooks_list_global_output_json(invoke, mock_api):
+    mock_api.get("/api/v1/playbooks").respond(200, json=[SAMPLE_PLAYBOOK])
+    result = invoke(["--output", "json", "envoy", "playbooks", "list"])
+    assert result.exit_code == 0
+    assert json.loads(result.output) == [
+        {"id": "pb-1", "name": "Competitor Battlecard", "status": "active"}
+    ]
+
+
 def test_playbooks_get(invoke, mock_api):
     mock_api.get("/api/v1/playbooks/pb-1").respond(200, json=SAMPLE_PLAYBOOK)
     result = invoke(["envoy", "playbooks", "get", "pb-1"])
     assert result.exit_code == 0
     assert "Competitor Battlecard" in result.output
+
+
+def test_playbooks_get_global_output_json(invoke, mock_api):
+    mock_api.get("/api/v1/playbooks/pb-1").respond(200, json=SAMPLE_PLAYBOOK)
+    result = invoke(["--output", "json", "envoy", "playbooks", "get", "pb-1"])
+    assert result.exit_code == 0
+    parsed = json.loads(result.output)
+    assert parsed["id"] == "pb-1"
+    assert parsed["name"] == "Competitor Battlecard"
+    assert "organization_id" not in parsed
 
 
 def test_playbooks_get_not_found(invoke, mock_api):
