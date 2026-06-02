@@ -20,6 +20,17 @@ def test_json_error_404(invoke, mock_api):
     assert parsed["detail"] == "Not found"
 
 
+def test_global_json_output_error_404(invoke, mock_api):
+    """When --output json is active, API errors return structured JSON."""
+    mock_api.get("/api/v1/crm/companies/bad").respond(404, json={"detail": "Not found"})
+    result = invoke(["--output", "json", "crm", "companies", "get", "bad"])
+    assert result.exit_code == 3
+    parsed = json.loads(result.output)
+    assert parsed["error"] is True
+    assert parsed["status_code"] == 404
+    assert parsed["detail"] == "Not found"
+
+
 def test_json_error_403(invoke, mock_api):
     """When --json is active, 403 errors return structured JSON with exit code 4."""
     mock_api.get("/api/v1/crm/companies").respond(403, json={"detail": "Forbidden"})
