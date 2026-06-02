@@ -234,6 +234,22 @@ def test_companies_update_rejects_score_with_reset_to_auto(invoke):
     assert "Cannot use --lead-score" in result.output
 
 
+def test_companies_update_rejects_reason_with_reset_to_auto(invoke):
+    result = invoke(
+        [
+            "crm",
+            "companies",
+            "update",
+            "c1",
+            "--lead-reason",
+            "Manual reason",
+            "--reset-lead-score-to-auto",
+        ]
+    )
+    assert result.exit_code != 0
+    assert "--reset-lead-score-to-auto" in result.output
+
+
 def test_companies_update_reset_lead_score_to_auto(invoke, mock_api):
     updated = {**SAMPLE_COMPANY, "lead_score_source": "sonar"}
     route = mock_api.patch("/api/v1/crm/companies/c1").respond(200, json=updated)
