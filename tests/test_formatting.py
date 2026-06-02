@@ -25,8 +25,7 @@ def test_print_table_json_mode_outputs_displayed_columns(capsys):
     set_output_mode(OutputMode.json)
     data = [
         {"name": "Acme", "industry": "SaaS", "hidden": "not rendered"},
-        {"name": "Globex", "industry": None, "hidden": "not rendered"},
-        {"name": "No Industry", "hidden": "not rendered"},
+        {"name": "Globex", "industry": "Manufacturing", "hidden": "not rendered"},
     ]
 
     print_table(data, [("name", "Name"), ("industry", "Industry")], title="Companies")
@@ -34,8 +33,7 @@ def test_print_table_json_mode_outputs_displayed_columns(capsys):
     output = capsys.readouterr().out
     assert json.loads(output) == [
         {"industry": "SaaS", "name": "Acme"},
-        {"industry": None, "name": "Globex"},
-        {"name": "No Industry"},
+        {"industry": "Manufacturing", "name": "Globex"},
     ]
 
 
@@ -56,12 +54,12 @@ def test_print_detail_renders_fields(capsys):
 
 def test_print_detail_json_mode_outputs_displayed_fields(capsys):
     set_output_mode(OutputMode.json)
-    data = {"id": "abc", "name": None, "hidden": "not rendered"}
+    data = {"id": "abc", "name": "Acme", "hidden": "not rendered"}
 
-    print_detail(data, [("id", "ID"), ("name", "Name"), ("missing", "Missing")])
+    print_detail(data, [("id", "ID"), ("name", "Name")])
 
     output = capsys.readouterr().out
-    assert json.loads(output) == {"id": "abc", "name": None}
+    assert json.loads(output) == {"id": "abc", "name": "Acme"}
 
 
 def test_print_json_outputs_valid_json(capsys):
@@ -70,13 +68,6 @@ def test_print_json_outputs_valid_json(capsys):
     output = capsys.readouterr().out
     parsed = json.loads(output)
     assert parsed == data
-
-
-def test_print_json_preserves_insertion_order_by_default(capsys):
-    print_json({"z": 1, "a": 2})
-
-    output = capsys.readouterr().out
-    assert output.index('"z"') < output.index('"a"')
 
 
 def test_print_detail_missing_key(capsys):

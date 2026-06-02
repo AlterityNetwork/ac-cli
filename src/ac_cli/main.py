@@ -76,6 +76,7 @@ def main(
     ),
 ) -> None:
     ctx.obj = ctx.obj or {}
+    ctx.obj["output"] = output.value
     set_output_mode(output)
     if act_as:
         os.environ[ACT_AS_ENV_VAR] = act_as.strip()

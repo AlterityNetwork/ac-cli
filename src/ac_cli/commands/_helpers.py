@@ -18,14 +18,12 @@ _EXIT_CODES = {401: 4, 403: 4, 404: 3, 409: 5, 422: 2}
 
 
 def set_json_mode(enabled: bool) -> None:
-    """Set command-local raw JSON output mode for the current context."""
+    """Set the JSON output mode for the current context."""
     if enabled:
         set_output_mode(OutputMode.json)
-    _json_output.set(enabled)
-
-
-def _wants_json_errors() -> bool:
-    return _json_output.get() or get_output_mode() == OutputMode.json
+        _json_output.set(True)
+        return
+    _json_output.set(get_output_mode() == OutputMode.json)
 
 
 def should_skip_confirm(yes_flag: bool) -> bool:
@@ -41,7 +39,7 @@ def _handle_error(exc: httpx.HTTPStatusError) -> None:
     except (ValueError, KeyError):
         detail = exc.response.text
     exit_code = _EXIT_CODES.get(exc.response.status_code, 1)
-    if _wants_json_errors():
+    if _json_output.get():
         print_json({"error": True, "status_code": exc.response.status_code, "detail": detail})
     else:
         rprint(f"[red]Error {exc.response.status_code}:[/red] {detail}")
@@ -57,7 +55,7 @@ def _api_request(method: str, path: str, **kwargs: object) -> httpx.Response:
         except httpx.HTTPStatusError as exc:
             _handle_error(exc)
         except httpx.HTTPError as exc:
-            if _wants_json_errors():
+            if _json_output.get():
                 print_json({"error": True, "status_code": None, "detail": str(exc)})
             else:
                 rprint(f"[red]Connection error:[/red] {exc}")
@@ -89,7 +87,7 @@ def _resolve_entity(
     items = data if isinstance(data, list) else data.get("data", [])
 
     if not items:
-        if _wants_json_errors():
+        if _json_output.get():
             print_json({"error": True, "detail": f"No {label} found matching '{entity_name}'"})
         else:
             rprint(f"[red]No {label} found matching '{entity_name}'[/red]")
@@ -100,7 +98,7 @@ def _resolve_entity(
         exact = [i for i in items if (i.get(name_field) or "").lower() == entity_name.lower()]
         if len(exact) == 1:
             return exact[0]["id"]
-        if _wants_json_errors():
+        if _json_output.get():
             matches = [{"id": i["id"], name_field: i.get(name_field)} for i in items]
             print_json(
                 {
@@ -127,7 +125,7 @@ def _require_id(
     """Ensure an entity ID was resolved — exit with error if not."""
     if resolved_id:
         return resolved_id
-    if _wants_json_errors():
+    if _json_output.get():
         print_json({"error": True, "detail": f"Provide a {id_label} or use {name_flag}"})
     else:
         rprint(f"[red]Provide a {id_label} or use {name_flag}[/red]")
