@@ -249,7 +249,7 @@ def companies_update(
         description=description,
         lead_score=lead_score,
         lead_reason=lead_reason,
-        reset_lead_score_to_auto=reset_lead_score_to_auto or None,
+        reset_lead_score_to_auto=reset_lead_score_to_auto if reset_lead_score_to_auto else None,
     )
 
     if not body:
