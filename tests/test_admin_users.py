@@ -126,6 +126,32 @@ def test_users_reset_password(invoke, mock_api):
     assert "Password reset" in result.output
 
 
+def test_users_require_tos_resign_with_yes(invoke, mock_api):
+    mock_api.post("/api/v1/admin/users/u-1/require-tos-resign").respond(
+        200, json={"id": "u-1"}
+    )
+    result = invoke(["admin", "users", "require-tos-resign", "u-1", "--yes"])
+    assert result.exit_code == 0
+    assert "ToS re-sign required" in result.output
+
+
+def test_users_require_tos_resign_json(invoke, mock_api):
+    mock_api.post("/api/v1/admin/users/u-1/require-tos-resign").respond(
+        200, json={"id": "u-1"}
+    )
+    result = invoke(
+        ["admin", "users", "require-tos-resign", "u-1", "--yes", "--json"]
+    )
+    assert result.exit_code == 0
+    parsed = json.loads(result.output)
+    assert parsed["id"] == "u-1"
+
+
+def test_users_require_tos_resign_aborted(invoke, mock_api):
+    result = invoke(["admin", "users", "require-tos-resign", "u-1"], input="n\n")
+    assert result.exit_code == 1
+
+
 def test_users_impersonate(invoke, mock_api):
     mock_api.post("/api/v1/admin/users/u-1/impersonate").respond(200, json={"status": "ok"})
     result = invoke(["admin", "users", "impersonate", "u-1"])

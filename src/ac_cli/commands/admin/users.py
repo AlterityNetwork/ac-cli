@@ -214,6 +214,27 @@ def users_reset_password(
     rprint(f"[green]Password reset for user {user_id}[/green]")
 
 
+@users_app.command("require-tos-resign")
+def users_require_tos_resign(
+    ctx: typer.Context,
+    user_id: str = typer.Argument(..., help="User ID"),
+    yes: bool = typer.Option(False, "--yes", "-y", help="Skip confirmation"),
+    json_output: bool = JSON_OPTION,
+) -> None:
+    """Require a user to re-sign the current Terms of Service."""
+    set_json_mode(json_output)
+    if not should_skip_confirm(yes):
+        typer.confirm(f"Require ToS re-sign for user {user_id}?", abort=True)
+
+    resp = _api_request("post", f"{_ADMIN}/users/{user_id}/require-tos-resign")
+    data = resp.json() if resp.content else {"id": user_id}
+
+    if json_output:
+        print_json(data)
+    else:
+        rprint(f"[green]ToS re-sign required for user {data['id']}[/green]")
+
+
 @users_app.command("impersonate")
 def users_impersonate(
     user_id: str = typer.Argument(..., help="User ID"),
