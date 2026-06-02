@@ -104,15 +104,11 @@ def test_runs_archive(invoke, mock_api):
     result = invoke(["workflows", "runs", "archive", "wf-1", "run-1", "run-2", "--yes"])
     assert result.exit_code == 0
     assert "Archived 2 runs" in result.output
-    assert json.loads(route.calls[0].request.content) == {
-        "run_ids": ["run-1", "run-2"]
-    }
+    assert json.loads(route.calls[0].request.content) == {"run_ids": ["run-1", "run-2"]}
 
 
 def test_runs_archive_json(invoke, mock_api):
-    mock_api.post("/api/v1/workflows/wf-1/runs/archive").respond(
-        200, json={"archived_count": 1}
-    )
+    mock_api.post("/api/v1/workflows/wf-1/runs/archive").respond(200, json={"archived_count": 1})
     result = invoke(["workflows", "runs", "archive", "wf-1", "run-1", "--yes", "--json"])
     assert result.exit_code == 0
     assert json.loads(result.output)["archived_count"] == 1
@@ -146,9 +142,7 @@ def test_runs_restore(invoke, mock_api):
 
 
 def test_runs_restore_json(invoke, mock_api):
-    mock_api.post("/api/v1/workflows/wf-1/runs/restore").respond(
-        200, json={"restored_count": 1}
-    )
+    mock_api.post("/api/v1/workflows/wf-1/runs/restore").respond(200, json={"restored_count": 1})
     result = invoke(["workflows", "runs", "restore", "wf-1", "run-1", "--yes", "--json"])
     assert result.exit_code == 0
     assert json.loads(result.output)["restored_count"] == 1

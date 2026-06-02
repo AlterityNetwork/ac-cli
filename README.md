@@ -76,13 +76,20 @@ ac envoy dashboard
 
 ## Output Modes
 
-All commands support rich table output (default) or JSON for scripting:
+All commands render rich table output by default. Use the global `--output` /
+`-o` option before the command group to switch shared table/detail renderers to
+machine-readable JSON:
 
 ```bash
-ac crm deals list                          # Pretty tables
-ac crm --json deals list                   # Raw JSON
-ac crm --json deals list | jq '.[].name'   # Pipe to jq
+ac crm deals list                                # Pretty tables
+ac --output json crm deals list                  # JSON from displayed rows
+ac -o json crm companies get <id>                # JSON from displayed fields
+ac --output json crm deals list | jq '.[].name'  # Pipe to jq
 ```
+
+`--output` accepts only `table` and `json`; `table` is the default. Existing
+per-command `--json` flags remain supported for commands that expose raw API
+payloads.
 
 ## Development
 

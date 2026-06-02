@@ -81,11 +81,62 @@ def test_companies_list_json(invoke, mock_api):
     assert parsed["data"][0]["name"] == "Acme Corp"
 
 
+def test_companies_list_global_output_json(invoke, mock_api):
+    payload = {"data": [SAMPLE_COMPANY], "total": 1}
+    mock_api.get("/api/v1/crm/companies").respond(200, json=payload)
+    result = invoke(["--output", "json", "crm", "companies", "list"])
+    assert result.exit_code == 0
+    parsed = json.loads(result.output)
+    assert parsed == [
+        {
+            "id": "c1",
+            "industry": "SaaS",
+            "lifecycle_stage": "prospect",
+            "location": "San Francisco",
+            "name": "Acme Corp",
+        }
+    ]
+
+
+def test_global_output_alias_json(invoke, mock_api):
+    payload = {"data": [SAMPLE_COMPANY], "total": 1}
+    mock_api.get("/api/v1/crm/companies").respond(200, json=payload)
+    result = invoke(["-o", "json", "crm", "companies", "list"])
+    assert result.exit_code == 0
+    assert json.loads(result.output)[0]["name"] == "Acme Corp"
+
+
+def test_global_output_table_preserves_default_output(invoke, mock_api):
+    payload = {"data": [SAMPLE_COMPANY], "total": 1}
+    mock_api.get("/api/v1/crm/companies").respond(200, json=payload)
+    result = invoke(["--output", "table", "crm", "companies", "list"])
+    assert result.exit_code == 0
+    assert "Acme Corp" in result.output
+    assert "Companies (1 total)" in result.output
+
+
+def test_global_output_rejects_invalid_value(invoke, mock_api):
+    result = invoke(["--output", "yaml", "crm", "companies", "list"])
+    assert result.exit_code != 0
+    assert "Invalid value" in result.output
+    assert not mock_api.calls.called
+
+
 def test_companies_get(invoke, mock_api):
     mock_api.get("/api/v1/crm/companies/c1").respond(200, json=SAMPLE_COMPANY)
     result = invoke(["crm", "companies", "get", "c1"])
     assert result.exit_code == 0
     assert "Acme Corp" in result.output
+
+
+def test_companies_get_global_output_json(invoke, mock_api):
+    mock_api.get("/api/v1/crm/companies/c1").respond(200, json=SAMPLE_COMPANY)
+    result = invoke(["--output", "json", "crm", "companies", "get", "c1"])
+    assert result.exit_code == 0
+    parsed = json.loads(result.output)
+    assert parsed["id"] == "c1"
+    assert parsed["name"] == "Acme Corp"
+    assert "data_version" not in parsed
 
 
 def test_companies_get_compact_view(invoke, mock_api):
