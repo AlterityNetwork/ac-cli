@@ -2,19 +2,27 @@ name: Claude Code Review
 
 on:
   pull_request:
-    types: [opened, reopened, ready_for_review]
+    # synchronize = new commits pushed to the PR branch, so a fix push
+    # auto-triggers a fresh review (no @claude needed); @claude still works
+    # for on-demand re-reviews.
+    types: [opened, reopened, ready_for_review, synchronize]
   issue_comment:
     types: [created]
 
 jobs:
   review:
-    # PR-open events always run; comment events only re-review when a human
-    # writes "@claude" on a pull request (ignores the bot's own comments).
+    # pull_request events (open/reopen/ready/push) always run; comment events
+    # only re-review when a human writes "@claude" on an OPEN pull request
+    # (ignores the bot's own comments and skips stray mentions on
+    # merged/closed PRs, whose refs/pull/N/merge no longer resolves).
     if: >
       github.event_name == 'pull_request' ||
       (github.event.issue.pull_request != null &&
+       github.event.issue.state == 'open' &&
        contains(github.event.comment.body, '@claude'))
     runs-on: ubuntu-latest
+    # Hard ceiling so a hung run still reaches a terminal status.
+    timeout-minutes: 20
     permissions:
       contents: read
       pull-requests: write
@@ -34,15 +42,37 @@ jobs:
             REPO: ${{ github.repository }}
             PR NUMBER: ${{ github.event.pull_request.number || github.event.issue.number }}
 
-            Review this pull request for correctness bugs, security issues, and
-            notable code-quality problems. Only flag noteworthy items; skip
-            nitpicks.
+            You are reviewing a pull request in an AgencyCore product
+            repository. Flag only what matters: correctness, security,
+            performance, and real maintainability problems. Skip nitpicks and
+            style preferences.
 
-            For every specific finding you MUST call
-            mcp__github_inline_comment__create_inline_comment to attach the
-            comment to the exact file and line. Do not list specific findings
-            in the top-level summary body. Reserve the top-level comment for a
-            one-paragraph overall summary and a count of issues found. If a
-            finding cannot be tied to a line, omit it. Keep feedback concise.
+            ## Output format — concise, structured, skimmable
+
+            Post every specific finding as an INLINE comment on the exact
+            file+line via mcp__github_inline_comment__create_inline_comment.
+            Never list specific findings in the top-level summary. Omit any
+            finding you cannot tie to a line.
+
+            Each inline comment = a category emoji + a short bold title + 1-2
+            plain sentences on what is wrong and why it matters, then an
+            optional ```suggestion``` block with the concrete fix. Example:
+
+              🐛 **Off-by-one skips the last item**
+              The loop bound stops one element short, so the final item is
+              never processed.
+              ```suggestion
+                  for (let i = 0; i < n; i++) {
+              ```
+
+            Pick one category emoji per finding:
+            🐛 correctness/bug · 🔒 security · ⚡ performance · 🧹 maintainability
+
+            Top-level summary = exactly two short lines, nothing else:
+              Line 1 — a verdict heading:
+                `### ✅ LGTM` when nothing needs changing, otherwise
+                `### ⚠️ N issue(s) found`
+              Line 2 — counts then a one-clause note, e.g.
+                `🐛 1 · 🔒 0 · ⚡ 0 · 🧹 2 — see inline comments.`
           claude_args: |
             --allowed-tools "mcp__github_inline_comment__create_inline_comment,Bash(gh pr diff:*),Bash(gh pr view:*),Bash(gh pr comment:*),Read,Grep,Glob"
