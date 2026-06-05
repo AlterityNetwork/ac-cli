@@ -39,9 +39,20 @@ def test_demo_generate_profile(invoke, mock_api):
 
 
 def test_demo_prepare_account(invoke, mock_api):
-    mock_api.post("/api/v1/admin/demo/prepare-account").respond(200, json=SAMPLE_ACCOUNT)
+    route = mock_api.post("/api/v1/admin/demo/prepare-account").respond(200, json=SAMPLE_ACCOUNT)
     result = invoke(["admin", "demo", "prepare-account", "--org-name", "Demo Corp"])
     assert result.exit_code == 0
+    # Default: full CRM data — skip_crm_data is not sent.
+    body = json.loads(route.calls.last.request.content)
+    assert "skip_crm_data" not in body
+
+
+def test_demo_prepare_account_empty(invoke, mock_api):
+    route = mock_api.post("/api/v1/admin/demo/prepare-account").respond(200, json=SAMPLE_ACCOUNT)
+    result = invoke(["admin", "demo", "prepare-account", "--org-name", "Demo Corp", "--empty"])
+    assert result.exit_code == 0
+    body = json.loads(route.calls.last.request.content)
+    assert body["skip_crm_data"] is True
 
 
 def test_demo_list_accounts(invoke, mock_api):

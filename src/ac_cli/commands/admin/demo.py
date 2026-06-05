@@ -79,11 +79,21 @@ def demo_prepare_account(
     ctx: typer.Context,
     org_name: str = typer.Option(..., "--org-name", help="Organization name"),
     template: str | None = typer.Option(None, help="Account template"),
+    empty: bool = typer.Option(
+        False,
+        "--empty",
+        "--skip-crm-data",
+        help="Create an empty account (org + user only, no CRM companies/people/deals/activities)",
+    ),
     json_output: bool = JSON_OPTION,
 ) -> None:
     """Prepare a demo account."""
     set_json_mode(json_output)
-    body = _build_body(org_name=org_name, template=template)
+    body = _build_body(
+        org_name=org_name,
+        template=template,
+        skip_crm_data=True if empty else None,
+    )
 
     resp = _api_request("post", f"{_ADMIN}/demo/prepare-account", json=body)
 
