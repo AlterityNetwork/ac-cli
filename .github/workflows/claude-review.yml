@@ -68,11 +68,15 @@ jobs:
             Pick one category emoji per finding:
             🐛 correctness/bug · 🔒 security · ⚡ performance · 🧹 maintainability
 
-            Top-level summary = exactly two short lines, nothing else:
-              Line 1 — a verdict heading:
-                `### ✅ LGTM` when nothing needs changing, otherwise
+            Top-level summary:
+              If there are no findings, post exactly:
+                `### ✅ LGTM`
+                `No issues found.`
+              Do not include checklists, issue-count rows, "see inline
+              comments", or extra commentary for a clean review.
+
+              If there are findings, post exactly two short lines:
                 `### ⚠️ N issue(s) found`
-              Line 2 — counts then a one-clause note, e.g.
                 `🐛 1 · 🔒 0 · ⚡ 0 · 🧹 2 — see inline comments.`
           claude_args: |
             --allowed-tools "mcp__github_inline_comment__create_inline_comment,Bash(gh pr diff:*),Bash(gh pr view:*),Bash(gh pr comment:*),Read,Grep,Glob"
