@@ -57,6 +57,31 @@ def test_activities_list_assigned_to(invoke, mock_api):
     assert "assigned_to=user-42" in str(request.url)
 
 
+def test_activities_list_priority_and_due_date_range(invoke, mock_api):
+    """`--priority` + `--due-date-from/--due-date-to` forward query params."""
+    route = mock_api.get("/api/v1/crm/activities").respond(200, json=[SAMPLE_ACTIVITY])
+    result = invoke(
+        [
+            "crm",
+            "activities",
+            "list",
+            "--priority",
+            "high",
+            "--due-date-from",
+            "2026-06-01",
+            "--due-date-to",
+            "2026-06-30",
+            "--json",
+        ]
+    )
+    assert result.exit_code == 0
+    assert route.called
+    url = str(route.calls.last.request.url)
+    assert "priority=high" in url
+    assert "due_date_from=2026-06-01" in url
+    assert "due_date_to=2026-06-30" in url
+
+
 def test_activities_list_assigned_to_me_sentinel(invoke, mock_api):
     """`--assigned-to me` resolves to the caller's user_id via /whoami.
 

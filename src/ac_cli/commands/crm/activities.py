@@ -30,6 +30,15 @@ def activities_list(
     contact_id: str | None = typer.Option(None, "--contact-id", help="Filter by contact"),
     activity_type: str | None = typer.Option(None, "--type", help="Filter by type"),
     status: str | None = typer.Option(None, help="Filter by status"),
+    priority: str | None = typer.Option(
+        None, help="Filter by priority (low, medium, high, urgent)"
+    ),
+    due_date_from: str | None = typer.Option(
+        None, "--due-date-from", help="Inclusive lower bound for due_date (ISO date)"
+    ),
+    due_date_to: str | None = typer.Option(
+        None, "--due-date-to", help="Inclusive upper bound for due_date (ISO date)"
+    ),
     search: str | None = typer.Option(
         None, "--search", help="Search activity title and description"
     ),
@@ -58,6 +67,12 @@ def activities_list(
         params["type"] = activity_type
     if status:
         params["status"] = status
+    if priority:
+        params["priority"] = priority
+    if due_date_from:
+        params["due_date_from"] = due_date_from
+    if due_date_to:
+        params["due_date_to"] = due_date_to
     if search:
         params["search"] = search
     if assigned_to:
