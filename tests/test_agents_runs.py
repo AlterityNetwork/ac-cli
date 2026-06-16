@@ -55,6 +55,47 @@ def test_runs_create_json(invoke, mock_api):
     assert json.loads(result.output)["run_id"] == "run-1"
 
 
+def _sse(*frames: tuple[str | None, str]) -> bytes:
+    chunks: list[str] = []
+    for event_id, payload in frames:
+        if event_id:
+            chunks.append(f"id: {event_id}\n")
+        chunks.append(f"data: {payload}\n\n")
+    return "".join(chunks).encode()
+
+
+def test_runs_create_with_watch_streams_until_terminal(invoke, mock_api):
+    payload = {"run_id": "run-1", "agent": "research_agent", "status": "queued"}
+    mock_api.post("/api/v1/agents/runs").respond(202, json=payload)
+    mock_api.get("/api/v1/agents/runs/run-1/events").respond(
+        200,
+        content=_sse(
+            (
+                "1-0",
+                json.dumps(
+                    {
+                        "event_type": "agent.message",
+                        "status": "running",
+                        "data": {"type": "agent.message", "text": "hello"},
+                    }
+                ),
+            ),
+            (
+                "2-0",
+                json.dumps({"event_type": "run", "status": "completed", "data": {}}),
+            ),
+        ),
+        headers={"content-type": "text/event-stream"},
+    )
+
+    result = invoke(["agents", "runs", "create", "--agent", "research_agent", "--watch"])
+
+    assert result.exit_code == 0
+    assert "Run created" in result.output
+    assert "hello" in result.output
+    assert "Run completed" in result.output
+
+
 def test_runs_create_unknown_agent(invoke, mock_api):
     mock_api.post("/api/v1/agents/runs").respond(404, json={"detail": "Unknown agent"})
     result = invoke(["agents", "runs", "create", "--agent", "nope"])
@@ -83,6 +124,96 @@ def test_runs_get_not_found(invoke, mock_api):
     assert "404" in result.output
 
 
+def test_runs_watch_completed(invoke, mock_api):
+    mock_api.get("/api/v1/agents/runs/run-1/events").respond(
+        200,
+        content=_sse(
+            (
+                "1-0",
+                json.dumps(
+                    {
+                        "event_type": "agent.message",
+                        "status": "running",
+                        "data": {"type": "agent.message", "text": "partial"},
+                    }
+                ),
+            ),
+            (
+                "2-0",
+                json.dumps({"event_type": "run", "status": "completed", "data": {}}),
+            ),
+        ),
+        headers={"content-type": "text/event-stream"},
+    )
+
+    result = invoke(["agents", "runs", "watch", "run-1"])
+
+    assert result.exit_code == 0
+    assert "partial" in result.output
+    assert "Run completed" in result.output
+
+
+def test_runs_watch_failed_exits_nonzero(invoke, mock_api):
+    mock_api.get("/api/v1/agents/runs/run-1/events").respond(
+        200,
+        content=_sse(
+            (
+                "9-0",
+                json.dumps(
+                    {
+                        "event_type": "run",
+                        "status": "failed",
+                        "data": {"error": "model exploded"},
+                    }
+                ),
+            )
+        ),
+        headers={"content-type": "text/event-stream"},
+    )
+
+    result = invoke(["agents", "runs", "watch", "run-1"])
+
+    assert result.exit_code == 1
+    assert "model exploded" in result.output
+
+
+def test_runs_watch_skips_malformed_sse_frame(invoke, mock_api):
+    mock_api.get("/api/v1/agents/runs/run-1/events").respond(
+        200,
+        content=(
+            b"id: bad-0\n"
+            b"data: {not-json\n\n"
+            + _sse(
+                (
+                    "2-0",
+                    json.dumps({"event_type": "run", "status": "completed", "data": {}}),
+                )
+            )
+        ),
+        headers={"content-type": "text/event-stream"},
+    )
+
+    result = invoke(["agents", "runs", "watch", "run-1"])
+
+    assert result.exit_code == 0
+    assert "Skipping malformed SSE frame" in result.output
+    assert "Run completed" in result.output
+
+
+def test_runs_watch_json_outputs_ndjson(invoke, mock_api):
+    frame = {"event_type": "run", "status": "completed", "data": {}}
+    mock_api.get("/api/v1/agents/runs/run-1/events").respond(
+        200,
+        content=_sse(("1-0", json.dumps(frame))),
+        headers={"content-type": "text/event-stream"},
+    )
+
+    result = invoke(["agents", "runs", "watch", "run-1", "--json"])
+
+    assert result.exit_code == 0
+    assert [json.loads(line) for line in result.output.splitlines()] == [frame]
+
+
 def _runs_page(*runs):
     """The standard paginated envelope GET /agents/runs returns."""
     items = list(runs)
@@ -103,9 +234,7 @@ def test_runs_list(invoke, mock_api):
 
 
 def test_runs_list_filters(invoke, mock_api):
-    route = mock_api.get("/api/v1/agents/runs").respond(
-        200, json=_runs_page(SAMPLE_RUN)
-    )
+    route = mock_api.get("/api/v1/agents/runs").respond(200, json=_runs_page(SAMPLE_RUN))
     result = invoke(
         ["agents", "runs", "list", "--agent", "research_agent", "--status", "completed"]
     )
