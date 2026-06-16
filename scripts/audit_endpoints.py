@@ -35,6 +35,7 @@ DEFAULT_API_URL = os.environ.get("AC_AUDIT_API_URL", "http://localhost:8008")
 # Path constants used inside f-strings in the CLI command files.
 PATH_CONSTANTS: dict[str, str] = {
     "_ADMIN": "/api/v1/admin",
+    "_AGENTS": "/api/v1/agents",
     "_APPS": "/api/v1/orgs",
     "_CHAT": "/api/v1/chat",
     "_CRM": "/api/v1/crm",
@@ -102,6 +103,8 @@ OUT_OF_SCOPE: set[tuple[str, str]] = {
     ("POST", "/api/v1/organizations/scrape-website-stream"),
     ("GET", "/api/v1/envoy/sequences/{id}/step-stats/stream"),
     ("GET", "/api/v1/workflows/{id}/runs/{id}/events"),
+    # Managed agents SSE event stream — frontend/live-tail consumer only
+    ("GET", "/api/v1/agents/runs/{id}/events"),
     # SSE stream — frontend-only consumer (ENG-769)
     ("GET", "/api/v1/notifications/stream"),
     ("GET", "/api/v1/resources/{id}/stream"),
