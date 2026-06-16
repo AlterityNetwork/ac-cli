@@ -83,15 +83,29 @@ def test_runs_get_not_found(invoke, mock_api):
     assert "404" in result.output
 
 
+def _runs_page(*runs):
+    """The standard paginated envelope GET /agents/runs returns."""
+    items = list(runs)
+    return {
+        "data": items,
+        "total": len(items),
+        "limit": 50,
+        "offset": 0,
+        "has_more": False,
+    }
+
+
 def test_runs_list(invoke, mock_api):
-    mock_api.get("/api/v1/agents/runs").respond(200, json=[SAMPLE_RUN])
+    mock_api.get("/api/v1/agents/runs").respond(200, json=_runs_page(SAMPLE_RUN))
     result = invoke(["agents", "runs", "list"])
     assert result.exit_code == 0
     assert "run-1" in result.output
 
 
 def test_runs_list_filters(invoke, mock_api):
-    route = mock_api.get("/api/v1/agents/runs").respond(200, json=[SAMPLE_RUN])
+    route = mock_api.get("/api/v1/agents/runs").respond(
+        200, json=_runs_page(SAMPLE_RUN)
+    )
     result = invoke(
         ["agents", "runs", "list", "--agent", "research_agent", "--status", "completed"]
     )
@@ -102,7 +116,8 @@ def test_runs_list_filters(invoke, mock_api):
 
 
 def test_runs_list_json(invoke, mock_api):
-    mock_api.get("/api/v1/agents/runs").respond(200, json=[SAMPLE_RUN])
+    mock_api.get("/api/v1/agents/runs").respond(200, json=_runs_page(SAMPLE_RUN))
     result = invoke(["agents", "runs", "list", "--json"])
     assert result.exit_code == 0
-    assert json.loads(result.output)[0]["run_id"] == "run-1"
+    # --json mirrors the API: the full paginated envelope.
+    assert json.loads(result.output)["data"][0]["run_id"] == "run-1"
