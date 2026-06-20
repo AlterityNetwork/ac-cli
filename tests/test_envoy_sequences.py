@@ -86,6 +86,23 @@ def test_sequences_update_no_fields(invoke, mock_api):
     assert result.exit_code == 1
 
 
+def test_sequences_create_skip_non_working_days(invoke, mock_api):
+    mock_api.get("/whoami").respond(200, json=WHOAMI_RESPONSE)
+    route = mock_api.post("/api/v1/envoy/sequences").respond(201, json=SAMPLE_SEQUENCE)
+    result = invoke(["envoy", "sequences", "create", "--name", "Q1", "--skip-non-working-days"])
+    assert result.exit_code == 0
+    body = json.loads(route.calls.last.request.content)
+    assert body["skip_non_working_days"] is True
+
+
+def test_sequences_update_skip_non_working_days(invoke, mock_api):
+    route = mock_api.patch("/api/v1/envoy/sequences/seq-1").respond(200, json=SAMPLE_SEQUENCE)
+    result = invoke(["envoy", "sequences", "update", "seq-1", "--no-skip-non-working-days"])
+    assert result.exit_code == 0
+    body = json.loads(route.calls.last.request.content)
+    assert body["skip_non_working_days"] is False
+
+
 def test_sequences_delete_with_yes(invoke, mock_api):
     mock_api.delete("/api/v1/envoy/sequences/seq-1").respond(204)
     result = invoke(["envoy", "sequences", "delete", "seq-1", "--yes"])
