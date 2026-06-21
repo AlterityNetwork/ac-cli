@@ -1,4 +1,4 @@
-"""Tests for managed agents runs commands."""
+"""Tests for agent runs commands."""
 
 import json
 

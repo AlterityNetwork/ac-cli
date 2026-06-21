@@ -136,8 +136,10 @@ OUT_OF_SCOPE: set[tuple[str, str]] = {
     ("POST", "/api/v1/nylas/email/unsubscribe"),
     # Resend bounce/complaint webhook (signature-verified server-to-server) [ENG-768]
     ("POST", "/api/v1/webhooks/resend"),
-    # Anthropic managed-agents session webhook (signature-verified server-to-server)
-    ("POST", "/api/v1/managed-agents/anthropic/webhook"),
+    # Anthropic agent-runtime session webhook (signature-verified server-to-server).
+    # Route is /agent-runtime/{provider}/webhook; OUT_OF_SCOPE is matched raw against
+    # normalized API paths, so the param must be the normalized {id} form.
+    ("POST", "/api/v1/agent-runtime/{id}/webhook"),
     # Frontend-only activity logger
     ("POST", "/api/v1/orgs/{id}/activity-events"),
     # Cross-org outputs feed (admin-style, not exposed to CLI today)

@@ -147,7 +147,7 @@ def runs_create(
     watch: bool = typer.Option(False, "--watch", help="Stream run events until terminal"),
     json_output: bool = JSON_OPTION,
 ) -> None:
-    """Enqueue a new managed agent run."""
+    """Enqueue a new agent run."""
     set_json_mode(json_output)
     body: dict = {"agent": agent, "input": {}}
     if input_json:
@@ -180,7 +180,7 @@ def runs_get(
     run_id: str = typer.Argument(..., help="Run ID"),
     json_output: bool = JSON_OPTION,
 ) -> None:
-    """Get a managed agent run by ID."""
+    """Get a agent run by ID."""
     set_json_mode(json_output)
     resp = _api_request("get", f"{_AGENTS}/runs/{run_id}")
 
@@ -209,7 +209,7 @@ def runs_watch(
     run_id: str = typer.Argument(..., help="Run ID"),
     json_output: bool = JSON_OPTION,
 ) -> None:
-    """Watch managed agent run events until the terminal frame."""
+    """Watch agent run events until the terminal frame."""
     set_json_mode(json_output)
     _watch_run(run_id, json_output=json_output)
 
@@ -223,7 +223,7 @@ def runs_list(
     offset: int = typer.Option(0, help="Offset"),
     json_output: bool = JSON_OPTION,
 ) -> None:
-    """List managed agent runs."""
+    """List agent runs."""
     set_json_mode(json_output)
     params: dict = {"limit": limit, "offset": offset}
     if agent:
