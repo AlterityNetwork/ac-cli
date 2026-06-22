@@ -196,6 +196,65 @@ def run_people_add_to_crm(
         )
 
 
+@run_people_app.command("add-to-list")
+def run_people_add_to_list(
+    ctx: typer.Context,
+    workflow_id: str = typer.Argument(..., help="Workflow ID"),
+    person_ids: str = typer.Option(..., "--person-ids", help="Comma-separated workflow person IDs"),
+    list_id: str = typer.Option(..., "--list-id", help="Target CRM list ID"),
+    json_output: bool = JSON_OPTION,
+) -> None:
+    """Add workflow people to a list (auto-syncs them to CRM first if needed)."""
+    set_json_mode(json_output)
+    ids_list = [i.strip() for i in person_ids.split(",") if i.strip()]
+    resp = _api_request(
+        "post",
+        f"{_WORKFLOWS}/{workflow_id}/runs/people/add-to-list",
+        json={"person_ids": ids_list, "list_id": list_id},
+    )
+
+    data = resp.json()
+    if json_output:
+        print_json(data)
+    else:
+        rprint(
+            f"[green]Added {data.get('added_count', 0)} people to list[/green]"
+            f" (synced: {data.get('synced_count', 0)},"
+            f" already in list: {data.get('already_member_count', 0)},"
+            f" skipped removed: {len(data.get('skipped_deleted_ids', []))})"
+        )
+
+
+@run_people_app.command("add-to-sequence")
+def run_people_add_to_sequence(
+    ctx: typer.Context,
+    workflow_id: str = typer.Argument(..., help="Workflow ID"),
+    person_ids: str = typer.Option(..., "--person-ids", help="Comma-separated workflow person IDs"),
+    sequence_id: str = typer.Option(..., "--sequence-id", help="Target sequence ID"),
+    json_output: bool = JSON_OPTION,
+) -> None:
+    """Enrol workflow people into a sequence (auto-syncs them to CRM first)."""
+    set_json_mode(json_output)
+    ids_list = [i.strip() for i in person_ids.split(",") if i.strip()]
+    resp = _api_request(
+        "post",
+        f"{_WORKFLOWS}/{workflow_id}/runs/people/add-to-sequence",
+        json={"person_ids": ids_list, "sequence_id": sequence_id},
+    )
+
+    data = resp.json()
+    if json_output:
+        print_json(data)
+    else:
+        rprint(
+            f"[green]Enrolled {data.get('added_count', 0)} people in sequence[/green]"
+            f" (synced: {data.get('synced_count', 0)},"
+            f" already active: {data.get('already_active_count', 0)},"
+            f" needs confirmation: {data.get('requires_confirmation_count', 0)},"
+            f" skipped removed: {len(data.get('skipped_deleted_ids', []))})"
+        )
+
+
 @run_people_app.command("crm-count")
 def run_people_crm_count(
     ctx: typer.Context,

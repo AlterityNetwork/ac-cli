@@ -84,6 +84,58 @@ def test_run_companies_add_to_crm_json(invoke, mock_api):
     assert parsed["added_count"] == 1
 
 
+def test_run_companies_add_to_list(invoke, mock_api):
+    mock_api.post("/api/v1/workflows/wf-1/runs/companies/add-to-list").respond(
+        200,
+        json={
+            "synced_count": 1,
+            "added_count": 2,
+            "already_member_count": 0,
+            "skipped_deleted_ids": [],
+        },
+    )
+    result = invoke(
+        [
+            "workflows",
+            "run-companies",
+            "add-to-list",
+            "wf-1",
+            "--company-ids",
+            "wrc-1,wrc-2",
+            "--list-id",
+            "list-1",
+        ]
+    )
+    assert result.exit_code == 0
+    assert "Added 2 companies to list" in result.output
+
+
+def test_run_companies_add_to_list_json(invoke, mock_api):
+    payload = {
+        "synced_count": 1,
+        "added_count": 1,
+        "already_member_count": 0,
+        "skipped_deleted_ids": ["wrc-x"],
+    }
+    mock_api.post("/api/v1/workflows/wf-1/runs/companies/add-to-list").respond(200, json=payload)
+    result = invoke(
+        [
+            "workflows",
+            "run-companies",
+            "add-to-list",
+            "wf-1",
+            "--company-ids",
+            "wrc-1",
+            "--list-id",
+            "list-1",
+            "--json",
+        ]
+    )
+    assert result.exit_code == 0
+    parsed = json.loads(result.output)
+    assert parsed["skipped_deleted_ids"] == ["wrc-x"]
+
+
 def test_run_companies_crm_count(invoke, mock_api):
     mock_api.get("/api/v1/workflows/wf-1/runs/companies/added-to-crm-count").respond(
         200, json={"count": 5}

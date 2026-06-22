@@ -177,6 +177,86 @@ def test_run_people_add_to_crm_with_overrides(invoke, mock_api, tmp_path):
     assert "Added 1 people" in result.output
 
 
+def test_run_people_add_to_list(invoke, mock_api):
+    mock_api.post("/api/v1/workflows/wf-1/runs/people/add-to-list").respond(
+        200,
+        json={
+            "synced_count": 1,
+            "added_count": 2,
+            "already_member_count": 0,
+            "skipped_deleted_ids": [],
+        },
+    )
+    result = invoke(
+        [
+            "workflows",
+            "run-people",
+            "add-to-list",
+            "wf-1",
+            "--person-ids",
+            "wrp-1,wrp-2",
+            "--list-id",
+            "list-1",
+        ]
+    )
+    assert result.exit_code == 0
+    assert "Added 2 people to list" in result.output
+
+
+def test_run_people_add_to_sequence(invoke, mock_api):
+    mock_api.post("/api/v1/workflows/wf-1/runs/people/add-to-sequence").respond(
+        200,
+        json={
+            "synced_count": 1,
+            "added_count": 2,
+            "already_active_count": 0,
+            "requires_confirmation_count": 0,
+            "skipped_deleted_ids": [],
+        },
+    )
+    result = invoke(
+        [
+            "workflows",
+            "run-people",
+            "add-to-sequence",
+            "wf-1",
+            "--person-ids",
+            "wrp-1,wrp-2",
+            "--sequence-id",
+            "seq-1",
+        ]
+    )
+    assert result.exit_code == 0
+    assert "Enrolled 2 people" in result.output
+
+
+def test_run_people_add_to_sequence_json(invoke, mock_api):
+    payload = {
+        "synced_count": 0,
+        "added_count": 0,
+        "already_active_count": 0,
+        "requires_confirmation_count": 0,
+        "skipped_deleted_ids": ["wrp-x"],
+    }
+    mock_api.post("/api/v1/workflows/wf-1/runs/people/add-to-sequence").respond(200, json=payload)
+    result = invoke(
+        [
+            "workflows",
+            "run-people",
+            "add-to-sequence",
+            "wf-1",
+            "--person-ids",
+            "wrp-x",
+            "--sequence-id",
+            "seq-1",
+            "--json",
+        ]
+    )
+    assert result.exit_code == 0
+    parsed = json.loads(result.output)
+    assert parsed["skipped_deleted_ids"] == ["wrp-x"]
+
+
 def test_run_people_crm_count(invoke, mock_api):
     mock_api.get("/api/v1/workflows/wf-1/runs/people/added-to-crm-count").respond(
         200, json={"count": 8}
