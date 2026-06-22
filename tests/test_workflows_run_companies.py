@@ -63,6 +63,7 @@ def test_run_companies_add_to_crm(invoke, mock_api):
             "added_count": 2,
             "updated_count": 0,
             "skipped_count": 1,
+            "synced_count": 2,
             "company_ids": ["c-1", "c-2"],
         },
     )
@@ -70,11 +71,38 @@ def test_run_companies_add_to_crm(invoke, mock_api):
         ["workflows", "run-companies", "add-to-crm", "wf-1", "--company-ids", "wrc-1,wrc-2,wrc-3"]
     )
     assert result.exit_code == 0
-    assert "Added 2 companies" in result.output
+    assert "Synced 2 companies" in result.output
+
+
+def test_run_companies_add_to_crm_reports_synced_when_existing_unlinked(invoke, mock_api):
+    # ENG-1506: companies already in the CRM but unlinked are merged + linked
+    # (counted in updated_count), so the headline must be the synced total,
+    # not added_count (0).
+    mock_api.post("/api/v1/workflows/wf-1/runs/companies/add-to-crm").respond(
+        200,
+        json={
+            "added_count": 0,
+            "updated_count": 2,
+            "skipped_count": 0,
+            "synced_count": 2,
+            "company_ids": ["c-1", "c-2"],
+        },
+    )
+    result = invoke(
+        ["workflows", "run-companies", "add-to-crm", "wf-1", "--company-ids", "wrc-1,wrc-2"]
+    )
+    assert result.exit_code == 0
+    assert "Synced 2 companies" in result.output
 
 
 def test_run_companies_add_to_crm_json(invoke, mock_api):
-    payload = {"added_count": 1, "updated_count": 0, "skipped_count": 0, "company_ids": ["c-1"]}
+    payload = {
+        "added_count": 1,
+        "updated_count": 0,
+        "skipped_count": 0,
+        "synced_count": 1,
+        "company_ids": ["c-1"],
+    }
     mock_api.post("/api/v1/workflows/wf-1/runs/companies/add-to-crm").respond(200, json=payload)
     result = invoke(
         ["workflows", "run-companies", "add-to-crm", "wf-1", "--company-ids", "wrc-1", "--json"]
@@ -82,6 +110,7 @@ def test_run_companies_add_to_crm_json(invoke, mock_api):
     assert result.exit_code == 0
     parsed = json.loads(result.output)
     assert parsed["added_count"] == 1
+    assert parsed["synced_count"] == 1
 
 
 def test_run_companies_add_to_list(invoke, mock_api):

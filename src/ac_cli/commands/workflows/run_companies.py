@@ -128,8 +128,10 @@ def run_companies_add_to_crm(
         print_json(data)
     else:
         rprint(
-            f"[green]Added {data.get('added_count', 0)} companies to CRM[/green]"
-            f" (updated: {data.get('updated_count', 0)}, skipped: {data.get('skipped_count', 0)})"
+            f"[green]Synced {data.get('synced_count', 0)} companies to CRM[/green]"
+            f" (new: {data.get('added_count', 0)},"
+            f" updated: {data.get('updated_count', 0)},"
+            f" skipped: {data.get('skipped_count', 0)})"
         )
 
 
