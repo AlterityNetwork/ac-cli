@@ -133,6 +133,37 @@ def run_companies_add_to_crm(
         )
 
 
+@run_companies_app.command("add-to-list")
+def run_companies_add_to_list(
+    ctx: typer.Context,
+    workflow_id: str = typer.Argument(..., help="Workflow ID"),
+    company_ids: str = typer.Option(
+        ..., "--company-ids", help="Comma-separated workflow company IDs"
+    ),
+    list_id: str = typer.Option(..., "--list-id", help="Target CRM list ID"),
+    json_output: bool = JSON_OPTION,
+) -> None:
+    """Add workflow companies to a list (auto-syncs them to CRM first if needed)."""
+    set_json_mode(json_output)
+    ids_list = [i.strip() for i in company_ids.split(",") if i.strip()]
+    resp = _api_request(
+        "post",
+        f"{_WORKFLOWS}/{workflow_id}/runs/companies/add-to-list",
+        json={"company_ids": ids_list, "list_id": list_id},
+    )
+
+    data = resp.json()
+    if json_output:
+        print_json(data)
+    else:
+        rprint(
+            f"[green]Added {data.get('added_count', 0)} companies to list[/green]"
+            f" (synced: {data.get('synced_count', 0)},"
+            f" already in list: {data.get('already_member_count', 0)},"
+            f" skipped removed: {len(data.get('skipped_deleted_ids', []))})"
+        )
+
+
 @run_companies_app.command("crm-count")
 def run_companies_crm_count(
     ctx: typer.Context,
