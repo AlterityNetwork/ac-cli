@@ -257,6 +257,72 @@ def test_run_people_add_to_sequence_json(invoke, mock_api):
     assert parsed["skipped_deleted_ids"] == ["wrp-x"]
 
 
+def test_run_people_add_to_list_json(invoke, mock_api):
+    payload = {
+        "synced_count": 1,
+        "added_count": 1,
+        "already_member_count": 0,
+        "skipped_deleted_ids": [],
+    }
+    mock_api.post("/api/v1/workflows/wf-1/runs/people/add-to-list").respond(200, json=payload)
+    result = invoke(
+        [
+            "workflows",
+            "run-people",
+            "add-to-list",
+            "wf-1",
+            "--person-ids",
+            "wrp-1",
+            "--list-id",
+            "list-1",
+            "--json",
+        ]
+    )
+    assert result.exit_code == 0
+    parsed = json.loads(result.output)
+    assert parsed["added_count"] == 1
+
+
+def test_run_people_add_to_list_error(invoke, mock_api):
+    """API 422 returns exit code 2."""
+    mock_api.post("/api/v1/workflows/wf-1/runs/people/add-to-list").respond(
+        422, json={"detail": "Invalid person IDs"}
+    )
+    result = invoke(
+        [
+            "workflows",
+            "run-people",
+            "add-to-list",
+            "wf-1",
+            "--person-ids",
+            "bad",
+            "--list-id",
+            "list-1",
+        ]
+    )
+    assert result.exit_code == 2
+
+
+def test_run_people_add_to_sequence_error(invoke, mock_api):
+    """API 422 returns exit code 2."""
+    mock_api.post("/api/v1/workflows/wf-1/runs/people/add-to-sequence").respond(
+        422, json={"detail": "Invalid person IDs"}
+    )
+    result = invoke(
+        [
+            "workflows",
+            "run-people",
+            "add-to-sequence",
+            "wf-1",
+            "--person-ids",
+            "bad",
+            "--sequence-id",
+            "seq-1",
+        ]
+    )
+    assert result.exit_code == 2
+
+
 def test_run_people_crm_count(invoke, mock_api):
     mock_api.get("/api/v1/workflows/wf-1/runs/people/added-to-crm-count").respond(
         200, json={"count": 8}

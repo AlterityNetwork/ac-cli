@@ -136,6 +136,26 @@ def test_run_companies_add_to_list_json(invoke, mock_api):
     assert parsed["skipped_deleted_ids"] == ["wrc-x"]
 
 
+def test_run_companies_add_to_list_error(invoke, mock_api):
+    """API 422 returns exit code 2."""
+    mock_api.post("/api/v1/workflows/wf-1/runs/companies/add-to-list").respond(
+        422, json={"detail": "Invalid company IDs"}
+    )
+    result = invoke(
+        [
+            "workflows",
+            "run-companies",
+            "add-to-list",
+            "wf-1",
+            "--company-ids",
+            "bad",
+            "--list-id",
+            "list-1",
+        ]
+    )
+    assert result.exit_code == 2
+
+
 def test_run_companies_crm_count(invoke, mock_api):
     mock_api.get("/api/v1/workflows/wf-1/runs/companies/added-to-crm-count").respond(
         200, json={"count": 5}
