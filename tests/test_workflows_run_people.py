@@ -123,6 +123,7 @@ def test_run_people_add_to_crm(invoke, mock_api):
         json={
             "added_count": 2,
             "skipped_count": 1,
+            "synced_count": 3,
             "person_ids": ["p-1", "p-2"],
         },
     )
@@ -130,11 +131,35 @@ def test_run_people_add_to_crm(invoke, mock_api):
         ["workflows", "run-people", "add-to-crm", "wf-1", "--person-ids", "wrp-1,wrp-2,wrp-3"]
     )
     assert result.exit_code == 0
-    assert "Added 2 people" in result.output
+    assert "Synced 3 people" in result.output
+
+
+def test_run_people_add_to_crm_reports_synced_when_all_already_in_crm(invoke, mock_api):
+    # ENG-1490: prospects already in crm_people but unlinked are linked back,
+    # so the headline count must be the synced total, not added_count (0).
+    mock_api.post("/api/v1/workflows/wf-1/runs/people/add-to-crm").respond(
+        200,
+        json={
+            "added_count": 0,
+            "skipped_count": 2,
+            "synced_count": 2,
+            "person_ids": ["p-1", "p-2"],
+        },
+    )
+    result = invoke(
+        ["workflows", "run-people", "add-to-crm", "wf-1", "--person-ids", "wrp-1,wrp-2"]
+    )
+    assert result.exit_code == 0
+    assert "Synced 2 people" in result.output
 
 
 def test_run_people_add_to_crm_json(invoke, mock_api):
-    payload = {"added_count": 1, "skipped_count": 0, "person_ids": ["p-1"]}
+    payload = {
+        "added_count": 1,
+        "skipped_count": 0,
+        "synced_count": 1,
+        "person_ids": ["p-1"],
+    }
     mock_api.post("/api/v1/workflows/wf-1/runs/people/add-to-crm").respond(200, json=payload)
     result = invoke(
         ["workflows", "run-people", "add-to-crm", "wf-1", "--person-ids", "wrp-1", "--json"]
@@ -142,6 +167,7 @@ def test_run_people_add_to_crm_json(invoke, mock_api):
     assert result.exit_code == 0
     parsed = json.loads(result.output)
     assert parsed["added_count"] == 1
+    assert parsed["synced_count"] == 1
 
 
 def test_run_people_add_to_crm_with_overrides(invoke, mock_api, tmp_path):
@@ -150,6 +176,7 @@ def test_run_people_add_to_crm_with_overrides(invoke, mock_api, tmp_path):
         json={
             "added_count": 1,
             "skipped_count": 0,
+            "synced_count": 1,
             "person_ids": ["p-1"],
         },
     )
@@ -174,7 +201,7 @@ def test_run_people_add_to_crm_with_overrides(invoke, mock_api, tmp_path):
         ]
     )
     assert result.exit_code == 0
-    assert "Added 1 people" in result.output
+    assert "Synced 1 people" in result.output
 
 
 def test_run_people_crm_count(invoke, mock_api):
