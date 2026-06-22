@@ -191,8 +191,9 @@ def run_people_add_to_crm(
         print_json(data)
     else:
         rprint(
-            f"[green]Added {data.get('added_count', 0)} people to CRM[/green]"
-            f" (skipped: {data.get('skipped_count', 0)})"
+            f"[green]Synced {data.get('synced_count', 0)} people to CRM[/green]"
+            f" (new: {data.get('added_count', 0)},"
+            f" linked: {data.get('skipped_count', 0)})"
         )
 
 
