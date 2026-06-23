@@ -90,14 +90,13 @@ def profiles_set_organization(
 ) -> None:
     """Switch the current user's selected organization."""
     set_json_mode(json_output)
-    resp = _api_request(
+    _api_request(
         "patch",
         f"{_PROFILES}/me/organization",
         json={"organization_id": organization_id},
     )
-    data = resp.json()
     if json_output:
-        print_json(data)
+        print_json({"ok": True})
     else:
         rprint(f"[green]Selected organization {organization_id}[/green]")
 
