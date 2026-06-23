@@ -99,13 +99,20 @@ def test_profiles_members_json(invoke, mock_api):
 
 
 def test_profiles_set_organization(invoke, mock_api):
-    route = mock_api.patch("/api/v1/profiles/me/organization").respond(
-        200, json={"selected_organization": "org-2"}
-    )
+    route = mock_api.patch("/api/v1/profiles/me/organization").respond(204)
     result = invoke(["profiles", "set-organization", "org-2"])
     assert result.exit_code == 0
+    assert "org-2" in result.output
     body = json.loads(route.calls.last.request.content)
     assert body == {"organization_id": "org-2"}
+
+
+def test_profiles_set_organization_json(invoke, mock_api):
+    mock_api.patch("/api/v1/profiles/me/organization").respond(204)
+    result = invoke(["profiles", "set-organization", "org-2", "--json"])
+    assert result.exit_code == 0
+    parsed = json.loads(result.output)
+    assert parsed == {"ok": True}
 
 
 def test_profiles_set_password(invoke, mock_api):
