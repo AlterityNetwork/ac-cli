@@ -124,6 +124,46 @@ def test_runs_get_not_found(invoke, mock_api):
     assert "404" in result.output
 
 
+CANCELLED_RUN = {"run_id": "run-1", "agent": "research_agent", "status": "cancelled"}
+
+
+def test_runs_cancel(invoke, mock_api):
+    route = mock_api.post("/api/v1/agents/runs/run-1/cancel").respond(200, json=CANCELLED_RUN)
+    result = invoke(["agents", "runs", "cancel", "run-1", "--yes"])
+    assert result.exit_code == 0
+    assert "cancelled" in result.output
+    assert route.called
+
+
+def test_runs_cancel_json(invoke, mock_api):
+    mock_api.post("/api/v1/agents/runs/run-1/cancel").respond(200, json=CANCELLED_RUN)
+    result = invoke(["agents", "runs", "cancel", "run-1", "--yes", "--json"])
+    assert result.exit_code == 0
+    assert json.loads(result.output)["status"] == "cancelled"
+
+
+def test_runs_cancel_abort_without_confirm(invoke, mock_api):
+    route = mock_api.post("/api/v1/agents/runs/run-1/cancel").respond(200, json=CANCELLED_RUN)
+    result = invoke(["agents", "runs", "cancel", "run-1"], input="n\n")
+    assert result.exit_code == 1
+    assert not route.called  # aborted before any API call
+
+
+def test_runs_cancel_conflict_when_finished(invoke, mock_api):
+    mock_api.post("/api/v1/agents/runs/run-1/cancel").respond(
+        409, json={"detail": "run already completed; cannot cancel a finished run"}
+    )
+    result = invoke(["agents", "runs", "cancel", "run-1", "--yes"])
+    assert result.exit_code == 5  # 409 -> conflict exit code
+    assert "409" in result.output
+
+
+def test_runs_cancel_not_found(invoke, mock_api):
+    mock_api.post("/api/v1/agents/runs/bad/cancel").respond(404, json={"detail": "run not found"})
+    result = invoke(["agents", "runs", "cancel", "bad", "--yes"])
+    assert result.exit_code == 3
+
+
 def test_runs_watch_completed(invoke, mock_api):
     mock_api.get("/api/v1/agents/runs/run-1/events").respond(
         200,

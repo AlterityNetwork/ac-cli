@@ -17,6 +17,7 @@ from ac_cli.commands._helpers import (
     _api_request,
     _handle_error,
     set_json_mode,
+    should_skip_confirm,
 )
 from ac_cli.formatting import print_detail, print_json, print_table
 
@@ -201,6 +202,27 @@ def runs_get(
             ("finished_at", "Finished"),
         ],
     )
+
+
+@runs_app.command("cancel")
+def runs_cancel(
+    ctx: typer.Context,
+    run_id: str = typer.Argument(..., help="Run ID"),
+    yes: bool = typer.Option(False, "--yes", "-y", help="Skip confirmation"),
+    json_output: bool = JSON_OPTION,
+) -> None:
+    """Cancel a queued or running agent run."""
+    set_json_mode(json_output)
+    if not should_skip_confirm(yes):
+        typer.confirm(f"Cancel agent run {run_id}?", abort=True)
+
+    resp = _api_request("post", f"{_AGENTS}/runs/{run_id}/cancel")
+
+    data = resp.json()
+    if json_output:
+        print_json(data)
+        return
+    rprint(f"[green]Run cancelled:[/green] {data['run_id']} (status: {data['status']})")
 
 
 @runs_app.command("watch")
