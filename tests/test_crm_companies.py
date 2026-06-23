@@ -1,8 +1,24 @@
 """Tests for CRM companies commands."""
 
 import json
+import re
 
 from tests.conftest import WHOAMI_RESPONSE
+
+
+def _panel_text(output: str) -> str:
+    """Flatten a Rich error/usage panel to plain, width-independent text.
+
+    Rich wraps the panel body to the terminal width and inserts box borders,
+    which can split a message mid-token (e.g. "Cannot use" then "--lead-score"
+    on the next line). Stripping ANSI codes and box-drawing characters and
+    collapsing whitespace makes the logical message contiguous again, so
+    substring assertions hold regardless of the runner or worker width.
+    """
+    text = re.sub(r"\x1b\[[0-9;]*m", "", output)
+    text = re.sub(r"[─-╿]", " ", text)  # Unicode box-drawing block
+    return re.sub(r"\s+", " ", text)
+
 
 SAMPLE_COMPANY = {
     "id": "c1",
@@ -231,7 +247,7 @@ def test_companies_update_rejects_score_with_reset_to_auto(invoke):
         ]
     )
     assert result.exit_code != 0
-    assert "Cannot use --lead-score" in result.output
+    assert "Cannot use --lead-score" in _panel_text(result.output)
 
 
 def test_companies_update_rejects_reason_with_reset_to_auto(invoke):
@@ -247,7 +263,7 @@ def test_companies_update_rejects_reason_with_reset_to_auto(invoke):
         ]
     )
     assert result.exit_code != 0
-    assert "--reset-lead-score-to-auto" in result.output
+    assert "--reset-lead-score-to-auto" in _panel_text(result.output)
 
 
 def test_companies_update_reset_lead_score_to_auto(invoke, mock_api):
