@@ -94,12 +94,12 @@ def subscriptions_create(
     status: str | None = typer.Option(None),
     ended_at: str | None = typer.Option(None, "--ended-at"),
     trial_ends_at: str | None = typer.Option(None, "--trial-ends-at"),
-    stripe_customer_id: str | None = typer.Option(None, "--stripe-customer-id"),
-    stripe_subscription_id: str | None = typer.Option(None, "--stripe-subscription-id"),
     json_output: bool = JSON_OPTION,
 ) -> None:
     """Create a subscription."""
     set_json_mode(json_output)
+    # stripe ids are system-managed (activation flow / webhook reconciler) and
+    # no longer client-settable (ENG-577).
     body = _build_body(
         organization_id=organization_id,
         plan_id=plan_id,
@@ -108,8 +108,6 @@ def subscriptions_create(
         status=status,
         ended_at=ended_at,
         trial_ends_at=trial_ends_at,
-        stripe_customer_id=stripe_customer_id,
-        stripe_subscription_id=stripe_subscription_id,
     )
     resp = _api_request("post", f"{_ADMIN}/subscriptions", json=body)
     data = resp.json()
@@ -125,25 +123,21 @@ def subscriptions_update(
     subscription_id: str = typer.Argument(..., help="Subscription ID"),
     plan_id: str | None = typer.Option(None, "--plan-id"),
     billing_period: str | None = typer.Option(None, "--billing-period"),
-    status: str | None = typer.Option(None),
     started_at: str | None = typer.Option(None, "--started-at"),
     ended_at: str | None = typer.Option(None, "--ended-at"),
     trial_ends_at: str | None = typer.Option(None, "--trial-ends-at"),
-    stripe_customer_id: str | None = typer.Option(None, "--stripe-customer-id"),
-    stripe_subscription_id: str | None = typer.Option(None, "--stripe-subscription-id"),
     json_output: bool = JSON_OPTION,
 ) -> None:
     """Update a subscription."""
     set_json_mode(json_output)
+    # status is webhook-authoritative and stripe ids are system-managed; neither
+    # is client-settable on update (ENG-577).
     body = _build_body(
         plan_id=plan_id,
         billing_period=billing_period,
-        status=status,
         started_at=started_at,
         ended_at=ended_at,
         trial_ends_at=trial_ends_at,
-        stripe_customer_id=stripe_customer_id,
-        stripe_subscription_id=stripe_subscription_id,
     )
     if not body:
         rprint("[yellow]No fields to update.[/yellow]")
