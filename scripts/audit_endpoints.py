@@ -136,6 +136,8 @@ OUT_OF_SCOPE: set[tuple[str, str]] = {
     ("POST", "/api/v1/nylas/email/unsubscribe"),
     # Resend bounce/complaint webhook (signature-verified server-to-server) [ENG-768]
     ("POST", "/api/v1/webhooks/resend"),
+    # FullEnrich bulk-enrichment completion webhook (URL-token-authed, server-to-server)
+    ("POST", "/api/v1/fullenrich/webhook"),
     # Anthropic agent-runtime session webhook (signature-verified server-to-server).
     # Route is /agent-runtime/{provider}/webhook; OUT_OF_SCOPE is matched raw against
     # normalized API paths, so the param must be the normalized {id} form.
