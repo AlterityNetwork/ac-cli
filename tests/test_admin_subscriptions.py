@@ -171,11 +171,44 @@ def test_subscriptions_create(invoke, mock_api):
 
 def test_subscriptions_update(invoke, mock_api):
     mock_api.patch("/api/v1/admin/subscriptions/sub-1").respond(
-        200, json={**SAMPLE_SUB, "status": "cancelled"}
+        200, json={**SAMPLE_SUB, "plan_id": "plan-2"}
     )
-    result = invoke(["admin", "subscriptions", "update", "sub-1", "--status", "cancelled"])
+    result = invoke(["admin", "subscriptions", "update", "sub-1", "--plan-id", "plan-2"])
     assert result.exit_code == 0
     assert "Updated subscription" in result.output
+
+
+def test_subscriptions_update_rejects_system_managed_flags(invoke):
+    # status is webhook-authoritative; stripe ids are system-managed (ENG-577).
+    for flag, value in (
+        ("--status", "active"),
+        ("--stripe-customer-id", "cus_x"),
+        ("--stripe-subscription-id", "sub_x"),
+    ):
+        result = invoke(["admin", "subscriptions", "update", "sub-1", flag, value])
+        assert result.exit_code != 0, f"{flag} should no longer be accepted on update"
+
+
+def test_subscriptions_create_rejects_stripe_flags(invoke):
+    for flag in ("--stripe-customer-id", "--stripe-subscription-id"):
+        result = invoke(
+            [
+                "admin",
+                "subscriptions",
+                "create",
+                "--org-id",
+                "org-1",
+                "--plan-id",
+                "plan-1",
+                "--billing-period",
+                "monthly",
+                "--started-at",
+                "2026-04-01",
+                flag,
+                "x",
+            ]
+        )
+        assert result.exit_code != 0, f"{flag} should no longer be accepted on create"
 
 
 def test_subscriptions_update_no_fields(invoke, mock_api):
