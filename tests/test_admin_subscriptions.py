@@ -266,6 +266,38 @@ def test_subscriptions_update_with_custom_pricing(invoke, mock_api):
     assert body["custom_price_cents"] == 25000
 
 
+def test_subscriptions_create_with_manual_billing_mode(invoke, mock_api):
+    route = mock_api.post("/api/v1/admin/subscriptions").respond(201, json=SAMPLE_SUB)
+    result = invoke(
+        [
+            "admin",
+            "subscriptions",
+            "create",
+            "--org-id",
+            "org-1",
+            "--plan-id",
+            "plan-1",
+            "--billing-period",
+            "monthly",
+            "--started-at",
+            "2026-04-01",
+            "--billing-mode",
+            "manual",
+        ]
+    )
+    assert result.exit_code == 0
+    body = json.loads(route.calls.last.request.content)
+    assert body["billing_mode"] == "manual"
+
+
+def test_subscriptions_update_billing_mode(invoke, mock_api):
+    route = mock_api.patch("/api/v1/admin/subscriptions/sub-1").respond(200, json=SAMPLE_SUB)
+    result = invoke(["admin", "subscriptions", "update", "sub-1", "--billing-mode", "manual"])
+    assert result.exit_code == 0
+    body = json.loads(route.calls.last.request.content)
+    assert body["billing_mode"] == "manual"
+
+
 def test_subscriptions_activate_billing_with_yes(invoke, mock_api):
     mock_api.post("/api/v1/admin/subscriptions/sub-1/activate-billing").respond(
         200, json={**SAMPLE_SUB, "status": "active"}
