@@ -74,6 +74,7 @@ def subscriptions_get(
             ("organization_id", "Org"),
             ("plan_id", "Plan"),
             ("billing_period", "Billing"),
+            ("billing_mode", "Billing mode"),
             ("status", "Status"),
             ("started_at", "Started"),
             ("ended_at", "Ended"),
@@ -94,6 +95,9 @@ def subscriptions_create(
     organization_id: str = typer.Option(..., "--org-id", help="Organization ID"),
     plan_id: str = typer.Option(..., "--plan-id", help="Plan ID"),
     billing_period: str = typer.Option(..., "--billing-period", help="monthly | annual"),
+    billing_mode: str | None = typer.Option(
+        None, "--billing-mode", help="stripe | manual (default stripe)"
+    ),
     started_at: str = typer.Option(..., "--started-at", help="ISO start date"),
     status: str | None = typer.Option(None),
     ended_at: str | None = typer.Option(None, "--ended-at"),
@@ -113,6 +117,7 @@ def subscriptions_create(
         organization_id=organization_id,
         plan_id=plan_id,
         billing_period=billing_period,
+        billing_mode=billing_mode,
         started_at=started_at,
         status=status,
         ended_at=ended_at,
@@ -135,6 +140,7 @@ def subscriptions_update(
     subscription_id: str = typer.Argument(..., help="Subscription ID"),
     plan_id: str | None = typer.Option(None, "--plan-id"),
     billing_period: str | None = typer.Option(None, "--billing-period"),
+    billing_mode: str | None = typer.Option(None, "--billing-mode", help="stripe | manual"),
     started_at: str | None = typer.Option(None, "--started-at"),
     ended_at: str | None = typer.Option(None, "--ended-at"),
     trial_ends_at: str | None = typer.Option(None, "--trial-ends-at"),
@@ -152,6 +158,7 @@ def subscriptions_update(
     body = _build_body(
         plan_id=plan_id,
         billing_period=billing_period,
+        billing_mode=billing_mode,
         started_at=started_at,
         ended_at=ended_at,
         trial_ends_at=trial_ends_at,
