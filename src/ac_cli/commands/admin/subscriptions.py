@@ -80,6 +80,10 @@ def subscriptions_get(
             ("trial_ends_at", "Trial Ends"),
             ("stripe_customer_id", "Stripe Customer"),
             ("stripe_subscription_id", "Stripe Sub"),
+            ("current_period_end", "Period Ends"),
+            ("latest_invoice_url", "Invoice Link"),
+            ("last_payment_error", "Payment Error"),
+            ("custom_price_cents", "Custom Price (net)"),
         ],
     )
 
@@ -94,12 +98,17 @@ def subscriptions_create(
     status: str | None = typer.Option(None),
     ended_at: str | None = typer.Option(None, "--ended-at"),
     trial_ends_at: str | None = typer.Option(None, "--trial-ends-at"),
+    custom_price_cents: int | None = typer.Option(
+        None, "--custom-price-cents", help="Per-org net price (cents), off-catalogue"
+    ),
+    currency: str | None = typer.Option(None, "--currency", help="Price currency"),
+    coupon: str | None = typer.Option(None, "--coupon", help="Stripe coupon id"),
     json_output: bool = JSON_OPTION,
 ) -> None:
     """Create a subscription."""
     set_json_mode(json_output)
     # stripe ids are system-managed (activation flow / webhook reconciler) and
-    # no longer client-settable (ENG-577).
+    # not client-settable.
     body = _build_body(
         organization_id=organization_id,
         plan_id=plan_id,
@@ -108,6 +117,9 @@ def subscriptions_create(
         status=status,
         ended_at=ended_at,
         trial_ends_at=trial_ends_at,
+        custom_price_cents=custom_price_cents,
+        currency=currency,
+        coupon=coupon,
     )
     resp = _api_request("post", f"{_ADMIN}/subscriptions", json=body)
     data = resp.json()
@@ -126,18 +138,26 @@ def subscriptions_update(
     started_at: str | None = typer.Option(None, "--started-at"),
     ended_at: str | None = typer.Option(None, "--ended-at"),
     trial_ends_at: str | None = typer.Option(None, "--trial-ends-at"),
+    custom_price_cents: int | None = typer.Option(
+        None, "--custom-price-cents", help="Per-org net price (cents), off-catalogue"
+    ),
+    currency: str | None = typer.Option(None, "--currency", help="Price currency"),
+    coupon: str | None = typer.Option(None, "--coupon", help="Stripe coupon id"),
     json_output: bool = JSON_OPTION,
 ) -> None:
     """Update a subscription."""
     set_json_mode(json_output)
     # status is webhook-authoritative and stripe ids are system-managed; neither
-    # is client-settable on update (ENG-577).
+    # is client-settable on update.
     body = _build_body(
         plan_id=plan_id,
         billing_period=billing_period,
         started_at=started_at,
         ended_at=ended_at,
         trial_ends_at=trial_ends_at,
+        custom_price_cents=custom_price_cents,
+        currency=currency,
+        coupon=coupon,
     )
     if not body:
         rprint("[yellow]No fields to update.[/yellow]")
@@ -160,3 +180,60 @@ def subscriptions_delete(
         typer.confirm(f"Delete subscription {subscription_id}?", abort=True)
     _api_request("delete", f"{_ADMIN}/subscriptions/{subscription_id}")
     rprint(f"[green]Deleted subscription {subscription_id}[/green]")
+
+
+@subscriptions_app.command("activate-billing")
+def subscriptions_activate_billing(
+    ctx: typer.Context,
+    subscription_id: str = typer.Argument(..., help="Subscription ID"),
+    yes: bool = typer.Option(False, "--yes", "-y", help="Skip confirmation"),
+    json_output: bool = JSON_OPTION,
+) -> None:
+    """Activate a subscription: grant account access AND start billing.
+
+    One action grants the org access and creates the Stripe subscription
+    off-session (charging the first period now). If the charge needs
+    authentication the subscription stays incomplete and the customer is emailed
+    the hosted authorization link.
+    """
+    set_json_mode(json_output)
+    if not should_skip_confirm(yes):
+        typer.confirm(
+            f"Activate {subscription_id}? This grants access and charges the card.",
+            abort=True,
+        )
+    resp = _api_request("post", f"{_ADMIN}/subscriptions/{subscription_id}/activate-billing")
+    data = resp.json()
+    if json_output:
+        print_json(data)
+    else:
+        rprint(f"[green]Activated {subscription_id} (status: {data.get('status')})[/green]")
+
+
+@subscriptions_app.command("worklists")
+def subscriptions_worklists(
+    ctx: typer.Context,
+    json_output: bool = JSON_OPTION,
+) -> None:
+    """Show the awaiting-activation queue and the stuck / needs-attention bucket."""
+    set_json_mode(json_output)
+    resp = _api_request("get", f"{_ADMIN}/subscriptions/worklists")
+    data = resp.json()
+    if json_output:
+        print_json(data)
+        return
+    columns = [
+        ("organization_name", "Org"),
+        ("onboarding_status", "Onboarding"),
+        ("subscription_status", "Sub Status"),
+        ("card_last4", "Card"),
+        ("reason", "Reason"),
+    ]
+    awaiting = data.get("awaiting_activation", [])
+    stuck = data.get("stuck", [])
+    print_table(
+        awaiting,
+        columns,
+        title=f"Awaiting activation ({len(awaiting)})",
+    )
+    print_table(stuck, columns, title=f"Stuck / needs attention ({len(stuck)})")

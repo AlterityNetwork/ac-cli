@@ -226,3 +226,106 @@ def test_subscriptions_delete_with_yes(invoke, mock_api):
 def test_subscriptions_delete_aborted(invoke, mock_api):
     result = invoke(["admin", "subscriptions", "delete", "sub-1"], input="n\n")
     assert result.exit_code == 1
+
+
+def test_subscriptions_create_with_custom_pricing(invoke, mock_api):
+    route = mock_api.post("/api/v1/admin/subscriptions").respond(201, json=SAMPLE_SUB)
+    result = invoke(
+        [
+            "admin",
+            "subscriptions",
+            "create",
+            "--org-id",
+            "org-1",
+            "--plan-id",
+            "plan-1",
+            "--billing-period",
+            "monthly",
+            "--started-at",
+            "2026-04-01",
+            "--custom-price-cents",
+            "25000",
+            "--currency",
+            "gbp",
+            "--coupon",
+            "FOUNDER50",
+        ]
+    )
+    assert result.exit_code == 0
+    body = json.loads(route.calls.last.request.content)
+    assert body["custom_price_cents"] == 25000
+    assert body["currency"] == "gbp"
+    assert body["coupon"] == "FOUNDER50"
+
+
+def test_subscriptions_update_with_custom_pricing(invoke, mock_api):
+    route = mock_api.patch("/api/v1/admin/subscriptions/sub-1").respond(200, json=SAMPLE_SUB)
+    result = invoke(["admin", "subscriptions", "update", "sub-1", "--custom-price-cents", "25000"])
+    assert result.exit_code == 0
+    body = json.loads(route.calls.last.request.content)
+    assert body["custom_price_cents"] == 25000
+
+
+def test_subscriptions_activate_billing_with_yes(invoke, mock_api):
+    mock_api.post("/api/v1/admin/subscriptions/sub-1/activate-billing").respond(
+        200, json={**SAMPLE_SUB, "status": "active"}
+    )
+    result = invoke(["admin", "subscriptions", "activate-billing", "sub-1", "--yes"])
+    assert result.exit_code == 0
+    assert "Activated" in result.output
+
+
+def test_subscriptions_activate_billing_aborted(invoke, mock_api):
+    result = invoke(["admin", "subscriptions", "activate-billing", "sub-1"], input="n\n")
+    assert result.exit_code == 1
+
+
+def test_subscriptions_activate_billing_json(invoke, mock_api):
+    mock_api.post("/api/v1/admin/subscriptions/sub-1/activate-billing").respond(
+        200,
+        json={**SAMPLE_SUB, "status": "incomplete", "latest_invoice_url": "https://pay/x"},
+    )
+    result = invoke(["admin", "subscriptions", "activate-billing", "sub-1", "--yes", "--json"])
+    assert result.exit_code == 0
+    data = json.loads(result.output)
+    assert data["status"] == "incomplete"
+
+
+def test_subscriptions_worklists(invoke, mock_api):
+    mock_api.get("/api/v1/admin/subscriptions/worklists").respond(
+        200,
+        json={
+            "awaiting_activation": [
+                {
+                    "organization_name": "Acme",
+                    "onboarding_status": "pending",
+                    "subscription_status": "trial",
+                    "card_last4": "4242",
+                    "reason": None,
+                }
+            ],
+            "stuck": [
+                {
+                    "organization_name": "Beta",
+                    "onboarding_status": "active",
+                    "subscription_status": "incomplete",
+                    "card_last4": "1111",
+                    "reason": "activation_stuck",
+                }
+            ],
+        },
+    )
+    result = invoke(["admin", "subscriptions", "worklists"])
+    assert result.exit_code == 0
+    assert "Acme" in result.output
+    assert "Awaiting activation" in result.output
+
+
+def test_subscriptions_worklists_json(invoke, mock_api):
+    mock_api.get("/api/v1/admin/subscriptions/worklists").respond(
+        200, json={"awaiting_activation": [], "stuck": []}
+    )
+    result = invoke(["admin", "subscriptions", "worklists", "--json"])
+    assert result.exit_code == 0
+    data = json.loads(result.output)
+    assert data == {"awaiting_activation": [], "stuck": []}
