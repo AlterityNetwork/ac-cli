@@ -138,7 +138,6 @@ OUT_OF_SCOPE: set[tuple[str, str]] = {
     ("PATCH", "/api/v1/organizations/{id}"),
     ("POST", "/api/v1/organizations"),
     ("GET", "/api/v1/organizations/{id}/subscription"),
-    ("DELETE", "/api/v1/organizations/{id}/subscription/{id}"),
     # Stripe webhook (signature-verified) + billing checkout/portal + self-serve
     # onboarding completion: browser-redirect and frontend-only flows.
     ("POST", "/api/v1/webhooks/stripe"),
