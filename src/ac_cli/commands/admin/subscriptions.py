@@ -217,6 +217,68 @@ def subscriptions_activate_billing(
         rprint(f"[green]Activated {subscription_id} (status: {data.get('status')})[/green]")
 
 
+@subscriptions_app.command("link")
+def subscriptions_link(
+    ctx: typer.Context,
+    subscription_id: str = typer.Argument(..., help="Subscription ID"),
+    stripe_subscription_id: str = typer.Option(
+        ...,
+        "--stripe-subscription-id",
+        "--sid",
+        help="Existing Stripe subscription ID to link",
+    ),
+    yes: bool = typer.Option(False, "--yes", "-y", help="Skip confirmation"),
+    json_output: bool = JSON_OPTION,
+) -> None:
+    """Link a subscription to an existing Stripe subscription.
+
+    Records the association and adopts the live Stripe status; it never creates a
+    Stripe subscription and never charges (unlike activate-billing).
+    """
+    set_json_mode(json_output)
+    if not should_skip_confirm(yes):
+        typer.confirm(
+            f"Link {subscription_id} to Stripe {stripe_subscription_id}? "
+            "(pulls live status; no charge)",
+            abort=True,
+        )
+    resp = _api_request(
+        "post",
+        f"{_ADMIN}/subscriptions/{subscription_id}/link",
+        json={"stripe_subscription_id": stripe_subscription_id},
+    )
+    data = resp.json()
+    if json_output:
+        print_json(data)
+    else:
+        rprint(
+            f"[green]Linked {subscription_id} -> {stripe_subscription_id} "
+            f"(status: {data.get('status')})[/green]"
+        )
+
+
+@subscriptions_app.command("unlink")
+def subscriptions_unlink(
+    ctx: typer.Context,
+    subscription_id: str = typer.Argument(..., help="Subscription ID"),
+    yes: bool = typer.Option(False, "--yes", "-y", help="Skip confirmation"),
+    json_output: bool = JSON_OPTION,
+) -> None:
+    """Unlink a subscription from its Stripe subscription.
+
+    Clears the local link only; the Stripe subscription is left running.
+    """
+    set_json_mode(json_output)
+    if not should_skip_confirm(yes):
+        typer.confirm(f"Unlink {subscription_id} from its Stripe subscription?", abort=True)
+    resp = _api_request("post", f"{_ADMIN}/subscriptions/{subscription_id}/unlink")
+    data = resp.json()
+    if json_output:
+        print_json(data)
+    else:
+        rprint(f"[green]Unlinked {subscription_id}[/green]")
+
+
 @subscriptions_app.command("worklists")
 def subscriptions_worklists(
     ctx: typer.Context,
