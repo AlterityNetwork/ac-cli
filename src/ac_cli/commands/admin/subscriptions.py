@@ -74,6 +74,7 @@ def subscriptions_get(
             ("organization_id", "Org"),
             ("plan_id", "Plan"),
             ("billing_period", "Billing"),
+            ("billing_mode", "Billing mode"),
             ("status", "Status"),
             ("started_at", "Started"),
             ("ended_at", "Ended"),
