@@ -373,6 +373,16 @@ def test_subscriptions_unlink_with_yes(invoke, mock_api):
     assert route.called
 
 
+def test_subscriptions_unlink_json(invoke, mock_api):
+    mock_api.post("/api/v1/admin/subscriptions/sub-1/unlink").respond(
+        200, json={**SAMPLE_SUB, "stripe_subscription_id": None}
+    )
+    result = invoke(["admin", "subscriptions", "unlink", "sub-1", "--yes", "--json"])
+    assert result.exit_code == 0
+    data = json.loads(result.output)
+    assert data["stripe_subscription_id"] is None
+
+
 def test_subscriptions_unlink_aborted(invoke, mock_api):
     result = invoke(["admin", "subscriptions", "unlink", "sub-1"], input="n\n")
     assert result.exit_code == 1
