@@ -52,3 +52,14 @@ def test_stripe_subscriptions_json(invoke, mock_api):
     data = json.loads(result.output)
     assert data["total"] == 2
     assert len(data["broken_links"]) == 1
+
+
+def test_stripe_subscriptions_forwards_pagination(invoke, mock_api):
+    route = mock_api.get("/api/v1/admin/billing/stripe-subscriptions").respond(
+        200, json=SAMPLE_STRIPE_SUBS
+    )
+    result = invoke(["admin", "billing", "stripe-subscriptions", "--limit", "10", "--offset", "20"])
+    assert result.exit_code == 0
+    url = str(route.calls.last.request.url)
+    assert "limit=10" in url
+    assert "offset=20" in url

@@ -14,16 +14,23 @@ billing_app = typer.Typer(help="Admin billing views (super admin)")
 @billing_app.command("stripe-subscriptions")
 def stripe_subscriptions(
     ctx: typer.Context,
+    limit: int = typer.Option(50, help="Max results"),
+    offset: int = typer.Option(0, help="Pagination offset"),
     json_output: bool = JSON_OPTION,
 ) -> None:
     """List live Stripe subscriptions with their local link status.
 
     Each Stripe subscription shows the linked local subscription id (or that it
     is an orphan). ``broken_links`` flags local rows whose Stripe subscription no
-    longer exists.
+    longer exists. The Stripe list is paginated (``--limit`` / ``--offset``); the
+    broken-links set is always complete.
     """
     set_json_mode(json_output)
-    resp = _api_request("get", f"{_ADMIN}/billing/stripe-subscriptions")
+    resp = _api_request(
+        "get",
+        f"{_ADMIN}/billing/stripe-subscriptions",
+        params={"limit": limit, "offset": offset},
+    )
     data = resp.json()
     if json_output:
         print_json(data)
