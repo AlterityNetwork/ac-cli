@@ -96,5 +96,5 @@ def import_stripe_products(
             ("skipped", "Skipped"),
         ],
     )
-    for message in data.get("messages", []):
+    for message in data.get("messages") or []:
         typer.echo(f"  - {message}")
