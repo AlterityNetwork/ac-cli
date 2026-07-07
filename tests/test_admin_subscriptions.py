@@ -323,6 +323,71 @@ def test_subscriptions_activate_billing_json(invoke, mock_api):
     assert data["status"] == "incomplete"
 
 
+def test_subscriptions_link_with_yes(invoke, mock_api):
+    route = mock_api.post("/api/v1/admin/subscriptions/sub-1/link").respond(
+        200, json={**SAMPLE_SUB, "stripe_subscription_id": "sub_live_1"}
+    )
+    result = invoke(["admin", "subscriptions", "link", "sub-1", "--sid", "sub_live_1", "--yes"])
+    assert result.exit_code == 0
+    assert "Linked" in result.output
+    body = json.loads(route.calls.last.request.content)
+    assert body == {"stripe_subscription_id": "sub_live_1"}
+
+
+def test_subscriptions_link_aborted(invoke, mock_api):
+    result = invoke(
+        ["admin", "subscriptions", "link", "sub-1", "--sid", "sub_live_1"],
+        input="n\n",
+    )
+    assert result.exit_code == 1
+
+
+def test_subscriptions_link_json(invoke, mock_api):
+    mock_api.post("/api/v1/admin/subscriptions/sub-1/link").respond(
+        200, json={**SAMPLE_SUB, "stripe_subscription_id": "sub_live_1"}
+    )
+    result = invoke(
+        [
+            "admin",
+            "subscriptions",
+            "link",
+            "sub-1",
+            "--sid",
+            "sub_live_1",
+            "--yes",
+            "--json",
+        ]
+    )
+    assert result.exit_code == 0
+    data = json.loads(result.output)
+    assert data["stripe_subscription_id"] == "sub_live_1"
+
+
+def test_subscriptions_unlink_with_yes(invoke, mock_api):
+    route = mock_api.post("/api/v1/admin/subscriptions/sub-1/unlink").respond(
+        200, json={**SAMPLE_SUB, "stripe_subscription_id": None}
+    )
+    result = invoke(["admin", "subscriptions", "unlink", "sub-1", "--yes"])
+    assert result.exit_code == 0
+    assert "Unlinked" in result.output
+    assert route.called
+
+
+def test_subscriptions_unlink_json(invoke, mock_api):
+    mock_api.post("/api/v1/admin/subscriptions/sub-1/unlink").respond(
+        200, json={**SAMPLE_SUB, "stripe_subscription_id": None}
+    )
+    result = invoke(["admin", "subscriptions", "unlink", "sub-1", "--yes", "--json"])
+    assert result.exit_code == 0
+    data = json.loads(result.output)
+    assert data["stripe_subscription_id"] is None
+
+
+def test_subscriptions_unlink_aborted(invoke, mock_api):
+    result = invoke(["admin", "subscriptions", "unlink", "sub-1"], input="n\n")
+    assert result.exit_code == 1
+
+
 def test_subscriptions_worklists(invoke, mock_api):
     mock_api.get("/api/v1/admin/subscriptions/worklists").respond(
         200,
