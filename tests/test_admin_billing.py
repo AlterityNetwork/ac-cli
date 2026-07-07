@@ -63,3 +63,59 @@ def test_stripe_subscriptions_forwards_pagination(invoke, mock_api):
     url = str(route.calls.last.request.url)
     assert "limit=10" in url
     assert "offset=20" in url
+
+
+SAMPLE_IMPORT = {
+    "imported": 2,
+    "updated": 1,
+    "skipped": 0,
+    "messages": ["Team: no annual price, set to 0"],
+}
+
+
+def test_import_stripe_products(invoke, mock_api):
+    route = mock_api.post("/api/v1/admin/billing/import-stripe-products").respond(
+        200, json=SAMPLE_IMPORT
+    )
+    result = invoke(["admin", "billing", "import-stripe-products", "--yes"])
+    assert result.exit_code == 0
+    assert route.called
+    # Counts + the per-product note are surfaced.
+    assert "2" in result.output
+    assert "no annual price" in result.output
+
+
+def test_import_stripe_products_json(invoke, mock_api):
+    mock_api.post("/api/v1/admin/billing/import-stripe-products").respond(200, json=SAMPLE_IMPORT)
+    result = invoke(["admin", "billing", "import-stripe-products", "--yes", "--json"])
+    assert result.exit_code == 0
+    data = json.loads(result.output)
+    assert data["imported"] == 2
+    assert data["updated"] == 1
+
+
+def test_import_stripe_products_aborts_without_confirmation(invoke, mock_api):
+    route = mock_api.post("/api/v1/admin/billing/import-stripe-products").respond(
+        200, json=SAMPLE_IMPORT
+    )
+    result = invoke(["admin", "billing", "import-stripe-products"], input="n\n")
+    assert result.exit_code == 1
+    assert not route.called
+
+
+def test_import_stripe_products_error_exit_code(invoke, mock_api):
+    # 403 maps to the semantic auth exit code (4).
+    mock_api.post("/api/v1/admin/billing/import-stripe-products").respond(403)
+    result = invoke(["admin", "billing", "import-stripe-products", "--yes"])
+    assert result.exit_code == 4
+
+
+def test_import_stripe_products_error_json(invoke, mock_api):
+    mock_api.post("/api/v1/admin/billing/import-stripe-products").respond(
+        403, json={"detail": "Forbidden"}
+    )
+    result = invoke(["admin", "billing", "import-stripe-products", "--yes", "--json"])
+    assert result.exit_code == 4
+    data = json.loads(result.output)
+    assert data["error"] is True
+    assert data["status_code"] == 403

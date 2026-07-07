@@ -4,9 +4,14 @@ from __future__ import annotations
 
 import typer
 
-from ac_cli.commands._helpers import JSON_OPTION, _api_request, set_json_mode
+from ac_cli.commands._helpers import (
+    JSON_OPTION,
+    _api_request,
+    set_json_mode,
+    should_skip_confirm,
+)
 from ac_cli.commands.admin import _ADMIN
-from ac_cli.formatting import print_json, print_table
+from ac_cli.formatting import print_detail, print_json, print_table
 
 billing_app = typer.Typer(help="Admin billing views (super admin)")
 
@@ -60,3 +65,36 @@ def stripe_subscriptions(
             ],
             title=f"Broken links ({len(broken)})",
         )
+
+
+@billing_app.command("import-stripe-products")
+def import_stripe_products(
+    ctx: typer.Context,
+    yes: bool = typer.Option(False, "--yes", "-y", help="Skip confirmation"),
+    json_output: bool = JSON_OPTION,
+) -> None:
+    """Import active Stripe products and recurring prices into the plan catalogue.
+
+    Idempotent: each active Stripe product with a recurring price is matched to a
+    subscription plan by ``stripe_product_id`` (prices / name updated) or created
+    as a new plan. Products with no recurring price are skipped. Reports per-run
+    counts plus any notes (e.g. a product missing a monthly or annual price).
+    """
+    set_json_mode(json_output)
+    if not should_skip_confirm(yes):
+        typer.confirm("Import active Stripe products into the plan catalogue?", abort=True)
+    resp = _api_request("post", f"{_ADMIN}/billing/import-stripe-products")
+    data = resp.json()
+    if json_output:
+        print_json(data)
+        return
+    print_detail(
+        data,
+        [
+            ("imported", "Imported"),
+            ("updated", "Updated"),
+            ("skipped", "Skipped"),
+        ],
+    )
+    for message in data.get("messages") or []:
+        typer.echo(f"  - {message}")
