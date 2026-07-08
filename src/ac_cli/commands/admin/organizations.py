@@ -116,11 +116,12 @@ def organizations_update(
     name: str | None = typer.Option(None, help="Organization name"),
     slug: str | None = typer.Option(None, help="Organization slug"),
     plan: str | None = typer.Option(None, help="Plan"),
+    logo_url: str | None = typer.Option(None, "--logo-url", help="Organization logo URL"),
     json_output: bool = JSON_OPTION,
 ) -> None:
     """Update an existing organization."""
     set_json_mode(json_output)
-    body = _build_body(name=name, slug=slug, plan=plan)
+    body = _build_body(name=name, slug=slug, plan=plan, logo_url=logo_url)
 
     if not body:
         rprint("[yellow]No fields to update.[/yellow]")

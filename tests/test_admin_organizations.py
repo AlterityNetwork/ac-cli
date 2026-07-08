@@ -83,6 +83,19 @@ def test_orgs_update(invoke, mock_api):
     assert "Updated org" in result.output
 
 
+def test_orgs_update_logo_url(invoke, mock_api):
+    import json as _json
+
+    updated = {**SAMPLE_ORG, "name": "Acme"}
+    route = mock_api.patch("/api/v1/admin/organizations/org-1").respond(200, json=updated)
+    result = invoke(
+        ["admin", "orgs", "update", "org-1", "--logo-url", "https://r2.example.com/logo.png"]
+    )
+    assert result.exit_code == 0
+    body = _json.loads(route.calls.last.request.content)
+    assert body["logo_url"] == "https://r2.example.com/logo.png"
+
+
 def test_orgs_update_no_fields(invoke, mock_api):
     result = invoke(["admin", "orgs", "update", "org-1"])
     assert result.exit_code == 1
