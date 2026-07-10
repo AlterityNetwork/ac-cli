@@ -84,7 +84,14 @@ def subscriptions_get(
             ("current_period_end", "Period Ends"),
             ("latest_invoice_url", "Invoice Link"),
             ("last_payment_error", "Payment Error"),
+            ("last_payment_decline_code", "Decline Code"),
+            # 'do_not_try_again' means the scheduled retry will not execute
+            # until the customer supplies a new payment method.
+            ("last_payment_advice_code", "Advice Code"),
+            ("dunning_attempt_count", "Payment Attempts"),
+            ("dunning_next_attempt_at", "Next Retry"),
             ("custom_price_cents", "Custom Price (net)"),
+            ("unit_amount_cents", "Stripe Amount (net)"),
         ],
     )
 

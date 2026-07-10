@@ -148,6 +148,29 @@ def test_subscriptions_get(invoke, mock_api):
     assert "sub-1" in result.output
 
 
+def test_subscriptions_get_shows_dunning_detail(invoke, mock_api):
+    # The display keys must match the API response exactly; a typo renders a
+    # blank row rather than failing, so pin the real values.
+    overdue = {
+        **SAMPLE_SUB,
+        "status": "past_due",
+        "unit_amount_cents": 25000,
+        "dunning_attempt_count": 2,
+        "dunning_next_attempt_at": "2026-07-11T23:55:00Z",
+        "last_payment_error": "Invalid account.",
+        "last_payment_decline_code": "invalid_account",
+        "last_payment_advice_code": "do_not_try_again",
+    }
+    mock_api.get("/api/v1/admin/subscriptions/sub-1").respond(200, json=overdue)
+    result = invoke(["admin", "subscriptions", "get", "sub-1"])
+    assert result.exit_code == 0
+    output = result.output
+    assert "invalid_account" in output
+    assert "do_not_try_again" in output
+    assert "2026-07-11" in output
+    assert "25000" in output
+
+
 def test_subscriptions_create(invoke, mock_api):
     mock_api.post("/api/v1/admin/subscriptions").respond(201, json=SAMPLE_SUB)
     result = invoke(
