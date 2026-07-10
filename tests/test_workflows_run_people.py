@@ -29,12 +29,20 @@ def test_run_people_list(invoke, mock_api):
 
 
 def test_run_people_list_json(invoke, mock_api):
-    payload = {"data": [SAMPLE_PERSON], "total": 1, "limit": 50, "offset": 0, "has_more": False}
+    person = {
+        **SAMPLE_PERSON,
+        "_run": {"field_states": {"email": {"status": "running", "provider": "fullenrich"}}},
+    }
+    payload = {"data": [person], "total": 1, "limit": 50, "offset": 0, "has_more": False}
     mock_api.get("/api/v1/workflows/wf-1/runs/people").respond(200, json=payload)
     result = invoke(["workflows", "run-people", "list", "wf-1", "--json"])
     assert result.exit_code == 0
     parsed = json.loads(result.output)
     assert parsed["data"][0]["full_name"] == "Jane Smith"
+    assert parsed["data"][0]["_run"]["field_states"]["email"] == {
+        "status": "running",
+        "provider": "fullenrich",
+    }
 
 
 def test_run_people_list_by_run(invoke, mock_api):
