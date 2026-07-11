@@ -17,30 +17,61 @@ SAMPLE_ACTIVITY = {
 }
 
 
+def _page(items, total=None):
+    """Wrap items in the standard paginated envelope the list endpoint returns."""
+    return {
+        "data": items,
+        "total": total if total is not None else len(items),
+        "limit": 100,
+        "offset": 0,
+        "has_more": False,
+    }
+
+
 def test_activities_list(invoke, mock_api):
-    mock_api.get("/api/v1/crm/activities").respond(200, json=[SAMPLE_ACTIVITY])
+    mock_api.get("/api/v1/crm/activities").respond(200, json=_page([SAMPLE_ACTIVITY]))
     result = invoke(["crm", "activities", "list"])
     assert result.exit_code == 0
     assert "Follow up with Acme" in result.output
 
 
 def test_activities_list_json(invoke, mock_api):
-    mock_api.get("/api/v1/crm/activities").respond(200, json=[SAMPLE_ACTIVITY])
+    mock_api.get("/api/v1/crm/activities").respond(200, json=_page([SAMPLE_ACTIVITY]))
     result = invoke(["crm", "activities", "list", "--json"])
     assert result.exit_code == 0
     parsed = json.loads(result.output)
-    assert parsed[0]["title"] == "Follow up with Acme"
+    assert parsed["data"][0]["title"] == "Follow up with Acme"
+
+
+def test_activities_list_shows_total(invoke, mock_api):
+    """List consumes the {data,total,...} envelope and shows the server total."""
+    mock_api.get("/api/v1/crm/activities").respond(200, json=_page([SAMPLE_ACTIVITY], total=42))
+    result = invoke(["crm", "activities", "list"])
+    assert result.exit_code == 0
+    assert "42 total" in result.output
 
 
 def test_activities_list_with_filters(invoke, mock_api):
-    mock_api.get("/api/v1/crm/activities").respond(200, json=[])
+    mock_api.get("/api/v1/crm/activities").respond(200, json=_page([]))
     result = invoke(["crm", "activities", "list", "--type", "task", "--status", "pending"])
     assert result.exit_code == 0
 
 
+def test_activities_list_snoozed_filter(invoke, mock_api):
+    """`--snoozed` forwards snoozed=true; `--active` forwards snoozed=false (ENG-1391)."""
+    route = mock_api.get("/api/v1/crm/activities").respond(200, json=_page([SAMPLE_ACTIVITY]))
+    result = invoke(["crm", "activities", "list", "--snoozed", "--json"])
+    assert result.exit_code == 0
+    assert "snoozed=true" in str(route.calls.last.request.url)
+
+    result = invoke(["crm", "activities", "list", "--active", "--json"])
+    assert result.exit_code == 0
+    assert "snoozed=false" in str(route.calls.last.request.url)
+
+
 def test_activities_list_search(invoke, mock_api):
     """`--search` passes the search query param to the backend (ENG-1143 C1)."""
-    route = mock_api.get("/api/v1/crm/activities").respond(200, json=[SAMPLE_ACTIVITY])
+    route = mock_api.get("/api/v1/crm/activities").respond(200, json=_page([SAMPLE_ACTIVITY]))
     result = invoke(["crm", "activities", "list", "--search", "acme", "--json"])
     assert result.exit_code == 0
     assert route.called
@@ -49,7 +80,7 @@ def test_activities_list_search(invoke, mock_api):
 
 def test_activities_list_assigned_to(invoke, mock_api):
     """`--assigned-to` passes assigned_to query param to the backend."""
-    route = mock_api.get("/api/v1/crm/activities").respond(200, json=[SAMPLE_ACTIVITY])
+    route = mock_api.get("/api/v1/crm/activities").respond(200, json=_page([SAMPLE_ACTIVITY]))
     result = invoke(["crm", "activities", "list", "--assigned-to", "user-42", "--json"])
     assert result.exit_code == 0
     assert route.called
@@ -59,7 +90,7 @@ def test_activities_list_assigned_to(invoke, mock_api):
 
 def test_activities_list_priority_and_due_date_range(invoke, mock_api):
     """`--priority` + `--due-date-from/--due-date-to` forward query params."""
-    route = mock_api.get("/api/v1/crm/activities").respond(200, json=[SAMPLE_ACTIVITY])
+    route = mock_api.get("/api/v1/crm/activities").respond(200, json=_page([SAMPLE_ACTIVITY]))
     result = invoke(
         [
             "crm",
@@ -89,7 +120,7 @@ def test_activities_list_assigned_to_me_sentinel(invoke, mock_api):
     need to pre-resolve it.
     """
     mock_api.get("/whoami").respond(200, json=WHOAMI_RESPONSE)
-    route = mock_api.get("/api/v1/crm/activities").respond(200, json=[SAMPLE_ACTIVITY])
+    route = mock_api.get("/api/v1/crm/activities").respond(200, json=_page([SAMPLE_ACTIVITY]))
     result = invoke(["crm", "activities", "list", "--assigned-to", "me", "--json"])
     assert result.exit_code == 0
     assert route.called
@@ -218,6 +249,42 @@ def test_activities_complete(invoke, mock_api):
     result = invoke(["crm", "activities", "complete", "a1"])
     assert result.exit_code == 0
     assert "Completed activity" in result.output
+
+
+def test_activities_snooze(invoke, mock_api):
+    snoozed = {**SAMPLE_ACTIVITY, "snoozed_until": "2026-03-20T00:00:00Z"}
+    route = mock_api.post("/api/v1/crm/activities/a1/snooze").respond(200, json=snoozed)
+    result = invoke(["crm", "activities", "snooze", "a1", "--until", "2026-03-20T00:00:00Z"])
+    assert result.exit_code == 0
+    assert "Snoozed activity" in result.output
+    body = json.loads(route.calls.last.request.content)
+    assert body == {"snoozed_until": "2026-03-20T00:00:00Z"}
+
+
+def test_activities_snooze_json(invoke, mock_api):
+    snoozed = {**SAMPLE_ACTIVITY, "snoozed_until": "2026-03-20T00:00:00Z"}
+    mock_api.post("/api/v1/crm/activities/a1/snooze").respond(200, json=snoozed)
+    result = invoke(
+        ["crm", "activities", "snooze", "a1", "--until", "2026-03-20T00:00:00Z", "--json"]
+    )
+    assert result.exit_code == 0
+    parsed = json.loads(result.output)
+    assert parsed["snoozed_until"] == "2026-03-20T00:00:00Z"
+
+
+def test_activities_unsnooze(invoke, mock_api):
+    mock_api.post("/api/v1/crm/activities/a1/unsnooze").respond(200, json=SAMPLE_ACTIVITY)
+    result = invoke(["crm", "activities", "unsnooze", "a1"])
+    assert result.exit_code == 0
+    assert "Unsnoozed activity" in result.output
+
+
+def test_activities_unsnooze_json(invoke, mock_api):
+    mock_api.post("/api/v1/crm/activities/a1/unsnooze").respond(200, json=SAMPLE_ACTIVITY)
+    result = invoke(["crm", "activities", "unsnooze", "a1", "--json"])
+    assert result.exit_code == 0
+    parsed = json.loads(result.output)
+    assert parsed["id"] == "a1"
 
 
 def test_activities_delete_with_yes(invoke, mock_api):

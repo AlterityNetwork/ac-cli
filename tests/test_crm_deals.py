@@ -148,6 +148,7 @@ def test_deals_move(invoke, mock_api):
 
 
 def test_deals_order(invoke, mock_api):
+    mock_api.get("/whoami").respond(200, json=WHOAMI_RESPONSE)
     mock_api.post("/api/v1/crm/deals/order").respond(200, json={"ordered": True})
     result = invoke(["crm", "deals", "order", "--stage", "lead", "--deal-ids", "d1,d2,d3"])
     assert result.exit_code == 0
@@ -155,7 +156,23 @@ def test_deals_order(invoke, mock_api):
     assert "lead" in result.output
 
 
+def test_deals_order_includes_organization_id(invoke, mock_api):
+    """DealOrderUpdateRequest requires organization_id; the CLI resolves it via
+    /whoami and includes it in the body (previously omitted → 422)."""
+    mock_api.get("/whoami").respond(200, json=WHOAMI_RESPONSE)
+    route = mock_api.post("/api/v1/crm/deals/order").respond(200, json={"ordered": True})
+    result = invoke(["crm", "deals", "order", "--stage", "lead", "--deal-ids", "d1,d2,d3"])
+    assert result.exit_code == 0
+    body = json.loads(route.calls.last.request.content)
+    assert body == {
+        "organization_id": WHOAMI_RESPONSE["organization_id"],
+        "stage": "lead",
+        "deal_ids": ["d1", "d2", "d3"],
+    }
+
+
 def test_deals_order_json(invoke, mock_api):
+    mock_api.get("/whoami").respond(200, json=WHOAMI_RESPONSE)
     mock_api.post("/api/v1/crm/deals/order").respond(200, json={"ordered": True})
     result = invoke(["crm", "deals", "order", "--stage", "lead", "--deal-ids", "d1,d2", "--json"])
     assert result.exit_code == 0

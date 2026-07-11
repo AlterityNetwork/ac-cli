@@ -145,6 +145,30 @@ def test_signals_attach_person_with_score(invoke, mock_api):
     }
 
 
+def test_signals_attach_204_no_content(invoke, mock_api):
+    """The attach endpoint returns 204 No Content; the CLI must not crash on
+    an empty body and should print a success message."""
+    mock_api.post("/api/v1/crm/signals/sig-1/attach").respond(204)
+    result = invoke(["crm", "signals", "attach", "sig-1", "--company-id", "c-1"])
+    assert result.exit_code == 0
+    assert "Attached signal sig-1 to company c-1" in result.output
+
+
+def test_signals_attach_204_json(invoke, mock_api):
+    """--json on a 204 attach synthesizes a success payload instead of crashing."""
+    mock_api.post("/api/v1/crm/signals/sig-1/attach").respond(204)
+    result = invoke(["crm", "signals", "attach", "sig-1", "--person-id", "p-9", "--json"])
+    assert result.exit_code == 0
+    parsed = json.loads(result.output)
+    assert parsed == {
+        "ok": True,
+        "signal_id": "sig-1",
+        "subject_type": "person",
+        "subject_id": "p-9",
+        "action": "attach",
+    }
+
+
 def test_signals_delete_yes(invoke, mock_api):
     mock_api.delete("/api/v1/crm/signals/sig-1").respond(204)
     result = invoke(["crm", "signals", "delete", "sig-1", "--yes"])

@@ -50,6 +50,14 @@ def activities_list(
     sort_by: str | None = typer.Option(
         None, "--sort-by", help="Sort field: due_date or created_at"
     ),
+    snoozed: bool | None = typer.Option(
+        None,
+        "--snoozed/--active",
+        help=(
+            "Snooze partition (ENG-1391): --snoozed returns only currently-snoozed "
+            "tasks, --active hides them. Omit for no filtering."
+        ),
+    ),
     limit: int = typer.Option(100, help="Max results"),
     offset: int = typer.Option(0, help="Offset"),
     json_output: bool = JSON_OPTION,
@@ -85,6 +93,8 @@ def activities_list(
         params["assigned_to"] = assigned_to
     if sort_by:
         params["sort_by"] = sort_by
+    if snoozed is not None:
+        params["snoozed"] = snoozed
 
     resp = _api_request("get", f"{_CRM}/activities", params=params)
 
@@ -93,8 +103,10 @@ def activities_list(
         print_json(data)
         return
 
-    # API returns a flat list
-    items = data if isinstance(data, list) else data.get("data", [])
+    # Paginated envelope: {data, total, limit, offset, has_more}. Show the
+    # server total so a paged result reveals the full count (mirror deals).
+    items = data.get("data", [])
+    total = data.get("total", len(items))
     print_table(
         items,
         [
@@ -105,7 +117,7 @@ def activities_list(
             ("due_date", "Due Date"),
             ("id", "ID"),
         ],
-        title=f"Activities ({len(items)})",
+        title=f"Activities ({total} total)",
     )
 
 
@@ -366,6 +378,47 @@ def activities_complete(
         print_json(data)
     else:
         rprint(f"[green]Completed activity:[/green] {data['title']} ({data['id']})")
+
+
+@activities_app.command("snooze")
+def activities_snooze(
+    ctx: typer.Context,
+    activity_id: str = typer.Argument(..., help="Activity ID"),
+    until: str = typer.Option(
+        ..., "--until", help="Snooze until this ISO timestamp; the task resurfaces after."
+    ),
+    json_output: bool = JSON_OPTION,
+) -> None:
+    """Snooze an activity until a given time (hides it from the active list)."""
+    set_json_mode(json_output)
+    resp = _api_request(
+        "post",
+        f"{_CRM}/activities/{activity_id}/snooze",
+        json={"snoozed_until": until},
+    )
+
+    data = resp.json()
+    if json_output:
+        print_json(data)
+    else:
+        rprint(f"[green]Snoozed activity:[/green] {data['title']} ({data['id']})")
+
+
+@activities_app.command("unsnooze")
+def activities_unsnooze(
+    ctx: typer.Context,
+    activity_id: str = typer.Argument(..., help="Activity ID"),
+    json_output: bool = JSON_OPTION,
+) -> None:
+    """Clear an activity's snooze so it returns to the active task list."""
+    set_json_mode(json_output)
+    resp = _api_request("post", f"{_CRM}/activities/{activity_id}/unsnooze")
+
+    data = resp.json()
+    if json_output:
+        print_json(data)
+    else:
+        rprint(f"[green]Unsnoozed activity:[/green] {data['title']} ({data['id']})")
 
 
 @activities_app.command("delete")

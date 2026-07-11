@@ -344,7 +344,12 @@ def deals_order(
     """Set the display order of deals within a stage."""
     set_json_mode(json_output)
     ids_list = [d.strip() for d in deal_ids.split(",")]
-    resp = _api_request("post", f"{_CRM}/deals/order", json={"stage": stage, "deal_ids": ids_list})
+    body = {
+        "organization_id": _get_org_id(),
+        "stage": stage,
+        "deal_ids": ids_list,
+    }
+    resp = _api_request("post", f"{_CRM}/deals/order", json=body)
 
     data = resp.json()
     if json_output:

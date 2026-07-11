@@ -173,9 +173,20 @@ def signals_attach(
 
     resp = _api_request("post", f"{_CRM}/signals/{signal_id}/attach", json={"attach_to": attach_to})
 
-    data = resp.json()
+    # The attach endpoint returns 204 No Content, so there's no body to decode.
+    # Synthesize a success payload for --json and plain modes alike.
+    data = resp.json() if resp.content else {}
     if json_output:
-        print_json(data)
+        print_json(
+            data
+            or {
+                "ok": True,
+                "signal_id": signal_id,
+                "subject_type": attach_to["subject_type"],
+                "subject_id": attach_to["subject_id"],
+                "action": "attach",
+            }
+        )
     else:
         subj = attach_to["subject_type"]
         rprint(f"[green]Attached signal {signal_id} to {subj} {attach_to['subject_id']}[/green]")
