@@ -119,3 +119,46 @@ def test_import_stripe_products_error_json(invoke, mock_api):
     data = json.loads(result.output)
     assert data["error"] is True
     assert data["status_code"] == 403
+
+
+def test_billing_refund_full(invoke, mock_api):
+    mock_api.post("/api/v1/admin/billing/refunds").respond(
+        200,
+        json={
+            "id": "re_1",
+            "status": "succeeded",
+            "amount": 30000,
+            "currency": "gbp",
+            "charge": "ch_1",
+        },
+    )
+    result = invoke(["admin", "billing", "refund", "ch_1", "--yes"])
+    assert result.exit_code == 0
+    assert "re_1" in result.output
+
+
+def test_billing_refund_partial_json(invoke, mock_api):
+    route = mock_api.post("/api/v1/admin/billing/refunds").respond(
+        200,
+        json={"id": "re_2", "status": "succeeded", "amount": 5000, "currency": "gbp"},
+    )
+    result = invoke(
+        [
+            "admin",
+            "billing",
+            "refund",
+            "ch_1",
+            "--amount-cents",
+            "5000",
+            "--reason",
+            "duplicate",
+            "--yes",
+            "--json",
+        ]
+    )
+    assert result.exit_code == 0
+    assert '"id": "re_2"' in result.output
+    import json as _json
+
+    body = _json.loads(route.calls[0].request.content)
+    assert body == {"charge_id": "ch_1", "amount_cents": 5000, "reason": "duplicate"}

@@ -168,18 +168,14 @@ def test_orgs_transfer_ownership(invoke, mock_api):
 
 
 def test_orgs_suspend(invoke, mock_api):
-    mock_api.post("/api/v1/admin/organizations/org-1/suspend").respond(
-        200, json={"id": "org-1"}
-    )
+    mock_api.post("/api/v1/admin/organizations/org-1/suspend").respond(200, json={"id": "org-1"})
     result = invoke(["admin", "orgs", "suspend", "org-1", "--reason", "non_payment", "--yes"])
     assert result.exit_code == 0
     assert "Suspended organization org-1" in result.output
 
 
 def test_orgs_suspend_json(invoke, mock_api):
-    mock_api.post("/api/v1/admin/organizations/org-1/suspend").respond(
-        200, json={"id": "org-1"}
-    )
+    mock_api.post("/api/v1/admin/organizations/org-1/suspend").respond(200, json={"id": "org-1"})
     result = invoke(
         ["admin", "orgs", "suspend", "org-1", "--reason", "non_payment", "--yes", "--json"]
     )
@@ -188,9 +184,7 @@ def test_orgs_suspend_json(invoke, mock_api):
 
 
 def test_orgs_unsuspend(invoke, mock_api):
-    mock_api.post("/api/v1/admin/organizations/org-1/unsuspend").respond(
-        200, json={"id": "org-1"}
-    )
+    mock_api.post("/api/v1/admin/organizations/org-1/unsuspend").respond(200, json={"id": "org-1"})
     result = invoke(["admin", "orgs", "unsuspend", "org-1"])
     assert result.exit_code == 0
     assert "Unsuspended organization org-1" in result.output

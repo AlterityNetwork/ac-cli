@@ -277,9 +277,7 @@ def organizations_suspend(
     if not should_skip_confirm(yes):
         typer.confirm(f"Suspend organization {org_id}?", abort=True)
 
-    resp = _api_request(
-        "post", f"{_ADMIN}/organizations/{org_id}/suspend", json={"reason": reason}
-    )
+    resp = _api_request("post", f"{_ADMIN}/organizations/{org_id}/suspend", json={"reason": reason})
 
     data = resp.json()
     if json_output:

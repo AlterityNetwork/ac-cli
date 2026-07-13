@@ -307,6 +307,8 @@ def subscriptions_worklists(
     ]
     awaiting = data.get("awaiting_activation", [])
     stuck = data.get("stuck", [])
+    overdue = data.get("overdue", [])
+    print_table(overdue, columns, title=f"Payment overdue ({len(overdue)})")
     print_table(
         awaiting,
         columns,
