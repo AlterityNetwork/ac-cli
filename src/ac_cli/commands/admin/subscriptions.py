@@ -336,7 +336,7 @@ def subscriptions_switch_comped(
     yes: bool = typer.Option(False, "--yes", "-y", help="Skip confirmation"),
     json_output: bool = JSON_OPTION,
 ) -> None:
-    """Cancel Stripe billing and comp the org: full access, never billed."""
+    """Cancel Stripe billing and switch the org to free (comped): full access, never billed."""
     set_json_mode(json_output)
     if not should_skip_confirm(yes):
         typer.confirm(
@@ -349,7 +349,7 @@ def subscriptions_switch_comped(
     if json_output:
         print_json(data)
     else:
-        rprint(f"[green]Switched {subscription_id} to comped[/green]")
+        rprint(f"[green]Switched {subscription_id} to free (comped)[/green]")
 
 
 @subscriptions_app.command("send-reminder")
