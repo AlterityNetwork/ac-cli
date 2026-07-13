@@ -90,6 +90,8 @@ def subscriptions_get(
             ("last_payment_advice_code", "Advice Code"),
             ("dunning_attempt_count", "Payment Attempts"),
             ("dunning_next_attempt_at", "Next Retry"),
+            ("payment_reminder_count", "Manual Reminders"),
+            ("last_payment_reminder_at", "Last Reminder"),
             ("custom_price_cents", "Custom Price (net)"),
             ("unit_amount_cents", "Stripe Amount (net)"),
         ],
@@ -284,6 +286,92 @@ def subscriptions_unlink(
         print_json(data)
     else:
         rprint(f"[green]Unlinked {subscription_id}[/green]")
+
+
+@subscriptions_app.command("pause")
+def subscriptions_pause(
+    ctx: typer.Context,
+    subscription_id: str = typer.Argument(..., help="Subscription ID"),
+    yes: bool = typer.Option(False, "--yes", "-y", help="Skip confirmation"),
+    json_output: bool = JSON_OPTION,
+) -> None:
+    """Pause billing: Stripe stops collecting until resumed (held invoices void)."""
+    set_json_mode(json_output)
+    if not should_skip_confirm(yes):
+        typer.confirm(
+            f"Pause billing for {subscription_id}? Stripe stops collecting until resumed.",
+            abort=True,
+        )
+    resp = _api_request("post", f"{_ADMIN}/subscriptions/{subscription_id}/pause")
+    data = resp.json()
+    if json_output:
+        print_json(data)
+    else:
+        rprint(f"[green]Paused {subscription_id}[/green]")
+
+
+@subscriptions_app.command("resume")
+def subscriptions_resume(
+    ctx: typer.Context,
+    subscription_id: str = typer.Argument(..., help="Subscription ID"),
+    yes: bool = typer.Option(False, "--yes", "-y", help="Skip confirmation"),
+    json_output: bool = JSON_OPTION,
+) -> None:
+    """Resume billing on the normal cycle after a pause."""
+    set_json_mode(json_output)
+    if not should_skip_confirm(yes):
+        typer.confirm(f"Resume billing for {subscription_id}?", abort=True)
+    resp = _api_request("post", f"{_ADMIN}/subscriptions/{subscription_id}/resume")
+    data = resp.json()
+    if json_output:
+        print_json(data)
+    else:
+        rprint(f"[green]Resumed {subscription_id} (status: {data.get('status')})[/green]")
+
+
+@subscriptions_app.command("switch-comped")
+def subscriptions_switch_comped(
+    ctx: typer.Context,
+    subscription_id: str = typer.Argument(..., help="Subscription ID"),
+    yes: bool = typer.Option(False, "--yes", "-y", help="Skip confirmation"),
+    json_output: bool = JSON_OPTION,
+) -> None:
+    """Cancel Stripe billing and comp the org: full access, never billed."""
+    set_json_mode(json_output)
+    if not should_skip_confirm(yes):
+        typer.confirm(
+            f"Switch {subscription_id} to comped? This cancels the Stripe "
+            "subscription immediately and marks the organization comped.",
+            abort=True,
+        )
+    resp = _api_request("post", f"{_ADMIN}/subscriptions/{subscription_id}/switch-comped")
+    data = resp.json()
+    if json_output:
+        print_json(data)
+    else:
+        rprint(f"[green]Switched {subscription_id} to comped[/green]")
+
+
+@subscriptions_app.command("send-reminder")
+def subscriptions_send_reminder(
+    ctx: typer.Context,
+    subscription_id: str = typer.Argument(..., help="Subscription ID"),
+    yes: bool = typer.Option(False, "--yes", "-y", help="Skip confirmation"),
+    json_output: bool = JSON_OPTION,
+) -> None:
+    """Email the account owner the hosted invoice link (tracked)."""
+    set_json_mode(json_output)
+    if not should_skip_confirm(yes):
+        typer.confirm(
+            f"Email the account owner a payment reminder for {subscription_id}?",
+            abort=True,
+        )
+    resp = _api_request("post", f"{_ADMIN}/subscriptions/{subscription_id}/payment-reminder")
+    data = resp.json()
+    if json_output:
+        print_json(data)
+    else:
+        rprint(f"[green]Reminder sent (total {data.get('payment_reminder_count')})[/green]")
 
 
 @subscriptions_app.command("worklists")

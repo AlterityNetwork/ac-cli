@@ -449,3 +449,54 @@ def test_subscriptions_worklists_json(invoke, mock_api):
     assert result.exit_code == 0
     data = json.loads(result.output)
     assert data == {"awaiting_activation": [], "stuck": []}
+
+
+def test_subscriptions_pause_with_yes(invoke, mock_api):
+    mock_api.post("/api/v1/admin/subscriptions/sub-1/pause").respond(
+        200, json={**SAMPLE_SUB, "status": "paused"}
+    )
+    result = invoke(["admin", "subscriptions", "pause", "sub-1", "--yes"])
+    assert result.exit_code == 0
+    assert "Paused" in result.output
+
+
+def test_subscriptions_pause_aborted(invoke, mock_api):
+    result = invoke(["admin", "subscriptions", "pause", "sub-1"], input="n\n")
+    assert result.exit_code == 1
+
+
+def test_subscriptions_resume_json(invoke, mock_api):
+    mock_api.post("/api/v1/admin/subscriptions/sub-1/resume").respond(
+        200, json={**SAMPLE_SUB, "status": "active"}
+    )
+    result = invoke(["admin", "subscriptions", "resume", "sub-1", "--yes", "--json"])
+    assert result.exit_code == 0
+    data = json.loads(result.output)
+    assert data["status"] == "active"
+
+
+def test_subscriptions_switch_comped_with_yes(invoke, mock_api):
+    mock_api.post("/api/v1/admin/subscriptions/sub-1/switch-comped").respond(
+        200, json={**SAMPLE_SUB, "status": "active", "billing_mode": "manual"}
+    )
+    result = invoke(["admin", "subscriptions", "switch-comped", "sub-1", "--yes"])
+    assert result.exit_code == 0
+    assert "comped" in result.output
+
+
+def test_subscriptions_send_reminder_with_yes(invoke, mock_api):
+    mock_api.post("/api/v1/admin/subscriptions/sub-1/payment-reminder").respond(
+        200, json={**SAMPLE_SUB, "status": "past_due", "payment_reminder_count": 2}
+    )
+    result = invoke(["admin", "subscriptions", "send-reminder", "sub-1", "--yes"])
+    assert result.exit_code == 0
+    assert "Reminder sent" in result.output
+    assert "2" in result.output
+
+
+def test_subscriptions_send_reminder_error_maps_exit_code(invoke, mock_api):
+    mock_api.post("/api/v1/admin/subscriptions/sub-1/payment-reminder").respond(
+        422, json={"detail": "No hosted invoice link is available to send yet."}
+    )
+    result = invoke(["admin", "subscriptions", "send-reminder", "sub-1", "--yes", "--json"])
+    assert result.exit_code == 2
