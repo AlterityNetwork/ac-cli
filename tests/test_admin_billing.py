@@ -167,3 +167,17 @@ def test_billing_refund_partial_json(invoke, mock_api):
 def test_billing_refund_aborted(invoke, mock_api):
     result = invoke(["admin", "billing", "refund", "ch_1"], input="n\n")
     assert result.exit_code == 1
+
+
+def test_billing_refund_validation_error_maps_exit_code(invoke, mock_api):
+    mock_api.post("/api/v1/admin/billing/refunds").respond(
+        422, json={"detail": "Refund amount exceeds the charge."}
+    )
+    result = invoke(["admin", "billing", "refund", "ch_1", "--yes", "--json"])
+    assert result.exit_code == 2
+
+
+def test_billing_refund_forbidden_maps_exit_code(invoke, mock_api):
+    mock_api.post("/api/v1/admin/billing/refunds").respond(403, json={"detail": "Forbidden"})
+    result = invoke(["admin", "billing", "refund", "ch_1", "--yes", "--json"])
+    assert result.exit_code == 4

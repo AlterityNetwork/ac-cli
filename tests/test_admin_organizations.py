@@ -193,3 +193,12 @@ def test_orgs_unsuspend(invoke, mock_api):
 def test_orgs_suspend_aborted(invoke, mock_api):
     result = invoke(["admin", "orgs", "suspend", "org-1", "--reason", "non_payment"], input="n\n")
     assert result.exit_code == 1
+
+
+def test_orgs_unsuspend_json(invoke, mock_api):
+    mock_api.post("/api/v1/admin/organizations/org-1/unsuspend").respond(
+        200, json={"id": "org-1", "suspended_at": None}
+    )
+    result = invoke(["admin", "orgs", "unsuspend", "org-1", "--json"])
+    assert result.exit_code == 0
+    assert json.loads(result.output)["suspended_at"] is None
