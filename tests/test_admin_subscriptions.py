@@ -563,3 +563,27 @@ def test_subscriptions_send_reminder_json(invoke, mock_api):
     result = invoke(["admin", "subscriptions", "send-reminder", "sub-1", "--yes", "--json"])
     assert result.exit_code == 0
     assert json.loads(result.output)["payment_reminder_count"] == 1
+
+
+def test_subscriptions_pause_error_maps_exit_code(invoke, mock_api):
+    mock_api.post("/api/v1/admin/subscriptions/sub-1/pause").respond(
+        422, json={"detail": "Cannot pause a trial subscription."}
+    )
+    result = invoke(["admin", "subscriptions", "pause", "sub-1", "--yes", "--json"])
+    assert result.exit_code == 2
+
+
+def test_subscriptions_resume_error_maps_exit_code(invoke, mock_api):
+    mock_api.post("/api/v1/admin/subscriptions/sub-1/resume").respond(
+        404, json={"detail": "Subscription not found"}
+    )
+    result = invoke(["admin", "subscriptions", "resume", "sub-1", "--yes", "--json"])
+    assert result.exit_code == 3
+
+
+def test_subscriptions_switch_comped_error_maps_exit_code(invoke, mock_api):
+    mock_api.post("/api/v1/admin/subscriptions/sub-1/switch-comped").respond(
+        403, json={"detail": "Forbidden"}
+    )
+    result = invoke(["admin", "subscriptions", "switch-comped", "sub-1", "--yes", "--json"])
+    assert result.exit_code == 4
