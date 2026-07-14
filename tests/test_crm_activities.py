@@ -43,6 +43,15 @@ def test_activities_list_json(invoke, mock_api):
     assert parsed["data"][0]["title"] == "Follow up with Acme"
 
 
+def test_activities_list_tolerates_flat_list(invoke, mock_api):
+    """Version skew: an older API serving a bare JSON array must not crash."""
+    mock_api.get("/api/v1/crm/activities").respond(200, json=[SAMPLE_ACTIVITY])
+    result = invoke(["crm", "activities", "list"])
+    assert result.exit_code == 0
+    assert "Follow up with Acme" in result.output
+    assert "1 total" in result.output
+
+
 def test_activities_list_shows_total(invoke, mock_api):
     """List consumes the {data,total,...} envelope and shows the server total."""
     mock_api.get("/api/v1/crm/activities").respond(200, json=_page([SAMPLE_ACTIVITY], total=42))

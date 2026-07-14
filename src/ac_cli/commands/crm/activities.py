@@ -105,8 +105,10 @@ def activities_list(
 
     # Paginated envelope: {data, total, limit, offset, has_more}. Show the
     # server total so a paged result reveals the full count (mirror deals).
-    items = data.get("data", [])
-    total = data.get("total", len(items))
+    # Tolerate a bare list from an older/skewed API so the CLI degrades instead
+    # of raising AttributeError.
+    items = data if isinstance(data, list) else data.get("data", [])
+    total = len(items) if isinstance(data, list) else data.get("total", len(items))
     print_table(
         items,
         [
