@@ -180,7 +180,7 @@ def test_orgs_suspend_json(invoke, mock_api):
         ["admin", "orgs", "suspend", "org-1", "--reason", "non_payment", "--yes", "--json"]
     )
     assert result.exit_code == 0
-    assert '"id": "org-1"' in result.output
+    assert json.loads(result.output)["id"] == "org-1"
 
 
 def test_orgs_unsuspend(invoke, mock_api):

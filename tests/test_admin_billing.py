@@ -157,10 +157,9 @@ def test_billing_refund_partial_json(invoke, mock_api):
         ]
     )
     assert result.exit_code == 0
-    assert '"id": "re_2"' in result.output
-    import json as _json
+    assert json.loads(result.output)["id"] == "re_2"
 
-    body = _json.loads(route.calls[0].request.content)
+    body = json.loads(route.calls[0].request.content)
     assert body == {"charge_id": "ch_1", "amount_cents": 5000, "reason": "duplicate"}
 
 
