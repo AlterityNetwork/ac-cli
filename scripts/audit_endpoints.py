@@ -115,6 +115,8 @@ OUT_OF_SCOPE: set[tuple[str, str]] = {
     ("GET", "/api/v1/agents/runs/{id}/events"),
     # Frontend-only per-field invalidation stream (ENG-1733).
     ("GET", "/api/v1/workflows/{id}/runs/{id}/field-updates/stream"),
+    # Frontend-only company lead_score invalidation stream (backgrounded judge).
+    ("GET", "/api/v1/workflows/{id}/runs/{id}/companies/field-updates/stream"),
     # SSE stream — frontend-only consumer (ENG-769)
     ("GET", "/api/v1/notifications/stream"),
     ("GET", "/api/v1/resources/{id}/stream"),
