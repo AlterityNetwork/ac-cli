@@ -500,3 +500,13 @@ def test_subscriptions_send_reminder_error_maps_exit_code(invoke, mock_api):
     )
     result = invoke(["admin", "subscriptions", "send-reminder", "sub-1", "--yes", "--json"])
     assert result.exit_code == 2
+
+
+def test_subscriptions_switch_comped_aborted(invoke, mock_api):
+    result = invoke(["admin", "subscriptions", "switch-comped", "sub-1"], input="n\n")
+    assert result.exit_code == 1
+
+
+def test_subscriptions_send_reminder_aborted(invoke, mock_api):
+    result = invoke(["admin", "subscriptions", "send-reminder", "sub-1"], input="n\n")
+    assert result.exit_code == 1

@@ -188,3 +188,8 @@ def test_orgs_unsuspend(invoke, mock_api):
     result = invoke(["admin", "orgs", "unsuspend", "org-1"])
     assert result.exit_code == 0
     assert "Unsuspended organization org-1" in result.output
+
+
+def test_orgs_suspend_aborted(invoke, mock_api):
+    result = invoke(["admin", "orgs", "suspend", "org-1", "--reason", "non_payment"], input="n\n")
+    assert result.exit_code == 1

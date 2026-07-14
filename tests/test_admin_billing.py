@@ -162,3 +162,8 @@ def test_billing_refund_partial_json(invoke, mock_api):
 
     body = _json.loads(route.calls[0].request.content)
     assert body == {"charge_id": "ch_1", "amount_cents": 5000, "reason": "duplicate"}
+
+
+def test_billing_refund_aborted(invoke, mock_api):
+    result = invoke(["admin", "billing", "refund", "ch_1"], input="n\n")
+    assert result.exit_code == 1
