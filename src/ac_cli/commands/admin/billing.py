@@ -7,6 +7,7 @@ import typer
 from ac_cli.commands._helpers import (
     JSON_OPTION,
     _api_request,
+    _build_body,
     set_json_mode,
     should_skip_confirm,
 )
@@ -98,3 +99,41 @@ def import_stripe_products(
     )
     for message in data.get("messages") or []:
         typer.echo(f"  - {message}")
+
+
+@billing_app.command("refund")
+def billing_refund(
+    ctx: typer.Context,
+    charge_id: str = typer.Argument(..., help="Stripe charge ID (ch_...)"),
+    amount_cents: int | None = typer.Option(
+        None, "--amount-cents", help="Partial refund in minor units; omit for full"
+    ),
+    reason: str | None = typer.Option(
+        None,
+        "--reason",
+        help="duplicate | fraudulent | requested_by_customer",
+    ),
+    yes: bool = typer.Option(False, "--yes", "-y", help="Skip confirmation"),
+    json_output: bool = JSON_OPTION,
+) -> None:
+    """Refund a charge on-app (audited), full or partial."""
+    set_json_mode(json_output)
+    if not should_skip_confirm(yes):
+        label = f"{amount_cents} minor units" if amount_cents else "the full amount"
+        typer.confirm(f"Refund {label} of charge {charge_id}?", abort=True)
+    body = _build_body(charge_id=charge_id, amount_cents=amount_cents, reason=reason)
+    resp = _api_request("post", f"{_ADMIN}/billing/refunds", json=body)
+    data = resp.json()
+    if json_output:
+        print_json(data)
+        return
+    print_detail(
+        data,
+        [
+            ("id", "Refund"),
+            ("status", "Status"),
+            ("amount", "Amount (minor units)"),
+            ("currency", "Currency"),
+            ("charge", "Charge"),
+        ],
+    )

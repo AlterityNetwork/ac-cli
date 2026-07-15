@@ -148,6 +148,29 @@ def test_subscriptions_get(invoke, mock_api):
     assert "sub-1" in result.output
 
 
+def test_subscriptions_get_shows_dunning_detail(invoke, mock_api):
+    # The display keys must match the API response exactly; a typo renders a
+    # blank row rather than failing, so pin the real values.
+    overdue = {
+        **SAMPLE_SUB,
+        "status": "past_due",
+        "unit_amount_cents": 25000,
+        "dunning_attempt_count": 2,
+        "dunning_next_attempt_at": "2026-07-11T23:55:00Z",
+        "last_payment_error": "Invalid account.",
+        "last_payment_decline_code": "invalid_account",
+        "last_payment_advice_code": "do_not_try_again",
+    }
+    mock_api.get("/api/v1/admin/subscriptions/sub-1").respond(200, json=overdue)
+    result = invoke(["admin", "subscriptions", "get", "sub-1"])
+    assert result.exit_code == 0
+    output = result.output
+    assert "invalid_account" in output
+    assert "do_not_try_again" in output
+    assert "2026-07-11" in output
+    assert "25000" in output
+
+
 def test_subscriptions_create(invoke, mock_api):
     mock_api.post("/api/v1/admin/subscriptions").respond(201, json=SAMPLE_SUB)
     result = invoke(
@@ -410,12 +433,24 @@ def test_subscriptions_worklists(invoke, mock_api):
                     "reason": "activation_stuck",
                 }
             ],
+            "overdue": [
+                {
+                    "organization_name": "Gamma",
+                    "onboarding_status": "active",
+                    "subscription_status": "past_due",
+                    "card_last4": "0809",
+                    "reason": "payment_overdue",
+                }
+            ],
         },
     )
     result = invoke(["admin", "subscriptions", "worklists"])
     assert result.exit_code == 0
     assert "Acme" in result.output
     assert "Awaiting activation" in result.output
+    assert "Payment overdue" in result.output
+    assert "Gamma" in result.output
+    assert "past_due" in result.output
 
 
 def test_subscriptions_worklists_json(invoke, mock_api):
@@ -426,3 +461,129 @@ def test_subscriptions_worklists_json(invoke, mock_api):
     assert result.exit_code == 0
     data = json.loads(result.output)
     assert data == {"awaiting_activation": [], "stuck": []}
+
+
+def test_subscriptions_pause_with_yes(invoke, mock_api):
+    mock_api.post("/api/v1/admin/subscriptions/sub-1/pause").respond(
+        200, json={**SAMPLE_SUB, "status": "paused"}
+    )
+    result = invoke(["admin", "subscriptions", "pause", "sub-1", "--yes"])
+    assert result.exit_code == 0
+    assert "Paused" in result.output
+
+
+def test_subscriptions_pause_aborted(invoke, mock_api):
+    result = invoke(["admin", "subscriptions", "pause", "sub-1"], input="n\n")
+    assert result.exit_code == 1
+
+
+def test_subscriptions_resume_json(invoke, mock_api):
+    mock_api.post("/api/v1/admin/subscriptions/sub-1/resume").respond(
+        200, json={**SAMPLE_SUB, "status": "active"}
+    )
+    result = invoke(["admin", "subscriptions", "resume", "sub-1", "--yes", "--json"])
+    assert result.exit_code == 0
+    data = json.loads(result.output)
+    assert data["status"] == "active"
+
+
+def test_subscriptions_switch_comped_with_yes(invoke, mock_api):
+    mock_api.post("/api/v1/admin/subscriptions/sub-1/switch-comped").respond(
+        200, json={**SAMPLE_SUB, "status": "active", "billing_mode": "manual"}
+    )
+    result = invoke(["admin", "subscriptions", "switch-comped", "sub-1", "--yes"])
+    assert result.exit_code == 0
+    assert "comped" in result.output
+
+
+def test_subscriptions_send_reminder_with_yes(invoke, mock_api):
+    mock_api.post("/api/v1/admin/subscriptions/sub-1/payment-reminder").respond(
+        200, json={**SAMPLE_SUB, "status": "past_due", "payment_reminder_count": 2}
+    )
+    result = invoke(["admin", "subscriptions", "send-reminder", "sub-1", "--yes"])
+    assert result.exit_code == 0
+    assert "Reminder sent" in result.output
+    assert "2" in result.output
+
+
+def test_subscriptions_send_reminder_error_maps_exit_code(invoke, mock_api):
+    mock_api.post("/api/v1/admin/subscriptions/sub-1/payment-reminder").respond(
+        422, json={"detail": "No hosted invoice link is available to send yet."}
+    )
+    result = invoke(["admin", "subscriptions", "send-reminder", "sub-1", "--yes", "--json"])
+    assert result.exit_code == 2
+
+
+def test_subscriptions_switch_comped_aborted(invoke, mock_api):
+    result = invoke(["admin", "subscriptions", "switch-comped", "sub-1"], input="n\n")
+    assert result.exit_code == 1
+
+
+def test_subscriptions_send_reminder_aborted(invoke, mock_api):
+    result = invoke(["admin", "subscriptions", "send-reminder", "sub-1"], input="n\n")
+    assert result.exit_code == 1
+
+
+def test_subscriptions_resume_aborted(invoke, mock_api):
+    result = invoke(["admin", "subscriptions", "resume", "sub-1"], input="n\n")
+    assert result.exit_code == 1
+
+
+def test_subscriptions_resume_plain_output(invoke, mock_api):
+    mock_api.post("/api/v1/admin/subscriptions/sub-1/resume").respond(
+        200, json={**SAMPLE_SUB, "status": "active"}
+    )
+    result = invoke(["admin", "subscriptions", "resume", "sub-1", "--yes"])
+    assert result.exit_code == 0
+    assert "Resumed" in result.output
+
+
+def test_subscriptions_pause_json(invoke, mock_api):
+    mock_api.post("/api/v1/admin/subscriptions/sub-1/pause").respond(
+        200, json={**SAMPLE_SUB, "status": "paused"}
+    )
+    result = invoke(["admin", "subscriptions", "pause", "sub-1", "--yes", "--json"])
+    assert result.exit_code == 0
+    assert json.loads(result.output)["status"] == "paused"
+
+
+def test_subscriptions_switch_comped_json(invoke, mock_api):
+    mock_api.post("/api/v1/admin/subscriptions/sub-1/switch-comped").respond(
+        200, json={**SAMPLE_SUB, "status": "active", "billing_mode": "manual"}
+    )
+    result = invoke(["admin", "subscriptions", "switch-comped", "sub-1", "--yes", "--json"])
+    assert result.exit_code == 0
+    assert json.loads(result.output)["billing_mode"] == "manual"
+
+
+def test_subscriptions_send_reminder_json(invoke, mock_api):
+    mock_api.post("/api/v1/admin/subscriptions/sub-1/payment-reminder").respond(
+        200, json={**SAMPLE_SUB, "status": "past_due", "payment_reminder_count": 1}
+    )
+    result = invoke(["admin", "subscriptions", "send-reminder", "sub-1", "--yes", "--json"])
+    assert result.exit_code == 0
+    assert json.loads(result.output)["payment_reminder_count"] == 1
+
+
+def test_subscriptions_pause_error_maps_exit_code(invoke, mock_api):
+    mock_api.post("/api/v1/admin/subscriptions/sub-1/pause").respond(
+        422, json={"detail": "Cannot pause a trial subscription."}
+    )
+    result = invoke(["admin", "subscriptions", "pause", "sub-1", "--yes", "--json"])
+    assert result.exit_code == 2
+
+
+def test_subscriptions_resume_error_maps_exit_code(invoke, mock_api):
+    mock_api.post("/api/v1/admin/subscriptions/sub-1/resume").respond(
+        404, json={"detail": "Subscription not found"}
+    )
+    result = invoke(["admin", "subscriptions", "resume", "sub-1", "--yes", "--json"])
+    assert result.exit_code == 3
+
+
+def test_subscriptions_switch_comped_error_maps_exit_code(invoke, mock_api):
+    mock_api.post("/api/v1/admin/subscriptions/sub-1/switch-comped").respond(
+        403, json={"detail": "Forbidden"}
+    )
+    result = invoke(["admin", "subscriptions", "switch-comped", "sub-1", "--yes", "--json"])
+    assert result.exit_code == 4

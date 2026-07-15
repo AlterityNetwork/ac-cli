@@ -261,3 +261,42 @@ def organizations_transfer_ownership(
     )
 
     rprint(f"[green]Transferred ownership of organization {org_id} to {new_owner_id}[/green]")
+
+
+@organizations_app.command("suspend")
+def organizations_suspend(
+    org_id: str = typer.Argument(..., help="Organization ID"),
+    reason: str = typer.Option(
+        ..., "--reason", help="Suspension reason (trial_expired | non_payment | misconduct)"
+    ),
+    yes: bool = typer.Option(False, "--yes", "-y", help="Skip confirmation"),
+    json_output: bool = JSON_OPTION,
+) -> None:
+    """Suspend an organization (blocks all members except billing)."""
+    set_json_mode(json_output)
+    if not should_skip_confirm(yes):
+        typer.confirm(f"Suspend organization {org_id}?", abort=True)
+
+    resp = _api_request("post", f"{_ADMIN}/organizations/{org_id}/suspend", json={"reason": reason})
+
+    data = resp.json()
+    if json_output:
+        print_json(data)
+    else:
+        rprint(f"[green]Suspended organization {org_id}[/green]")
+
+
+@organizations_app.command("unsuspend")
+def organizations_unsuspend(
+    org_id: str = typer.Argument(..., help="Organization ID"),
+    json_output: bool = JSON_OPTION,
+) -> None:
+    """Unsuspend an organization, restoring member access."""
+    set_json_mode(json_output)
+    resp = _api_request("post", f"{_ADMIN}/organizations/{org_id}/unsuspend")
+
+    data = resp.json()
+    if json_output:
+        print_json(data)
+    else:
+        rprint(f"[green]Unsuspended organization {org_id}[/green]")

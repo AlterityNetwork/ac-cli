@@ -165,3 +165,58 @@ def test_orgs_transfer_ownership(invoke, mock_api):
     )
     assert result.exit_code == 0
     assert "Transferred" in result.output
+
+
+def test_orgs_suspend(invoke, mock_api):
+    mock_api.post("/api/v1/admin/organizations/org-1/suspend").respond(200, json={"id": "org-1"})
+    result = invoke(["admin", "orgs", "suspend", "org-1", "--reason", "non_payment", "--yes"])
+    assert result.exit_code == 0
+    assert "Suspended organization org-1" in result.output
+
+
+def test_orgs_suspend_json(invoke, mock_api):
+    mock_api.post("/api/v1/admin/organizations/org-1/suspend").respond(200, json={"id": "org-1"})
+    result = invoke(
+        ["admin", "orgs", "suspend", "org-1", "--reason", "non_payment", "--yes", "--json"]
+    )
+    assert result.exit_code == 0
+    assert json.loads(result.output)["id"] == "org-1"
+
+
+def test_orgs_unsuspend(invoke, mock_api):
+    mock_api.post("/api/v1/admin/organizations/org-1/unsuspend").respond(200, json={"id": "org-1"})
+    result = invoke(["admin", "orgs", "unsuspend", "org-1"])
+    assert result.exit_code == 0
+    assert "Unsuspended organization org-1" in result.output
+
+
+def test_orgs_suspend_aborted(invoke, mock_api):
+    result = invoke(["admin", "orgs", "suspend", "org-1", "--reason", "non_payment"], input="n\n")
+    assert result.exit_code == 1
+
+
+def test_orgs_unsuspend_json(invoke, mock_api):
+    mock_api.post("/api/v1/admin/organizations/org-1/unsuspend").respond(
+        200, json={"id": "org-1", "suspended_at": None}
+    )
+    result = invoke(["admin", "orgs", "unsuspend", "org-1", "--json"])
+    assert result.exit_code == 0
+    assert json.loads(result.output)["suspended_at"] is None
+
+
+def test_orgs_suspend_error_maps_exit_code(invoke, mock_api):
+    mock_api.post("/api/v1/admin/organizations/org-1/suspend").respond(
+        422, json={"detail": "Invalid suspension reason"}
+    )
+    result = invoke(
+        ["admin", "orgs", "suspend", "org-1", "--reason", "non_payment", "--yes", "--json"]
+    )
+    assert result.exit_code == 2
+
+
+def test_orgs_unsuspend_error_maps_exit_code(invoke, mock_api):
+    mock_api.post("/api/v1/admin/organizations/org-1/unsuspend").respond(
+        404, json={"detail": "Organization not found"}
+    )
+    result = invoke(["admin", "orgs", "unsuspend", "org-1", "--json"])
+    assert result.exit_code == 3
