@@ -91,6 +91,8 @@ OUT_OF_SCOPE: set[tuple[str, str]] = {
     ("POST", "/api/v1/test/cleanup-sonar"),
     ("POST", "/api/v1/test/seed-envoy"),
     ("POST", "/api/v1/test/cleanup-envoy"),
+    # ENG-1763: QA-only stale artifact cleanup for nightly staging runs.
+    ("POST", "/api/v1/test/cleanup-qa-artifacts"),
     ("POST", "/api/v1/eval/run"),
     ("PATCH", "/api/v1/eval/runs/{id}"),
     ("DELETE", "/api/v1/eval/run/live/{id}"),
@@ -154,13 +156,13 @@ API_REQ_RE = re.compile(
 )
 # Raw client.request("DELETE", path, ...) — used when the body isn't supported by client.delete()
 RAW_REQ_RE = re.compile(
-    r'client\.request\(\s*[\"\'](?P<method>GET|POST|PUT|PATCH|DELETE)[\"\']\s*,\s*'
-    r'(?P<path>f?[\"\'][^\"\']+[\"\']|[A-Z_]+)'
+    r"client\.request\(\s*[\"\'](?P<method>GET|POST|PUT|PATCH|DELETE)[\"\']\s*,\s*"
+    r"(?P<path>f?[\"\'][^\"\']+[\"\']|[A-Z_]+)"
 )
 # Direct client.<method>(path, ...) — e.g. client.post for upload endpoints with files=
 DIRECT_REQ_RE = re.compile(
-    r'client\.(?P<method>get|post|put|patch|delete)\(\s*'
-    r'(?P<path>f?[\"\'][^\"\']+[\"\']|[A-Z_]+)'
+    r"client\.(?P<method>get|post|put|patch|delete)\(\s*"
+    r"(?P<path>f?[\"\'][^\"\']+[\"\']|[A-Z_]+)"
 )
 
 
@@ -218,12 +220,11 @@ def collect_api_endpoints(spec: dict) -> set[tuple[str, str]]:
 
 def main() -> int:
     p = argparse.ArgumentParser()
-    p.add_argument("--api-url", default=DEFAULT_API_URL,
-                   help=f"FastAPI base URL (default: {DEFAULT_API_URL})")
-    p.add_argument("--strict", action="store_true",
-                   help="exit nonzero if CLI-only paths exist")
-    p.add_argument("--show-matches", action="store_true",
-                   help="print verbatim-match list too")
+    p.add_argument(
+        "--api-url", default=DEFAULT_API_URL, help=f"FastAPI base URL (default: {DEFAULT_API_URL})"
+    )
+    p.add_argument("--strict", action="store_true", help="exit nonzero if CLI-only paths exist")
+    p.add_argument("--show-matches", action="store_true", help="print verbatim-match list too")
     args = p.parse_args()
 
     spec = fetch_openapi(args.api_url)
@@ -245,8 +246,7 @@ def main() -> int:
     cli_only = sorted(c for c in cli if c[1] not in api_paths and c[1] != "/whoami")
     api_only = sorted(a for a in api if a[1] not in cli_paths and a not in OUT_OF_SCOPE)
     method_diff = sorted(
-        (m, p) for m, p in cli
-        if (m, p) not in api and p in api_paths and p != "/whoami"
+        (m, p) for m, p in cli if (m, p) not in api and p in api_paths and p != "/whoami"
     )
     matches = sorted(c for c in cli if c in api)
 
@@ -259,10 +259,7 @@ def main() -> int:
         print(f"  {m:6s} {p}")
     print()
 
-    print(
-        f"## API-ONLY (CLI gap, excluding {len(OUT_OF_SCOPE)} out-of-scope)"
-        f" — {len(api_only)}"
-    )
+    print(f"## API-ONLY (CLI gap, excluding {len(OUT_OF_SCOPE)} out-of-scope) — {len(api_only)}")
     for m, p in api_only:
         print(f"  {m:6s} {p}")
     print()
