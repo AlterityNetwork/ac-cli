@@ -29,11 +29,26 @@ def run_people_list(
     include_in_crm: bool = typer.Option(
         False, "--include-in-crm", help="Include people already in CRM"
     ),
+    sort_by: str | None = typer.Option(
+        None,
+        "--sort-by",
+        help=(
+            "Sort column: 'relevance_score' (API default, strongest role match "
+            "first) or 'discovered_at' (newest first). Omit for the API default."
+        ),
+    ),
+    sort_dir: str | None = typer.Option(
+        None, "--sort-dir", help="Sort direction: 'desc' (default) or 'asc'"
+    ),
     json_output: bool = JSON_OPTION,
 ) -> None:
     """List people discovered by a workflow (deduplicated)."""
     set_json_mode(json_output)
     params: dict = {"limit": limit, "offset": offset, "include_in_crm": include_in_crm}
+    if sort_by is not None:
+        params["sort_by"] = sort_by
+    if sort_dir is not None:
+        params["sort_dir"] = sort_dir
     resp = _api_request("get", f"{_WORKFLOWS}/{workflow_id}/runs/people", params=params)
 
     data = resp.json()

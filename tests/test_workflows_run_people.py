@@ -45,6 +45,53 @@ def test_run_people_list_json(invoke, mock_api):
     }
 
 
+def test_run_people_list_forwards_sort(invoke, mock_api):
+    route = mock_api.get("/api/v1/workflows/wf-1/runs/people").respond(
+        200,
+        json={
+            "data": [SAMPLE_PERSON],
+            "total": 1,
+            "limit": 50,
+            "offset": 0,
+            "has_more": False,
+        },
+    )
+    result = invoke(
+        [
+            "workflows",
+            "run-people",
+            "list",
+            "wf-1",
+            "--sort-by",
+            "discovered_at",
+            "--sort-dir",
+            "asc",
+        ]
+    )
+    assert result.exit_code == 0
+    qp = route.calls.last.request.url.params
+    assert qp["sort_by"] == "discovered_at"
+    assert qp["sort_dir"] == "asc"
+
+
+def test_run_people_list_omits_sort_when_unset(invoke, mock_api):
+    route = mock_api.get("/api/v1/workflows/wf-1/runs/people").respond(
+        200,
+        json={
+            "data": [SAMPLE_PERSON],
+            "total": 1,
+            "limit": 50,
+            "offset": 0,
+            "has_more": False,
+        },
+    )
+    result = invoke(["workflows", "run-people", "list", "wf-1"])
+    assert result.exit_code == 0
+    qp = route.calls.last.request.url.params
+    assert "sort_by" not in qp
+    assert "sort_dir" not in qp
+
+
 def test_run_people_list_by_run(invoke, mock_api):
     mock_api.get("/api/v1/workflows/wf-1/runs/run-1/people").respond(200, json=[SAMPLE_PERSON])
     result = invoke(["workflows", "run-people", "list-by-run", "wf-1", "run-1"])
