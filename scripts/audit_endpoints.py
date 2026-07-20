@@ -70,6 +70,9 @@ OUT_OF_SCOPE: set[tuple[str, str]] = {
     ("GET", "/api/inngest"),
     ("POST", "/api/inngest"),
     ("PUT", "/api/inngest"),
+    # Frontend-only UI state: CRM surfaces poll this for the per-company
+    # "Headhunter search in progress" indicator; not a CLI workflow.
+    ("GET", "/api/v1/workflows/headhunter/active-runs"),
     # Signature-authenticated FullEnrich provider callbacks (ENG-1733).
     ("POST", "/api/v1/fullenrich/webhook"),
     ("POST", "/api/v1/fullenrich/webhook/contact"),
