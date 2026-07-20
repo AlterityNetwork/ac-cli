@@ -56,6 +56,28 @@ def test_run_companies_list_sort_by_lead_score(invoke, mock_api):
     assert "sort_by=lead_score" in str(route.calls.last.request.url)
 
 
+def test_run_companies_list_min_lead_score(invoke, mock_api):
+    """--min-lead-score passes through as a query param (hide low-relevance)."""
+    route = mock_api.get("/api/v1/workflows/wf-1/runs/companies").respond(
+        200, json={"data": [], "total": 0, "limit": 50, "offset": 0, "has_more": False}
+    )
+    result = invoke(
+        ["workflows", "run-companies", "list", "wf-1", "--min-lead-score", "5", "--json"]
+    )
+    assert result.exit_code == 0
+    assert "min_lead_score=5" in str(route.calls.last.request.url)
+
+
+def test_run_companies_list_omits_min_lead_score_by_default(invoke, mock_api):
+    """No flag → no min_lead_score param (server shows all scores)."""
+    route = mock_api.get("/api/v1/workflows/wf-1/runs/companies").respond(
+        200, json={"data": [], "total": 0, "limit": 50, "offset": 0, "has_more": False}
+    )
+    result = invoke(["workflows", "run-companies", "list", "wf-1", "--json"])
+    assert result.exit_code == 0
+    assert "min_lead_score" not in str(route.calls.last.request.url)
+
+
 def test_run_companies_add_to_crm(invoke, mock_api):
     mock_api.post("/api/v1/workflows/wf-1/runs/companies/add-to-crm").respond(
         200,

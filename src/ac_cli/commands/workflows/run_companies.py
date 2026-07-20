@@ -48,6 +48,17 @@ def run_companies_list(
             "only Actioned rows. Omit for the union of both."
         ),
     ),
+    min_lead_score: float | None = typer.Option(
+        None,
+        "--min-lead-score",
+        min=0,
+        max=10,
+        help=(
+            "Relevance floor (Sonar inbox 'hide low-relevance' toggle). "
+            "Hides companies whose merged lead_score is below this value; "
+            "unscored companies stay visible. Omit to show all scores."
+        ),
+    ),
     json_output: bool = JSON_OPTION,
 ) -> None:
     """List companies discovered by a workflow (deduplicated)."""
@@ -57,6 +68,8 @@ def run_companies_list(
         params["sort_by"] = sort_by
     if approved is not None:
         params["approved"] = approved
+    if min_lead_score is not None:
+        params["min_lead_score"] = min_lead_score
     resp = _api_request("get", f"{_WORKFLOWS}/{workflow_id}/runs/companies", params=params)
 
     data = resp.json()
