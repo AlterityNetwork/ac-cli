@@ -276,6 +276,11 @@ def companies_delete(
     company_name: str | None = typer.Option(
         None, "--company-name", help="Company name (auto-resolves to ID)"
     ),
+    delete_people: bool = typer.Option(
+        False,
+        "--delete-people",
+        help="Also soft-delete the people attached to this company",
+    ),
     yes: bool = typer.Option(False, "--yes", "-y", help="Skip confirmation"),
     json_output: bool = JSON_OPTION,
 ) -> None:
@@ -287,12 +292,19 @@ def companies_delete(
         name_flag="--company-name",
     )
     if not should_skip_confirm(yes):
-        typer.confirm(f"Delete company {resolved}?", abort=True)
+        prompt = f"Delete company {resolved}?"
+        if delete_people:
+            prompt = f"Delete company {resolved} and its attached people?"
+        typer.confirm(prompt, abort=True)
 
-    _api_request("delete", f"{_CRM}/companies/{resolved}")
+    params = {"delete_people": "true"} if delete_people else None
+    _api_request("delete", f"{_CRM}/companies/{resolved}", params=params)
 
     if json_output:
-        print_json({"ok": True, "id": resolved, "action": "delete"})
+        payload: dict[str, object] = {"ok": True, "id": resolved, "action": "delete"}
+        if delete_people:
+            payload["delete_people"] = True
+        print_json(payload)
     else:
         rprint(f"[green]Deleted company {resolved}[/green]")
 
@@ -300,6 +312,11 @@ def companies_delete(
 @companies_app.command("bulk-delete")
 def companies_bulk_delete(
     ids: str = typer.Option(..., "--ids", help="Comma-separated company IDs"),
+    delete_people: bool = typer.Option(
+        False,
+        "--delete-people",
+        help="Also soft-delete the people attached to the deleted companies",
+    ),
     yes: bool = typer.Option(False, "--yes", "-y", help="Skip confirmation"),
     json_output: bool = JSON_OPTION,
 ) -> None:
@@ -311,14 +328,39 @@ def companies_bulk_delete(
         raise typer.Exit(code=1)
 
     if not should_skip_confirm(yes):
-        typer.confirm(f"Delete {len(id_list)} companies?", abort=True)
+        prompt = f"Delete {len(id_list)} companies?"
+        if delete_people:
+            prompt = f"Delete {len(id_list)} companies and their attached people?"
+        typer.confirm(prompt, abort=True)
 
-    _api_request("post", f"{_CRM}/companies/bulk-delete", json={"ids": id_list})
+    body: dict[str, object] = {"ids": id_list}
+    if delete_people:
+        body["delete_people"] = True
+    resp = _api_request("post", f"{_CRM}/companies/bulk-delete", json=body)
+
+    deleted_people_count = 0
+    if delete_people:
+        try:
+            deleted_people_count = int((resp.json() or {}).get("deleted_people_count", 0))
+        except (ValueError, TypeError):
+            deleted_people_count = 0
 
     if json_output:
-        print_json({"ok": True, "ids": id_list, "count": len(id_list), "action": "bulk-delete"})
+        payload = {
+            "ok": True,
+            "ids": id_list,
+            "count": len(id_list),
+            "action": "bulk-delete",
+        }
+        if delete_people:
+            payload["delete_people"] = True
+            payload["deleted_people_count"] = deleted_people_count
+        print_json(payload)
     else:
-        rprint(f"[green]Deleted {len(id_list)} companies[/green]")
+        message = f"Deleted {len(id_list)} companies"
+        if delete_people:
+            message += f" and {deleted_people_count} attached people"
+        rprint(f"[green]{message}[/green]")
 
 
 @companies_app.command("by-ids")

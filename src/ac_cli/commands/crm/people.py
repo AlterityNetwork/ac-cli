@@ -24,6 +24,11 @@ people_app = typer.Typer(help="People/contact operations")
 def people_list(
     ctx: typer.Context,
     company_id: str | None = typer.Option(None, "--company-id", help="Filter by company"),
+    company_ids: str | None = typer.Option(
+        None,
+        "--company-ids",
+        help="Comma-separated company IDs; matches people attached to any of them",
+    ),
     limit: int = typer.Option(100, help="Max results"),
     offset: int = typer.Option(0, help="Offset"),
     approved: bool | None = typer.Option(
@@ -45,6 +50,8 @@ def people_list(
     params: dict = {"limit": limit, "offset": offset}
     if company_id:
         params["company_id"] = company_id
+    if company_ids:
+        params["company_ids"] = company_ids
     if approved is not None:
         params["approved"] = approved
     if added_by_type:
