@@ -152,3 +152,24 @@ def steps_stats(
         ],
         title="Step Statistics",
     )
+
+
+@steps_app.command("retry")
+def steps_retry(
+    ctx: typer.Context,
+    sequence_id: str = typer.Argument(..., help="Sequence ID"),
+    step_id: str = typer.Argument(..., help="Step ID"),
+    json_output: bool = JSON_OPTION,
+) -> None:
+    """Re-queue a step's failed recipients so the poller runs them again."""
+    set_json_mode(json_output)
+    resp = _api_request("post", f"{_ENVOY}/sequences/{sequence_id}/steps/{step_id}/retry")
+
+    data = resp.json()
+    if json_output:
+        print_json(data)
+    else:
+        rprint(
+            f"[green]Re-queued {data.get('retried', 0)} failed recipient(s) "
+            f"for step {step_id}[/green]"
+        )
