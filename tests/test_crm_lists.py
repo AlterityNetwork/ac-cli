@@ -582,3 +582,49 @@ def test_lists_bulk_move_propagates_400(invoke, mock_api):
         ]
     )
     assert result.exit_code == 1
+
+
+def test_lists_bulk_move_propagates_404(invoke, mock_api):
+    """Unknown source list surfaces as exit code 3."""
+    mock_api.post("/api/v1/crm/lists/unknown/members/bulk-move").respond(
+        404, json={"detail": "List not found"}
+    )
+    result = invoke(
+        [
+            "crm",
+            "lists",
+            "bulk-move-members",
+            "unknown",
+            "--target-list-id",
+            "l2",
+            "--member-type",
+            "person",
+            "--ids",
+            "p1",
+            "--yes",
+        ]
+    )
+    assert result.exit_code == 3
+
+
+def test_lists_bulk_move_propagates_422(invoke, mock_api):
+    """A validation rejection from the API surfaces as exit code 2."""
+    mock_api.post("/api/v1/crm/lists/l1/members/bulk-move").respond(
+        422, json={"detail": "Invalid member_type"}
+    )
+    result = invoke(
+        [
+            "crm",
+            "lists",
+            "bulk-move-members",
+            "l1",
+            "--target-list-id",
+            "l2",
+            "--member-type",
+            "person",
+            "--ids",
+            "p1",
+            "--yes",
+        ]
+    )
+    assert result.exit_code == 2
