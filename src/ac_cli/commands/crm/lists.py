@@ -354,6 +354,78 @@ def lists_bulk_remove_members(
         rprint(f"[green]Removed {len(id_list)} {member_type}(s) from list {list_id}[/green]")
 
 
+@lists_app.command("bulk-move-members")
+def lists_bulk_move_members(
+    list_id: str = typer.Argument(..., help="Source list ID"),
+    target_list_id: str = typer.Option(..., "--target-list-id", help="Destination list ID"),
+    member_type: str = typer.Option(..., "--member-type", help="person or company"),
+    ids: str = typer.Option(..., "--ids", help="Comma-separated member IDs"),
+    yes: bool = typer.Option(False, "--yes", "-y", help="Skip confirmation"),
+    json_output: bool = JSON_OPTION,
+) -> None:
+    """Move members (person or company) from one list to another.
+
+    Adds to the target with server-side dedup, then removes from the source.
+    Members already on the target are reported as duplicates and still
+    removed from the source.
+    """
+    set_json_mode(json_output)
+    if member_type not in ("person", "company"):
+        rprint("[red]--member-type must be 'person' or 'company'[/red]")
+        raise typer.Exit(code=1)
+
+    id_list = [i.strip() for i in ids.split(",") if i.strip()]
+    if not id_list:
+        rprint("[red]No IDs provided[/red]")
+        raise typer.Exit(code=1)
+
+    if not should_skip_confirm(yes):
+        typer.confirm(
+            f"Move {len(id_list)} {member_type}(s) from list {list_id} to list {target_list_id}?",
+            abort=True,
+        )
+
+    resp = _api_request(
+        "post",
+        f"{_CRM}/lists/{list_id}/members/bulk-move",
+        json={
+            "target_list_id": target_list_id,
+            "member_type": member_type,
+            "member_ids": id_list,
+        },
+    )
+    body = resp.json() if resp.content else {}
+    moved = int(body.get("moved_count", 0))
+    duplicates = int(body.get("duplicate_count", 0))
+
+    if json_output:
+        print_json(
+            {
+                "ok": True,
+                "list_id": list_id,
+                "target_list_id": target_list_id,
+                "member_type": member_type,
+                "member_ids": id_list,
+                "moved_count": moved,
+                "duplicate_count": duplicates,
+                "action": "bulk-move-members",
+            }
+        )
+        return
+
+    if duplicates:
+        rprint(
+            f"[green]Moved {moved} {member_type}(s) from list {list_id} "
+            f"to list {target_list_id}[/green] "
+            f"[dim]({duplicates} already on the target, removed from source)[/dim]"
+        )
+    else:
+        rprint(
+            f"[green]Moved {moved} {member_type}(s) from list {list_id} "
+            f"to list {target_list_id}[/green]"
+        )
+
+
 @lists_app.command("delete")
 def lists_delete(
     list_id: str = typer.Argument(..., help="List ID"),

@@ -417,3 +417,168 @@ def test_lists_bulk_add_propagates_400(invoke, mock_api):
         ]
     )
     assert result.exit_code == 1
+
+
+def test_lists_bulk_move_with_yes(invoke, mock_api):
+    """Bulk move posts the right body and reports the moved count."""
+    route = mock_api.post("/api/v1/crm/lists/l1/members/bulk-move").respond(
+        200, json={"moved_count": 3, "duplicate_count": 0}
+    )
+    result = invoke(
+        [
+            "crm",
+            "lists",
+            "bulk-move-members",
+            "l1",
+            "--target-list-id",
+            "l2",
+            "--member-type",
+            "person",
+            "--ids",
+            "p1,p2,p3",
+            "--yes",
+        ]
+    )
+    assert result.exit_code == 0
+    assert "Moved 3 person(s)" in result.output
+    body = json.loads(route.calls.last.request.content)
+    assert body == {
+        "target_list_id": "l2",
+        "member_type": "person",
+        "member_ids": ["p1", "p2", "p3"],
+    }
+
+
+def test_lists_bulk_move_reports_duplicates(invoke, mock_api):
+    """Members already on the target list are surfaced, not errored."""
+    mock_api.post("/api/v1/crm/lists/l1/members/bulk-move").respond(
+        200, json={"moved_count": 2, "duplicate_count": 3}
+    )
+    result = invoke(
+        [
+            "crm",
+            "lists",
+            "bulk-move-members",
+            "l1",
+            "--target-list-id",
+            "l2",
+            "--member-type",
+            "person",
+            "--ids",
+            "p1,p2,p3,p4,p5",
+            "--yes",
+        ]
+    )
+    assert result.exit_code == 0
+    assert "Moved 2" in result.output
+    assert "3" in result.output and "already" in result.output
+
+
+def test_lists_bulk_move_invalid_member_type(invoke, mock_api):
+    result = invoke(
+        [
+            "crm",
+            "lists",
+            "bulk-move-members",
+            "l1",
+            "--target-list-id",
+            "l2",
+            "--member-type",
+            "robot",
+            "--ids",
+            "p1",
+            "--yes",
+        ]
+    )
+    assert result.exit_code == 1
+    assert "person" in result.output
+
+
+def test_lists_bulk_move_empty_ids(invoke, mock_api):
+    result = invoke(
+        [
+            "crm",
+            "lists",
+            "bulk-move-members",
+            "l1",
+            "--target-list-id",
+            "l2",
+            "--member-type",
+            "company",
+            "--ids",
+            " , ",
+            "--yes",
+        ]
+    )
+    assert result.exit_code == 1
+
+
+def test_lists_bulk_move_aborted(invoke, mock_api):
+    result = invoke(
+        [
+            "crm",
+            "lists",
+            "bulk-move-members",
+            "l1",
+            "--target-list-id",
+            "l2",
+            "--member-type",
+            "person",
+            "--ids",
+            "p1",
+        ],
+        input="n\n",
+    )
+    assert result.exit_code == 1
+
+
+def test_lists_bulk_move_json(invoke, mock_api):
+    mock_api.post("/api/v1/crm/lists/l1/members/bulk-move").respond(
+        200, json={"moved_count": 2, "duplicate_count": 1}
+    )
+    result = invoke(
+        [
+            "crm",
+            "lists",
+            "bulk-move-members",
+            "l1",
+            "--target-list-id",
+            "l2",
+            "--member-type",
+            "company",
+            "--ids",
+            "c1,c2,c3",
+            "--yes",
+            "--json",
+        ]
+    )
+    assert result.exit_code == 0
+    parsed = json.loads(result.output)
+    assert parsed["moved_count"] == 2
+    assert parsed["duplicate_count"] == 1
+    assert parsed["member_type"] == "company"
+    assert parsed["target_list_id"] == "l2"
+    assert parsed["action"] == "bulk-move-members"
+
+
+def test_lists_bulk_move_propagates_400(invoke, mock_api):
+    """A 400 from the API (e.g. same source and target list) surfaces as exit 1."""
+    mock_api.post("/api/v1/crm/lists/l1/members/bulk-move").respond(
+        400, json={"detail": "Target list must be different from the source list"}
+    )
+    result = invoke(
+        [
+            "crm",
+            "lists",
+            "bulk-move-members",
+            "l1",
+            "--target-list-id",
+            "l1",
+            "--member-type",
+            "person",
+            "--ids",
+            "p1",
+            "--yes",
+        ]
+    )
+    assert result.exit_code == 1
