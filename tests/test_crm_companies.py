@@ -401,6 +401,15 @@ def test_companies_bulk_delete_delete_people_non_json_body_reports_zero(invoke, 
     assert "Deleted 2 companies and 0 attached people" in result.output
 
 
+def test_companies_bulk_delete_delete_people_non_dict_json_reports_zero(invoke, mock_api):
+    mock_api.post("/api/v1/crm/companies/bulk-delete").respond(200, json=[1, 2])
+    result = invoke(
+        ["crm", "companies", "bulk-delete", "--ids", "c1,c2", "--delete-people", "--yes"]
+    )
+    assert result.exit_code == 0
+    assert "and 0 attached people" in result.output
+
+
 def test_companies_bulk_delete_delete_people_missing_count_defaults_zero(invoke, mock_api):
     mock_api.post("/api/v1/crm/companies/bulk-delete").respond(200, json={"deleted_count": 2})
     result = invoke(

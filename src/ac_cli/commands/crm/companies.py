@@ -342,7 +342,7 @@ def companies_bulk_delete(
     if delete_people:
         try:
             deleted_people_count = int((resp.json() or {}).get("deleted_people_count", 0))
-        except (ValueError, TypeError):
+        except (ValueError, TypeError, AttributeError):
             deleted_people_count = 0
 
     if json_output:
