@@ -47,6 +47,13 @@ def test_people_list_filter_company(invoke, mock_api):
     assert result.exit_code == 0
 
 
+def test_people_list_filter_company_ids(invoke, mock_api):
+    route = mock_api.get("/api/v1/crm/people").respond(200, json={"data": [], "total": 0})
+    result = invoke(["crm", "people", "list", "--company-ids", "c1,c2"])
+    assert result.exit_code == 0
+    assert route.calls.last.request.url.params["company_ids"] == "c1,c2"
+
+
 def test_people_get(invoke, mock_api):
     mock_api.get("/api/v1/crm/people/p1").respond(200, json=SAMPLE_PERSON)
     result = invoke(["crm", "people", "get", "p1"])

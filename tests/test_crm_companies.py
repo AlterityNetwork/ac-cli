@@ -300,6 +300,34 @@ def test_companies_delete_aborted(invoke, mock_api):
     assert result.exit_code == 1
 
 
+def test_companies_delete_with_delete_people(invoke, mock_api):
+    route = mock_api.delete("/api/v1/crm/companies/c1").respond(204)
+    result = invoke(["crm", "companies", "delete", "c1", "--delete-people", "--yes"])
+    assert result.exit_code == 0
+    assert "Deleted" in result.output
+    assert route.calls.last.request.url.params["delete_people"] == "true"
+
+
+def test_companies_delete_without_flag_omits_param(invoke, mock_api):
+    route = mock_api.delete("/api/v1/crm/companies/c1").respond(204)
+    result = invoke(["crm", "companies", "delete", "c1", "--yes"])
+    assert result.exit_code == 0
+    assert "delete_people" not in str(route.calls.last.request.url)
+
+
+def test_companies_delete_with_delete_people_json(invoke, mock_api):
+    mock_api.delete("/api/v1/crm/companies/c1").respond(204)
+    result = invoke(["crm", "companies", "delete", "c1", "--delete-people", "--yes", "--json"])
+    assert result.exit_code == 0
+    parsed = json.loads(result.output)
+    assert parsed == {
+        "ok": True,
+        "id": "c1",
+        "action": "delete",
+        "delete_people": True,
+    }
+
+
 def test_companies_bulk_delete_with_yes(invoke, mock_api):
     route = mock_api.post("/api/v1/crm/companies/bulk-delete").respond(204)
     result = invoke(["crm", "companies", "bulk-delete", "--ids", "c1,c2,c3", "--yes"])
@@ -320,6 +348,83 @@ def test_companies_bulk_delete_json(invoke, mock_api):
         "count": 2,
         "action": "bulk-delete",
     }
+
+
+def test_companies_bulk_delete_with_delete_people(invoke, mock_api):
+    route = mock_api.post("/api/v1/crm/companies/bulk-delete").respond(
+        200, json={"deleted_count": 2, "deleted_people_count": 5}
+    )
+    result = invoke(
+        ["crm", "companies", "bulk-delete", "--ids", "c1,c2", "--delete-people", "--yes"]
+    )
+    assert result.exit_code == 0
+    assert "Deleted 2 companies" in result.output
+    assert "5 attached people" in result.output
+    body = json.loads(route.calls.last.request.content)
+    assert body == {"ids": ["c1", "c2"], "delete_people": True}
+
+
+def test_companies_bulk_delete_with_delete_people_json(invoke, mock_api):
+    mock_api.post("/api/v1/crm/companies/bulk-delete").respond(
+        200, json={"deleted_count": 2, "deleted_people_count": 3}
+    )
+    result = invoke(
+        [
+            "crm",
+            "companies",
+            "bulk-delete",
+            "--ids",
+            "c1,c2",
+            "--delete-people",
+            "--yes",
+            "--json",
+        ]
+    )
+    assert result.exit_code == 0
+    parsed = json.loads(result.output)
+    assert parsed == {
+        "ok": True,
+        "ids": ["c1", "c2"],
+        "count": 2,
+        "action": "bulk-delete",
+        "delete_people": True,
+        "deleted_people_count": 3,
+    }
+
+
+def test_companies_bulk_delete_delete_people_non_json_body_reports_zero(invoke, mock_api):
+    mock_api.post("/api/v1/crm/companies/bulk-delete").respond(204)
+    result = invoke(
+        ["crm", "companies", "bulk-delete", "--ids", "c1,c2", "--delete-people", "--yes"]
+    )
+    assert result.exit_code == 0
+    assert "Deleted 2 companies and 0 attached people" in result.output
+
+
+def test_companies_bulk_delete_delete_people_non_dict_json_reports_zero(invoke, mock_api):
+    mock_api.post("/api/v1/crm/companies/bulk-delete").respond(200, json=[1, 2])
+    result = invoke(
+        ["crm", "companies", "bulk-delete", "--ids", "c1,c2", "--delete-people", "--yes"]
+    )
+    assert result.exit_code == 0
+    assert "and 0 attached people" in result.output
+
+
+def test_companies_bulk_delete_delete_people_missing_count_defaults_zero(invoke, mock_api):
+    mock_api.post("/api/v1/crm/companies/bulk-delete").respond(200, json={"deleted_count": 2})
+    result = invoke(
+        ["crm", "companies", "bulk-delete", "--ids", "c1,c2", "--delete-people", "--yes"]
+    )
+    assert result.exit_code == 0
+    assert "and 0 attached people" in result.output
+
+
+def test_companies_bulk_delete_without_flag_omits_field(invoke, mock_api):
+    route = mock_api.post("/api/v1/crm/companies/bulk-delete").respond(204)
+    result = invoke(["crm", "companies", "bulk-delete", "--ids", "c1", "--yes"])
+    assert result.exit_code == 0
+    body = json.loads(route.calls.last.request.content)
+    assert body == {"ids": ["c1"]}
 
 
 def test_companies_bulk_delete_aborted(invoke, mock_api):
