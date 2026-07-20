@@ -134,3 +134,30 @@ def test_steps_stats_empty(invoke, mock_api):
     result = invoke(["envoy", "steps", "stats", "seq-1"])
     assert result.exit_code == 0
     assert "No step statistics" in result.output
+
+
+def test_steps_retry(invoke, mock_api):
+    mock_api.post("/api/v1/envoy/sequences/seq-1/steps/step-1/retry").respond(
+        200, json={"retried": 3}
+    )
+    result = invoke(["envoy", "steps", "retry", "seq-1", "step-1"])
+    assert result.exit_code == 0
+    assert "3" in result.output
+
+
+def test_steps_retry_json(invoke, mock_api):
+    mock_api.post("/api/v1/envoy/sequences/seq-1/steps/step-1/retry").respond(
+        200, json={"retried": 3}
+    )
+    result = invoke(["envoy", "steps", "retry", "seq-1", "step-1", "--json"])
+    assert result.exit_code == 0
+    parsed = json.loads(result.output)
+    assert parsed["retried"] == 3
+
+
+def test_steps_retry_not_found(invoke, mock_api):
+    mock_api.post("/api/v1/envoy/sequences/seq-1/steps/step-x/retry").respond(
+        404, json={"detail": "Sequence not found"}
+    )
+    result = invoke(["envoy", "steps", "retry", "seq-1", "step-x"])
+    assert result.exit_code == 3
