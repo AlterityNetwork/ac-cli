@@ -18,7 +18,7 @@ OVERVIEW = {
     "sequences_active": 4,
     "emails_sent": {"current": 240, "previous": 180, "change_pct": 33.3},
     "email_replies": {"current": 12, "previous": 9, "change_pct": 33.3},
-    "reply_rate": 5.0,
+    "reply_rate": 5.333333,
     "sequences_processed_by_day": [],
     "outputs_by_type": [{"type": "email", "count": 240}],
     "companies_new": {"current": 15, "previous": 10, "change_pct": 50.0},
@@ -28,7 +28,7 @@ OVERVIEW = {
     "tasks_created": {"current": 20, "previous": 18, "change_pct": 11.1},
     "tasks_completed": {"current": 16, "previous": 12, "change_pct": 33.3},
     "tasks_created_completed": 14,
-    "task_completion_rate": 70.0,
+    "task_completion_rate": 70.588,
     "workflow_runs": {"current": 9, "previous": 7, "change_pct": 28.6},
     "logins": {"current": 55, "previous": 50, "change_pct": 10.0},
     "active_users": {"current": 4, "previous": 4, "change_pct": 0.0},
@@ -43,6 +43,8 @@ def test_analytics_overview(invoke, mock_api):
     assert "Sonar companies" in result.output
     assert "42" in result.output
     assert "2026-06-21" in result.output
+    assert "Reply rate: 5.3%" in result.output
+    assert "Task completion rate: 70.6%" in result.output
 
 
 def test_analytics_overview_period_days(invoke, mock_api):
@@ -62,4 +64,14 @@ def test_analytics_overview_json(invoke, mock_api):
 def test_analytics_overview_error(invoke, mock_api):
     mock_api.get("/api/v1/analytics/overview").respond(500, json={"detail": "boom"})
     result = invoke(["analytics", "overview"])
-    assert result.exit_code != 0
+    assert result.exit_code == 1
+
+
+def test_analytics_overview_error_json(invoke, mock_api):
+    mock_api.get("/api/v1/analytics/overview").respond(500, json={"detail": "boom"})
+    result = invoke(["analytics", "overview", "--json"])
+    assert result.exit_code == 1
+    body = json.loads(result.output)
+    assert body["error"] is True
+    assert body["status_code"] == 500
+    assert body["detail"] == "boom"

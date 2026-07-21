@@ -45,9 +45,7 @@ def analytics_overview(
 ) -> None:
     """Show the org's activity and output overview for a period."""
     set_json_mode(json_output)
-    resp = _api_request(
-        "get", f"{_ANALYTICS}/overview", params={"period_days": period_days}
-    )
+    resp = _api_request("get", f"{_ANALYTICS}/overview", params={"period_days": period_days})
 
     data = resp.json()
     if json_output:
@@ -79,8 +77,8 @@ def analytics_overview(
         ],
         title="Period metrics",
     )
-    rprint(f"  Reply rate: {data.get('reply_rate', 0.0)}%")
-    rprint(f"  Task completion rate: {data.get('task_completion_rate', 0.0)}%")
+    rprint(f"  Reply rate: {data.get('reply_rate', 0.0):.1f}%")
+    rprint(f"  Task completion rate: {data.get('task_completion_rate', 0.0):.1f}%")
     rprint(f"  Active sequences: {data.get('sequences_active', 0)}")
     rprint(f"  Companies total: {data.get('companies_total', 0)}")
     rprint(f"  People total: {data.get('people_total', 0)}")
