@@ -68,6 +68,7 @@ def sequences_get(
             ("description", "Description"),
             ("status", "Status"),
             ("execution_mode", "Execution Mode"),
+            ("skip_non_working_days", "Skip Non-Working Days"),
             ("writing_style_id", "Writing Style ID"),
             ("playbook_id", "Playbook ID"),
             ("crm_list_id", "CRM List ID"),
@@ -100,6 +101,11 @@ def sequences_create(
     playbook_id: str | None = typer.Option(None, "--playbook-id", help="Playbook ID"),
     crm_list_id: str | None = typer.Option(None, "--crm-list-id", help="CRM list ID"),
     execution_mode: str | None = typer.Option(None, "--execution-mode", help="Execution mode"),
+    skip_non_working_days: bool | None = typer.Option(
+        None,
+        "--skip-non-working-days/--no-skip-non-working-days",
+        help="Roll sends forward off weekends and bank holidays (org timezone)",
+    ),
     json_output: bool = JSON_OPTION,
 ) -> None:
     """Create a new outreach sequence."""
@@ -111,6 +117,7 @@ def sequences_create(
         playbook_id=playbook_id,
         crm_list_id=crm_list_id,
         execution_mode=execution_mode,
+        skip_non_working_days=skip_non_working_days,
     )
 
     body["organization_id"] = _get_org_id()
@@ -136,6 +143,11 @@ def sequences_update(
     playbook_id: str | None = typer.Option(None, "--playbook-id", help="Playbook ID"),
     crm_list_id: str | None = typer.Option(None, "--crm-list-id", help="CRM list ID"),
     execution_mode: str | None = typer.Option(None, "--execution-mode", help="Execution mode"),
+    skip_non_working_days: bool | None = typer.Option(
+        None,
+        "--skip-non-working-days/--no-skip-non-working-days",
+        help="Roll sends forward off weekends and bank holidays (org timezone)",
+    ),
     json_output: bool = JSON_OPTION,
 ) -> None:
     """Update a sequence."""
@@ -147,6 +159,7 @@ def sequences_update(
         playbook_id=playbook_id,
         crm_list_id=crm_list_id,
         execution_mode=execution_mode,
+        skip_non_working_days=skip_non_working_days,
     )
 
     if not body:
