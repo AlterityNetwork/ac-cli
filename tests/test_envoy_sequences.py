@@ -11,6 +11,7 @@ SAMPLE_SEQUENCE = {
     "description": "Outreach to target companies",
     "status": "draft",
     "execution_mode": "manual",
+    "skip_non_working_days": True,
     "writing_style_id": None,
     "playbook_id": None,
     "crm_list_id": "l1",
@@ -46,6 +47,7 @@ def test_sequences_get(invoke, mock_api):
     result = invoke(["envoy", "sequences", "get", "seq-1"])
     assert result.exit_code == 0
     assert "Q1 Outreach" in result.output
+    assert "Skip Non-Working Days: True" in result.output
 
 
 def test_sequences_get_json(invoke, mock_api):

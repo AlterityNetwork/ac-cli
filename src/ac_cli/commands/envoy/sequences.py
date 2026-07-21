@@ -68,6 +68,7 @@ def sequences_get(
             ("description", "Description"),
             ("status", "Status"),
             ("execution_mode", "Execution Mode"),
+            ("skip_non_working_days", "Skip Non-Working Days"),
             ("writing_style_id", "Writing Style ID"),
             ("playbook_id", "Playbook ID"),
             ("crm_list_id", "CRM List ID"),
