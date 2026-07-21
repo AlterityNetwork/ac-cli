@@ -9,6 +9,7 @@ from ac_cli.client import ACT_AS_ENV_VAR
 from ac_cli.commands import (
     admin,
     agents,
+    analytics,
     apps,
     auth,
     chat,
@@ -75,6 +76,7 @@ def main(
 # Register sub-command groups
 app.add_typer(admin.app, name="admin")
 app.add_typer(agents.app, name="agents")
+app.add_typer(analytics.app, name="analytics")
 app.add_typer(apps.app, name="apps")
 app.add_typer(auth.app, name="auth")
 app.add_typer(chat.app, name="chat")

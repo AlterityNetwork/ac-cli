@@ -36,6 +36,7 @@ DEFAULT_API_URL = os.environ.get("AC_AUDIT_API_URL", "http://localhost:8008")
 PATH_CONSTANTS: dict[str, str] = {
     "_ADMIN": "/api/v1/admin",
     "_AGENTS": "/api/v1/agents",
+    "_ANALYTICS": "/api/v1/analytics",
     "_APPS": "/api/v1/orgs",
     "_CHAT": "/api/v1/chat",
     "_CRM": "/api/v1/crm",
