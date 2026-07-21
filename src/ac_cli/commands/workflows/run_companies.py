@@ -59,6 +59,14 @@ def run_companies_list(
             "unscored companies stay visible. Omit to show all scores."
         ),
     ),
+    crm_company_ids: str | None = typer.Option(
+        None,
+        "--crm-company-ids",
+        help=(
+            "Comma-separated CRM company ids. Only returns companies linked "
+            "to one of these, to resolve the envelopes behind a set of signals."
+        ),
+    ),
     json_output: bool = JSON_OPTION,
 ) -> None:
     """List companies discovered by a workflow (deduplicated)."""
@@ -70,6 +78,8 @@ def run_companies_list(
         params["approved"] = approved
     if min_lead_score is not None:
         params["min_lead_score"] = min_lead_score
+    if crm_company_ids:
+        params["crm_company_ids"] = crm_company_ids
     resp = _api_request("get", f"{_WORKFLOWS}/{workflow_id}/runs/companies", params=params)
 
     data = resp.json()
