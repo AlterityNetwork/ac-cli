@@ -43,6 +43,7 @@ PATH_CONSTANTS: dict[str, str] = {
     "_FILES": "/api/v1/files",
     "_HOOKS": "/api/v1/platform/hooks",
     "_IMPERSONATION": "/api/v1/impersonation",
+    "_LAUNCHPAD": "/api/v1/launchpad",
     "_LEGAL": "/api/v1/legal-documents",
     "_MESSAGING": "/api/v1/messaging",
     "_MKT": "/api/v1/marketplace",
