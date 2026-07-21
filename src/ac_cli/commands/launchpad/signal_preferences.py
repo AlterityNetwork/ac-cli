@@ -75,6 +75,13 @@ def signal_preferences_set(
     """
     set_json_mode(json_output)
 
+    if (
+        all(v is None for v in (sort_mode, group, score_threshold, score_direction))
+        and not clear_threshold
+    ):
+        rprint("[yellow]No fields to update.[/yellow]")
+        raise typer.Exit(code=1)
+
     # Start from the current server values so unset flags are preserved.
     current = _api_request("get", f"{_LAUNCHPAD}/signal-preferences").json()
     body: dict[str, Any] = {key: current.get(key) for key in _CONFIG_KEYS}

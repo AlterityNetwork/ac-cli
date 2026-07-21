@@ -83,6 +83,13 @@ def test_set_score_direction(invoke, mock_api):
     assert body["score_direction"] == "below"
 
 
+def test_set_no_flags_exits_1(invoke, mock_api):
+    # No flags -> early exit before any request; nothing to update.
+    result = invoke(["launchpad", "signal-preferences", "set"])
+    assert result.exit_code == 1
+    assert "No fields" in result.output
+
+
 def test_set_clear_threshold(invoke, mock_api):
     # --clear-threshold removes an existing threshold (score_threshold -> null),
     # the one path a bare --score-threshold cannot express.
