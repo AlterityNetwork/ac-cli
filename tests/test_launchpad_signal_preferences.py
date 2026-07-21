@@ -33,7 +33,7 @@ def test_set_merges_over_current(invoke, mock_api):
     # provided flags, then PUTs the full merged object.
     mock_api.get(_PATH).respond(200, json=CURRENT)
     route = mock_api.put(_PATH).respond(
-        200, json={**CURRENT, "sort_mode": "recent", "score_threshold": 50}
+        200, json={**CURRENT, "sort_mode": "recent", "score_threshold": 5}
     )
     result = invoke(
         [
@@ -43,7 +43,7 @@ def test_set_merges_over_current(invoke, mock_api):
             "--sort-mode",
             "recent",
             "--score-threshold",
-            "50",
+            "5",
         ]
     )
     assert result.exit_code == 0
@@ -51,7 +51,7 @@ def test_set_merges_over_current(invoke, mock_api):
     body = json.loads(route.calls.last.request.content)
     # Provided flags applied.
     assert body["sort_mode"] == "recent"
-    assert body["score_threshold"] == 50
+    assert body["score_threshold"] == 5
     # Unset flags preserved from the current server values.
     assert body["group_by_saved_search"] is False
     assert body["score_direction"] == "above"
@@ -93,7 +93,7 @@ def test_set_no_flags_exits_1(invoke, mock_api):
 def test_set_clear_threshold(invoke, mock_api):
     # --clear-threshold removes an existing threshold (score_threshold -> null),
     # the one path a bare --score-threshold cannot express.
-    current = {**CURRENT, "score_threshold": 50}
+    current = {**CURRENT, "score_threshold": 5}
     mock_api.get(_PATH).respond(200, json=current)
     route = mock_api.put(_PATH).respond(200, json={**current, "score_threshold": None})
     result = invoke(["launchpad", "signal-preferences", "set", "--clear-threshold"])
@@ -134,3 +134,18 @@ def test_set_invalid_value_exits_2(invoke, mock_api):
         ]
     )
     assert result.exit_code == 2
+
+
+def test_set_rejects_score_threshold_above_ten_before_request(invoke, mock_api):
+    result = invoke(
+        [
+            "launchpad",
+            "signal-preferences",
+            "set",
+            "--score-threshold",
+            "50",
+        ]
+    )
+
+    assert result.exit_code == 2
+    assert not mock_api.calls

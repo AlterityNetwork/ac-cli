@@ -60,7 +60,11 @@ def signal_preferences_set(
         help="Group the feed by saved search",
     ),
     score_threshold: int | None = typer.Option(
-        None, "--score-threshold", help="Company lead-score cutoff"
+        None,
+        "--score-threshold",
+        min=0,
+        max=10,
+        help="Company lead-score cutoff (0-10)",
     ),
     clear_threshold: bool = typer.Option(
         False, "--clear-threshold", help="Remove the score threshold (show all scores)"
