@@ -21,11 +21,17 @@ def test_run_people_list(invoke, mock_api):
             "limit": 50,
             "offset": 0,
             "has_more": False,
+            "filter_options": {
+                "titles": ["CTO", "VP Engineering"],
+                "locations": ["London"],
+                "sources": ["Headhunter"],
+            },
         },
     )
     result = invoke(["workflows", "run-people", "list", "wf-1"])
     assert result.exit_code == 0
     assert "Jane Smith" in result.output
+    assert "Filter options: 2 titles, 1 locations, 1 sources" in result.output
 
 
 def test_run_people_list_json(invoke, mock_api):

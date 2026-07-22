@@ -67,6 +67,14 @@ def run_people_list(
         ],
         title=f"Workflow People ({data.get('total', '?')} total)",
     )
+    filter_options = data.get("filter_options") or {}
+    if filter_options:
+        rprint(
+            "Filter options: "
+            f"{len(filter_options.get('titles', []))} titles, "
+            f"{len(filter_options.get('locations', []))} locations, "
+            f"{len(filter_options.get('sources', []))} sources"
+        )
 
 
 @run_people_app.command("list-by-run")
