@@ -66,10 +66,10 @@ def companies_list(
     lead_score_min: int | None = typer.Option(
         None,
         "--lead-score-min",
-        min=0,
+        min=1,
         max=10,
-        help="Minimum lead score (0-10); returns companies with "
-        "lead_score >= value",
+        help="Minimum lead score (1-10); returns companies with "
+        "lead_score >= value. Omit to include all companies",
     ),
     signal_type: str | None = typer.Option(
         None,

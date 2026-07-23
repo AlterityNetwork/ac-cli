@@ -588,6 +588,17 @@ def test_companies_list_lead_score_signal_and_band_filters(invoke, mock_api):
     assert params.get("source") == "sonar_v1"
 
 
+def test_companies_list_rejects_out_of_range_lead_score_min(invoke):
+    # Bounds mirror the API (ge=1, le=10). Zero is rejected rather than
+    # forwarded: server-side it would be a silent no-op that contradicts
+    # the documented `lead_score >= value` behaviour.
+    for bad in ("0", "-1", "11"):
+        result = invoke(["crm", "companies", "list", "--lead-score-min", bad])
+        # Exit code 2 = usage/validation error, so a network or server
+        # failure (exit 1) cannot masquerade as bounds enforcement.
+        assert result.exit_code == 2, f"--lead-score-min {bad} should fail validation"
+
+
 def test_companies_list_omits_unset_filter_params(invoke, mock_api):
     route = mock_api.get("/api/v1/crm/companies").respond(
         200,
