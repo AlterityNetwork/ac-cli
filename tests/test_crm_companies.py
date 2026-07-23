@@ -560,6 +560,46 @@ def test_companies_mark_actioned_empty_ids(invoke, mock_api):
     assert "No IDs" in result.output
 
 
+def test_companies_list_lead_score_signal_and_band_filters(invoke, mock_api):
+    route = mock_api.get("/api/v1/crm/companies").respond(
+        200,
+        json={"data": [], "total": 0, "limit": 100, "offset": 0, "has_more": False},
+    )
+    result = invoke(
+        [
+            "crm",
+            "companies",
+            "list",
+            "--lead-score-min",
+            "7",
+            "--signal-type",
+            "hiring",
+            "--employee-band",
+            "51-200",
+            "--source",
+            "sonar_v1",
+        ]
+    )
+    assert result.exit_code == 0
+    params = route.calls.last.request.url.params
+    assert params.get("lead_score_min") == "7"
+    assert params.get("signal_type") == "hiring"
+    assert params.get("employee_count_band") == "51-200"
+    assert params.get("source") == "sonar_v1"
+
+
+def test_companies_list_omits_unset_filter_params(invoke, mock_api):
+    route = mock_api.get("/api/v1/crm/companies").respond(
+        200,
+        json={"data": [], "total": 0, "limit": 100, "offset": 0, "has_more": False},
+    )
+    result = invoke(["crm", "companies", "list"])
+    assert result.exit_code == 0
+    params = route.calls.last.request.url.params
+    for absent in ("lead_score_min", "signal_type", "employee_count_band", "source"):
+        assert absent not in params
+
+
 def test_companies_list_provenance_filters(invoke, mock_api):
     route = mock_api.get("/api/v1/crm/companies").respond(
         200,

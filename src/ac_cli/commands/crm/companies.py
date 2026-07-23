@@ -63,6 +63,32 @@ def companies_list(
     added_by_user: str | None = typer.Option(
         None, "--added-by-user", help="Filter to records added by a specific user ID"
     ),
+    lead_score_min: int | None = typer.Option(
+        None,
+        "--lead-score-min",
+        min=0,
+        max=10,
+        help="Minimum lead score (0-10); returns companies with "
+        "lead_score >= value",
+    ),
+    signal_type: str | None = typer.Option(
+        None,
+        "--signal-type",
+        help="Filter to companies with at least one live signal of this "
+        "type (e.g. 'hiring', 'funding')",
+    ),
+    employee_band: str | None = typer.Option(
+        None,
+        "--employee-band",
+        help="Canonical employee-count band (e.g. '51-200', '10001+'); "
+        "sent as `employee_count_band`",
+    ),
+    source: str | None = typer.Option(
+        None,
+        "--source",
+        help="Filter by acquisition source (matches the `sources` array, "
+        "e.g. 'sonar_v1', 'csv_import')",
+    ),
     view: CompaniesListView = typer.Option(
         CompaniesListView.full,
         "--view",
@@ -93,6 +119,14 @@ def companies_list(
         params["added_by_type"] = added_by_type
     if added_by_user:
         params["added_by_user_id"] = added_by_user
+    if lead_score_min is not None:
+        params["lead_score_min"] = lead_score_min
+    if signal_type:
+        params["signal_type"] = signal_type
+    if employee_band:
+        params["employee_count_band"] = employee_band
+    if source:
+        params["source"] = source
     resp = _api_request("get", f"{_CRM}/companies", params=params)
 
     data = resp.json()
