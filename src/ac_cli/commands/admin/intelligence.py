@@ -30,7 +30,7 @@ intelligence_app.add_typer(people_app, name="people")
 _INTEL = f"{_ADMIN}/intelligence"
 
 
-def _list_params(query, sort, order, limit, offset) -> dict:
+def _list_params(query, sort, order, limit, offset, **filters) -> dict:
     params: dict = {"limit": limit, "offset": offset}
     if query:
         params["q"] = query
@@ -38,6 +38,10 @@ def _list_params(query, sort, order, limit, offset) -> dict:
         params["sort"] = sort
     if order:
         params["order"] = order
+    # Fold any non-empty field filters (industry, country, ...) into the params.
+    for key, value in filters.items():
+        if value:
+            params[key] = value
     return params
 
 
@@ -59,11 +63,35 @@ def companies_list(
     order: str | None = typer.Option(None, help="Sort order (asc/desc)"),
     limit: int = typer.Option(50, "--limit", help="Page size"),
     offset: int = typer.Option(0, "--offset", help="Row offset"),
+    industry: str | None = typer.Option(None, help="Filter by industry"),
+    country: str | None = typer.Option(None, help="Filter by country"),
+    business_model: str | None = typer.Option(
+        None, "--business-model", help="Filter by business model"
+    ),
+    revenue_band: str | None = typer.Option(None, "--revenue-band", help="Filter by revenue band"),
+    employee_count_band: str | None = typer.Option(
+        None, "--employee-band", help="Filter by employee count band"
+    ),
+    funding_round: str | None = typer.Option(
+        None, "--funding-round", help="Filter by funding round"
+    ),
     json_output: bool = JSON_OPTION,
 ) -> None:
     """List intel companies."""
     set_json_mode(json_output)
-    params = _list_params(query, sort, order, limit, offset)
+    params = _list_params(
+        query,
+        sort,
+        order,
+        limit,
+        offset,
+        industry=industry,
+        country=country,
+        business_model=business_model,
+        revenue_band=revenue_band,
+        employee_count_band=employee_count_band,
+        funding_round=funding_round,
+    )
     resp = _api_request("get", f"{_INTEL}/companies", params=params)
 
     data = resp.json()
@@ -226,11 +254,23 @@ def people_list(
     order: str | None = typer.Option(None, help="Sort order (asc/desc)"),
     limit: int = typer.Option(50, "--limit", help="Page size"),
     offset: int = typer.Option(0, "--offset", help="Row offset"),
+    country: str | None = typer.Option(None, help="Filter by country"),
+    industry: str | None = typer.Option(None, help="Filter by industry"),
+    title: str | None = typer.Option(None, help="Filter by current title"),
     json_output: bool = JSON_OPTION,
 ) -> None:
     """List intel people."""
     set_json_mode(json_output)
-    params = _list_params(query, sort, order, limit, offset)
+    params = _list_params(
+        query,
+        sort,
+        order,
+        limit,
+        offset,
+        country=country,
+        industry=industry,
+        title=title,
+    )
     resp = _api_request("get", f"{_INTEL}/people", params=params)
 
     data = resp.json()

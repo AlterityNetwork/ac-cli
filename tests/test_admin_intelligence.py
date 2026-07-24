@@ -49,6 +49,32 @@ def test_companies_list_search_param(invoke, mock_api):
     assert "q=acme" in str(route.calls.last.request.url)
 
 
+def test_companies_list_filter_params(invoke, mock_api):
+    route = mock_api.get("/api/v1/admin/intelligence/companies").respond(
+        200, json={"data": [], **_LIST, "total": 0}
+    )
+    result = invoke(
+        [
+            "admin",
+            "intelligence",
+            "companies",
+            "list",
+            "--industry",
+            "Software",
+            "--country",
+            "US",
+            "--funding-round",
+            "Series A",
+            "--json",
+        ]
+    )
+    assert result.exit_code == 0
+    url = str(route.calls.last.request.url)
+    assert "industry=Software" in url
+    assert "country=US" in url
+    assert "funding_round=Series+A" in url
+
+
 def test_companies_list_json(invoke, mock_api):
     mock_api.get("/api/v1/admin/intelligence/companies").respond(
         200, json={"data": [SAMPLE_COMPANY], **_LIST}
@@ -92,6 +118,32 @@ def test_people_list(invoke, mock_api):
     result = invoke(["admin", "intelligence", "people", "list"])
     assert result.exit_code == 0
     assert "Jane Doe" in result.output
+
+
+def test_people_list_filter_params(invoke, mock_api):
+    route = mock_api.get("/api/v1/admin/intelligence/people").respond(
+        200, json={"data": [], **_LIST, "total": 0}
+    )
+    result = invoke(
+        [
+            "admin",
+            "intelligence",
+            "people",
+            "list",
+            "--country",
+            "US",
+            "--industry",
+            "Software",
+            "--title",
+            "CTO",
+            "--json",
+        ]
+    )
+    assert result.exit_code == 0
+    url = str(route.calls.last.request.url)
+    assert "country=US" in url
+    assert "industry=Software" in url
+    assert "title=CTO" in url
 
 
 def test_people_list_json(invoke, mock_api):
