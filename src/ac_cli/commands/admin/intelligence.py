@@ -241,6 +241,25 @@ def companies_delete(
     typer.echo(f"Deleted intel company {company_id}")
 
 
+@companies_app.command("bulk-delete")
+def companies_bulk_delete(
+    ctx: typer.Context,
+    ids: list[str] = typer.Option(..., "--id", help="Intel company ID (repeatable)"),
+    yes: bool = typer.Option(False, "--yes", "-y", help="Skip confirmation"),
+    json_output: bool = JSON_OPTION,
+) -> None:
+    """Delete many intel companies in one request."""
+    set_json_mode(json_output)
+    if not should_skip_confirm(yes):
+        typer.confirm(f"Delete {len(ids)} intel companies?", abort=True)
+    resp = _api_request("post", f"{_INTEL}/companies/bulk-delete", json={"ids": ids})
+    data = resp.json()
+    if json_output:
+        print_json(data)
+        return
+    typer.echo(f"Deleted {data.get('deleted', 0)} of {data.get('requested', len(ids))}")
+
+
 # +--------------------------------------------------------------------------+
 # | People                                                                   |
 # +--------------------------------------------------------------------------+
@@ -415,3 +434,22 @@ def people_delete(
         print_json(resp.json())
         return
     typer.echo(f"Deleted intel person {person_id}")
+
+
+@people_app.command("bulk-delete")
+def people_bulk_delete(
+    ctx: typer.Context,
+    ids: list[str] = typer.Option(..., "--id", help="Intel person ID (repeatable)"),
+    yes: bool = typer.Option(False, "--yes", "-y", help="Skip confirmation"),
+    json_output: bool = JSON_OPTION,
+) -> None:
+    """Delete many intel people in one request."""
+    set_json_mode(json_output)
+    if not should_skip_confirm(yes):
+        typer.confirm(f"Delete {len(ids)} intel people?", abort=True)
+    resp = _api_request("post", f"{_INTEL}/people/bulk-delete", json={"ids": ids})
+    data = resp.json()
+    if json_output:
+        print_json(data)
+        return
+    typer.echo(f"Deleted {data.get('deleted', 0)} of {data.get('requested', len(ids))}")

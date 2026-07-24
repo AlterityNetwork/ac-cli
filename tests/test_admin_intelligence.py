@@ -218,6 +218,46 @@ def test_companies_delete_abort(invoke, mock_api):
     assert result.exit_code == 1
 
 
+def test_companies_bulk_delete_yes(invoke, mock_api):
+    route = mock_api.post("/api/v1/admin/intelligence/companies/bulk-delete").respond(
+        200, json={"deleted": 2, "requested": 2}
+    )
+    result = invoke(
+        [
+            "admin",
+            "intelligence",
+            "companies",
+            "bulk-delete",
+            "--id",
+            "co-1",
+            "--id",
+            "co-2",
+            "--yes",
+        ]
+    )
+    assert result.exit_code == 0
+    body = json.loads(route.calls.last.request.content)
+    assert body == {"ids": ["co-1", "co-2"]}
+
+
+def test_companies_bulk_delete_json(invoke, mock_api):
+    mock_api.post("/api/v1/admin/intelligence/companies/bulk-delete").respond(
+        200, json={"deleted": 1, "requested": 1}
+    )
+    result = invoke(
+        ["admin", "intelligence", "companies", "bulk-delete", "--id", "co-1", "--yes", "--json"]
+    )
+    assert result.exit_code == 0
+    assert json.loads(result.stdout)["deleted"] == 1
+
+
+def test_companies_bulk_delete_abort(invoke, mock_api):
+    result = invoke(
+        ["admin", "intelligence", "companies", "bulk-delete", "--id", "co-1"], input="n\n"
+    )
+    assert result.exit_code == 1
+
+
 def test_people_create(invoke, mock_api):
     route = mock_api.post("/api/v1/admin/intelligence/people").respond(201, json=SAMPLE_PERSON)
     result = invoke(
@@ -250,3 +290,25 @@ def test_people_delete_yes(invoke, mock_api):
     mock_api.delete("/api/v1/admin/intelligence/people/pe-1").respond(200, json={"ok": True})
     result = invoke(["admin", "intelligence", "people", "delete", "pe-1", "--yes"])
     assert result.exit_code == 0
+
+
+def test_people_bulk_delete_yes(invoke, mock_api):
+    route = mock_api.post("/api/v1/admin/intelligence/people/bulk-delete").respond(
+        200, json={"deleted": 2, "requested": 2}
+    )
+    result = invoke(
+        [
+            "admin",
+            "intelligence",
+            "people",
+            "bulk-delete",
+            "--id",
+            "pe-1",
+            "--id",
+            "pe-2",
+            "--yes",
+        ]
+    )
+    assert result.exit_code == 0
+    body = json.loads(route.calls.last.request.content)
+    assert body == {"ids": ["pe-1", "pe-2"]}
