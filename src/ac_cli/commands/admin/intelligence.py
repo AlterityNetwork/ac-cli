@@ -41,6 +41,11 @@ def _list_params(query, sort, order, limit, offset) -> dict:
     return params
 
 
+def _write_body(**fields) -> dict:
+    """Build a request body from the provided (non-None) option values."""
+    return {k: v for k, v in fields.items() if v is not None}
+
+
 # +--------------------------------------------------------------------------+
 # | Companies                                                                |
 # +--------------------------------------------------------------------------+
@@ -135,19 +140,18 @@ def companies_create(
 ) -> None:
     """Create an intel company (at least one of name/domain/linkedin required)."""
     set_json_mode(json_output)
-    body = {
-        k: v
-        for k, v in {
-            "name": name,
-            "domain": domain,
-            "website": website,
-            "linkedin_url": linkedin_url,
-            "industry": industry,
-            "country": country,
-            "description": description,
-        }.items()
-        if v is not None
-    }
+    body = _write_body(
+        name=name,
+        domain=domain,
+        website=website,
+        linkedin_url=linkedin_url,
+        industry=industry,
+        country=country,
+        description=description,
+    )
+    if not body:
+        typer.echo("Provide at least one of --name / --domain / --linkedin")
+        raise typer.Exit(1)
     resp = _api_request("post", f"{_INTEL}/companies", json=body)
     data = resp.json()
     if json_output:
@@ -171,19 +175,15 @@ def companies_update(
 ) -> None:
     """Update an intel company (only provided fields change)."""
     set_json_mode(json_output)
-    body = {
-        k: v
-        for k, v in {
-            "name": name,
-            "domain": domain,
-            "website": website,
-            "linkedin_url": linkedin_url,
-            "industry": industry,
-            "country": country,
-            "description": description,
-        }.items()
-        if v is not None
-    }
+    body = _write_body(
+        name=name,
+        domain=domain,
+        website=website,
+        linkedin_url=linkedin_url,
+        industry=industry,
+        country=country,
+        description=description,
+    )
     if not body:
         typer.echo("No fields to update")
         raise typer.Exit(1)
@@ -307,19 +307,15 @@ def people_create(
 ) -> None:
     """Create an intel person (linkedin_url required)."""
     set_json_mode(json_output)
-    body = {
-        k: v
-        for k, v in {
-            "linkedin_url": linkedin_url,
-            "full_name": full_name,
-            "current_title": current_title,
-            "current_company_text": current_company_text,
-            "email": email,
-            "country": country,
-            "location": location,
-        }.items()
-        if v is not None
-    }
+    body = _write_body(
+        linkedin_url=linkedin_url,
+        full_name=full_name,
+        current_title=current_title,
+        current_company_text=current_company_text,
+        email=email,
+        country=country,
+        location=location,
+    )
     resp = _api_request("post", f"{_INTEL}/people", json=body)
     data = resp.json()
     if json_output:
@@ -343,19 +339,15 @@ def people_update(
 ) -> None:
     """Update an intel person (only provided fields change)."""
     set_json_mode(json_output)
-    body = {
-        k: v
-        for k, v in {
-            "linkedin_url": linkedin_url,
-            "full_name": full_name,
-            "current_title": current_title,
-            "current_company_text": current_company_text,
-            "email": email,
-            "country": country,
-            "location": location,
-        }.items()
-        if v is not None
-    }
+    body = _write_body(
+        linkedin_url=linkedin_url,
+        full_name=full_name,
+        current_title=current_title,
+        current_company_text=current_company_text,
+        email=email,
+        country=country,
+        location=location,
+    )
     if not body:
         typer.echo("No fields to update")
         raise typer.Exit(1)

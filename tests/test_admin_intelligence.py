@@ -133,6 +133,13 @@ def test_companies_create_conflict(invoke, mock_api):
     assert result.exit_code == 5
 
 
+def test_companies_create_no_fields(invoke, mock_api):
+    # A create with no identity fields is rejected client-side before any call.
+    result = invoke(["admin", "intelligence", "companies", "create"])
+    assert result.exit_code == 1
+    assert "at least one" in result.output.lower()
+
+
 def test_companies_update(invoke, mock_api):
     route = mock_api.patch("/api/v1/admin/intelligence/companies/co-1").respond(
         200, json={**SAMPLE_COMPANY, "name": "Renamed"}
