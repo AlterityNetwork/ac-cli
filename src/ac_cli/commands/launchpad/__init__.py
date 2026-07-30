@@ -1,4 +1,4 @@
-"""Launchpad commands: signal preferences."""
+"""Launchpad commands: signal preferences, cleared companies."""
 
 import typer
 
@@ -16,8 +16,12 @@ def launchpad_callback(ctx: typer.Context) -> None:
 
 # Sub-apps are imported after the prefix constant so the modules can import
 # `_LAUNCHPAD` from this package without a circular-import failure.
+from ac_cli.commands.launchpad.dismissed_companies import (  # noqa: E402
+    dismissed_companies_app,
+)
 from ac_cli.commands.launchpad.signal_preferences import (  # noqa: E402
     signal_preferences_app,
 )
 
 app.add_typer(signal_preferences_app, name="signal-preferences")
+app.add_typer(dismissed_companies_app, name="dismissed-companies")

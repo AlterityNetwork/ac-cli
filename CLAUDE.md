@@ -35,6 +35,7 @@ uv sync --all-extras       # Install with dev dependencies (pytest, respx)
 | `marketplace` | App marketplace browsing and developer listing |
 | `network` | Referrals, news, Slack invites |
 | `onboarding` | Managed onboarding config and completion |
+| `launchpad` | Signal-feed preferences, companies cleared from the feed |
 
 Run `ac <group> --help` for full subcommand listing.
 
