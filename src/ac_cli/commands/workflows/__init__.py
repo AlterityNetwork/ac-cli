@@ -80,6 +80,7 @@ def csv_parse(
             ("website", "Website"),
             ("industry", "Industry"),
             ("location", "Location"),
+            ("employee_count", "Employees"),
             ("source_type", "Source"),
         ],
         title=f"Parsed Companies ({len(companies)})",
