@@ -182,7 +182,7 @@ def test_outbox_approve_json(invoke, mock_api):
 
 
 def test_outbox_reject(invoke, mock_api):
-    mock_api.post("/api/v1/envoy/outbox/pending/draft-1/reject").respond(
+    mock_api.post("/api/v1/crm/communications/draft-1/reject").respond(
         200, json={"rejected": True}
     )
     result = invoke(
@@ -192,18 +192,18 @@ def test_outbox_reject(invoke, mock_api):
             "reject",
             "draft-1",
             "--action",
-            "regenerate_draft",
+            "regenerate",
             "--reason",
             "Too formal",
         ]
     )
     assert result.exit_code == 0
     assert "Rejected" in result.output
-    assert "regenerate_draft" in result.output
+    assert "regenerate" in result.output
 
 
 def test_outbox_reject_json(invoke, mock_api):
-    mock_api.post("/api/v1/envoy/outbox/pending/draft-1/reject").respond(
+    mock_api.post("/api/v1/crm/communications/draft-1/reject").respond(
         200, json={"rejected": True}
     )
     result = invoke(
@@ -311,7 +311,7 @@ def test_outbox_edit_body_file_sends_file_contents(invoke, mock_api, tmp_path):
 
 
 def test_outbox_regenerate(invoke, mock_api):
-    mock_api.post("/api/v1/envoy/outbox/pending/draft-1/regenerate").respond(
+    mock_api.post("/api/v1/crm/communications/draft-1/regenerate").respond(
         200, json={"regenerated": True}
     )
     result = invoke(
@@ -322,7 +322,7 @@ def test_outbox_regenerate(invoke, mock_api):
 
 
 def test_outbox_regenerate_json(invoke, mock_api):
-    mock_api.post("/api/v1/envoy/outbox/pending/draft-1/regenerate").respond(
+    mock_api.post("/api/v1/crm/communications/draft-1/regenerate").respond(
         200, json={"regenerated": True}
     )
     result = invoke(["envoy", "outbox", "regenerate", "draft-1", "--json"])

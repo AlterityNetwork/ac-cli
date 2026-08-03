@@ -219,14 +219,19 @@ def outbox_approve(
 def outbox_reject(
     ctx: typer.Context,
     draft_id: str = typer.Argument(..., help="Draft ID"),
-    action: str = typer.Option(..., help="Action: regenerate_draft or remove_recipient"),
+    action: str = typer.Option(
+        ...,
+        help="Action: regenerate, remove_recipient, skip_send, or manual_edit",
+    ),
     reason: str | None = typer.Option(None, help="Reason for rejection"),
     json_output: bool = JSON_OPTION,
 ) -> None:
     """Reject a pending draft."""
     set_json_mode(json_output)
     req_body = _build_body(action=action, reason=reason)
-    resp = _api_request("post", f"{_ENVOY}/outbox/pending/{draft_id}/reject", json=req_body)
+    resp = _api_request(
+        "post", f"{_CRM}/communications/{draft_id}/reject", json=req_body
+    )
 
     data = resp.json()
     if json_output:
@@ -245,7 +250,9 @@ def outbox_regenerate(
     """Regenerate a draft with AI."""
     set_json_mode(json_output)
     req_body = _build_body(instruction=instruction)
-    resp = _api_request("post", f"{_ENVOY}/outbox/pending/{draft_id}/regenerate", json=req_body)
+    resp = _api_request(
+        "post", f"{_CRM}/communications/{draft_id}/regenerate", json=req_body
+    )
 
     data = resp.json()
     if json_output:
