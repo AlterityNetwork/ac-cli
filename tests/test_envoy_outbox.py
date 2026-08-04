@@ -182,9 +182,7 @@ def test_outbox_approve_json(invoke, mock_api):
 
 
 def test_outbox_reject(invoke, mock_api):
-    mock_api.post("/api/v1/crm/communications/draft-1/reject").respond(
-        200, json={"rejected": True}
-    )
+    mock_api.post("/api/v1/crm/communications/draft-1/reject").respond(200, json={"rejected": True})
     result = invoke(
         [
             "envoy",
@@ -203,9 +201,7 @@ def test_outbox_reject(invoke, mock_api):
 
 
 def test_outbox_reject_json(invoke, mock_api):
-    mock_api.post("/api/v1/crm/communications/draft-1/reject").respond(
-        200, json={"rejected": True}
-    )
+    mock_api.post("/api/v1/crm/communications/draft-1/reject").respond(200, json={"rejected": True})
     result = invoke(
         ["envoy", "outbox", "reject", "draft-1", "--action", "remove_recipient", "--json"]
     )

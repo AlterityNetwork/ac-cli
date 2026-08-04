@@ -229,9 +229,7 @@ def outbox_reject(
     """Reject a pending draft."""
     set_json_mode(json_output)
     req_body = _build_body(action=action, reason=reason)
-    resp = _api_request(
-        "post", f"{_CRM}/communications/{draft_id}/reject", json=req_body
-    )
+    resp = _api_request("post", f"{_CRM}/communications/{draft_id}/reject", json=req_body)
 
     data = resp.json()
     if json_output:
@@ -250,9 +248,7 @@ def outbox_regenerate(
     """Regenerate a draft with AI."""
     set_json_mode(json_output)
     req_body = _build_body(instruction=instruction)
-    resp = _api_request(
-        "post", f"{_CRM}/communications/{draft_id}/regenerate", json=req_body
-    )
+    resp = _api_request("post", f"{_CRM}/communications/{draft_id}/regenerate", json=req_body)
 
     data = resp.json()
     if json_output:
