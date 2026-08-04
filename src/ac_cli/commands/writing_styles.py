@@ -9,7 +9,6 @@ from ac_cli.commands._helpers import (
     JSON_OPTION,
     _api_request,
     _build_body,
-    _get_org_id,
     set_json_mode,
     should_skip_confirm,
 )
@@ -46,13 +45,16 @@ def styles_list(
         print_json(data)
         return
 
-    items = data if isinstance(data, list) else data.get("data", [])
+    # GET /writing-styles returns WritingStyleListResponse:
+    # {styles, default_style_id, total_count} — not a {data} envelope.
+    items = data if isinstance(data, list) else data.get("styles", [])
     print_table(
         items,
         [
-            ("name", "Name"),
-            ("tone", "Tone"),
-            ("status", "Status"),
+            ("style_name", "Name"),
+            ("is_default", "Default"),
+            ("is_active", "Active"),
+            ("training_iterations", "Trained"),
             ("id", "ID"),
         ],
         title=f"Writing Styles ({len(items)})",
@@ -78,11 +80,12 @@ def styles_get(
         data,
         [
             ("id", "ID"),
-            ("name", "Name"),
-            ("description", "Description"),
-            ("tone", "Tone"),
-            ("formality", "Formality"),
-            ("status", "Status"),
+            ("style_name", "Name"),
+            ("style_prompt", "Prompt"),
+            ("is_default", "Default"),
+            ("is_active", "Active"),
+            ("training_iterations", "Training iterations"),
+            ("last_trained_at", "Last trained"),
             ("created_at", "Created"),
             ("updated_at", "Updated"),
         ],
@@ -93,21 +96,21 @@ def styles_get(
 def styles_create(
     ctx: typer.Context,
     name: str = typer.Option(..., help="Style name"),
-    description: str | None = typer.Option(None, help="Style description"),
-    tone: str | None = typer.Option(None, help="Tone"),
-    formality: str | None = typer.Option(None, help="Formality level"),
+    prompt: str | None = typer.Option(None, "--prompt", help="Initial style prompt"),
+    sample_email: list[str] = typer.Option(
+        [], "--sample-email", help="Sample email to learn from (repeatable)"
+    ),
+    default: bool = typer.Option(False, "--default", help="Make this the default style"),
     json_output: bool = JSON_OPTION,
 ) -> None:
     """Create a new writing style."""
     set_json_mode(json_output)
     body = _build_body(
-        name=name,
-        description=description,
-        tone=tone,
-        formality=formality,
+        style_name=name,
+        initial_prompt=prompt,
+        sample_emails=list(sample_email) or None,
+        is_default=default or None,
     )
-
-    body["organization_id"] = _get_org_id()
 
     resp = _api_request("post", _STYLES, json=body)
 
@@ -115,7 +118,7 @@ def styles_create(
     if json_output:
         print_json(data)
     else:
-        rprint(f"[green]Created style:[/green] {data['name']} ({data['id']})")
+        rprint(f"[green]Created style:[/green] {data['style_name']} ({data['id']})")
 
 
 @app.command("update")
@@ -123,18 +126,22 @@ def styles_update(
     ctx: typer.Context,
     style_id: str = typer.Argument(..., help="Writing style ID"),
     name: str | None = typer.Option(None, help="Style name"),
-    description: str | None = typer.Option(None, help="Style description"),
-    tone: str | None = typer.Option(None, help="Tone"),
-    formality: str | None = typer.Option(None, help="Formality level"),
+    prompt: str | None = typer.Option(None, "--prompt", help="Style prompt"),
+    default: bool | None = typer.Option(
+        None, "--default/--no-default", help="Set or clear this style as the default"
+    ),
+    active: bool | None = typer.Option(
+        None, "--active/--inactive", help="Activate or deactivate the style"
+    ),
     json_output: bool = JSON_OPTION,
 ) -> None:
     """Update an existing writing style."""
     set_json_mode(json_output)
     body = _build_body(
-        name=name,
-        description=description,
-        tone=tone,
-        formality=formality,
+        style_name=name,
+        style_prompt=prompt,
+        is_default=default,
+        is_active=active,
     )
 
     if not body:
@@ -147,7 +154,7 @@ def styles_update(
     if json_output:
         print_json(data)
     else:
-        rprint(f"[green]Updated style:[/green] {data['name']} ({data['id']})")
+        rprint(f"[green]Updated style:[/green] {data['style_name']} ({data['id']})")
 
 
 @app.command("delete")
