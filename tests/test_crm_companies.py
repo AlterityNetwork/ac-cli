@@ -457,7 +457,30 @@ def test_companies_by_ids(invoke, mock_api):
     assert result.exit_code == 0
     assert "Fetched 2 companies" in result.output
     body = json.loads(route.calls.last.request.content)
-    assert body == {"ids": ["c1", "c2"]}
+    assert body == {"ids": ["c1", "c2"], "include_deleted": False}
+
+
+def test_companies_by_ids_include_deleted(invoke, mock_api):
+    """A caller resolving an existing reference needs the soft-deleted row."""
+    route = mock_api.post("/api/v1/crm/companies/by-ids").respond(
+        200,
+        json={"data": [], "total": 0, "limit": 0, "offset": 0, "has_more": False},
+    )
+    result = invoke(
+        ["crm", "companies", "by-ids", "--ids", "c1", "--include-deleted"]
+    )
+    assert result.exit_code == 0
+    body = json.loads(route.calls.last.request.content)
+    assert body == {"ids": ["c1"], "include_deleted": True}
+
+
+def test_companies_get_include_deleted(invoke, mock_api):
+    route = mock_api.get("/api/v1/crm/companies/c1").respond(
+        200, json={"id": "c1", "name": "Co1"}
+    )
+    result = invoke(["crm", "companies", "get", "c1", "--include-deleted"])
+    assert result.exit_code == 0
+    assert route.calls.last.request.url.params["include_deleted"] == "true"
 
 
 def test_companies_by_ids_json(invoke, mock_api):

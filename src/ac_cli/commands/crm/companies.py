@@ -159,6 +159,11 @@ def companies_get(
         "--view",
         help="Response projection: 'full' (default) or 'compact' (header-row subset, ENG-1115)",
     ),
+    include_deleted: bool = typer.Option(
+        False,
+        "--include-deleted",
+        help="Return the company even when soft-deleted",
+    ),
     json_output: bool = JSON_OPTION,
 ) -> None:
     """Get a company by ID or name."""
@@ -168,8 +173,14 @@ def companies_get(
         id_label="company ID",
         name_flag="--company-name",
     )
-    params: dict[str, str] | None = {"view": view} if view and view != "full" else None
-    resp = _api_request("get", f"{_CRM}/companies/{resolved}", params=params)
+    params: dict[str, str] = {}
+    if view and view != "full":
+        params["view"] = view
+    if include_deleted:
+        params["include_deleted"] = "true"
+    resp = _api_request(
+        "get", f"{_CRM}/companies/{resolved}", params=params or None
+    )
 
     data = resp.json()
     if json_output:
@@ -400,18 +411,28 @@ def companies_bulk_delete(
 @companies_app.command("by-ids")
 def companies_by_ids(
     ids: str = typer.Option(..., "--ids", help="Comma-separated company IDs (max 200)"),
+    include_deleted: bool = typer.Option(
+        False,
+        "--include-deleted",
+        help="Include soft-deleted companies (for resolving an existing reference)",
+    ),
     json_output: bool = JSON_OPTION,
 ) -> None:
     """Batch-fetch companies by ID list in a single request (ENG-924).
 
     Replaces N parallel ``GET /crm/companies/{id}`` calls when hydrating linked
     companies for multiple rows. Returns the same paginated shape as ``list``;
-    unknown / soft-deleted / cross-org ids are silently dropped.
+    unknown / cross-org ids are silently dropped, and soft-deleted ones too
+    unless ``--include-deleted`` is passed.
     """
     set_json_mode(json_output)
     id_list = _split_ids(ids)
 
-    resp = _api_request("post", f"{_CRM}/companies/by-ids", json={"ids": id_list})
+    resp = _api_request(
+        "post",
+        f"{_CRM}/companies/by-ids",
+        json={"ids": id_list, "include_deleted": include_deleted},
+    )
     data = resp.json()
 
     if json_output:
