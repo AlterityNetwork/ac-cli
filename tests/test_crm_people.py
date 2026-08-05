@@ -81,10 +81,13 @@ def test_people_update(invoke, mock_api):
 
 
 def test_people_create_with_phone(invoke, mock_api):
+    # ENG-662 renamed phone_number -> work_phone and dropped phone_source; the
+    # API forbids unknown keys since ENG-1951, so the body must use the real
+    # column names.
     mock_api.get("/whoami").respond(200, json=WHOAMI_RESPONSE)
     route = mock_api.post("/api/v1/crm/people").respond(
         201,
-        json={**SAMPLE_PERSON, "phone_number": "+14155551234", "phone_source": "monday-import-csv"},
+        json={**SAMPLE_PERSON, "work_phone": "+14155551234", "mobile_phone": "+14155559999"},
     )
     result = invoke(
         [
@@ -95,23 +98,23 @@ def test_people_create_with_phone(invoke, mock_api):
             "jane@acme.com",
             "--full-name",
             "Jane Smith",
-            "--phone-number",
+            "--work-phone",
             "+14155551234",
-            "--phone-source",
-            "monday-import-csv",
+            "--mobile-phone",
+            "+14155559999",
         ]
     )
     assert result.exit_code == 0
     body = json.loads(route.calls.last.request.content)
-    assert body["phone_number"] == "+14155551234"
-    assert body["phone_source"] == "monday-import-csv"
+    assert body["work_phone"] == "+14155551234"
+    assert body["mobile_phone"] == "+14155559999"
 
 
 def test_people_update_with_phone(invoke, mock_api):
     updated = {
         **SAMPLE_PERSON,
-        "phone_number": "+447443366339",
-        "phone_source": "monday-import-csv",
+        "work_phone": "+447443366339",
+        "mobile_phone": "+447443366340",
     }
     route = mock_api.patch("/api/v1/crm/people/p1").respond(200, json=updated)
     result = invoke(
@@ -120,15 +123,15 @@ def test_people_update_with_phone(invoke, mock_api):
             "people",
             "update",
             "p1",
-            "--phone-number",
+            "--work-phone",
             "+447443366339",
-            "--phone-source",
-            "monday-import-csv",
+            "--mobile-phone",
+            "+447443366340",
         ]
     )
     assert result.exit_code == 0
     body = json.loads(route.calls.last.request.content)
-    assert body == {"phone_number": "+447443366339", "phone_source": "monday-import-csv"}
+    assert body == {"work_phone": "+447443366339", "mobile_phone": "+447443366340"}
 
 
 def test_people_update_no_fields(invoke, mock_api):

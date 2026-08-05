@@ -139,11 +139,11 @@ def people_create(
     linkedin_url: str | None = typer.Option(None, "--linkedin-url", help="LinkedIn URL"),
     location: str | None = typer.Option(None, help="Location"),
     country: str | None = typer.Option(None, help="Country"),
-    phone_number: str | None = typer.Option(
-        None, "--phone-number", help="Phone (E.164, e.g. +14155551234)"
+    work_phone: str | None = typer.Option(
+        None, "--work-phone", help="Work phone (E.164, e.g. +14155551234)"
     ),
-    phone_source: str | None = typer.Option(
-        None, "--phone-source", help="Provider/source of phone value"
+    mobile_phone: str | None = typer.Option(
+        None, "--mobile-phone", help="Mobile phone (E.164, e.g. +14155551234)"
     ),
     json_output: bool = JSON_OPTION,
 ) -> None:
@@ -160,8 +160,8 @@ def people_create(
         linkedin_url=linkedin_url,
         location=location,
         country=country,
-        phone_number=phone_number,
-        phone_source=phone_source,
+        work_phone=work_phone,
+        mobile_phone=mobile_phone,
     )
 
     body["organization_id"] = _get_org_id()
@@ -195,11 +195,11 @@ def people_update(
     linkedin_url: str | None = typer.Option(None, "--linkedin-url", help="LinkedIn URL"),
     location: str | None = typer.Option(None, help="Location"),
     country: str | None = typer.Option(None, help="Country"),
-    phone_number: str | None = typer.Option(
-        None, "--phone-number", help="Phone (E.164, e.g. +14155551234)"
+    work_phone: str | None = typer.Option(
+        None, "--work-phone", help="Work phone (E.164, e.g. +14155551234)"
     ),
-    phone_source: str | None = typer.Option(
-        None, "--phone-source", help="Provider/source of phone value"
+    mobile_phone: str | None = typer.Option(
+        None, "--mobile-phone", help="Mobile phone (E.164, e.g. +14155551234)"
     ),
     json_output: bool = JSON_OPTION,
 ) -> None:
@@ -221,8 +221,8 @@ def people_update(
         linkedin_url=linkedin_url,
         location=location,
         country=country,
-        phone_number=phone_number,
-        phone_source=phone_source,
+        work_phone=work_phone,
+        mobile_phone=mobile_phone,
     )
 
     if not body:
