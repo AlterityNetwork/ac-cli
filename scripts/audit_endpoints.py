@@ -42,7 +42,6 @@ PATH_CONSTANTS: dict[str, str] = {
     "_CRM": "/api/v1/crm",
     "_ENVOY": "/api/v1/envoy",
     "_FILES": "/api/v1/files",
-    "_HOOKS": "/api/v1/platform/hooks",
     "_IMPERSONATION": "/api/v1/impersonation",
     "_INTEL": "/api/v1/admin/intelligence",
     "_LAUNCHPAD": "/api/v1/launchpad",
