@@ -65,12 +65,16 @@ def analytics_overview(
     rows = []
     for key, label in _DELTA_METRICS:
         delta = data.get(key) or {}
+        # change_pct is null when the previous period was zero: growth from
+        # nothing has no percentage. The key is present, so `.get(..., 0.0)`
+        # hands back None and f"{None:+.1f}%" raises TypeError.
+        change = delta.get("change_pct")
         rows.append(
             {
                 "metric": label,
                 "current": delta.get("current", 0),
                 "previous": delta.get("previous", 0),
-                "change": f"{delta.get('change_pct', 0.0):+.1f}%",
+                "change": "-" if change is None else f"{change:+.1f}%",
             }
         )
     print_table(

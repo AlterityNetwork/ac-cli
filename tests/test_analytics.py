@@ -81,3 +81,33 @@ def test_analytics_overview_error_json(invoke, mock_api):
     assert body["error"] is True
     assert body["status_code"] == 500
     assert body["detail"] == "boom"
+
+
+def test_analytics_overview_renders_null_change_without_crashing(invoke, mock_api):
+    """The API sends change_pct: null when the previous period was zero.
+
+    `.get("change_pct", 0.0)` returns None for a present-but-null key, and
+    f"{None:+.1f}%" raises TypeError — so the whole command died on any org
+    whose metric grew from nothing.
+    """
+    payload = dict(OVERVIEW)
+    payload["sonar_companies"] = {"current": 42, "previous": 0, "change_pct": None}
+
+    mock_api.get("/api/v1/analytics/overview").respond(200, json=payload)
+    result = invoke(["analytics", "overview"])
+
+    assert result.exit_code == 0
+    assert "Sonar companies" in result.output
+    # No fabricated percentage for an undefined comparison.
+    assert "+100.0%" not in result.output
+
+
+def test_analytics_overview_json_passes_null_change_through(invoke, mock_api):
+    payload = dict(OVERVIEW)
+    payload["sonar_companies"] = {"current": 42, "previous": 0, "change_pct": None}
+
+    mock_api.get("/api/v1/analytics/overview").respond(200, json=payload)
+    result = invoke(["analytics", "overview", "--json"])
+
+    assert result.exit_code == 0
+    assert json.loads(result.output)["sonar_companies"]["change_pct"] is None
