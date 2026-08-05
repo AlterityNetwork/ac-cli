@@ -46,7 +46,6 @@ PATH_CONSTANTS: dict[str, str] = {
     "_INTEL": "/api/v1/admin/intelligence",
     "_LAUNCHPAD": "/api/v1/launchpad",
     "_LEGAL": "/api/v1/legal-documents",
-    "_MESSAGING": "/api/v1/messaging",
     "_MKT": "/api/v1/marketplace",
     "_NET": "/api/v1/network",
     "_NOTIFICATIONS": "/api/v1/notifications",
@@ -82,9 +81,6 @@ OUT_OF_SCOPE: set[tuple[str, str]] = {
     # Signature-authenticated FullEnrich provider callbacks (ENG-1733).
     ("POST", "/api/v1/fullenrich/webhook"),
     ("POST", "/api/v1/fullenrich/webhook/contact"),
-    ("GET", "/api/v1/messaging/whatsapp/webhook"),
-    ("POST", "/api/v1/messaging/whatsapp/webhook"),
-    ("POST", "/api/v1/messaging/slack/events"),
     ("GET", "/api/v1/nylas/oauth/callback"),
     ("GET", "/api/v1/email/unsubscribe"),
     ("POST", "/api/v1/email/unsubscribe"),

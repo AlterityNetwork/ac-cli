@@ -22,7 +22,6 @@ from ac_cli.commands import (
     legal_documents,
     managed_onboarding,
     marketplace,
-    messaging,
     network,
     notifications,
     nylas,
@@ -88,7 +87,6 @@ app.add_typer(launchpad.app, name="launchpad")
 app.add_typer(legal_documents.app, name="legal-docs")
 app.add_typer(managed_onboarding.app, name="onboarding")
 app.add_typer(marketplace.app, name="marketplace")
-app.add_typer(messaging.app, name="messaging")
 app.add_typer(network.app, name="network")
 app.add_typer(notifications.app, name="notifications")
 app.add_typer(nylas.app, name="nylas")
