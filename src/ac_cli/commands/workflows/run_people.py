@@ -72,7 +72,7 @@ def run_people_list(
         rprint(
             "Filter options: "
             f"{len(filter_options.get('titles', []))} titles, "
-            f"{len(filter_options.get('locations', []))} locations, "
+            f"{len(filter_options.get('countries', []))} countries, "
             f"{len(filter_options.get('sources', []))} sources"
         )
 

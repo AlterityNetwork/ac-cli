@@ -23,7 +23,7 @@ def test_run_people_list(invoke, mock_api):
             "has_more": False,
             "filter_options": {
                 "titles": ["CTO", "VP Engineering"],
-                "locations": ["London"],
+                "countries": ["United Kingdom"],
                 "sources": ["Headhunter"],
             },
         },
@@ -31,7 +31,7 @@ def test_run_people_list(invoke, mock_api):
     result = invoke(["workflows", "run-people", "list", "wf-1"])
     assert result.exit_code == 0
     assert "Jane Smith" in result.output
-    assert "Filter options: 2 titles, 1 locations, 1 sources" in result.output
+    assert "Filter options: 2 titles, 1 countries, 1 sources" in result.output
 
 
 def test_run_people_list_json(invoke, mock_api):
