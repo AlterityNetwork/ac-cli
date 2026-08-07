@@ -16,6 +16,7 @@ from ac_cli.commands._helpers import (
     should_skip_confirm,
 )
 from ac_cli.commands.crm import _CRM, _api_request, _build_body
+from ac_cli.commands.crm.merge import merge_app
 from ac_cli.formatting import print_detail, print_json, print_table
 
 
@@ -38,6 +39,10 @@ class EnrichmentProvider(str, Enum):
 
 
 companies_app = typer.Typer(help="Company operations")
+
+# Duplicate detection + merge. Mounted here so the CLI path mirrors the API's
+# `/crm/companies/merge/...`.
+companies_app.add_typer(merge_app, name="merge")
 
 
 @companies_app.command("list")
@@ -178,9 +183,7 @@ def companies_get(
         params["view"] = view
     if include_deleted:
         params["include_deleted"] = "true"
-    resp = _api_request(
-        "get", f"{_CRM}/companies/{resolved}", params=params or None
-    )
+    resp = _api_request("get", f"{_CRM}/companies/{resolved}", params=params or None)
 
     data = resp.json()
     if json_output:
