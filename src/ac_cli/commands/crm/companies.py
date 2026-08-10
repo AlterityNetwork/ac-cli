@@ -277,6 +277,12 @@ def companies_update(
         "--reset-lead-score-to-auto",
         help="Clear the manual lead score lock so Sonar can update it",
     ),
+    linkedin_url: str | None = typer.Option(None, "--linkedin-url", help="LinkedIn company page"),
+    clear_linkedin_url: bool = typer.Option(
+        False,
+        "--clear-linkedin-url",
+        help="Drop the LinkedIn page from this company (sets it to null)",
+    ),
     json_output: bool = JSON_OPTION,
 ) -> None:
     """Update an existing company."""
@@ -291,6 +297,11 @@ def companies_update(
             "Cannot use --lead-score or --lead-reason with --reset-lead-score-to-auto",
             param_hint="--reset-lead-score-to-auto",
         )
+    if clear_linkedin_url and linkedin_url is not None:
+        raise typer.BadParameter(
+            "Cannot use --linkedin-url with --clear-linkedin-url",
+            param_hint="--clear-linkedin-url",
+        )
     body = _build_body(
         name=name,
         website=website,
@@ -303,7 +314,14 @@ def companies_update(
         lead_score=lead_score,
         lead_reason=lead_reason,
         reset_lead_score_to_auto=reset_lead_score_to_auto if reset_lead_score_to_auto else None,
+        linkedin_url=linkedin_url,
     )
+
+    # `_build_body` drops None, so the null has to be written after it. The API
+    # PATCH uses `exclude_unset`, which is what makes an explicit null a clear
+    # rather than a no-op.
+    if clear_linkedin_url:
+        body["linkedin_url"] = None
 
     if not body:
         rprint("[yellow]No fields to update.[/yellow]")

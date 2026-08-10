@@ -274,6 +274,62 @@ def test_companies_update_reset_lead_score_to_auto(invoke, mock_api):
     assert json.loads(route.calls.last.request.content) == {"reset_lead_score_to_auto": True}
 
 
+def test_companies_update_linkedin_url(invoke, mock_api):
+    updated = {**SAMPLE_COMPANY, "linkedin_url": "https://www.linkedin.com/company/acme"}
+    route = mock_api.patch("/api/v1/crm/companies/c1").respond(200, json=updated)
+    result = invoke(
+        [
+            "crm",
+            "companies",
+            "update",
+            "c1",
+            "--linkedin-url",
+            "https://www.linkedin.com/company/acme",
+        ]
+    )
+    assert result.exit_code == 0
+    assert json.loads(route.calls.last.request.content) == {
+        "linkedin_url": "https://www.linkedin.com/company/acme"
+    }
+
+
+def test_companies_update_clear_linkedin_url(invoke, mock_api):
+    """An explicit null is the only way to drop a wrong page off a row.
+
+    `_build_body` strips None, so the flag has to write the key itself — a bare
+    `--linkedin-url ""` would be indistinguishable from "not supplied".
+    """
+    updated = {**SAMPLE_COMPANY, "linkedin_url": None}
+    route = mock_api.patch("/api/v1/crm/companies/c1").respond(200, json=updated)
+    result = invoke(["crm", "companies", "update", "c1", "--clear-linkedin-url"])
+    assert result.exit_code == 0
+    assert json.loads(route.calls.last.request.content) == {"linkedin_url": None}
+
+
+def test_companies_update_clear_linkedin_url_json(invoke, mock_api):
+    updated = {**SAMPLE_COMPANY, "linkedin_url": None}
+    mock_api.patch("/api/v1/crm/companies/c1").respond(200, json=updated)
+    result = invoke(["crm", "companies", "update", "c1", "--clear-linkedin-url", "--json"])
+    assert result.exit_code == 0
+    assert json.loads(result.output)["linkedin_url"] is None
+
+
+def test_companies_update_rejects_linkedin_url_with_clear(invoke):
+    result = invoke(
+        [
+            "crm",
+            "companies",
+            "update",
+            "c1",
+            "--linkedin-url",
+            "https://www.linkedin.com/company/acme",
+            "--clear-linkedin-url",
+        ]
+    )
+    assert result.exit_code != 0
+    assert "--clear-linkedin-url" in _panel_text(result.output)
+
+
 def test_companies_update_no_fields(invoke, mock_api):
     result = invoke(["crm", "companies", "update", "c1"])
     assert result.exit_code == 1
@@ -466,18 +522,14 @@ def test_companies_by_ids_include_deleted(invoke, mock_api):
         200,
         json={"data": [], "total": 0, "limit": 0, "offset": 0, "has_more": False},
     )
-    result = invoke(
-        ["crm", "companies", "by-ids", "--ids", "c1", "--include-deleted"]
-    )
+    result = invoke(["crm", "companies", "by-ids", "--ids", "c1", "--include-deleted"])
     assert result.exit_code == 0
     body = json.loads(route.calls.last.request.content)
     assert body == {"ids": ["c1"], "include_deleted": True}
 
 
 def test_companies_get_include_deleted(invoke, mock_api):
-    route = mock_api.get("/api/v1/crm/companies/c1").respond(
-        200, json={"id": "c1", "name": "Co1"}
-    )
+    route = mock_api.get("/api/v1/crm/companies/c1").respond(200, json={"id": "c1", "name": "Co1"})
     result = invoke(["crm", "companies", "get", "c1", "--include-deleted"])
     assert result.exit_code == 0
     assert route.calls.last.request.url.params["include_deleted"] == "true"
