@@ -106,6 +106,8 @@ OUT_OF_SCOPE: set[tuple[str, str]] = {
     ("POST", "/api/v1/test/cleanup-sonar"),
     ("POST", "/api/v1/test/seed-envoy"),
     ("POST", "/api/v1/test/cleanup-envoy"),
+    # ENG-1763: QA-only stale artifact cleanup for nightly staging runs.
+    ("POST", "/api/v1/test/cleanup-qa-artifacts"),
     ("POST", "/api/v1/eval/run"),
     ("PATCH", "/api/v1/eval/runs/{id}"),
     ("DELETE", "/api/v1/eval/run/live/{id}"),
