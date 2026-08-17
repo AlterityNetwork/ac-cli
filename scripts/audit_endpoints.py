@@ -82,6 +82,10 @@ OUT_OF_SCOPE: set[tuple[str, str]] = {
     # Signature-authenticated FullEnrich provider callbacks (ENG-1733).
     ("POST", "/api/v1/fullenrich/webhook"),
     ("POST", "/api/v1/fullenrich/webhook/contact"),
+    # ENG-2048: public browser-only redemption of a managed-onboarding link.
+    # The customer clicks a mailed URL with no session; the single-use token in
+    # the body is the whole credential. Same class as the OAuth callback below.
+    ("POST", "/api/v1/onboarding/redeem"),
     ("GET", "/api/v1/nylas/oauth/callback"),
     ("GET", "/api/v1/email/unsubscribe"),
     ("POST", "/api/v1/email/unsubscribe"),
