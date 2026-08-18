@@ -22,6 +22,8 @@ jobs:
       - uses: astral-sh/setup-uv@38f3f104447c67c051c4a08e39b64a148898af3a # v4
         with:
           version: "latest"
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
       - name: Set up Python ${{ matrix.python-version }}
         run: uv python install ${{ matrix.python-version }}
       - name: Install dependencies
@@ -42,6 +44,8 @@ jobs:
       - uses: astral-sh/setup-uv@38f3f104447c67c051c4a08e39b64a148898af3a # v4
         with:
           version: "latest"
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
       - name: Build package
         run: uv build
       - name: Verify version matches tag
