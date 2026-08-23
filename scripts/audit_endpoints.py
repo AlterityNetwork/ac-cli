@@ -35,6 +35,7 @@ DEFAULT_API_URL = os.environ.get("AC_AUDIT_API_URL", "http://localhost:8008")
 # Path constants used inside f-strings in the CLI command files.
 PATH_CONSTANTS: dict[str, str] = {
     "_ADMIN": "/api/v1/admin",
+    "_AGENTIC": "/api/v1/agentic",
     "_AGENTS": "/api/v1/agents",
     "_ANALYTICS": "/api/v1/analytics",
     "_APPS": "/api/v1/orgs",
