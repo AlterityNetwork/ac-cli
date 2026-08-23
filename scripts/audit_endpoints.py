@@ -67,11 +67,6 @@ PATH_CONSTANTS: dict[str, str] = {
 OUT_OF_SCOPE: set[tuple[str, str]] = {
     ("POST", "/api/v1/webhook"),
     ("GET", "/api/v1/webhook"),
-    # Inngest platform callback (durable workflow/cron) — Inngest Cloud calls
-    # these; signature-verified, not a user-facing CLI command.
-    ("GET", "/api/inngest"),
-    ("POST", "/api/inngest"),
-    ("PUT", "/api/inngest"),
     # Frontend-only UI state: CRM surfaces poll this for the per-company
     # "Headhunter search in progress" indicator; not a CLI workflow.
     ("GET", "/api/v1/workflows/headhunter/active-runs"),
