@@ -1,12 +1,17 @@
-"""Agentic platform run commands.
+"""Agentic platform commands.
 
-`ac agentic runs` drives the run surface of the new agentic platform. It sits
-beside `ac agents runs`, which drives the live stack, and it replaces none of
-it: the two stacks are branch isolated until the cutover, so the alias and the
-deletion of the old commands belong to Phase 7.
+`ac agentic runs` drives the run surface of the new agentic platform, and
+`ac agentic definitions` drives the definition lifecycle. Both sit beside the
+live `ac agents runs` and replace none of it: the two stacks are branch
+isolated until the cutover, so the alias and the deletion of the old commands
+belong to Phase 7.
+
+Every platform route sits under `/api/v1/agentic/`, so one path constant serves
+both groups and the parity audit resolves each call.
 
 The endpoints are ac-docs, the file
-engineering/system-design/agentic-platform/interfaces/surfaces.md, Run Explorer.
+engineering/system-design/agentic-platform/interfaces/surfaces.md, Run Explorer
+and Agent Builder.
 """
 
 from __future__ import annotations
@@ -259,3 +264,339 @@ def runs_cancel(
 
 
 app.add_typer(runs_app, name="runs")
+
+
+definitions_app = typer.Typer(help="Agentic definition lifecycle")
+
+_DEFINITION_FIELDS = [
+    ("id", "Definition ID"),
+    ("kind", "Kind"),
+    ("name", "Name"),
+    ("origin", "Origin"),
+    ("state", "State"),
+    ("has_unpublished_changes", "Unpublished edits"),
+    ("source_definition_id", "Forked from"),
+    ("created_at", "Created"),
+    ("published_at", "Published"),
+    ("updated_at", "Token"),
+]
+
+_DEFINITION_LIST_FIELDS = [
+    ("id", "Definition ID"),
+    ("name", "Name"),
+    ("kind", "Kind"),
+    ("origin", "Origin"),
+    ("state", "State"),
+    ("has_unpublished_changes", "Unpublished edits"),
+]
+
+
+def _parse_object(raw: str | None, flag: str) -> dict:
+    """Reads one JSON object flag, or answers an empty object.
+
+    Args:
+        raw: The JSON string the caller passed, or None.
+        flag: The flag name, for the message.
+
+    Returns:
+        The parsed object.
+
+    Raises:
+        typer.Exit: The string is not a JSON object.
+    """
+    if not raw:
+        return {}
+    try:
+        parsed = json.loads(raw)
+    except json.JSONDecodeError:
+        rprint(f"[red]Invalid JSON for {flag}[/red]")
+        raise typer.Exit(code=1) from None
+    if not isinstance(parsed, dict):
+        rprint(f"[red]{flag} must be a JSON object[/red]")
+        raise typer.Exit(code=1)
+    return parsed
+
+
+def _report_validation(data: dict) -> None:
+    """Prints what validation found, when the route ran one.
+
+    The answer of a draft save is advisory: the draft saved whatever it says.
+    The errors are what tell the author what is still missing.
+
+    Args:
+        data: The definition the endpoint answered.
+    """
+    validation = data.get("validation")
+    if validation is None:
+        return
+    if validation.get("ok"):
+        rprint("[green]Validation:[/green] the configuration is valid")
+        return
+    rprint("[yellow]Validation:[/yellow] the configuration cannot publish yet")
+    for one in validation.get("issues", []):
+        where = f" at {one['path']}" if one.get("path") else ""
+        rprint(f"  [dim]{one['code']}[/dim]{where}: {one['message']}")
+
+
+@definitions_app.command("list")
+def definitions_list(
+    ctx: typer.Context,
+    kind: str | None = typer.Option(None, "--kind", help="agent, workflow or skill"),
+    origin: str | None = typer.Option(None, "--origin", help="platform or custom"),
+    state: str | None = typer.Option(None, "--state", help="draft, active or disabled"),
+    cursor: str | None = typer.Option(None, "--cursor", help="Page to continue"),
+    limit: int = typer.Option(50, help="Page size"),
+    json_output: bool = JSON_OPTION,
+) -> None:
+    """List the definitions this organization may see.
+
+    The page carries your own definitions in every state, plus the platform
+    templates that are active. A fork starts from a template.
+    """
+    set_json_mode(json_output)
+    params: dict = {"limit": limit}
+    if kind:
+        params["kind"] = kind
+    if origin:
+        params["origin"] = origin
+    if state:
+        params["state"] = state
+    if cursor:
+        params["cursor"] = cursor
+
+    resp = _api_request("get", f"{_AGENTIC}/definitions", params=params)
+
+    data = resp.json()
+    if json_output:
+        print_json(data)
+        return
+
+    items = data.get("items", [])
+    print_table(items, _DEFINITION_LIST_FIELDS, title=f"Definitions ({len(items)})")
+    if data.get("next_cursor"):
+        rprint(f"[dim]Next page:[/dim] --cursor {data['next_cursor']}")
+
+
+@definitions_app.command("create")
+def definitions_create(
+    ctx: typer.Context,
+    kind: str = typer.Option(..., "--kind", help="agent, workflow or skill"),
+    name: str = typer.Option(..., "--name", help="What an admin calls it"),
+    config: str | None = typer.Option(
+        None, "--config", help="Starting configuration, as a JSON object"
+    ),
+    json_output: bool = JSON_OPTION,
+) -> None:
+    """Create one draft.
+
+    A new draft may be incomplete. `patch` reports what is still missing on
+    every save, and `publish` runs the full validation.
+    """
+    set_json_mode(json_output)
+    body = {"kind": kind, "name": name, "config": _parse_object(config, "--config")}
+
+    resp = _api_request("post", f"{_AGENTIC}/definitions", json=body)
+
+    data = resp.json()
+    if json_output:
+        print_json(data)
+        return
+    rprint(f"[green]Draft created:[/green] {data['id']} ({data['name']}, {data['kind']})")
+
+
+@definitions_app.command("get")
+def definitions_get(
+    ctx: typer.Context,
+    definition_id: str = typer.Argument(..., help="Definition ID"),
+    json_output: bool = JSON_OPTION,
+) -> None:
+    """Get one definition of this organization.
+
+    A platform template answers 404 here. It is visible through `list` and
+    through `fork`.
+    """
+    set_json_mode(json_output)
+    resp = _api_request("get", f"{_AGENTIC}/definitions/{definition_id}")
+
+    data = resp.json()
+    if json_output:
+        print_json(data)
+        return
+
+    print_detail(data, _DEFINITION_FIELDS)
+    if data.get("has_unpublished_changes"):
+        rprint("[dim]The draft differs from what is published.[/dim]")
+
+
+@definitions_app.command("patch")
+def definitions_patch(
+    ctx: typer.Context,
+    definition_id: str = typer.Argument(..., help="Definition ID"),
+    expected_updated_at: str = typer.Option(
+        ...,
+        "--expected-updated-at",
+        help="The token the last read returned. Send it back unchanged.",
+    ),
+    patch: str = typer.Option(..., "--patch", help="The fields to replace, as a JSON object"),
+    json_output: bool = JSON_OPTION,
+) -> None:
+    """Replace the named fields of one draft.
+
+    The patch replaces each named field whole, and an explicit null clears one.
+    A merge cannot remove a tool, so send the whole list when you shorten it.
+
+    The token is opaque. Echo back the `updated_at` a read returned, and never
+    a value a date type has parsed: a millisecond round trip answers stale.
+    """
+    set_json_mode(json_output)
+    body = {
+        "expected_updated_at": expected_updated_at,
+        "patch": _parse_object(patch, "--patch"),
+    }
+
+    resp = _api_request("patch", f"{_AGENTIC}/definitions/{definition_id}/draft", json=body)
+
+    data = resp.json()
+    if json_output:
+        print_json(data)
+        return
+    rprint(f"[green]Draft saved:[/green] {data['id']}")
+    _report_validation(data)
+
+
+@definitions_app.command("validate")
+def definitions_validate(
+    ctx: typer.Context,
+    definition_id: str = typer.Argument(..., help="Definition ID"),
+    json_output: bool = JSON_OPTION,
+) -> None:
+    """Validate one draft, and write nothing."""
+    set_json_mode(json_output)
+    resp = _api_request("post", f"{_AGENTIC}/definitions/{definition_id}/validate")
+
+    data = resp.json()
+    if json_output:
+        print_json(data)
+        return
+    _report_validation(data)
+
+
+@definitions_app.command("publish")
+def definitions_publish(
+    ctx: typer.Context,
+    definition_id: str = typer.Argument(..., help="Definition ID"),
+    expected_updated_at: str = typer.Option(
+        ...,
+        "--expected-updated-at",
+        help="The token the last read returned. Send it back unchanged.",
+    ),
+    json_output: bool = JSON_OPTION,
+) -> None:
+    """Make the stored draft the runnable configuration.
+
+    New runs use it. A run already in flight keeps its frozen snapshot.
+    """
+    set_json_mode(json_output)
+    body = {"expected_updated_at": expected_updated_at}
+
+    resp = _api_request("post", f"{_AGENTIC}/definitions/{definition_id}/publish", json=body)
+
+    data = resp.json()
+    if json_output:
+        print_json(data)
+        return
+    rprint(f"[green]Published:[/green] {data['id']} (state: {data['state']})")
+
+
+@definitions_app.command("disable")
+def definitions_disable(
+    ctx: typer.Context,
+    definition_id: str = typer.Argument(..., help="Definition ID"),
+    yes: bool = typer.Option(False, "--yes", "-y", help="Skip confirmation"),
+    json_output: bool = JSON_OPTION,
+) -> None:
+    """Refuse new run trees of one definition.
+
+    It is not a stop button. A workflow already running still starts its child
+    runs. Cancel a run with `ac agentic runs cancel`.
+    """
+    set_json_mode(json_output)
+    if not should_skip_confirm(yes):
+        typer.confirm(f"Refuse new runs of definition {definition_id}?", abort=True)
+
+    resp = _api_request("post", f"{_AGENTIC}/definitions/{definition_id}/disable")
+
+    data = resp.json()
+    if json_output:
+        print_json(data)
+        return
+    rprint(f"[green]Disabled:[/green] {data['id']} (state: {data['state']})")
+
+
+@definitions_app.command("enable")
+def definitions_enable(
+    ctx: typer.Context,
+    definition_id: str = typer.Argument(..., help="Definition ID"),
+    json_output: bool = JSON_OPTION,
+) -> None:
+    """Return one disabled definition to service.
+
+    It revalidates first. A definition this one references may have been
+    disabled while this one was off.
+    """
+    set_json_mode(json_output)
+    resp = _api_request("post", f"{_AGENTIC}/definitions/{definition_id}/enable")
+
+    data = resp.json()
+    if json_output:
+        print_json(data)
+        return
+    rprint(f"[green]Enabled:[/green] {data['id']} (state: {data['state']})")
+
+
+@definitions_app.command("fork")
+def definitions_fork(
+    ctx: typer.Context,
+    definition_id: str = typer.Argument(..., help="Template to copy"),
+    json_output: bool = JSON_OPTION,
+) -> None:
+    """Copy one template into this organization as a draft.
+
+    A fork of a platform template copies everything it references, and rewrites
+    every id. Two calls mint two independent copies.
+    """
+    set_json_mode(json_output)
+    resp = _api_request("post", f"{_AGENTIC}/definitions/{definition_id}/fork")
+
+    data = resp.json()
+    if json_output:
+        print_json(data)
+        return
+    rprint(f"[green]Forked:[/green] {data['id']} ({data['name']}, {data['state']})")
+
+
+@definitions_app.command("delete")
+def definitions_delete(
+    ctx: typer.Context,
+    definition_id: str = typer.Argument(..., help="Draft to remove"),
+    yes: bool = typer.Option(False, "--yes", "-y", help="Skip confirmation"),
+    json_output: bool = JSON_OPTION,
+) -> None:
+    """Remove one draft.
+
+    A draft is the only row that deletes. A published definition is disabled,
+    because a run's audit trail must not be deletable from under it.
+    """
+    set_json_mode(json_output)
+    if not should_skip_confirm(yes):
+        typer.confirm(f"Delete draft {definition_id}?", abort=True)
+
+    _api_request("delete", f"{_AGENTIC}/definitions/{definition_id}")
+
+    if json_output:
+        print_json({"id": definition_id, "deleted": True})
+        return
+    rprint(f"[green]Draft deleted:[/green] {definition_id}")
+
+
+app.add_typer(definitions_app, name="definitions")
