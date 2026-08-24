@@ -341,7 +341,8 @@ def _report_validation(data: dict) -> None:
         line = Text("  ")
         line.append(str(one["code"]), style="dim")
         if one.get("path"):
-            line.append(f" at {one['path']}")
+            line.append(" at ")
+            line.append_text(as_text(one["path"]))
         line.append(": ")
         line.append_text(as_text(one["message"]))
         rprint(line)
