@@ -166,3 +166,17 @@ def test_whoami_json_error():
     parsed = json.loads(result.output)
     assert parsed["error"] is True
     assert parsed["status_code"] == 403
+
+
+def test_whoami_renders_a_close_tag_in_the_detail():
+    """whoami hand-copied _handle_error, so a bracket broke it there too."""
+    with (
+        respx.mock(base_url=API_BASE) as router,
+        patch("ac_cli.client.load_config", return_value=MOCK_CONFIG),
+        patch("ac_cli.commands.auth.get_active_env", return_value="staging"),
+    ):
+        router.get("/whoami").respond(409, json={"detail": "registry [/urgent] failed"})
+        result = runner.invoke(app, ["auth", "whoami"])
+
+    assert result.exit_code == 5
+    assert "[/urgent]" in result.output

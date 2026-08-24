@@ -180,13 +180,14 @@ def test_handle_error_renders_a_list_detail(invoke, mock_api):
     assert "not [valid]" in result.output
 
 
-def test_resolve_entity_renders_a_close_tag_in_a_match_name(invoke, mock_api, capsys):
+def test_resolve_entity_renders_a_close_tag_in_a_match_name(mock_config, mock_api, capsys):
     """The server writes each name, so one holding `[/beta]` broke the list."""
     import pytest
     import typer
 
-    from ac_cli.commands._helpers import _resolve_entity
+    from ac_cli.commands._helpers import _resolve_entity, set_json_mode
 
+    set_json_mode(False)
     mock_api.get("/api/v1/crm/companies").respond(
         200,
         json={
@@ -204,17 +205,20 @@ def test_resolve_entity_renders_a_close_tag_in_a_match_name(invoke, mock_api, ca
             label="company",
         )
 
+    out = capsys.readouterr().out
     assert exc.value.exit_code == 2
-    assert "[/beta]" in capsys.readouterr().out
+    assert "Multiple companys match" in out, "the JSON branch ran, so the text is unproved"
+    assert "[/beta]" in out
 
 
-def test_resolve_entity_renders_a_close_tag_in_the_search_term(invoke, mock_api, capsys):
+def test_resolve_entity_renders_a_close_tag_in_the_search_term(mock_config, mock_api, capsys):
     """The search term sits inside a `[red]` wrapper, so it takes the escape."""
     import pytest
     import typer
 
-    from ac_cli.commands._helpers import _resolve_entity
+    from ac_cli.commands._helpers import _resolve_entity, set_json_mode
 
+    set_json_mode(False)
     mock_api.get("/api/v1/crm/companies").respond(200, json={"data": []})
     with pytest.raises(typer.Exit) as exc:
         _resolve_entity(
@@ -224,5 +228,20 @@ def test_resolve_entity_renders_a_close_tag_in_the_search_term(invoke, mock_api,
             label="company",
         )
 
+    out = capsys.readouterr().out
     assert exc.value.exit_code == 3
-    assert "Ghost[/red]" in capsys.readouterr().out
+    assert "No company found matching" in out, "the JSON branch ran, so the text is unproved"
+    assert "Ghost[/red]" in out
+
+
+def test_handle_connection_error_renders_a_close_tag(invoke, mock_api):
+    """A non-HTTP responder puts its own bytes in the transport error text."""
+    import httpx
+
+    mock_api.get("/api/v1/crm/companies").mock(
+        side_effect=httpx.ConnectError("failed to reach [/urgent] host")
+    )
+    result = invoke(["crm", "companies", "list"])
+
+    assert result.exit_code == 1
+    assert "[/urgent]" in result.output

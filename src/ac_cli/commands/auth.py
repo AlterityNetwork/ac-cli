@@ -1,11 +1,9 @@
 """Authentication commands: login, logout, whoami."""
 
-import httpx
 import typer
 from rich import print as rprint
 from supabase import create_client
 
-from ac_cli.client import get_api_client
 from ac_cli.config import (
     ENV_NAMES,
     ENVIRONMENTS,
@@ -124,35 +122,12 @@ def whoami(
     json_output: bool = typer.Option(False, "--json", help="Output raw JSON"),
 ) -> None:
     """Show the currently authenticated user."""
-    from ac_cli.commands._helpers import _EXIT_CODES, set_json_mode
+    from ac_cli.commands._helpers import _api_request, set_json_mode
     from ac_cli.formatting import print_json
 
     set_json_mode(json_output)
     active = get_active_env()
-    with get_api_client() as client:
-        try:
-            resp = client.get("/whoami")
-            resp.raise_for_status()
-        except httpx.HTTPStatusError as exc:
-            try:
-                body = exc.response.json()
-                detail = body.get("detail") or body.get("message") or exc.response.text
-            except (ValueError, KeyError):
-                detail = exc.response.text
-            exit_code = _EXIT_CODES.get(exc.response.status_code, 1)
-            if json_output:
-                print_json(
-                    {"error": True, "status_code": exc.response.status_code, "detail": detail}
-                )
-            else:
-                rprint(f"[red]Error {exc.response.status_code}:[/red] {detail}")
-            raise typer.Exit(code=exit_code)
-        except httpx.HTTPError as exc:
-            if json_output:
-                print_json({"error": True, "status_code": None, "detail": str(exc)})
-            else:
-                rprint(f"[red]Connection error:[/red] {exc}")
-            raise typer.Exit(code=1)
+    resp = _api_request("get", "/whoami")
     data = resp.json()
     data["environment"] = active
     if json_output:
