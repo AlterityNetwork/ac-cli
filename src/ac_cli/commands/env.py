@@ -11,7 +11,7 @@ from ac_cli.config import (
     load_full_config,
     set_active_env,
 )
-from ac_cli.formatting import as_text
+from ac_cli.formatting import as_text, print_json
 
 app = typer.Typer(help="Manage CLI environments (local, staging, production)")
 
@@ -28,7 +28,6 @@ def list_envs(
 ) -> None:
     """List all environments and their login status."""
     set_json_mode(json_output)
-    import json as json_mod
 
     full = load_full_config()
     active = full.get("active")
@@ -46,7 +45,7 @@ def list_envs(
                     "api_url": env_data.get("api_url", ENVIRONMENTS[name]["api_url"]),
                 }
             )
-        rprint(json_mod.dumps(rows, indent=2))
+        print_json(rows)
         return
 
     table = Table(title="Environments")
@@ -61,7 +60,7 @@ def list_envs(
         api_url = env_data.get("api_url", ENVIRONMENTS[name]["api_url"])
         logged_in = bool(env_data.get("access_token"))
         status = "[green]logged in[/green]" if logged_in else "[dim]not logged in[/dim]"
-        table.add_row(marker, name, api_url, status)
+        table.add_row(marker, name, as_text(api_url), status)
 
     rprint(table)
 
@@ -73,7 +72,6 @@ def show(
 ) -> None:
     """Show the active environment details."""
     set_json_mode(json_output)
-    import json as json_mod
 
     full = load_full_config()
     active = full.get("active")
@@ -88,7 +86,7 @@ def show(
     }
 
     if json_output:
-        rprint(json_mod.dumps(info, indent=2))
+        print_json(info)
         return
 
     rprint("[bold]Environment:[/bold]", as_text(info["environment"]))

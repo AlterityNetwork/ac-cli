@@ -362,3 +362,31 @@ def test_the_live_agents_commands_are_untouched(invoke, mock_api):
     mock_api.get("/api/v1/agents/runs").respond(200, json=[])
     result = invoke(["agents", "runs", "list"])
     assert result.exit_code == 0
+
+
+def test_runs_start_renders_a_close_tag_in_the_definition_name(invoke, mock_api):
+    """The author writes the definition name, as they write a definition."""
+    mock_api.post("/api/v1/agentic/runs").respond(
+        201,
+        json={"id": "run-1", "definition_name": "Acme [/beta] agent", "status": "queued"},
+    )
+    result = invoke(["agentic", "runs", "start", "--definition", "def-1"])
+
+    assert result.exit_code == 0
+    assert "[/beta]" in result.output
+
+
+def test_runs_start_renders_a_close_tag_on_the_duplicate_path(invoke, mock_api):
+    mock_api.post("/api/v1/agentic/runs").respond(
+        200,
+        json={
+            "id": "run[/x]",
+            "definition_name": "a",
+            "status": "running",
+            "outcome": "duplicate",
+        },
+    )
+    result = invoke(["agentic", "runs", "start", "--definition", "def-1"])
+
+    assert result.exit_code == 0
+    assert "run[/x]" in result.output

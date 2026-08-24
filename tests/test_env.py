@@ -105,6 +105,35 @@ class TestEnvShow:
 # ---------------------------------------------------------------------------
 
 
+class TestEnvMarkup:
+    """`ac login --api-url` writes this value, so the config can hold a bracket."""
+
+    def _bracket_config(self):
+        full = _multi_env_config()
+        full["environments"]["staging"]["api_url"] = "http://x[/urgent]"
+        full["active"] = "staging"
+        return full
+
+    def test_list_renders_a_close_tag_in_a_stored_url(self):
+        with _patch_full_config(self._bracket_config()):
+            result = runner.invoke(app, ["env", "list"])
+        assert result.exit_code == 0
+        assert "http://x[/urgent]" in result.output
+
+    def test_list_json_renders_a_close_tag_in_a_stored_url(self):
+        with _patch_full_config(self._bracket_config()):
+            result = runner.invoke(app, ["env", "list", "--json"])
+        assert result.exit_code == 0
+        rows = json.loads(result.output)
+        assert any(row["api_url"] == "http://x[/urgent]" for row in rows)
+
+    def test_show_json_renders_a_close_tag_in_a_stored_url(self):
+        with _patch_full_config(self._bracket_config()):
+            result = runner.invoke(app, ["env", "show", "--json"])
+        assert result.exit_code == 0
+        assert json.loads(result.output)["api_url"] == "http://x[/urgent]"
+
+
 class TestEnvShowMarkup:
     def test_show_renders_a_close_tag_in_a_stored_url(self):
         """`ac login --api-url` stores this, so the config can hold a bracket."""

@@ -2,6 +2,7 @@
 
 import typer
 from rich import print as rprint
+from rich.text import Text
 from supabase import create_client
 
 from ac_cli.config import (
@@ -90,7 +91,7 @@ def login(
     full["active"] = env
     save_full_config(full)
 
-    rprint("[green]Logged in as[/green]", as_text(f"{email} ({env})"))
+    rprint(Text(f"Logged in as {email} ({env})", style="green"))
 
 
 @app.command()

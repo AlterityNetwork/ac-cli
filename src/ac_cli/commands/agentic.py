@@ -22,6 +22,7 @@ import uuid
 
 import typer
 from rich import print as rprint
+from rich.text import Text
 
 from ac_cli.commands._helpers import (
     JSON_OPTION,
@@ -130,13 +131,13 @@ def runs_start(
     outcome = data.get("outcome")
     if outcome == "duplicate":
         rprint(
-            f"[yellow]Duplicate:[/yellow] this key already started "
-            f"{data['id']} (status: {data['status']})"
+            "[yellow]Duplicate:[/yellow] this key already started",
+            as_text(f"{data['id']} (status: {data['status']})"),
         )
         return
     rprint(
-        f"[green]Run started:[/green] {data['id']} "
-        f"({data['definition_name']}, status: {data['status']})"
+        "[green]Run started:[/green]",
+        as_text(f"{data['id']} ({data['definition_name']}, status: {data['status']})"),
     )
 
 
@@ -158,8 +159,8 @@ def runs_get(
     print_detail(data, _RUN_FIELDS)
     usage = data.get("usage") or {}
     rprint(
-        f"[dim]Tree usage:[/dim] {usage.get('total_tokens', 0)} tokens, "
-        f"{usage.get('cost_cents', 0)} cents"
+        "[dim]Tree usage:[/dim]",
+        as_text(f"{usage.get('total_tokens', 0)} tokens, {usage.get('cost_cents', 0)} cents"),
     )
     if data.get("child_count"):
         rprint("[dim]Read the children:[/dim] ac agentic runs list --parent", as_text(run_id))
@@ -335,8 +336,15 @@ def _report_validation(data: dict) -> None:
         return
     rprint("[yellow]Validation:[/yellow] the configuration cannot publish yet")
     for one in validation.get("issues", []):
-        where = f" at {one['path']}" if one.get("path") else ""
-        rprint(f"  [dim]{one['code']}[/dim]{where}:", as_text(one["message"]))
+        # The path names a JSON key the author typed, so build the line as a
+        # Text. Every part then prints as it is, and the code keeps its dim.
+        line = Text("  ")
+        line.append(str(one["code"]), style="dim")
+        if one.get("path"):
+            line.append(f" at {one['path']}")
+        line.append(": ")
+        line.append_text(as_text(one["message"]))
+        rprint(line)
 
 
 @definitions_app.command("list")
