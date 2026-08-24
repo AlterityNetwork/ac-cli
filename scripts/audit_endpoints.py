@@ -257,6 +257,48 @@ def collect_api_endpoints(spec: dict) -> set[tuple[str, str]]:
     return out
 
 
+def stale_out_of_scope(
+    api: set[tuple[str, str]],
+) -> set[tuple[str, str]]:
+    """Finds OUT_OF_SCOPE entries the live API does not serve.
+
+    An entry is the only thing that keeps a deliberately CLI-omitted endpoint
+    out of the API-ONLY list. A typo in one, or an endpoint that was renamed
+    or deleted, therefore hides silently: the real path reappears as API-ONLY,
+    which is not fatal, and the dead entry keeps suppressing nothing.
+
+    ⚠️ **It only judges a prefix the API actually serves.** This audit runs
+    against whatever API is up, and a branch API serves routes staging does
+    not. Reporting every entry of an absent prefix as stale would fail the
+    gate for running it against the wrong host, which is a different problem.
+
+    Args:
+        api: Every (method, path) the live spec declares, normalized.
+
+    Returns:
+        The entries that name nothing, inside a prefix the API serves.
+    """
+    served_prefixes = {_prefix(path) for _, path in api}
+    return {
+        entry
+        for entry in OUT_OF_SCOPE
+        if entry not in api and _prefix(entry[1]) in served_prefixes
+    }
+
+
+def _prefix(path: str) -> str:
+    """Reads the domain prefix of one path, such as `/api/v1/agentic`.
+
+    Args:
+        path: A normalized API path.
+
+    Returns:
+        The first three segments, or the whole path when it has fewer.
+    """
+    parts = path.split("/")
+    return "/".join(parts[:4])
+
+
 def main() -> int:
     p = argparse.ArgumentParser()
     p.add_argument(
@@ -288,6 +330,7 @@ def main() -> int:
         (m, p) for m, p in cli if (m, p) not in api and p in api_paths and p != "/whoami"
     )
     matches = sorted(c for c in cli if c in api)
+    stale_scope = sorted(stale_out_of_scope(api))
 
     print(f"# ac-cli endpoint audit  (API: {args.api_url})")
     print(f"# CLI calls: {len(cli)}  API endpoints: {len(api)}")
@@ -303,6 +346,11 @@ def main() -> int:
         print(f"  {m:6s} {p}")
     print()
 
+    print(f"## STALE-SCOPE (OUT_OF_SCOPE entry the API does not serve) — {len(stale_scope)}")
+    for m, p in stale_scope:
+        print(f"  {m:6s} {p}")
+    print()
+
     print(f"## METHOD-DIFF (path matches, method differs) — {len(method_diff)}")
     for m, p in method_diff:
         api_methods = sorted(am for am, ap in api if ap == p)
@@ -313,7 +361,7 @@ def main() -> int:
         for m, p in matches:
             print(f"  {m:6s} {p}")
 
-    if args.strict and cli_only:
+    if args.strict and (cli_only or stale_scope):
         return 1
     return 0
 
