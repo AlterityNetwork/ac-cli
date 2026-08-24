@@ -132,6 +132,13 @@ OUT_OF_SCOPE: set[tuple[str, str]] = {
     ("GET", "/api/v1/workflows/{id}/runs/{id}/companies/field-updates/stream"),
     # SSE stream — frontend-only consumer (ENG-769)
     ("GET", "/api/v1/notifications/stream"),
+    # ENG-2124: the agentic run stream. SSE is not a CLI shape — the command
+    # would never return, and the events are a live hint whose durable record
+    # the CLI already reads through `runs get` and `runs spans`. The reconnect
+    # filter `?since=` on the spans route is a query parameter, which this
+    # audit does not compare, and a browser reconnect has no CLI use, so no
+    # --since flag ships either.
+    ("GET", "/api/v1/agentic/runs/{id}/stream"),
     ("GET", "/api/v1/resources/{id}/stream"),
     ("GET", "/api/v1/resources/{id}/preview-url"),
     ("PATCH", "/api/v1/resources/{id}"),
