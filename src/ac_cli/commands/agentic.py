@@ -1,13 +1,14 @@
 """Agentic platform commands.
 
-`ac agentic runs` drives the run surface of the new agentic platform, and
-`ac agentic definitions` drives the definition lifecycle. Both sit beside the
-live `ac agents runs` and replace none of it: the two stacks are branch
-isolated until the cutover, so the alias and the deletion of the old commands
-belong to Phase 7.
+`ac agentic runs` drives the run surface of the new agentic platform,
+`ac agentic definitions` drives the definition lifecycle, and
+`ac agentic tools` reads the catalogue a definition names its tools from. All
+three sit beside the live `ac agents runs` and replace none of it: the two
+stacks are branch isolated until the cutover, so the alias and the deletion of
+the old commands belong to Phase 7.
 
 Every platform route sits under `/api/v1/agentic/`, so one path constant serves
-both groups and the parity audit resolves each call.
+every group and the parity audit resolves each call.
 
 The endpoints are ac-docs, the file
 engineering/system-design/agentic-platform/interfaces/surfaces.md, Run Explorer
@@ -21,6 +22,7 @@ import uuid
 
 import typer
 from rich import print as rprint
+from rich.markup import escape
 
 from ac_cli.commands._helpers import (
     JSON_OPTION,
@@ -600,3 +602,65 @@ def definitions_delete(
 
 
 app.add_typer(definitions_app, name="definitions")
+
+
+tools_app = typer.Typer(help="Agentic tool catalogue")
+
+_TOOL_LIST_FIELDS = [
+    ("name", "Tool ID"),
+    ("side_effects", "Effect"),
+    ("description", "Description"),
+]
+
+
+def _escaped(items: list[dict]) -> list[dict]:
+    """Escapes the rich markup of every description before it reaches a table.
+
+    ⚠️ `print_table` prints each cell through a markup-enabled console. A
+    description that holds `[id, name]` renders without the bracketed text, so
+    the reader reads a sentence the tool never declared. One that holds
+    `[/urgent]` raises `MarkupError`, and the command then exits 1 with no
+    output.
+
+    `print_table` and `print_detail` carry this hazard at every call site, and
+    this helper closes it for this table alone. The description is the column
+    that needs it first: Phase 3 adds the tools of a remote MCP server, and
+    that server writes its own text.
+
+    `name` and `side_effects` need no escape. `NAME_PATTERN` admits no bracket,
+    and `SideEffects` is a closed set of three words.
+
+    Args:
+        items: The rows, as the API answered them.
+
+    Returns:
+        The same rows, with each description escaped.
+    """
+    return [{**row, "description": escape(str(row.get("description", "")))} for row in items]
+
+
+@tools_app.command("list")
+def tools_list(
+    ctx: typer.Context,
+    json_output: bool = JSON_OPTION,
+) -> None:
+    """List every tool a definition may name in `tool_ids`.
+
+    The catalogue belongs to the platform, so every caller reads the same rows.
+    The table shows the tool id, the effect and the description. Use `--json`
+    for the two JSON Schemas, which no table renders.
+    """
+    set_json_mode(json_output)
+
+    resp = _api_request("get", f"{_AGENTIC}/tools")
+
+    data = resp.json()
+    if json_output:
+        print_json(data)
+        return
+
+    items = data.get("items", [])
+    print_table(_escaped(items), _TOOL_LIST_FIELDS, title=f"Tools ({len(items)})")
+
+
+app.add_typer(tools_app, name="tools")
