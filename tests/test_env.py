@@ -120,6 +120,14 @@ class TestEnvUse:
         assert result.exit_code == 1
         assert "Unknown environment" in result.output
 
+    def test_use_renders_a_close_tag_in_the_name(self):
+        """The name comes from the shell, and it sits inside a [red] wrapper."""
+        full = _multi_env_config()
+        with _patch_full_config(full):
+            result = runner.invoke(app, ["env", "use", "[/urgent]"])
+        assert result.exit_code == 1
+        assert result.output.startswith("Unknown environment: [/urgent]\n")
+
     def test_use_warns_not_logged_in(self):
         full = _multi_env_config(envs={})
         with _patch_full_config(full), patch("ac_cli.commands.env.set_active_env"):

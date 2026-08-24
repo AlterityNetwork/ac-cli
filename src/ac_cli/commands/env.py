@@ -11,6 +11,7 @@ from ac_cli.config import (
     load_full_config,
     set_active_env,
 )
+from ac_cli.formatting import as_text
 
 app = typer.Typer(help="Manage CLI environments (local, staging, production)")
 
@@ -103,7 +104,7 @@ def use(
 ) -> None:
     """Switch the active environment."""
     if name not in ENV_NAMES:
-        rprint(f"[red]Unknown environment:[/red] {name}")
+        rprint("[red]Unknown environment:[/red]", as_text(name))
         rprint(f"Available: {', '.join(ENV_NAMES)}")
         raise typer.Exit(code=1)
 

@@ -90,7 +90,7 @@ def login(
     full["active"] = env
     save_full_config(full)
 
-    rprint(f"[green]Logged in as {email} ({env})[/green]")
+    rprint("[green]Logged in as[/green]", as_text(f"{email} ({env})"))
 
 
 @app.command()

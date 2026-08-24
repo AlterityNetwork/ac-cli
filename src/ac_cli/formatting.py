@@ -6,10 +6,15 @@ import json
 import sys
 
 from rich.console import Console
+from rich.highlighter import ReprHighlighter
 from rich.table import Table
 from rich.text import Text
 
 console = Console()
+
+# as_text renders through rprint at some call sites, and through the console
+# above at others. It owns a highlighter so the two agree.
+_highlighter = ReprHighlighter()
 
 
 def as_text(value: object) -> Text:
@@ -20,9 +25,14 @@ def as_text(value: object) -> Text:
     appends a second backslash to a value that ends in one.
 
     The console highlights a str argument but not a Text, so the highlighter
-    runs here. A number, a URL and a None keep the colour they had.
+    runs here. A number, a URL and a None keep the colour they had. It runs
+    always, so a console that sets `highlight=False` does not stop it.
+
+    A Text also stops the emoji substitution. A value that holds `:rocket:`
+    prints those eight characters. That is the same rule as the brackets:
+    print what the value holds.
     """
-    return console.highlighter(Text(str(value)))
+    return _highlighter(Text(str(value)))
 
 
 def print_table(
@@ -44,12 +54,13 @@ def print_table(
     two faults, but it appends a second backslash to a value that ends in one,
     and the parser does not remove it again.
 
-    A Text also stops the emoji substitution, so a cell that holds `:rocket:`
-    now prints those nine characters. That is the same rule as the brackets:
-    print what the row holds.
+    A Text also stops the emoji substitution, so a cell or a title that holds
+    `:rocket:` prints those eight characters. That is the same rule as the
+    brackets: print what the row holds.
 
     Table applies `table.title` to a str title only, so the Text title names
-    that style itself.
+    that style itself. For the same reason a `title_style` argument would not
+    reach a Text title. Do not add one without reading Table.render_annotation.
     """
     table = Table(title=Text(title, style="table.title") if title else title, show_lines=False)
     for _, header in columns:

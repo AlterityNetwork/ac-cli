@@ -125,9 +125,14 @@ def test_print_table_keeps_the_title_style(monkeypatch):
     # The title wraps to the table width, so the row must be wider than it.
     fmt.print_table([{"name": "Acme Corporation Ltd"}], [("name", "Name")], title="Companies")
 
+    import re
+
+    from rich.default_styles import DEFAULT_STYLES
+
     title_line = console.file.getvalue().splitlines()[0]
-    assert "Companies" in title_line
-    assert title_line.startswith("\x1b[3m") and title_line.endswith("\x1b[0m")
+    plain = re.sub(r"\x1b\[[0-9;]*m", "", title_line)
+    assert "Companies" in plain
+    assert title_line == DEFAULT_STYLES["table.title"].render(plain)
 
 
 def test_print_detail_keeps_the_value_highlighting(monkeypatch):
@@ -138,9 +143,11 @@ def test_print_detail_keeps_the_value_highlighting(monkeypatch):
     monkeypatch.setattr(fmt, "console", console)
     fmt.print_detail({"n": 250, "url": "https://acme.com"}, [("n", "N"), ("url", "URL")])
 
+    from rich.default_styles import DEFAULT_STYLES
+
     out = console.file.getvalue()
-    assert "\x1b[1;36m250\x1b[0m" in out
-    assert "\x1b[4;94mhttps://acme.com\x1b[0m" in out
+    assert DEFAULT_STYLES["repr.number"].render("250") in out
+    assert DEFAULT_STYLES["repr.url"].render("https://acme.com") in out
 
 
 def test_as_text_keeps_markup_literal_and_keeps_the_highlighting(monkeypatch):
@@ -154,10 +161,10 @@ def test_as_text_keeps_markup_literal_and_keeps_the_highlighting(monkeypatch):
     # holds no contiguous "[/beta]". Read the literal text off `plain`.
     assert fmt.as_text(source).plain == source
 
-    console.print(fmt.as_text(source))
-    out = console.file.getvalue()
-    assert "\x1b[1;36m250\x1b[0m" in out
-    assert "\x1b[4;94mhttps://acme.com\x1b[0m" in out
+    # Name the styles, not their bytes. A rich release may repaint a theme.
+    styles = [span.style for span in fmt.as_text(source).spans]
+    assert "repr.number" in styles
+    assert "repr.url" in styles
 
 
 def test_as_text_keeps_a_trailing_backslash(monkeypatch):
@@ -167,4 +174,6 @@ def test_as_text_keeps_a_trailing_backslash(monkeypatch):
     monkeypatch.setattr(fmt, "console", console)
     console.print(fmt.as_text("C:\\share\\"))
 
-    assert "C:\\share\\\\" not in console.file.getvalue()
+    out = console.file.getvalue()
+    assert "C:\\share\\" in out
+    assert "C:\\share\\\\" not in out

@@ -1,6 +1,7 @@
 """Tests for auth commands: login, logout, whoami."""
 
 import json
+from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
 import respx
@@ -204,11 +205,37 @@ def test_login_renders_a_close_tag_in_the_env_name():
     result = runner.invoke(app, ["auth", "login", "--env", "[/urgent]"])
 
     assert result.exit_code == 1
-    assert "Unknown environment" in result.output
+    # Name the whole line. "Unknown environment" alone prints even when the
+    # name is dropped, and it also survives escape()'s stray backslash.
+    assert result.output.startswith("Unknown environment: [/urgent]\n")
 
 
 def test_logout_renders_a_close_tag_in_the_env_name():
     result = runner.invoke(app, ["auth", "logout", "--env", "[/urgent]"])
 
     assert result.exit_code == 1
-    assert "Unknown environment" in result.output
+    assert result.output.startswith("Unknown environment: [/urgent]\n")
+
+
+def test_login_renders_a_close_tag_in_the_email():
+    """save_full_config runs first, so a raise here reads as a failed login."""
+    session = SimpleNamespace(access_token="a", refresh_token="r")
+    with (
+        patch("ac_cli.commands.auth.load_full_config", return_value={}),
+        patch("ac_cli.commands.auth.save_full_config"),
+        patch(
+            "ac_cli.commands.auth.create_client",
+            return_value=SimpleNamespace(
+                auth=SimpleNamespace(
+                    sign_in_with_password=lambda _: SimpleNamespace(session=session)
+                )
+            ),
+        ),
+    ):
+        result = runner.invoke(
+            app,
+            ["auth", "login", "--env", "staging", "--email", "a[/urgent]b@x.c", "--password", "p"],
+        )
+
+    assert result.exit_code == 0
+    assert "a[/urgent]b@x.c" in result.output
