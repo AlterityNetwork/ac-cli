@@ -97,9 +97,47 @@ def test_print_detail_renders_a_non_string_value(capsys):
 def test_print_table_keeps_a_trailing_backslash(capsys):
     """rich.markup.escape appends a second backslash, and nothing removes it."""
     print_table([{"path": "C:\\share\\"}], [("path", "Path")])
-    assert "C:\\share\\ " in capsys.readouterr().out
+    out = capsys.readouterr().out
+    assert "C:\\share\\" in out
+    assert "C:\\share\\\\" not in out
 
 
 def test_print_detail_keeps_a_trailing_backslash(capsys):
     print_detail({"path": "C:\\share\\"}, [("path", "Path")])
     assert capsys.readouterr().out.rstrip("\n").endswith("C:\\share\\")
+
+
+def _coloured_console():
+    """A console that emits styles, which capsys and a pipe do not."""
+    import io
+
+    from rich.console import Console
+
+    return Console(file=io.StringIO(), width=60, force_terminal=True, color_system="truecolor")
+
+
+def test_print_table_keeps_the_title_style(monkeypatch):
+    """Table styles a str title only, so a Text title must name the style."""
+    import ac_cli.formatting as fmt
+
+    console = _coloured_console()
+    monkeypatch.setattr(fmt, "console", console)
+    # The title wraps to the table width, so the row must be wider than it.
+    fmt.print_table([{"name": "Acme Corporation Ltd"}], [("name", "Name")], title="Companies")
+
+    title_line = console.file.getvalue().splitlines()[0]
+    assert "Companies" in title_line
+    assert title_line.startswith("\x1b[3m") and title_line.endswith("\x1b[0m")
+
+
+def test_print_detail_keeps_the_value_highlighting(monkeypatch):
+    """The console highlights a str but not a Text, so the helper highlights."""
+    import ac_cli.formatting as fmt
+
+    console = _coloured_console()
+    monkeypatch.setattr(fmt, "console", console)
+    fmt.print_detail({"n": 250, "url": "https://acme.com"}, [("n", "N"), ("url", "URL")])
+
+    out = console.file.getvalue()
+    assert "\x1b[1;36m250\x1b[0m" in out
+    assert "\x1b[4;94mhttps://acme.com\x1b[0m" in out

@@ -30,8 +30,15 @@ def print_table(
     so no cell reaches the markup parser. `rich.markup.escape` closes the same
     two faults, but it appends a second backslash to a value that ends in one,
     and the parser does not remove it again.
+
+    A Text also stops the emoji substitution, so a cell that holds `:rocket:`
+    now prints those nine characters. That is the same rule as the brackets:
+    print what the row holds.
+
+    Table applies `table.title` to a str title only, so the Text title names
+    that style itself.
     """
-    table = Table(title=Text(title) if title else title, show_lines=False)
+    table = Table(title=Text(title, style="table.title") if title else title, show_lines=False)
     for _, header in columns:
         table.add_column(header)
 
@@ -48,10 +55,13 @@ def print_detail(data: dict, fields: list[tuple[str, str]]) -> None:
 
     The label is a literal, so it keeps its markup. The value is not, so it
     prints as a Text. See print_table.
+
+    The console highlights a str argument but not a Text, so the highlighter
+    runs here. It colours a number, a URL and a None as it did before.
     """
     for key, label in fields:
         value = data.get(key, "")
-        console.print(f"[bold]{label}:[/bold]", Text(str(value)))
+        console.print(f"[bold]{label}:[/bold]", console.highlighter(Text(str(value))))
 
 
 def print_json(data: object) -> None:
