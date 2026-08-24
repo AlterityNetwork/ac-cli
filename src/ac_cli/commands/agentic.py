@@ -157,11 +157,17 @@ def runs_get(
         return
 
     print_detail(data, _RUN_FIELDS)
-    usage = data.get("usage") or {}
-    rprint(
-        f"[dim]Tree usage:[/dim] {usage.get('total_tokens', 0)} tokens, "
-        f"{usage.get('cost_cents', 0)} cents"
-    )
+    # The key is required and it is nullable, so a read of the key is honest
+    # and a `.get` default would hide a shape change. A null usage means the
+    # meter did not answer. Zero is a run that spent nothing, so the two must
+    # not print the same line.
+    usage = data["usage"]
+    if usage is None:
+        rprint("[dim]Tree usage:[/dim] unknown (the meter did not answer)")
+    else:
+        rprint(
+            f"[dim]Tree usage:[/dim] {usage['total_tokens']} tokens, {usage['cost_cents']} cents"
+        )
     if data.get("child_count"):
         rprint(f"[dim]Read the children:[/dim] ac agentic runs list --parent {run_id}")
 
