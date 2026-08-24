@@ -66,8 +66,6 @@ PATH_CONSTANTS: dict[str, str] = {
 
 # API endpoints intentionally not covered by the CLI.
 OUT_OF_SCOPE: set[tuple[str, str]] = {
-    ("POST", "/api/v1/webhook"),
-    ("GET", "/api/v1/webhook"),
     # Inngest platform callback (durable workflow/cron) — Inngest Cloud calls
     # these; signature-verified, not a user-facing CLI command.
     ("GET", "/api/inngest"),
@@ -88,8 +86,6 @@ OUT_OF_SCOPE: set[tuple[str, str]] = {
     # the body is the whole credential. Same class as the OAuth callback below.
     ("POST", "/api/v1/onboarding/redeem"),
     ("GET", "/api/v1/nylas/oauth/callback"),
-    ("GET", "/api/v1/email/unsubscribe"),
-    ("POST", "/api/v1/email/unsubscribe"),
     ("GET", "/api/v1/demo/nylas/account"),
     ("GET", "/api/v1/demo/nylas/messages/{id}/attachments/{id}/download"),
     ("POST", "/api/v1/demo/nylas/disconnect"),
@@ -174,7 +170,6 @@ OUT_OF_SCOPE: set[tuple[str, str]] = {
     # Cross-org outputs feed (admin-style, not exposed to CLI today)
     ("GET", "/api/v1/envoy/outputs"),
     # User-facing org CRUD: covered through admin/orgs (super-admin) for CLI users
-    ("GET", "/api/v1/profiles"),
     ("GET", "/api/v1/organizations/{id}"),
     ("PATCH", "/api/v1/organizations/{id}"),
     ("POST", "/api/v1/organizations"),
@@ -257,6 +252,21 @@ def collect_api_endpoints(spec: dict) -> set[tuple[str, str]]:
     return out
 
 
+#: OUT_OF_SCOPE paths the OpenAPI spec never declares, so staleness cannot be
+#: judged for them.
+#:
+#: `/api/inngest` is the Inngest serve mount. It is attached as raw ASGI and it
+#: is not a FastAPI route, so it appears in no spec and its absence says
+#: nothing. An entry here is exempt from the STALE-SCOPE check and from
+#: nothing else.
+#:
+#: ⚠️ Keep this set small. Every entry is a path no check can watch, so a
+#: rename of one is invisible to this tool for ever.
+NOT_IN_SPEC: set[str] = {
+    "/api/inngest",
+}
+
+
 def stale_out_of_scope(
     api: set[tuple[str, str]],
 ) -> set[tuple[str, str]]:
@@ -267,36 +277,52 @@ def stale_out_of_scope(
     or deleted, therefore hides silently: the real path reappears as API-ONLY,
     which is not fatal, and the dead entry keeps suppressing nothing.
 
-    ⚠️ **It only judges a prefix the API actually serves.** This audit runs
-    against whatever API is up, and a branch API serves routes staging does
-    not. Reporting every entry of an absent prefix as stale would fail the
-    gate for running it against the wrong host, which is a different problem.
+    ⚠️ **It only judges an entry whose neighbourhood the API serves.** This
+    audit runs against whatever API is up, and a branch API serves routes
+    staging does not. Reporting every entry of an absent prefix would fail the
+    gate for naming the wrong host, which is a different problem.
+
+    The neighbourhood is the entry's parent path, and not a fixed depth. A
+    fixed depth is coarser than the granularity at which staleness happens: a
+    route that moves from `/api/v1/webhook` to `/api/v1/nylas/webhook` keeps
+    its first three segments, so a three segment test would exempt exactly the
+    case this check exists to catch.
 
     Args:
         api: Every (method, path) the live spec declares, normalized.
 
+    An entry in `NOT_IN_SPEC` is skipped: the spec never declares it, so its
+    absence carries no information.
+
     Returns:
-        The entries that name nothing, inside a prefix the API serves.
+        The entries that name nothing, in a neighbourhood the API serves.
     """
-    served_prefixes = {_prefix(path) for _, path in api}
+    paths = {path for _, path in api}
     return {
         entry
         for entry in OUT_OF_SCOPE
-        if entry not in api and _prefix(entry[1]) in served_prefixes
+        if entry not in api
+        and entry[1] not in NOT_IN_SPEC
+        and _neighbourhood_is_served(entry[1], paths)
     }
 
 
-def _prefix(path: str) -> str:
-    """Reads the domain prefix of one path, such as `/api/v1/agentic`.
+def _neighbourhood_is_served(path: str, api_paths: set[str]) -> bool:
+    """Answers whether the API serves anything beside one path.
 
     Args:
-        path: A normalized API path.
+        path: The path of an OUT_OF_SCOPE entry.
+        api_paths: Every path the live spec declares, normalized.
 
     Returns:
-        The first three segments, or the whole path when it has fewer.
+        True when the spec holds the parent of this path, or anything under
+        it. A path with no parent, such as `/health`, is always judged: a
+        spec that answered at all serves the root.
     """
-    parts = path.split("/")
-    return "/".join(parts[:4])
+    parent = path.rsplit("/", 1)[0]
+    if not parent:
+        return True
+    return any(p == parent or p.startswith(f"{parent}/") for p in api_paths)
 
 
 def main() -> int:
