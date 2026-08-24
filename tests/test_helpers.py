@@ -142,3 +142,87 @@ def test_get_org_id_used_in_create(invoke, mock_api):
     assert result.exit_code == 0
     parsed = json.loads(result.output)
     assert parsed["id"] == "co-new"
+
+
+# -- rich markup in text the CLI did not write ---------------------------------
+#
+# The server writes the refusal detail, and the server writes every name in a
+# match list. rprint reads rich markup, so a close tag raises MarkupError and
+# the command then exits 1 with no output. See print_table in formatting.py.
+
+
+def test_handle_error_renders_a_close_tag_in_the_detail(invoke, mock_api):
+    """A refusal holding `[/urgent]` raised MarkupError and printed nothing."""
+    mock_api.get("/api/v1/crm/companies").respond(409, json={"detail": "registry [/urgent] failed"})
+    result = invoke(["crm", "companies", "list"])
+
+    assert result.exit_code == 5
+    assert "[/urgent]" in result.output
+
+
+def test_handle_error_keeps_a_bracketed_word_in_the_detail(invoke, mock_api):
+    """A refusal holding `[name]` dropped it, so the reason named no column."""
+    mock_api.get("/api/v1/crm/companies").respond(400, json={"detail": "column [name] is unknown"})
+    result = invoke(["crm", "companies", "list"])
+
+    assert result.exit_code == 1
+    assert "[name]" in result.output
+
+
+def test_handle_error_renders_a_list_detail(invoke, mock_api):
+    """A 422 answers `detail` as a list, and escape() rejects a non-string."""
+    mock_api.get("/api/v1/crm/companies").respond(
+        422, json={"detail": [{"loc": ["query", "limit"], "msg": "not [valid]"}]}
+    )
+    result = invoke(["crm", "companies", "list"])
+
+    assert result.exit_code == 2
+    assert "not [valid]" in result.output
+
+
+def test_resolve_entity_renders_a_close_tag_in_a_match_name(invoke, mock_api, capsys):
+    """The server writes each name, so one holding `[/beta]` broke the list."""
+    import pytest
+    import typer
+
+    from ac_cli.commands._helpers import _resolve_entity
+
+    mock_api.get("/api/v1/crm/companies").respond(
+        200,
+        json={
+            "data": [
+                {"id": "co-1", "name": "Acme [/beta] Ltd"},
+                {"id": "co-2", "name": "Acme Two Ltd"},
+            ]
+        },
+    )
+    with pytest.raises(typer.Exit) as exc:
+        _resolve_entity(
+            entity_id=None,
+            entity_name="Acme",
+            search_path="/api/v1/crm/companies",
+            label="company",
+        )
+
+    assert exc.value.exit_code == 2
+    assert "[/beta]" in capsys.readouterr().out
+
+
+def test_resolve_entity_renders_a_close_tag_in_the_search_term(invoke, mock_api, capsys):
+    """The search term sits inside a `[red]` wrapper, so it takes the escape."""
+    import pytest
+    import typer
+
+    from ac_cli.commands._helpers import _resolve_entity
+
+    mock_api.get("/api/v1/crm/companies").respond(200, json={"data": []})
+    with pytest.raises(typer.Exit) as exc:
+        _resolve_entity(
+            entity_id=None,
+            entity_name="Ghost[/red]",
+            search_path="/api/v1/crm/companies",
+            label="company",
+        )
+
+    assert exc.value.exit_code == 3
+    assert "Ghost[/red]" in capsys.readouterr().out

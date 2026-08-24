@@ -6,6 +6,7 @@ import os
 import httpx
 import typer
 from rich import print as rprint
+from rich.markup import escape
 
 from ac_cli.client import get_api_client
 from ac_cli.formatting import print_json
@@ -28,7 +29,12 @@ def should_skip_confirm(yes_flag: bool) -> bool:
 
 
 def _handle_error(exc: httpx.HTTPStatusError) -> None:
-    """Print API error detail and exit."""
+    """Print API error detail and exit.
+
+    The server writes the detail, and rprint reads rich markup. A detail that
+    holds `[/urgent]` raises MarkupError, and the command then exits 1 with no
+    reason. A 422 answers the detail as a list, so escape() needs str() first.
+    """
     try:
         body = exc.response.json()
         detail = body.get("detail") or body.get("message") or exc.response.text
@@ -38,7 +44,7 @@ def _handle_error(exc: httpx.HTTPStatusError) -> None:
     if _json_output.get():
         print_json({"error": True, "status_code": exc.response.status_code, "detail": detail})
     else:
-        rprint(f"[red]Error {exc.response.status_code}:[/red] {detail}")
+        rprint(f"[red]Error {exc.response.status_code}:[/red] {escape(str(detail))}")
     raise typer.Exit(code=exit_code)
 
 
@@ -86,7 +92,7 @@ def _resolve_entity(
         if _json_output.get():
             print_json({"error": True, "detail": f"No {label} found matching '{entity_name}'"})
         else:
-            rprint(f"[red]No {label} found matching '{entity_name}'[/red]")
+            rprint(f"[red]No {label} found matching '{escape(entity_name)}'[/red]")
         raise typer.Exit(code=3)
 
     if len(items) > 1:
@@ -104,9 +110,9 @@ def _resolve_entity(
                 }
             )
         else:
-            rprint(f"[yellow]Multiple {label}s match '{entity_name}':[/yellow]")
+            rprint(f"[yellow]Multiple {label}s match '{escape(entity_name)}':[/yellow]")
             for item in items:
-                rprint(f"  - {item.get(name_field, '?')} ({item['id']})")
+                rprint(f"  - {escape(str(item.get(name_field) or '?'))} ({item['id']})")
         raise typer.Exit(code=2)
 
     return items[0]["id"]
