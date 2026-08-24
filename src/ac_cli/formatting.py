@@ -6,8 +6,8 @@ import json
 import sys
 
 from rich.console import Console
-from rich.markup import escape
 from rich.table import Table
+from rich.text import Text
 
 console = Console()
 
@@ -24,16 +24,19 @@ def print_table(
     The console reads rich markup, and no caller writes the cells. A company
     name that holds `[/beta]` raises MarkupError, and the command then exits 1
     with no output. One that holds `[formerly Beta]` renders without the
-    bracketed text, so the reader reads a name the row does not hold. Escape
-    every cell and the title. Do not escape a value before it arrives here:
-    escape() is not idempotent, and a second pass shows a backslash.
+    bracketed text, so the reader reads a name the row does not hold.
+
+    Wrap each cell and the title in Text. The console prints a Text literally,
+    so no cell reaches the markup parser. `rich.markup.escape` closes the same
+    two faults, but it appends a second backslash to a value that ends in one,
+    and the parser does not remove it again.
     """
-    table = Table(title=escape(title) if title else title, show_lines=False)
+    table = Table(title=Text(title) if title else title, show_lines=False)
     for _, header in columns:
         table.add_column(header)
 
     for row in data:
-        table.add_row(*(escape(str(row.get(key, ""))) for key, _ in columns))
+        table.add_row(*(Text(str(row.get(key, ""))) for key, _ in columns))
 
     console.print(table)
 
@@ -44,11 +47,11 @@ def print_detail(data: dict, fields: list[tuple[str, str]]) -> None:
     fields: list of (key, label) tuples.
 
     The label is a literal, so it keeps its markup. The value is not, so it
-    takes the same escape as a table cell. See print_table.
+    prints as a Text. See print_table.
     """
     for key, label in fields:
         value = data.get(key, "")
-        console.print(f"[bold]{label}:[/bold] {escape(str(value))}")
+        console.print(f"[bold]{label}:[/bold]", Text(str(value)))
 
 
 def print_json(data: object) -> None:

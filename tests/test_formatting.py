@@ -92,3 +92,14 @@ def test_print_detail_keeps_a_bracketed_word_in_a_value(capsys):
 def test_print_detail_renders_a_non_string_value(capsys):
     print_detail({"tags": ["a [/x]"]}, [("tags", "Tags")])
     assert "[/x]" in capsys.readouterr().out
+
+
+def test_print_table_keeps_a_trailing_backslash(capsys):
+    """rich.markup.escape appends a second backslash, and nothing removes it."""
+    print_table([{"path": "C:\\share\\"}], [("path", "Path")])
+    assert "C:\\share\\ " in capsys.readouterr().out
+
+
+def test_print_detail_keeps_a_trailing_backslash(capsys):
+    print_detail({"path": "C:\\share\\"}, [("path", "Path")])
+    assert capsys.readouterr().out.rstrip("\n").endswith("C:\\share\\")
