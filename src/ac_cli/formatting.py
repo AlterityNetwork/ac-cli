@@ -12,6 +12,19 @@ from rich.text import Text
 console = Console()
 
 
+def as_text(value: object) -> Text:
+    """Wrap a value the CLI did not write, for a print that reads markup.
+
+    A Text never reaches the markup parser, so a value that holds `[/beta]`
+    prints as it is. `rich.markup.escape` closes the same fault, but it
+    appends a second backslash to a value that ends in one.
+
+    The console highlights a str argument but not a Text, so the highlighter
+    runs here. A number, a URL and a None keep the colour they had.
+    """
+    return console.highlighter(Text(str(value)))
+
+
 def print_table(
     data: list[dict],
     columns: list[tuple[str, str]],
@@ -54,14 +67,10 @@ def print_detail(data: dict, fields: list[tuple[str, str]]) -> None:
     fields: list of (key, label) tuples.
 
     The label is a literal, so it keeps its markup. The value is not, so it
-    prints as a Text. See print_table.
-
-    The console highlights a str argument but not a Text, so the highlighter
-    runs here. It colours a number, a URL and a None as it did before.
+    goes through as_text. See print_table.
     """
     for key, label in fields:
-        value = data.get(key, "")
-        console.print(f"[bold]{label}:[/bold]", console.highlighter(Text(str(value))))
+        console.print(f"[bold]{label}:[/bold]", as_text(data.get(key, "")))
 
 
 def print_json(data: object) -> None:

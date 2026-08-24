@@ -141,3 +141,30 @@ def test_print_detail_keeps_the_value_highlighting(monkeypatch):
     out = console.file.getvalue()
     assert "\x1b[1;36m250\x1b[0m" in out
     assert "\x1b[4;94mhttps://acme.com\x1b[0m" in out
+
+
+def test_as_text_keeps_markup_literal_and_keeps_the_highlighting(monkeypatch):
+    """as_text carries both rules: no markup parsing, and the old colours."""
+    import ac_cli.formatting as fmt
+
+    console = _coloured_console()
+    monkeypatch.setattr(fmt, "console", console)
+    source = "id 250 is [/beta] at https://acme.com"
+    # The highlighter colours each bracket on its own, so the styled stream
+    # holds no contiguous "[/beta]". Read the literal text off `plain`.
+    assert fmt.as_text(source).plain == source
+
+    console.print(fmt.as_text(source))
+    out = console.file.getvalue()
+    assert "\x1b[1;36m250\x1b[0m" in out
+    assert "\x1b[4;94mhttps://acme.com\x1b[0m" in out
+
+
+def test_as_text_keeps_a_trailing_backslash(monkeypatch):
+    import ac_cli.formatting as fmt
+
+    console = _coloured_console()
+    monkeypatch.setattr(fmt, "console", console)
+    console.print(fmt.as_text("C:\\share\\"))
+
+    assert "C:\\share\\\\" not in console.file.getvalue()

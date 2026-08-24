@@ -13,6 +13,7 @@ from ac_cli.config import (
     load_full_config,
     save_full_config,
 )
+from ac_cli.formatting import as_text
 
 app = typer.Typer(help="Authentication commands")
 
@@ -47,7 +48,7 @@ def login(
     env = env or get_active_env()
 
     if env not in ENV_NAMES:
-        rprint(f"[red]Unknown environment:[/red] {env}")
+        rprint("[red]Unknown environment:[/red]", as_text(env))
         rprint(f"Available: {', '.join(ENV_NAMES)}")
         raise typer.Exit(code=1)
 
@@ -67,7 +68,7 @@ def login(
         client = create_client(supabase_url, supabase_anon_key)
         response = client.auth.sign_in_with_password({"email": email, "password": password})
     except Exception as exc:
-        rprint(f"[red]Login failed:[/red] {exc}")
+        rprint("[red]Login failed:[/red]", as_text(exc))
         raise typer.Exit(code=1) from exc
 
     session = response.session
@@ -107,7 +108,7 @@ def logout(
     """
     if env:
         if env not in ENV_NAMES:
-            rprint(f"[red]Unknown environment:[/red] {env}")
+            rprint("[red]Unknown environment:[/red]", as_text(env))
             rprint(f"Available: {', '.join(ENV_NAMES)}")
             raise typer.Exit(code=1)
         clear_env_config(env)

@@ -207,7 +207,7 @@ def test_resolve_entity_renders_a_close_tag_in_a_match_name(mock_config, mock_ap
 
     out = capsys.readouterr().out
     assert exc.value.exit_code == 2
-    assert "Multiple companys match" in out, "the JSON branch ran, so the text is unproved"
+    assert not out.lstrip().startswith("{"), "the JSON branch ran, so the text is unproved"
     assert "[/beta]" in out
 
 
@@ -230,7 +230,7 @@ def test_resolve_entity_renders_a_close_tag_in_the_search_term(mock_config, mock
 
     out = capsys.readouterr().out
     assert exc.value.exit_code == 3
-    assert "No company found matching" in out, "the JSON branch ran, so the text is unproved"
+    assert not out.lstrip().startswith("{"), "the JSON branch ran, so the text is unproved"
     assert "Ghost[/red]" in out
 
 

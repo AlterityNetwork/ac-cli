@@ -180,3 +180,35 @@ def test_whoami_renders_a_close_tag_in_the_detail():
 
     assert result.exit_code == 5
     assert "[/urgent]" in result.output
+
+
+def test_login_renders_a_close_tag_in_the_provider_error():
+    """Supabase writes this message, so a bracket in it broke the reason."""
+    with (
+        patch("ac_cli.client.load_config", return_value=MOCK_CONFIG),
+        patch(
+            "ac_cli.commands.auth.create_client",
+            side_effect=RuntimeError("provider [/urgent] refused"),
+        ),
+    ):
+        result = runner.invoke(
+            app, ["auth", "login", "--env", "staging", "--email", "a@b.c", "--password", "x"]
+        )
+
+    assert result.exit_code == 1
+    assert "[/urgent]" in result.output
+
+
+def test_login_renders_a_close_tag_in_the_env_name():
+    """The env name comes from the shell, and it sits inside a [red] wrapper."""
+    result = runner.invoke(app, ["auth", "login", "--env", "[/urgent]"])
+
+    assert result.exit_code == 1
+    assert "Unknown environment" in result.output
+
+
+def test_logout_renders_a_close_tag_in_the_env_name():
+    result = runner.invoke(app, ["auth", "logout", "--env", "[/urgent]"])
+
+    assert result.exit_code == 1
+    assert "Unknown environment" in result.output
