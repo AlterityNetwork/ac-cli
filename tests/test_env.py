@@ -105,6 +105,47 @@ class TestEnvShow:
 # ---------------------------------------------------------------------------
 
 
+class TestEnvMarkup:
+    """`ac login --api-url` writes this value, so the config can hold a bracket."""
+
+    def _bracket_config(self):
+        full = _multi_env_config()
+        full["environments"]["staging"]["api_url"] = "http://x[/urgent]"
+        full["active"] = "staging"
+        return full
+
+    def test_list_renders_a_close_tag_in_a_stored_url(self):
+        with _patch_full_config(self._bracket_config()):
+            result = runner.invoke(app, ["env", "list"])
+        assert result.exit_code == 0
+        assert "http://x[/urgent]" in result.output
+
+    def test_list_json_renders_a_close_tag_in_a_stored_url(self):
+        with _patch_full_config(self._bracket_config()):
+            result = runner.invoke(app, ["env", "list", "--json"])
+        assert result.exit_code == 0
+        rows = json.loads(result.output)
+        assert any(row["api_url"] == "http://x[/urgent]" for row in rows)
+
+    def test_show_json_renders_a_close_tag_in_a_stored_url(self):
+        with _patch_full_config(self._bracket_config()):
+            result = runner.invoke(app, ["env", "show", "--json"])
+        assert result.exit_code == 0
+        assert json.loads(result.output)["api_url"] == "http://x[/urgent]"
+
+
+class TestEnvShowMarkup:
+    def test_show_renders_a_close_tag_in_a_stored_url(self):
+        """`ac login --api-url` stores this, so the config can hold a bracket."""
+        full = _multi_env_config()
+        full["environments"]["staging"]["api_url"] = "http://x[/urgent]"
+        full["active"] = "staging"
+        with _patch_full_config(full):
+            result = runner.invoke(app, ["env", "show"])
+        assert result.exit_code == 0
+        assert "http://x[/urgent]" in result.output
+
+
 class TestEnvUse:
     def test_use_valid(self):
         full = _multi_env_config()
@@ -119,6 +160,14 @@ class TestEnvUse:
             result = runner.invoke(app, ["env", "use", "bogus"])
         assert result.exit_code == 1
         assert "Unknown environment" in result.output
+
+    def test_use_renders_a_close_tag_in_the_name(self):
+        """The name comes from the shell, and it sits inside a [red] wrapper."""
+        full = _multi_env_config()
+        with _patch_full_config(full):
+            result = runner.invoke(app, ["env", "use", "[/urgent]"])
+        assert result.exit_code == 1
+        assert result.output.startswith("Unknown environment: [/urgent]\n")
 
     def test_use_warns_not_logged_in(self):
         full = _multi_env_config(envs={})

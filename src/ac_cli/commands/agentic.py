@@ -22,7 +22,7 @@ import uuid
 
 import typer
 from rich import print as rprint
-from rich.markup import escape
+from rich.text import Text
 
 from ac_cli.commands._helpers import (
     JSON_OPTION,
@@ -30,7 +30,7 @@ from ac_cli.commands._helpers import (
     set_json_mode,
     should_skip_confirm,
 )
-from ac_cli.formatting import print_detail, print_json, print_table
+from ac_cli.formatting import as_text, print_detail, print_json, print_table
 
 app = typer.Typer(help="Agentic platform")
 
@@ -131,13 +131,13 @@ def runs_start(
     outcome = data.get("outcome")
     if outcome == "duplicate":
         rprint(
-            f"[yellow]Duplicate:[/yellow] this key already started "
-            f"{data['id']} (status: {data['status']})"
+            "[yellow]Duplicate:[/yellow] this key already started",
+            as_text(f"{data['id']} (status: {data['status']})"),
         )
         return
     rprint(
-        f"[green]Run started:[/green] {data['id']} "
-        f"({data['definition_name']}, status: {data['status']})"
+        "[green]Run started:[/green]",
+        as_text(f"{data['id']} ({data['definition_name']}, status: {data['status']})"),
     )
 
 
@@ -157,13 +157,20 @@ def runs_get(
         return
 
     print_detail(data, _RUN_FIELDS)
-    usage = data.get("usage") or {}
-    rprint(
-        f"[dim]Tree usage:[/dim] {usage.get('total_tokens', 0)} tokens, "
-        f"{usage.get('cost_cents', 0)} cents"
-    )
+    # The key is required and it is nullable, so a read of the key is honest
+    # and a `.get` default would hide a shape change. A null usage means the
+    # meter did not answer. Zero is a run that spent nothing, so the two must
+    # not print the same line.
+    usage = data["usage"]
+    if usage is None:
+        rprint("[dim]Tree usage:[/dim] unknown (the meter did not answer)")
+    else:
+        rprint(
+            "[dim]Tree usage:[/dim]",
+            as_text(f"{usage['total_tokens']} tokens, {usage['cost_cents']} cents"),
+        )
     if data.get("child_count"):
-        rprint(f"[dim]Read the children:[/dim] ac agentic runs list --parent {run_id}")
+        rprint("[dim]Read the children:[/dim] ac agentic runs list --parent", as_text(run_id))
 
 
 @runs_app.command("list")
@@ -206,7 +213,7 @@ def runs_list(
     items = data.get("items", [])
     print_table(items, _LIST_FIELDS, title=f"Runs ({len(items)})")
     if data.get("next_cursor"):
-        rprint(f"[dim]Next page:[/dim] --cursor {data['next_cursor']}")
+        rprint("[dim]Next page:[/dim] --cursor", as_text(data["next_cursor"]))
 
 
 @runs_app.command("spans")
@@ -237,7 +244,7 @@ def runs_spans(
     items = data.get("items", [])
     print_table(items, _SPAN_FIELDS, title=f"Spans ({len(items)})")
     if data.get("next_cursor"):
-        rprint(f"[dim]Next page:[/dim] --cursor {data['next_cursor']}")
+        rprint("[dim]Next page:[/dim] --cursor", as_text(data["next_cursor"]))
 
 
 @runs_app.command("cancel")
@@ -262,7 +269,7 @@ def runs_cancel(
     if json_output:
         print_json(data)
         return
-    rprint(f"[green]Cancel requested:[/green] {data['id']} (status: {data['status']})")
+    rprint("[green]Cancel requested:[/green]", as_text(f"{data['id']} (status: {data['status']})"))
 
 
 app.add_typer(runs_app, name="runs")
@@ -336,8 +343,16 @@ def _report_validation(data: dict) -> None:
         return
     rprint("[yellow]Validation:[/yellow] the configuration cannot publish yet")
     for one in validation.get("issues", []):
-        where = f" at {one['path']}" if one.get("path") else ""
-        rprint(f"  [dim]{one['code']}[/dim]{where}: {one['message']}")
+        # The path names a JSON key the author typed, so build the line as a
+        # Text. Every part then prints as it is, and the code keeps its dim.
+        line = Text("  ")
+        line.append(str(one["code"]), style="dim")
+        if one.get("path"):
+            line.append(" at ")
+            line.append_text(as_text(one["path"]))
+        line.append(": ")
+        line.append_text(as_text(one["message"]))
+        rprint(line)
 
 
 @definitions_app.command("list")
@@ -376,7 +391,7 @@ def definitions_list(
     items = data.get("items", [])
     print_table(items, _DEFINITION_LIST_FIELDS, title=f"Definitions ({len(items)})")
     if data.get("next_cursor"):
-        rprint(f"[dim]Next page:[/dim] --cursor {data['next_cursor']}")
+        rprint("[dim]Next page:[/dim] --cursor", as_text(data["next_cursor"]))
 
 
 @definitions_app.command("create")
@@ -403,7 +418,9 @@ def definitions_create(
     if json_output:
         print_json(data)
         return
-    rprint(f"[green]Draft created:[/green] {data['id']} ({data['name']}, {data['kind']})")
+    rprint(
+        "[green]Draft created:[/green]", as_text(f"{data['id']} ({data['name']}, {data['kind']})")
+    )
 
 
 @definitions_app.command("get")
@@ -462,7 +479,7 @@ def definitions_patch(
     if json_output:
         print_json(data)
         return
-    rprint(f"[green]Draft saved:[/green] {data['id']}")
+    rprint("[green]Draft saved:[/green]", as_text(data["id"]))
     _report_validation(data)
 
 
@@ -507,7 +524,7 @@ def definitions_publish(
     if json_output:
         print_json(data)
         return
-    rprint(f"[green]Published:[/green] {data['id']} (state: {data['state']})")
+    rprint("[green]Published:[/green]", as_text(f"{data['id']} (state: {data['state']})"))
 
 
 @definitions_app.command("disable")
@@ -532,7 +549,7 @@ def definitions_disable(
     if json_output:
         print_json(data)
         return
-    rprint(f"[green]Disabled:[/green] {data['id']} (state: {data['state']})")
+    rprint("[green]Disabled:[/green]", as_text(f"{data['id']} (state: {data['state']})"))
 
 
 @definitions_app.command("enable")
@@ -553,7 +570,7 @@ def definitions_enable(
     if json_output:
         print_json(data)
         return
-    rprint(f"[green]Enabled:[/green] {data['id']} (state: {data['state']})")
+    rprint("[green]Enabled:[/green]", as_text(f"{data['id']} (state: {data['state']})"))
 
 
 @definitions_app.command("fork")
@@ -574,7 +591,7 @@ def definitions_fork(
     if json_output:
         print_json(data)
         return
-    rprint(f"[green]Forked:[/green] {data['id']} ({data['name']}, {data['state']})")
+    rprint("[green]Forked:[/green]", as_text(f"{data['id']} ({data['name']}, {data['state']})"))
 
 
 @definitions_app.command("delete")
@@ -598,7 +615,7 @@ def definitions_delete(
     if json_output:
         print_json({"id": definition_id, "deleted": True})
         return
-    rprint(f"[green]Draft deleted:[/green] {definition_id}")
+    rprint("[green]Draft deleted:[/green]", as_text(definition_id))
 
 
 app.add_typer(definitions_app, name="definitions")
@@ -611,32 +628,6 @@ _TOOL_LIST_FIELDS = [
     ("side_effects", "Effect"),
     ("description", "Description"),
 ]
-
-
-def _escaped(items: list[dict]) -> list[dict]:
-    """Escapes the rich markup of every description before it reaches a table.
-
-    ⚠️ `print_table` prints each cell through a markup-enabled console. A
-    description that holds `[id, name]` renders without the bracketed text, so
-    the reader reads a sentence the tool never declared. One that holds
-    `[/urgent]` raises `MarkupError`, and the command then exits 1 with no
-    output.
-
-    `print_table` and `print_detail` carry this hazard at every call site, and
-    this helper closes it for this table alone. The description is the column
-    that needs it first: Phase 3 adds the tools of a remote MCP server, and
-    that server writes its own text.
-
-    `name` and `side_effects` need no escape. `NAME_PATTERN` admits no bracket,
-    and `SideEffects` is a closed set of three words.
-
-    Args:
-        items: The rows, as the API answered them.
-
-    Returns:
-        The same rows, with each description escaped.
-    """
-    return [{**row, "description": escape(str(row.get("description", "")))} for row in items]
 
 
 @tools_app.command("list")
@@ -660,7 +651,7 @@ def tools_list(
         return
 
     items = data.get("items", [])
-    print_table(_escaped(items), _TOOL_LIST_FIELDS, title=f"Tools ({len(items)})")
+    print_table(items, _TOOL_LIST_FIELDS, title=f"Tools ({len(items)})")
 
 
 app.add_typer(tools_app, name="tools")

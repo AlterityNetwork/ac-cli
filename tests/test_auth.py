@@ -1,6 +1,7 @@
 """Tests for auth commands: login, logout, whoami."""
 
 import json
+from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
 import respx
@@ -166,3 +167,75 @@ def test_whoami_json_error():
     parsed = json.loads(result.output)
     assert parsed["error"] is True
     assert parsed["status_code"] == 403
+
+
+def test_whoami_renders_a_close_tag_in_the_detail():
+    """whoami hand-copied _handle_error, so a bracket broke it there too."""
+    with (
+        respx.mock(base_url=API_BASE) as router,
+        patch("ac_cli.client.load_config", return_value=MOCK_CONFIG),
+        patch("ac_cli.commands.auth.get_active_env", return_value="staging"),
+    ):
+        router.get("/whoami").respond(409, json={"detail": "registry [/urgent] failed"})
+        result = runner.invoke(app, ["auth", "whoami"])
+
+    assert result.exit_code == 5
+    assert "[/urgent]" in result.output
+
+
+def test_login_renders_a_close_tag_in_the_provider_error():
+    """Supabase writes this message, so a bracket in it broke the reason."""
+    with (
+        patch("ac_cli.client.load_config", return_value=MOCK_CONFIG),
+        patch(
+            "ac_cli.commands.auth.create_client",
+            side_effect=RuntimeError("provider [/urgent] refused"),
+        ),
+    ):
+        result = runner.invoke(
+            app, ["auth", "login", "--env", "staging", "--email", "a@b.c", "--password", "x"]
+        )
+
+    assert result.exit_code == 1
+    assert "[/urgent]" in result.output
+
+
+def test_login_renders_a_close_tag_in_the_env_name():
+    """The env name comes from the shell, and it sits inside a [red] wrapper."""
+    result = runner.invoke(app, ["auth", "login", "--env", "[/urgent]"])
+
+    assert result.exit_code == 1
+    # Name the whole line. "Unknown environment" alone prints even when the
+    # name is dropped, and it also survives escape()'s stray backslash.
+    assert result.output.startswith("Unknown environment: [/urgent]\n")
+
+
+def test_logout_renders_a_close_tag_in_the_env_name():
+    result = runner.invoke(app, ["auth", "logout", "--env", "[/urgent]"])
+
+    assert result.exit_code == 1
+    assert result.output.startswith("Unknown environment: [/urgent]\n")
+
+
+def test_login_renders_a_close_tag_in_the_email():
+    """save_full_config runs first, so a raise here reads as a failed login."""
+    session = SimpleNamespace(access_token="a", refresh_token="r")
+    with (
+        patch("ac_cli.commands.auth.load_full_config", return_value={}),
+        patch("ac_cli.commands.auth.save_full_config"),
+        patch(
+            "ac_cli.commands.auth.create_client",
+            return_value=SimpleNamespace(
+                auth=SimpleNamespace(
+                    sign_in_with_password=lambda _: SimpleNamespace(session=session)
+                )
+            ),
+        ),
+    ):
+        result = runner.invoke(
+            app,
+            ["auth", "login", "--env", "staging", "--email", "a[/urgent]b@x.c", "--password", "p"],
+        )
+
+    assert result.exit_code == 0
+    assert "a[/urgent]b@x.c" in result.output

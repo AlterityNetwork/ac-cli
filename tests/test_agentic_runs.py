@@ -193,6 +193,7 @@ def test_runs_get(invoke, mock_api):
     result = invoke(["agentic", "runs", "get", SAMPLE_RUN["id"]])
     assert result.exit_code == 0
     assert "Weekly digest" in result.output
+    assert "30 tokens, 4 cents" in result.output
 
 
 def test_runs_get_json(invoke, mock_api):
@@ -200,6 +201,16 @@ def test_runs_get_json(invoke, mock_api):
     result = invoke(["agentic", "runs", "get", SAMPLE_RUN["id"], "--json"])
     assert result.exit_code == 0
     assert json.loads(result.output)["child_count"] == 0
+
+
+def test_runs_get_prints_that_an_unread_usage_is_unknown(invoke, mock_api):
+    """A null usage is a total the meter did not answer, and never a free run."""
+    run = {**SAMPLE_RUN, "usage": None}
+    mock_api.get(f"/api/v1/agentic/runs/{run['id']}").respond(200, json=run)
+    result = invoke(["agentic", "runs", "get", run["id"]])
+    assert result.exit_code == 0
+    assert "unknown" in result.output
+    assert "0 cents" not in result.output
 
 
 def test_runs_get_not_found(invoke, mock_api):
@@ -362,3 +373,31 @@ def test_the_live_agents_commands_are_untouched(invoke, mock_api):
     mock_api.get("/api/v1/agents/runs").respond(200, json=[])
     result = invoke(["agents", "runs", "list"])
     assert result.exit_code == 0
+
+
+def test_runs_start_renders_a_close_tag_in_the_definition_name(invoke, mock_api):
+    """The author writes the definition name, as they write a definition."""
+    mock_api.post("/api/v1/agentic/runs").respond(
+        201,
+        json={"id": "run-1", "definition_name": "Acme [/beta] agent", "status": "queued"},
+    )
+    result = invoke(["agentic", "runs", "start", "--definition", "def-1"])
+
+    assert result.exit_code == 0
+    assert "[/beta]" in result.output
+
+
+def test_runs_start_renders_a_close_tag_on_the_duplicate_path(invoke, mock_api):
+    mock_api.post("/api/v1/agentic/runs").respond(
+        200,
+        json={
+            "id": "run[/x]",
+            "definition_name": "a",
+            "status": "running",
+            "outcome": "duplicate",
+        },
+    )
+    result = invoke(["agentic", "runs", "start", "--definition", "def-1"])
+
+    assert result.exit_code == 0
+    assert "run[/x]" in result.output
