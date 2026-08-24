@@ -105,6 +105,18 @@ class TestEnvShow:
 # ---------------------------------------------------------------------------
 
 
+class TestEnvShowMarkup:
+    def test_show_renders_a_close_tag_in_a_stored_url(self):
+        """`ac login --api-url` stores this, so the config can hold a bracket."""
+        full = _multi_env_config()
+        full["environments"]["staging"]["api_url"] = "http://x[/urgent]"
+        full["active"] = "staging"
+        with _patch_full_config(full):
+            result = runner.invoke(app, ["env", "show"])
+        assert result.exit_code == 0
+        assert "http://x[/urgent]" in result.output
+
+
 class TestEnvUse:
     def test_use_valid(self):
         full = _multi_env_config()

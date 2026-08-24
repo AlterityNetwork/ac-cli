@@ -321,3 +321,27 @@ def test_definitions_delete_of_a_published_row_is_refused(invoke, mock_api):
     result = invoke(["agentic", "definitions", "delete", DEFINITION_ID, "--yes"])
 
     assert result.exit_code != 0
+
+
+def test_definitions_create_renders_a_close_tag_in_the_name(invoke, mock_api):
+    """The author writes the name, so a bracket must not break the line."""
+    mock_api.post(BASE).respond(
+        201,
+        json={"id": "def-1", "name": "Acme [/beta] agent", "kind": "workflow", "state": "draft"},
+    )
+    result = invoke(
+        [
+            "agentic",
+            "definitions",
+            "create",
+            "--kind",
+            "agent",
+            "--name",
+            "Acme [/beta] agent",
+            "--config",
+            '{"instructions": "Answer."}',
+        ]
+    )
+
+    assert result.exit_code == 0
+    assert "[/beta]" in result.output

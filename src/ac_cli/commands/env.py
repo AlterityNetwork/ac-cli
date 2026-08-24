@@ -91,9 +91,9 @@ def show(
         rprint(json_mod.dumps(info, indent=2))
         return
 
-    rprint(f"[bold]Environment:[/bold] {info['environment']}")
-    rprint(f"[bold]API URL:[/bold]     {info['api_url']}")
-    rprint(f"[bold]Supabase:[/bold]    {info['supabase_url']}")
+    rprint("[bold]Environment:[/bold]", as_text(info["environment"]))
+    rprint("[bold]API URL:[/bold]    ", as_text(info["api_url"]))
+    rprint("[bold]Supabase:[/bold]   ", as_text(info["supabase_url"]))
     status = "[green]logged in[/green]" if info["logged_in"] else "[dim]not logged in[/dim]"
     rprint(f"[bold]Status:[/bold]      {status}")
 

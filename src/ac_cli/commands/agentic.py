@@ -29,7 +29,7 @@ from ac_cli.commands._helpers import (
     set_json_mode,
     should_skip_confirm,
 )
-from ac_cli.formatting import print_detail, print_json, print_table
+from ac_cli.formatting import as_text, print_detail, print_json, print_table
 
 app = typer.Typer(help="Agentic platform")
 
@@ -162,7 +162,7 @@ def runs_get(
         f"{usage.get('cost_cents', 0)} cents"
     )
     if data.get("child_count"):
-        rprint(f"[dim]Read the children:[/dim] ac agentic runs list --parent {run_id}")
+        rprint("[dim]Read the children:[/dim] ac agentic runs list --parent", as_text(run_id))
 
 
 @runs_app.command("list")
@@ -205,7 +205,7 @@ def runs_list(
     items = data.get("items", [])
     print_table(items, _LIST_FIELDS, title=f"Runs ({len(items)})")
     if data.get("next_cursor"):
-        rprint(f"[dim]Next page:[/dim] --cursor {data['next_cursor']}")
+        rprint("[dim]Next page:[/dim] --cursor", as_text(data["next_cursor"]))
 
 
 @runs_app.command("spans")
@@ -236,7 +236,7 @@ def runs_spans(
     items = data.get("items", [])
     print_table(items, _SPAN_FIELDS, title=f"Spans ({len(items)})")
     if data.get("next_cursor"):
-        rprint(f"[dim]Next page:[/dim] --cursor {data['next_cursor']}")
+        rprint("[dim]Next page:[/dim] --cursor", as_text(data["next_cursor"]))
 
 
 @runs_app.command("cancel")
@@ -261,7 +261,7 @@ def runs_cancel(
     if json_output:
         print_json(data)
         return
-    rprint(f"[green]Cancel requested:[/green] {data['id']} (status: {data['status']})")
+    rprint("[green]Cancel requested:[/green]", as_text(f"{data['id']} (status: {data['status']})"))
 
 
 app.add_typer(runs_app, name="runs")
@@ -336,7 +336,7 @@ def _report_validation(data: dict) -> None:
     rprint("[yellow]Validation:[/yellow] the configuration cannot publish yet")
     for one in validation.get("issues", []):
         where = f" at {one['path']}" if one.get("path") else ""
-        rprint(f"  [dim]{one['code']}[/dim]{where}: {one['message']}")
+        rprint(f"  [dim]{one['code']}[/dim]{where}:", as_text(one["message"]))
 
 
 @definitions_app.command("list")
@@ -375,7 +375,7 @@ def definitions_list(
     items = data.get("items", [])
     print_table(items, _DEFINITION_LIST_FIELDS, title=f"Definitions ({len(items)})")
     if data.get("next_cursor"):
-        rprint(f"[dim]Next page:[/dim] --cursor {data['next_cursor']}")
+        rprint("[dim]Next page:[/dim] --cursor", as_text(data["next_cursor"]))
 
 
 @definitions_app.command("create")
@@ -402,7 +402,9 @@ def definitions_create(
     if json_output:
         print_json(data)
         return
-    rprint(f"[green]Draft created:[/green] {data['id']} ({data['name']}, {data['kind']})")
+    rprint(
+        "[green]Draft created:[/green]", as_text(f"{data['id']} ({data['name']}, {data['kind']})")
+    )
 
 
 @definitions_app.command("get")
@@ -461,7 +463,7 @@ def definitions_patch(
     if json_output:
         print_json(data)
         return
-    rprint(f"[green]Draft saved:[/green] {data['id']}")
+    rprint("[green]Draft saved:[/green]", as_text(data["id"]))
     _report_validation(data)
 
 
@@ -506,7 +508,7 @@ def definitions_publish(
     if json_output:
         print_json(data)
         return
-    rprint(f"[green]Published:[/green] {data['id']} (state: {data['state']})")
+    rprint("[green]Published:[/green]", as_text(f"{data['id']} (state: {data['state']})"))
 
 
 @definitions_app.command("disable")
@@ -531,7 +533,7 @@ def definitions_disable(
     if json_output:
         print_json(data)
         return
-    rprint(f"[green]Disabled:[/green] {data['id']} (state: {data['state']})")
+    rprint("[green]Disabled:[/green]", as_text(f"{data['id']} (state: {data['state']})"))
 
 
 @definitions_app.command("enable")
@@ -552,7 +554,7 @@ def definitions_enable(
     if json_output:
         print_json(data)
         return
-    rprint(f"[green]Enabled:[/green] {data['id']} (state: {data['state']})")
+    rprint("[green]Enabled:[/green]", as_text(f"{data['id']} (state: {data['state']})"))
 
 
 @definitions_app.command("fork")
@@ -573,7 +575,7 @@ def definitions_fork(
     if json_output:
         print_json(data)
         return
-    rprint(f"[green]Forked:[/green] {data['id']} ({data['name']}, {data['state']})")
+    rprint("[green]Forked:[/green]", as_text(f"{data['id']} ({data['name']}, {data['state']})"))
 
 
 @definitions_app.command("delete")
@@ -597,7 +599,7 @@ def definitions_delete(
     if json_output:
         print_json({"id": definition_id, "deleted": True})
         return
-    rprint(f"[green]Draft deleted:[/green] {definition_id}")
+    rprint("[green]Draft deleted:[/green]", as_text(definition_id))
 
 
 app.add_typer(definitions_app, name="definitions")
