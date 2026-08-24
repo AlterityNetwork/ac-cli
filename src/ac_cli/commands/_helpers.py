@@ -10,7 +10,7 @@ from rich import print as rprint
 from rich.text import Text
 
 from ac_cli.client import get_api_client
-from ac_cli.formatting import print_json
+from ac_cli.formatting import as_text, print_json
 
 _json_output: contextvars.ContextVar[bool] = contextvars.ContextVar("json_output", default=False)
 
@@ -30,7 +30,13 @@ def should_skip_confirm(yes_flag: bool) -> bool:
 
 
 def _handle_error(exc: httpx.HTTPStatusError) -> None:
-    """Print API error detail and exit."""
+    """Print API error detail and exit.
+
+    The server writes the detail, and rprint reads rich markup. A detail that
+    holds `[/urgent]` raises MarkupError, and the command then exits 1 with no
+    reason. Print the detail through as_text, which never reaches the markup
+    parser. See as_text in formatting.py.
+    """
     try:
         body = exc.response.json()
         detail = body.get("detail") or body.get("message") or exc.response.text
@@ -40,7 +46,7 @@ def _handle_error(exc: httpx.HTTPStatusError) -> None:
     if _json_output.get():
         print_json({"error": True, "status_code": exc.response.status_code, "detail": detail})
     else:
-        rprint(f"[red]Error {exc.response.status_code}:[/red] {detail}")
+        rprint(f"[red]Error {exc.response.status_code}:[/red]", as_text(detail))
     raise typer.Exit(code=exit_code)
 
 
@@ -56,7 +62,7 @@ def _api_request(method: str, path: str, **kwargs: object) -> httpx.Response:
             if _json_output.get():
                 print_json({"error": True, "status_code": None, "detail": str(exc)})
             else:
-                rprint(f"[red]Connection error:[/red] {exc}")
+                rprint("[red]Connection error:[/red]", as_text(exc))
             raise typer.Exit(code=1)
     return resp
 
@@ -88,7 +94,7 @@ def _resolve_entity(
         if _json_output.get():
             print_json({"error": True, "detail": f"No {label} found matching '{entity_name}'"})
         else:
-            rprint(f"[red]No {label} found matching '{entity_name}'[/red]")
+            rprint(Text(f"No {label} found matching '{entity_name}'", style="red"))
         raise typer.Exit(code=3)
 
     if len(items) > 1:
@@ -106,9 +112,9 @@ def _resolve_entity(
                 }
             )
         else:
-            rprint(f"[yellow]Multiple {label}s match '{entity_name}':[/yellow]")
+            rprint(Text(f"Multiple {label}s match '{entity_name}':", style="yellow"))
             for item in items:
-                rprint(f"  - {item.get(name_field, '?')} ({item['id']})")
+                rprint(as_text(f"  - {item.get(name_field) or '?'} ({item['id']})"))
         raise typer.Exit(code=2)
 
     return items[0]["id"]
