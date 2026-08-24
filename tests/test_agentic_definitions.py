@@ -321,3 +321,46 @@ def test_definitions_delete_of_a_published_row_is_refused(invoke, mock_api):
     result = invoke(["agentic", "definitions", "delete", DEFINITION_ID, "--yes"])
 
     assert result.exit_code != 0
+
+
+def test_definitions_create_renders_a_close_tag_in_the_name(invoke, mock_api):
+    """The author writes the name, so a bracket must not break the line."""
+    mock_api.post(BASE).respond(
+        201,
+        json={"id": "def-1", "name": "Acme [/beta] agent", "kind": "workflow", "state": "draft"},
+    )
+    result = invoke(
+        [
+            "agentic",
+            "definitions",
+            "create",
+            "--kind",
+            "agent",
+            "--name",
+            "Acme [/beta] agent",
+            "--config",
+            '{"instructions": "Answer."}',
+        ]
+    )
+
+    assert result.exit_code == 0
+    assert "[/beta]" in result.output
+
+
+def test_definitions_validate_renders_a_close_tag_in_an_issue_path(invoke, mock_api):
+    """The path names a JSON key the author typed, so it can hold a bracket."""
+    mock_api.post(f"{BASE}/def-1/validate").respond(
+        200,
+        json={
+            "validation": {
+                "ok": False,
+                "issues": [
+                    {"code": "unknown_field", "path": "cfg[/beta]", "message": "not a field"}
+                ],
+            }
+        },
+    )
+    result = invoke(["agentic", "definitions", "validate", "def-1"])
+
+    assert result.exit_code == 0
+    assert "cfg[/beta]" in result.output
