@@ -1,0 +1,85 @@
+"""The staleness check of the endpoint audit.
+
+`--strict` fails on what this function reports, so a false positive breaks
+every endpoint-touching PR and a false negative is the hole the check exists
+to close.
+"""
+
+from __future__ import annotations
+
+import sys
+from pathlib import Path
+
+import pytest
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "scripts"))
+
+import audit_endpoints as audit  # noqa: E402
+
+
+@pytest.fixture
+def scope(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Replaces the real entry set, so a real edit never breaks these."""
+    monkeypatch.setattr(
+        audit,
+        "OUT_OF_SCOPE",
+        {
+            ("GET", "/api/v1/crm/webhook"),
+            ("GET", "/api/v1/absent/thing"),
+            ("GET", "/api/inngest"),
+        },
+    )
+    monkeypatch.setattr(audit, "NOT_IN_SPEC", {"/api/inngest"})
+
+
+def test_an_entry_the_api_serves_is_not_stale(scope: None) -> None:
+    api = {("GET", "/api/v1/crm/webhook"), ("GET", "/api/v1/crm/companies")}
+
+    assert audit.stale_out_of_scope(api) == set()
+
+
+def test_a_path_that_moved_one_segment_down_is_stale(scope: None) -> None:
+    """The case the check exists for.
+
+    A route from `/api/v1/crm/webhook` to `/api/v1/crm/nylas/webhook` keeps
+    its first three segments, so a fixed depth test would exempt it.
+    """
+    api = {("GET", "/api/v1/crm/nylas/webhook"), ("GET", "/api/v1/crm/companies")}
+
+    assert audit.stale_out_of_scope(api) == {("GET", "/api/v1/crm/webhook")}
+
+
+def test_a_prefix_the_api_does_not_serve_is_never_judged(scope: None) -> None:
+    """This audit runs against whatever host is up.
+
+    A branch API serves routes staging does not, so naming the wrong host
+    must not fail the gate.
+    """
+    api = {("GET", "/api/v1/crm/webhook"), ("GET", "/api/v1/crm/companies")}
+
+    assert ("GET", "/api/v1/absent/thing") not in audit.stale_out_of_scope(api)
+
+
+def test_a_path_no_spec_declares_is_exempt(scope: None) -> None:
+    """The Inngest mount is raw ASGI, so its absence says nothing."""
+    api = {("GET", "/api/v1/crm/companies")}
+
+    assert ("GET", "/api/inngest") not in audit.stale_out_of_scope(api)
+
+
+def test_a_path_served_under_another_method_is_stale(scope: None) -> None:
+    """An entry is a method and a path, and it suppresses that pair alone."""
+    api = {("POST", "/api/v1/crm/webhook"), ("GET", "/api/v1/crm/companies")}
+
+    assert audit.stale_out_of_scope(api) == {("GET", "/api/v1/crm/webhook")}
+
+
+def test_the_real_entry_set_holds_no_unknown_exemption() -> None:
+    """Every NOT_IN_SPEC path names a real OUT_OF_SCOPE entry.
+
+    An exemption for a path nobody lists is a path no check can watch, kept
+    for a reason that no longer exists.
+    """
+    listed = {path for _, path in audit.OUT_OF_SCOPE}
+
+    assert audit.NOT_IN_SPEC <= listed
