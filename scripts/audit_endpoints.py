@@ -36,6 +36,7 @@ DEFAULT_API_URL = os.environ.get("AC_AUDIT_API_URL", "http://localhost:8008")
 PATH_CONSTANTS: dict[str, str] = {
     "_ADMIN": "/api/v1/admin",
     "_AGENTS": "/api/v1/agents",
+    "_APPROVALS": "/api/v1/agentic/approvals",
     "_ANALYTICS": "/api/v1/analytics",
     "_APPS": "/api/v1/orgs",
     "_CHAT": "/api/v1/chat",
@@ -173,6 +174,26 @@ OUT_OF_SCOPE: set[tuple[str, str]] = {
     ("POST", "/api/v1/billing/checkout-session/verify"),
     ("POST", "/api/v1/billing/portal-session"),
     ("POST", "/api/v1/profiles/me/complete-onboarding"),
+    # Agentic platform — runs and definitions surfaces (ENG-2068/ENG-2117).
+    # CLI coverage is Phase 3; approvals are the only CLI-exposed surface today.
+    ("POST", "/api/v1/agentic/runs"),
+    ("GET", "/api/v1/agentic/runs"),
+    ("GET", "/api/v1/agentic/runs/{id}"),
+    ("GET", "/api/v1/agentic/runs/{id}/spans"),
+    ("GET", "/api/v1/agentic/runs/{id}/stream"),
+    ("POST", "/api/v1/agentic/runs/{id}/cancel"),
+    ("GET", "/api/v1/agentic/definitions"),
+    ("POST", "/api/v1/agentic/definitions"),
+    ("GET", "/api/v1/agentic/definitions/{id}"),
+    ("DELETE", "/api/v1/agentic/definitions/{id}"),
+    ("PATCH", "/api/v1/agentic/definitions/{id}/draft"),
+    ("POST", "/api/v1/agentic/definitions/{id}/validate"),
+    ("POST", "/api/v1/agentic/definitions/{id}/publish"),
+    ("POST", "/api/v1/agentic/definitions/{id}/disable"),
+    ("POST", "/api/v1/agentic/definitions/{id}/enable"),
+    ("POST", "/api/v1/agentic/definitions/{id}/fork"),
+    # Agentic tools catalog — agent-OS / frontend-only listing endpoint.
+    ("GET", "/api/v1/agentic/tools"),
 }
 
 PARAM_RE = re.compile(r"\{[^}]+\}")
