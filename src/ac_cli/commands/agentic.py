@@ -1,18 +1,19 @@
 """Agentic platform commands.
 
 `ac agentic runs` drives the run surface of the new agentic platform,
-`ac agentic definitions` drives the definition lifecycle, and
-`ac agentic tools` reads the catalogue a definition names its tools from. All
-three sit beside the live `ac agents runs` and replace none of it: the two
-stacks are branch isolated until the cutover, so the alias and the deletion of
-the old commands belong to Phase 7.
+`ac agentic definitions` drives the definition lifecycle,
+`ac agentic tools` reads the catalogue a definition names its tools from, and
+`ac agentic approvals` answers a run that stopped for a person. All four sit
+beside the live `ac agents runs` and replace none of it: the two stacks are
+branch isolated until the cutover, so the alias and the deletion of the old
+commands belong to Phase 7.
 
 Every platform route sits under `/api/v1/agentic/`, so one path constant serves
 every group and the parity audit resolves each call.
 
 The endpoints are ac-docs, the file
-engineering/system-design/agentic-platform/interfaces/surfaces.md, Run Explorer
-and Agent Builder.
+engineering/system-design/agentic-platform/interfaces/surfaces.md, Run Explorer,
+Agent Builder and Approval Inbox.
 """
 
 from __future__ import annotations
@@ -655,3 +656,169 @@ def tools_list(
 
 
 app.add_typer(tools_app, name="tools")
+
+
+approvals_app = typer.Typer(help="Agentic approval inbox")
+
+_APPROVAL_FIELDS = [
+    ("id", "Approval ID"),
+    ("action", "Action"),
+    ("target_summary", "Target"),
+    ("preview", "Proposal"),
+    ("reason", "Why a person"),
+    ("raised_by", "Raised by"),
+    ("status", "Status"),
+    ("run_id", "Run"),
+    ("created_at", "Requested"),
+    ("expires_at", "Expires"),
+    ("resolved_by", "Decided by"),
+    ("resolved_at", "Decided"),
+]
+
+_APPROVAL_LIST_FIELDS = [
+    ("id", "Approval ID"),
+    ("action", "Action"),
+    ("target_summary", "Target"),
+    ("preview", "Proposal"),
+    ("status", "Status"),
+    ("expires_at", "Expires"),
+]
+
+
+@approvals_app.command("list")
+def approvals_list(
+    ctx: typer.Context,
+    status: str | None = typer.Option(
+        None,
+        "--status",
+        help="pending, approved, rejected, expired or cancelled. The default is pending.",
+    ),
+    cursor: str | None = typer.Option(None, "--cursor", help="Page to continue"),
+    limit: int = typer.Option(50, help="Page size"),
+    json_output: bool = JSON_OPTION,
+) -> None:
+    """List the approvals of your organization, soonest expiry first.
+
+    It reads the work that waits by default. A row past its expiry is expired,
+    so the pending page never offers one that nobody can answer.
+    """
+    set_json_mode(json_output)
+    params: dict = {"limit": limit}
+    # The endpoint reads pending when no status is named, so sending the
+    # default would name a filter the caller did not choose.
+    if status:
+        params["status"] = status
+    if cursor:
+        params["cursor"] = cursor
+
+    resp = _api_request("get", f"{_AGENTIC}/approvals", params=params)
+
+    data = resp.json()
+    if json_output:
+        print_json(data)
+        return
+
+    items = data.get("items", [])
+    print_table(items, _APPROVAL_LIST_FIELDS, title=f"Approvals ({len(items)})")
+    if data.get("next_cursor"):
+        rprint("[dim]Next page:[/dim] --cursor", as_text(data["next_cursor"]))
+
+
+@approvals_app.command("get")
+def approvals_get(
+    ctx: typer.Context,
+    approval_id: str = typer.Argument(..., help="Approval ID"),
+    json_output: bool = JSON_OPTION,
+) -> None:
+    """Read one approval, and the exact proposal it authorizes.
+
+    The proposal is redacted on the way out, so a credential prints as
+    `[redacted]`. The stored row keeps every value, because the run executes
+    the approved call from it.
+    """
+    set_json_mode(json_output)
+    resp = _api_request("get", f"{_AGENTIC}/approvals/{approval_id}")
+
+    data = resp.json()
+    if json_output:
+        print_json(data)
+        return
+
+    print_detail(data, _APPROVAL_FIELDS)
+    rprint("[dim]Proposal:[/dim]", as_text(json.dumps(data["proposed_arguments"])))
+
+
+def _report_decision(data: dict, asked: str) -> None:
+    """Prints the state the row now reads, and never the state a caller asked for.
+
+    A repeated resolve answers 200 with the current state. So does a decision
+    another surface made first, and so does a row that expired. The status is
+    the whole answer, and a line that echoed the request would be wrong in all
+    three cases.
+
+    Args:
+        data: The approval the endpoint answered.
+        asked: The resolution this command asked for.
+    """
+    status = data["status"]
+    if status == asked:
+        rprint(f"[green]Approval {status}:[/green]", as_text(data["id"]))
+        return
+    rprint(
+        "[yellow]Not written:[/yellow] this approval already reads",
+        as_text(f"{status} ({data['id']})"),
+    )
+
+
+@approvals_app.command("approve")
+def approvals_approve(
+    ctx: typer.Context,
+    approval_id: str = typer.Argument(..., help="Approval ID"),
+    yes: bool = typer.Option(False, "--yes", "-y", help="Skip confirmation"),
+    json_output: bool = JSON_OPTION,
+) -> None:
+    """Authorize one exact proposal.
+
+    Read it first. Approve authorizes the arguments the row holds, and the run
+    executes those and nothing else.
+    """
+    set_json_mode(json_output)
+    if not should_skip_confirm(yes):
+        typer.confirm(f"Approve {approval_id}?", abort=True)
+
+    resp = _api_request("post", f"{_AGENTIC}/approvals/{approval_id}/approve")
+
+    data = resp.json()
+    if json_output:
+        print_json(data)
+        return
+    _report_decision(data, "approved")
+
+
+@approvals_app.command("reject")
+def approvals_reject(
+    ctx: typer.Context,
+    approval_id: str = typer.Argument(..., help="Approval ID"),
+    yes: bool = typer.Option(False, "--yes", "-y", help="Skip confirmation"),
+    json_output: bool = JSON_OPTION,
+) -> None:
+    """Refuse one exact proposal.
+
+    The run stops the work this approval was gating. To change the proposal,
+    reject it and start the work again, so the new proposal gets its own
+    decision.
+    """
+    set_json_mode(json_output)
+    if not should_skip_confirm(yes):
+        typer.confirm(f"Reject {approval_id}?", abort=True)
+
+    resp = _api_request("post", f"{_AGENTIC}/approvals/{approval_id}/reject")
+
+    data = resp.json()
+    if json_output:
+        print_json(data)
+        return
+    _report_decision(data, "rejected")
+
+
+app.add_typer(approvals_app, name="approvals")
