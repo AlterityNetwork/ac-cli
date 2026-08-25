@@ -66,8 +66,6 @@ PATH_CONSTANTS: dict[str, str] = {
 
 # API endpoints intentionally not covered by the CLI.
 OUT_OF_SCOPE: set[tuple[str, str]] = {
-    ("POST", "/api/v1/webhook"),
-    ("GET", "/api/v1/webhook"),
     # Inngest platform callback (durable workflow/cron) — Inngest Cloud calls
     # these; signature-verified, not a user-facing CLI command.
     ("GET", "/api/inngest"),
@@ -88,8 +86,6 @@ OUT_OF_SCOPE: set[tuple[str, str]] = {
     # the body is the whole credential. Same class as the OAuth callback below.
     ("POST", "/api/v1/onboarding/redeem"),
     ("GET", "/api/v1/nylas/oauth/callback"),
-    ("GET", "/api/v1/email/unsubscribe"),
-    ("POST", "/api/v1/email/unsubscribe"),
     ("GET", "/api/v1/demo/nylas/account"),
     ("GET", "/api/v1/demo/nylas/messages/{id}/attachments/{id}/download"),
     ("POST", "/api/v1/demo/nylas/disconnect"),
@@ -132,6 +128,13 @@ OUT_OF_SCOPE: set[tuple[str, str]] = {
     ("GET", "/api/v1/workflows/{id}/runs/{id}/companies/field-updates/stream"),
     # SSE stream — frontend-only consumer (ENG-769)
     ("GET", "/api/v1/notifications/stream"),
+    # ENG-2124: the agentic run stream. SSE is not a CLI shape — the command
+    # would never return, and the events are a live hint whose durable record
+    # the CLI already reads through `runs get` and `runs spans`. The reconnect
+    # filter `?since=` on the spans route is a query parameter, which this
+    # audit does not compare, and a browser reconnect has no CLI use, so no
+    # --since flag ships either.
+    ("GET", "/api/v1/agentic/runs/{id}/stream"),
     ("GET", "/api/v1/resources/{id}/stream"),
     ("GET", "/api/v1/resources/{id}/preview-url"),
     ("PATCH", "/api/v1/resources/{id}"),
@@ -167,7 +170,6 @@ OUT_OF_SCOPE: set[tuple[str, str]] = {
     # Cross-org outputs feed (admin-style, not exposed to CLI today)
     ("GET", "/api/v1/envoy/outputs"),
     # User-facing org CRUD: covered through admin/orgs (super-admin) for CLI users
-    ("GET", "/api/v1/profiles"),
     ("GET", "/api/v1/organizations/{id}"),
     ("PATCH", "/api/v1/organizations/{id}"),
     ("POST", "/api/v1/organizations"),
@@ -250,6 +252,79 @@ def collect_api_endpoints(spec: dict) -> set[tuple[str, str]]:
     return out
 
 
+#: OUT_OF_SCOPE paths the OpenAPI spec never declares, so staleness cannot be
+#: judged for them.
+#:
+#: `/api/inngest` is the Inngest serve mount. It is attached as raw ASGI and it
+#: is not a FastAPI route, so it appears in no spec and its absence says
+#: nothing. An entry here is exempt from the STALE-SCOPE check and from
+#: nothing else.
+#:
+#: ⚠️ Keep this set small. Every entry is a path no check can watch, so a
+#: rename of one is invisible to this tool for ever.
+NOT_IN_SPEC: set[str] = {
+    "/api/inngest",
+}
+
+
+def stale_out_of_scope(
+    api: set[tuple[str, str]],
+) -> set[tuple[str, str]]:
+    """Finds OUT_OF_SCOPE entries the live API does not serve.
+
+    An entry is the only thing that keeps a deliberately CLI-omitted endpoint
+    out of the API-ONLY list. A typo in one, or an endpoint that was renamed
+    or deleted, therefore hides silently: the real path reappears as API-ONLY,
+    which is not fatal, and the dead entry keeps suppressing nothing.
+
+    ⚠️ **It only judges an entry whose neighbourhood the API serves.** This
+    audit runs against whatever API is up, and a branch API serves routes
+    staging does not. Reporting every entry of an absent prefix would fail the
+    gate for naming the wrong host, which is a different problem.
+
+    The neighbourhood is the entry's parent path, and not a fixed depth. A
+    fixed depth is coarser than the granularity at which staleness happens: a
+    route that moves from `/api/v1/webhook` to `/api/v1/nylas/webhook` keeps
+    its first three segments, so a three segment test would exempt exactly the
+    case this check exists to catch.
+
+    Args:
+        api: Every (method, path) the live spec declares, normalized.
+
+    An entry in `NOT_IN_SPEC` is skipped: the spec never declares it, so its
+    absence carries no information.
+
+    Returns:
+        The entries that name nothing, in a neighbourhood the API serves.
+    """
+    paths = {path for _, path in api}
+    return {
+        entry
+        for entry in OUT_OF_SCOPE
+        if entry not in api
+        and entry[1] not in NOT_IN_SPEC
+        and _neighbourhood_is_served(entry[1], paths)
+    }
+
+
+def _neighbourhood_is_served(path: str, api_paths: set[str]) -> bool:
+    """Answers whether the API serves anything beside one path.
+
+    Args:
+        path: The path of an OUT_OF_SCOPE entry.
+        api_paths: Every path the live spec declares, normalized.
+
+    Returns:
+        True when the spec holds the parent of this path, or anything under
+        it. A path with no parent, such as `/health`, is always judged: a
+        spec that answered at all serves the root.
+    """
+    parent = path.rsplit("/", 1)[0]
+    if not parent:
+        return True
+    return any(p == parent or p.startswith(f"{parent}/") for p in api_paths)
+
+
 def main() -> int:
     p = argparse.ArgumentParser()
     p.add_argument(
@@ -281,6 +356,7 @@ def main() -> int:
         (m, p) for m, p in cli if (m, p) not in api and p in api_paths and p != "/whoami"
     )
     matches = sorted(c for c in cli if c in api)
+    stale_scope = sorted(stale_out_of_scope(api))
 
     print(f"# ac-cli endpoint audit  (API: {args.api_url})")
     print(f"# CLI calls: {len(cli)}  API endpoints: {len(api)}")
@@ -296,6 +372,11 @@ def main() -> int:
         print(f"  {m:6s} {p}")
     print()
 
+    print(f"## STALE-SCOPE (OUT_OF_SCOPE entry the API does not serve) — {len(stale_scope)}")
+    for m, p in stale_scope:
+        print(f"  {m:6s} {p}")
+    print()
+
     print(f"## METHOD-DIFF (path matches, method differs) — {len(method_diff)}")
     for m, p in method_diff:
         api_methods = sorted(am for am, ap in api if ap == p)
@@ -306,7 +387,7 @@ def main() -> int:
         for m, p in matches:
             print(f"  {m:6s} {p}")
 
-    if args.strict and cli_only:
+    if args.strict and (cli_only or stale_scope):
         return 1
     return 0
 
