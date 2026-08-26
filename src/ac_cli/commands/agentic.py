@@ -223,6 +223,11 @@ def runs_list(
 def runs_spans(
     ctx: typer.Context,
     run_id: str = typer.Argument(..., help="Run ID"),
+    since: str | None = typer.Option(
+        None,
+        "--since",
+        help="Read the spans that moved at or after this instant, as ISO 8601 with a time zone",
+    ),
     cursor: str | None = typer.Option(None, "--cursor", help="Page to continue"),
     limit: int = typer.Option(50, help="Page size"),
     json_output: bool = JSON_OPTION,
@@ -231,9 +236,21 @@ def runs_spans(
 
     It reads the spans of that run alone. A child run holds its own spans, so
     open the child to read them.
+
+    `--since` is what a client reads after a dropped stream. The run stream
+    keeps no backlog, so a reconnecting reader asks for the spans that moved
+    while it was away. It filters `updated_at`, so it answers a span that
+    opened before the gap and closed inside it.
+
+    ⚠️ **A cursor names the order it was written for.** `--since` orders the
+    page on `updated_at` and a plain read orders it on `started_at`, so a
+    cursor from one replayed against the other answers `400`. Carry both
+    options together, or neither.
     """
     set_json_mode(json_output)
     params: dict = {"limit": limit}
+    if since:
+        params["since"] = since
     if cursor:
         params["cursor"] = cursor
 

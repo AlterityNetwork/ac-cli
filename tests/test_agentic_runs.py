@@ -328,6 +328,46 @@ def test_runs_spans_pages(invoke, mock_api):
     assert params["limit"] == "5"
 
 
+def test_runs_spans_sends_since(invoke, mock_api):
+    """The reconnect read after a dropped stream.
+
+    The stream keeps no backlog, so a client that lost its connection asks for
+    the spans that moved while it was away. Without this parameter the CLI
+    cannot drive the route the API serves.
+    """
+    route = mock_api.get(f"/api/v1/agentic/runs/{SAMPLE_RUN['id']}/spans").respond(
+        200, json={"items": [], "next_cursor": None}
+    )
+
+    invoke(
+        [
+            "agentic",
+            "runs",
+            "spans",
+            SAMPLE_RUN["id"],
+            "--since",
+            "2026-08-26T10:00:00+00:00",
+        ]
+    )
+
+    assert route.calls[0].request.url.params["since"] == "2026-08-26T10:00:00+00:00"
+
+
+def test_runs_spans_omits_since_when_absent(invoke, mock_api):
+    """A plain read orders the page on `started_at`.
+
+    Sending an empty `since` would name a filter the caller did not choose,
+    and it would flip the page order the cursor is tagged for.
+    """
+    route = mock_api.get(f"/api/v1/agentic/runs/{SAMPLE_RUN['id']}/spans").respond(
+        200, json={"items": [], "next_cursor": None}
+    )
+
+    invoke(["agentic", "runs", "spans", SAMPLE_RUN["id"]])
+
+    assert "since" not in route.calls[0].request.url.params
+
+
 # --- cancel ----------------------------------------------------------------
 
 
