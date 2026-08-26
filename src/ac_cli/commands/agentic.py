@@ -245,6 +245,13 @@ def _print_spans_hint(items: list[dict], next_cursor: str | None, since: str | N
     The page is ordered on `updated_at` ascending, so the last row carries the
     newest value.
 
+    ⚠️ **A `--since` drain always ends with the line.** An idle poll is the
+    steady state of the loop, and it answers an empty page. A read against an
+    API that predates `updated_at` answers no value either. In both cases the
+    boundary stays where it is, so the line names the value the read carried.
+    A missing line leaves a script with an empty `--since`, which answers 422
+    and stops the loop the option exists for.
+
     Args:
         items: The page, ordered on the column the read selected.
         next_cursor: The token of the next page, or None at the end of it.
@@ -261,8 +268,13 @@ def _print_spans_hint(items: list[dict], next_cursor: str | None, since: str | N
         else:
             rprint("[dim]Next page:[/dim] --cursor", as_text(next_cursor))
         return
-    if since is not None and items:
-        rprint("[dim]Reconnect with:[/dim] --since", as_text(items[-1]["updated_at"]))
+    if since is None:
+        return
+    # get, and not a subscript. The CLI ships to PyPI on its own cadence, so it
+    # meets an API older than this field. A KeyError would print a traceback
+    # under a table it already rendered.
+    newest = items[-1].get("updated_at") if items else None
+    rprint("[dim]Reconnect with:[/dim] --since", as_text(newest or since))
 
 
 @runs_app.command("spans")
@@ -295,7 +307,8 @@ def runs_spans(
     `--since`.
 
     Drain the cursor, then read the `Reconnect with:` line the last page
-    prints. It names the `--since` of the next poll.
+    prints. It names the `--since` of the next poll, and it prints on every
+    `--since` read that ends a drain, including one that moved nothing.
     """
     set_json_mode(json_output)
     params: dict = {"limit": limit}

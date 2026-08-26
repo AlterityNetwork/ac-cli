@@ -590,6 +590,57 @@ def test_runs_spans_plain_read_names_no_reconnect(invoke, mock_api):
     assert "Reconnect with" not in result.output
 
 
+def test_runs_spans_idle_poll_keeps_the_since_it_carried(invoke, mock_api):
+    """An empty page is the steady state of the loop, not the end of it.
+
+    Nothing moved, so the boundary stays where it is. Without the line a
+    script extracts an empty `--since`, which answers 422 and stops the poll.
+    """
+    mock_api.get(f"/api/v1/agentic/runs/{SAMPLE_RUN['id']}/spans").respond(
+        200, json={"items": [], "next_cursor": None}
+    )
+
+    result = invoke(
+        [
+            "agentic",
+            "runs",
+            "spans",
+            SAMPLE_RUN["id"],
+            "--since",
+            "2026-08-26T10:00:00+00:00",
+        ]
+    )
+
+    assert "Reconnect with: --since 2026-08-26T10:00:00+00:00" in result.output
+
+
+def test_runs_spans_reconnects_against_an_api_that_omits_updated_at(invoke, mock_api):
+    """The CLI ships to PyPI on its own cadence, so it meets an older API.
+
+    A subscript would raise KeyError under a table it already printed. The
+    boundary stays where it is instead.
+    """
+    older = {key: value for key, value in SAMPLE_SPAN.items() if key != "updated_at"}
+    mock_api.get(f"/api/v1/agentic/runs/{SAMPLE_RUN['id']}/spans").respond(
+        200, json={"items": [older], "next_cursor": None}
+    )
+
+    result = invoke(
+        [
+            "agentic",
+            "runs",
+            "spans",
+            SAMPLE_RUN["id"],
+            "--since",
+            "2026-08-26T10:00:00+00:00",
+        ]
+    )
+
+    assert result.exit_code == 0
+    assert "Traceback" not in result.output
+    assert "Reconnect with: --since 2026-08-26T10:00:00+00:00" in result.output
+
+
 def test_runs_spans_forwards_an_empty_since_rather_than_dropping_it(invoke, mock_api):
     """An empty value is a failed extraction, and it must not read silently.
 
