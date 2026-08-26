@@ -21,6 +21,7 @@ Agent Builder, Approval Inbox and The three admin surfaces.
 from __future__ import annotations
 
 import json
+import shlex
 import uuid
 from datetime import datetime
 from typing import NoReturn
@@ -214,13 +215,12 @@ def runs_list(
         False, "--all", help="Include child runs. The default returns roots only."
     ),
     cursor: str | None = typer.Option(None, "--cursor", help="Page to continue"),
-    limit: int = typer.Option(
-        _PAGE_DEFAULT, "--limit", min=_PAGE_MIN, max=_PAGE_MAX, help="Page size"
-    ),
+    limit: int = typer.Option(_PAGE_DEFAULT, "--limit", help="Page size, 1 to 100"),
     json_output: bool = JSON_OPTION,
 ) -> None:
     """List agentic runs. It returns the top of each tree by default."""
     set_json_mode(json_output)
+    _checked_limit(limit)
     params: dict = {"limit": limit}
     # root_only is unset unless --all names it. The endpoint reads roots by
     # default and children when a parent is named, so sending it would refuse
@@ -288,20 +288,25 @@ def _checked_since(since: str | None) -> str | None:
     try:
         parsed = datetime.fromisoformat(normalized)
     except ValueError:
-        _refuse_since("is not ISO 8601", since)
+        _refuse_option("--since", "is not ISO 8601", since)
     if parsed.tzinfo is None:
-        _refuse_since("carries no time zone, so it names no instant", since)
+        _refuse_option("--since", "carries no time zone, so it names no instant", since)
     return normalized
 
 
-def _refuse_since(reason: str, value: str) -> NoReturn:
-    """Reports a `--since` this command will not send, and exits.
+def _refuse_option(flag: str, reason: str, value: object) -> NoReturn:
+    """Reports an option this command will not send, and exits.
 
-    A poll drives this command with `--json`, so the refusal answers the shape
-    that caller parses. See _handle_error, which answers the same shape for a
-    refusal the API wrote.
+    A poll drives these commands with `--json`, so the refusal answers the
+    shape that caller parses. See _handle_error, which answers the same shape
+    for a refusal the API wrote.
+
+    ⚠️ **Click renders its own refusal as a usage box, never as JSON.** A range
+    on a typer.Option therefore breaks the `--json` contract, so the bounds of
+    a flag are checked here instead. See _checked_limit.
 
     Args:
+        flag: The option that is wrong, written as the caller writes it.
         reason: What is wrong with the value.
         value: What the caller typed.
 
@@ -309,10 +314,31 @@ def _refuse_since(reason: str, value: str) -> NoReturn:
         typer.Exit: Always, with the validation code.
     """
     if _json_output.get():
-        print_json({"error": True, "status_code": None, "detail": f"--since {reason}: {value}"})
+        print_json({"error": True, "status_code": None, "detail": f"{flag} {reason}: {value}"})
     else:
-        rprint(f"[red]--since {reason}:[/red]", as_text(value))
+        rprint(f"[red]{flag} {reason}:[/red]", as_text(value))
     raise typer.Exit(code=2)
+
+
+def _checked_limit(limit: int) -> int:
+    """Refuses a page size the API refuses, before the request.
+
+    Every agentic list route is `Query(50, ge=1, le=100)`. A range on the
+    typer.Option would refuse the same values, but Click renders that as a
+    usage box on stderr, so a `--json` caller parsing stdout reads nothing.
+
+    Args:
+        limit: The page size the caller asked for.
+
+    Returns:
+        The value, unchanged.
+
+    Raises:
+        typer.Exit: The value is outside the bounds the API serves.
+    """
+    if not _PAGE_MIN <= limit <= _PAGE_MAX:
+        _refuse_option("--limit", f"is not between {_PAGE_MIN} and {_PAGE_MAX}", limit)
+    return limit
 
 
 def _print_cursor_hint(
@@ -348,7 +374,11 @@ def _print_cursor_hint(
             continue
         parts.append(flag)
         if value is not True:
-            parts.append(as_text(value))
+            # shlex.quote, because the line is pasted into a shell. `crm.*`
+            # unquoted dies in zsh as `no matches found`, and matches a file in
+            # bash, which pages a filter the caller never named. `in progress`
+            # unquoted reads as a value and a stray argument.
+            parts.append(as_text(shlex.quote(str(value))))
     if limit != _PAGE_DEFAULT:
         parts += ["--limit", as_text(limit)]
     parts += ["--cursor", as_text(next_cursor)]
@@ -452,9 +482,7 @@ def runs_spans(
         help="Read the spans that moved at or after this instant, as ISO 8601 with a time zone",
     ),
     cursor: str | None = typer.Option(None, "--cursor", help="Page to continue"),
-    limit: int = typer.Option(
-        _PAGE_DEFAULT, "--limit", min=_PAGE_MIN, max=_PAGE_MAX, help="Page size"
-    ),
+    limit: int = typer.Option(_PAGE_DEFAULT, "--limit", help="Page size, 1 to 100"),
     json_output: bool = JSON_OPTION,
 ) -> None:
     """List the spans of one run.
@@ -483,6 +511,7 @@ def runs_spans(
     `--since` read that ends a drain, including one that moved nothing.
     """
     set_json_mode(json_output)
+    _checked_limit(limit)
     since = _checked_since(since)
     params: dict = {"limit": limit}
     # `is not None`, and not a truth test. A reconnect loop builds this value
@@ -503,6 +532,16 @@ def runs_spans(
 
     items = data.get("items", [])
     print_table(items, _SPAN_FIELDS, title=f"Spans ({len(items)})")
+    if items and not any("no_call_reason" in span for span in items):
+        # An absent key, and not a null one. A null says this span was the
+        # call, which is the common answer. No key at all says the API does not
+        # report the fact, and the column is then blank on every row, which
+        # reads as a run that gated nothing.
+        console.print(
+            "[yellow]Warning:[/yellow] this API does not report no_call_reason,"
+            " so the No call column is blank on every row and a gated call"
+            " cannot be told from a real one."
+        )
     _print_spans_hint(items, data.get("next_cursor"), since, limit)
 
 
@@ -621,9 +660,7 @@ def definitions_list(
     origin: str | None = typer.Option(None, "--origin", help="platform or custom"),
     state: str | None = typer.Option(None, "--state", help="draft, active or disabled"),
     cursor: str | None = typer.Option(None, "--cursor", help="Page to continue"),
-    limit: int = typer.Option(
-        _PAGE_DEFAULT, "--limit", min=_PAGE_MIN, max=_PAGE_MAX, help="Page size"
-    ),
+    limit: int = typer.Option(_PAGE_DEFAULT, "--limit", help="Page size, 1 to 100"),
     json_output: bool = JSON_OPTION,
 ) -> None:
     """List the definitions this organization may see.
@@ -632,6 +669,7 @@ def definitions_list(
     templates that are active. A fork starts from a template.
     """
     set_json_mode(json_output)
+    _checked_limit(limit)
     params: dict = {"limit": limit}
     if kind:
         params["kind"] = kind
@@ -958,9 +996,7 @@ def approvals_list(
         help="pending, approved, rejected, expired or cancelled. The default is pending.",
     ),
     cursor: str | None = typer.Option(None, "--cursor", help="Page to continue"),
-    limit: int = typer.Option(
-        _PAGE_DEFAULT, "--limit", min=_PAGE_MIN, max=_PAGE_MAX, help="Page size"
-    ),
+    limit: int = typer.Option(_PAGE_DEFAULT, "--limit", help="Page size, 1 to 100"),
     json_output: bool = JSON_OPTION,
 ) -> None:
     """List the approvals of your organization, soonest expiry first.
@@ -969,6 +1005,7 @@ def approvals_list(
     so the pending page never offers one that nobody can answer.
     """
     set_json_mode(json_output)
+    _checked_limit(limit)
     params: dict = {"limit": limit}
     # The endpoint reads pending when no status is named, so sending the
     # default would name a filter the caller did not choose.
@@ -1255,9 +1292,7 @@ def policies_list(
         None, "--action", help="Read the rules bound to exactly this action"
     ),
     cursor: str | None = typer.Option(None, "--cursor", help="Page cursor"),
-    limit: int = typer.Option(
-        _PAGE_DEFAULT, "--limit", min=_PAGE_MIN, max=_PAGE_MAX, help="Page size"
-    ),
+    limit: int = typer.Option(_PAGE_DEFAULT, "--limit", help="Page size, 1 to 100"),
     json_output: bool = JSON_OPTION,
 ) -> None:
     """List the rules of this organization.
@@ -1270,6 +1305,7 @@ def policies_list(
     the two apart.
     """
     set_json_mode(json_output)
+    _checked_limit(limit)
     params: dict = {"limit": limit}
     if action:
         params["action"] = action

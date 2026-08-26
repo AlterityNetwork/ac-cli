@@ -888,6 +888,63 @@ def test_runs_list_hint_repeats_the_filters_the_read_carried(invoke, mock_api):
     assert "--status failed --all --cursor abc123" in result.output
 
 
+def test_runs_list_hint_quotes_a_value_a_shell_would_read(invoke, mock_api):
+    """The hint is pasted into a shell, so a glob must not reach it.
+
+    `crm.*` unquoted dies in zsh as `no matches found`, and in bash it matches
+    a file and pages a filter the caller never named.
+    """
+    mock_api.get("/api/v1/agentic/runs").respond(
+        200, json={"items": [SAMPLE_RUN], "next_cursor": "abc123"}
+    )
+
+    result = invoke(["agentic", "runs", "list", "--status", "crm.*"])
+
+    assert "--status 'crm.*'" in result.output
+
+
+def test_runs_spans_reports_a_limit_the_api_refuses_as_json(invoke, mock_api):
+    """A range on the Option renders a usage box, and a poll cannot parse one.
+
+    The bound is checked in the command, so `--json` answers the shape
+    _handle_error answers.
+    """
+    result = invoke(["agentic", "runs", "spans", SAMPLE_RUN["id"], "--limit", "200", "--json"])
+
+    assert result.exit_code == 2
+    body = json.loads(result.output)
+    assert body["error"] is True
+    assert "--limit" in body["detail"]
+
+
+def test_runs_spans_warns_when_the_api_reports_no_no_call_reason(invoke, mock_api):
+    """An absent key is not a null one.
+
+    A null says this span was the call. No key says the API does not report
+    the fact, so the column is blank on every row and reads as a run that
+    gated nothing.
+    """
+    older = {key: value for key, value in SAMPLE_SPAN.items() if key != "no_call_reason"}
+    mock_api.get(f"/api/v1/agentic/runs/{SAMPLE_RUN['id']}/spans").respond(
+        200, json={"items": [older], "next_cursor": None}
+    )
+
+    result = invoke(["agentic", "runs", "spans", SAMPLE_RUN["id"]])
+
+    assert "does not report no_call_reason" in result.output
+
+
+def test_runs_spans_stays_quiet_when_a_span_was_the_call(invoke, mock_api):
+    """A null is the common answer, and it is not a warning."""
+    mock_api.get(f"/api/v1/agentic/runs/{SAMPLE_RUN['id']}/spans").respond(
+        200, json={"items": [SAMPLE_SPAN], "next_cursor": None}
+    )
+
+    result = invoke(["agentic", "runs", "spans", SAMPLE_RUN["id"]])
+
+    assert "does not report" not in result.output
+
+
 def test_runs_spans_idle_poll_warns_of_nothing(invoke, mock_api):
     """An empty page repeats the boundary, and that is the correct answer.
 
