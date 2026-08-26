@@ -740,9 +740,9 @@ def test_runs_spans_hint_repeats_a_page_size_the_caller_chose(invoke, mock_api):
         200, json={"items": [SAMPLE_SPAN], "next_cursor": "abc123"}
     )
 
-    result = invoke(["agentic", "runs", "spans", SAMPLE_RUN["id"], "--limit", "200"])
+    result = invoke(["agentic", "runs", "spans", SAMPLE_RUN["id"], "--limit", "100"])
 
-    assert "--limit 200 --cursor abc123" in result.output
+    assert "--limit 100 --cursor abc123" in result.output
 
 
 def test_runs_spans_hint_omits_the_default_page_size(invoke, mock_api):
@@ -755,6 +755,47 @@ def test_runs_spans_hint_omits_the_default_page_size(invoke, mock_api):
 
     assert "--limit" not in result.output
     assert "--cursor abc123" in result.output
+
+
+def test_runs_spans_refuses_a_page_size_the_api_refuses(invoke, mock_api):
+    """The route is `Query(50, ge=1, le=100)`, so the flag carries its bounds.
+
+    Unbounded, the read reached the API and answered 422 after a round trip.
+    """
+    result = invoke(["agentic", "runs", "spans", SAMPLE_RUN["id"], "--limit", "200"])
+
+    assert result.exit_code != 0
+    assert "100" in result.output
+
+
+def test_runs_spans_reconnect_line_repeats_a_page_size_the_caller_chose(invoke, mock_api):
+    """This is the line a poll loop re-reads on every cycle.
+
+    Dropped here, a loop started at 100 rows a page runs at 50 for the rest of
+    its life, which is the failure the next-page echo already prevents.
+    """
+    mock_api.get(f"/api/v1/agentic/runs/{SAMPLE_RUN['id']}/spans").respond(
+        200,
+        json={
+            "items": [{**SAMPLE_SPAN, "updated_at": "2026-08-26T11:00:00Z"}],
+            "next_cursor": None,
+        },
+    )
+
+    result = invoke(
+        [
+            "agentic",
+            "runs",
+            "spans",
+            SAMPLE_RUN["id"],
+            "--since",
+            "2026-08-26T10:00:00+00:00",
+            "--limit",
+            "100",
+        ]
+    )
+
+    assert "Reconnect with: --since 2026-08-26T11:00:00Z --limit 100" in result.output
 
 
 def test_runs_spans_idle_poll_warns_of_nothing(invoke, mock_api):

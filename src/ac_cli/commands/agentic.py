@@ -78,6 +78,13 @@ def _parse_input(input_json: str | None) -> dict:
     return parsed
 
 
+# Every agentic list route is `Query(50, ge=1, le=100)`. The flag carries the
+# same bounds, so a page size the API refuses never reaches it, and the hint
+# repeats the size only when the caller chose one.
+_PAGE_DEFAULT = 50
+_PAGE_MIN = 1
+_PAGE_MAX = 100
+
 _RUN_FIELDS = [
     ("id", "Run ID"),
     ("kind", "Kind"),
@@ -104,9 +111,6 @@ _LIST_FIELDS = [
 # call answered from the journal both close `ok` and both carry the tool name.
 # The column names which, so a person counting what a run did counts the rows
 # that leave it empty.
-# The API default. The hint repeats --limit only when the caller chose another.
-_SPANS_PAGE_DEFAULT = 50
-
 _SPAN_FIELDS = [
     ("span_id", "Span ID"),
     ("kind", "Kind"),
@@ -201,7 +205,9 @@ def runs_list(
         False, "--all", help="Include child runs. The default returns roots only."
     ),
     cursor: str | None = typer.Option(None, "--cursor", help="Page to continue"),
-    limit: int = typer.Option(50, help="Page size"),
+    limit: int = typer.Option(
+        _PAGE_DEFAULT, "--limit", min=_PAGE_MIN, max=_PAGE_MAX, help="Page size"
+    ),
     json_output: bool = JSON_OPTION,
 ) -> None:
     """List agentic runs. It returns the top of each tree by default."""
@@ -283,13 +289,13 @@ def _print_spans_hint(
         limit: The page size the read carried.
     """
     if next_cursor:
-        parts: list[object] = ["[dim]Next page:[/dim]"]
+        page: list[object] = ["[dim]Next page:[/dim]"]
         if since is not None:
-            parts += ["--since", as_text(since)]
-        if limit != _SPANS_PAGE_DEFAULT:
-            parts += ["--limit", as_text(limit)]
-        parts += ["--cursor", as_text(next_cursor)]
-        console.print(*parts, soft_wrap=True)
+            page += ["--since", as_text(since)]
+        if limit != _PAGE_DEFAULT:
+            page += ["--limit", as_text(limit)]
+        page += ["--cursor", as_text(next_cursor)]
+        console.print(*page, soft_wrap=True)
         return
     if since is None:
         return
@@ -308,19 +314,19 @@ def _print_spans_hint(
     # where it started and drop the progress the page held.
     newest = next((row.get("updated_at") for row in reversed(items) if row.get("updated_at")), None)
     if items and not newest:
-        # An empty page that repeats the boundary is an idle poll, and it is
-        # correct. A full page that repeats it is not: the API answered rows
-        # this reader cannot advance past, so the poll re-reads them for ever.
-        # The two read alike on the line below, so say which this is.
+        # Both cases below end a drain, because a page with a cursor returned
+        # above. An empty one repeats the boundary because nothing moved, and
+        # that is an idle poll. One that carries rows repeats it because none
+        # of them names a stamp, and that poll re-reads those rows for ever.
+        # The two print the same line, so say which this is.
         rprint(
             "[yellow]Warning:[/yellow] these spans carry no usable updated_at,"
             " so --since cannot advance and this poll repeats."
         )
-    console.print(
-        "[dim]Reconnect with:[/dim] --since",
-        as_text(newest or since),
-        soft_wrap=True,
-    )
+    parts: list[object] = ["[dim]Reconnect with:[/dim] --since", as_text(newest or since)]
+    if limit != _PAGE_DEFAULT:
+        parts += ["--limit", as_text(limit)]
+    console.print(*parts, soft_wrap=True)
 
 
 @runs_app.command("spans")
@@ -333,7 +339,9 @@ def runs_spans(
         help="Read the spans that moved at or after this instant, as ISO 8601 with a time zone",
     ),
     cursor: str | None = typer.Option(None, "--cursor", help="Page to continue"),
-    limit: int = typer.Option(_SPANS_PAGE_DEFAULT, help="Page size"),
+    limit: int = typer.Option(
+        _PAGE_DEFAULT, "--limit", min=_PAGE_MIN, max=_PAGE_MAX, help="Page size"
+    ),
     json_output: bool = JSON_OPTION,
 ) -> None:
     """List the spans of one run.
@@ -499,7 +507,9 @@ def definitions_list(
     origin: str | None = typer.Option(None, "--origin", help="platform or custom"),
     state: str | None = typer.Option(None, "--state", help="draft, active or disabled"),
     cursor: str | None = typer.Option(None, "--cursor", help="Page to continue"),
-    limit: int = typer.Option(50, help="Page size"),
+    limit: int = typer.Option(
+        _PAGE_DEFAULT, "--limit", min=_PAGE_MIN, max=_PAGE_MAX, help="Page size"
+    ),
     json_output: bool = JSON_OPTION,
 ) -> None:
     """List the definitions this organization may see.
@@ -832,7 +842,9 @@ def approvals_list(
         help="pending, approved, rejected, expired or cancelled. The default is pending.",
     ),
     cursor: str | None = typer.Option(None, "--cursor", help="Page to continue"),
-    limit: int = typer.Option(50, help="Page size"),
+    limit: int = typer.Option(
+        _PAGE_DEFAULT, "--limit", min=_PAGE_MIN, max=_PAGE_MAX, help="Page size"
+    ),
     json_output: bool = JSON_OPTION,
 ) -> None:
     """List the approvals of your organization, soonest expiry first.
@@ -1129,7 +1141,9 @@ def policies_list(
         None, "--action", help="Read the rules bound to exactly this action"
     ),
     cursor: str | None = typer.Option(None, "--cursor", help="Page cursor"),
-    limit: int = typer.Option(50, "--limit", min=1, max=100, help="Page size"),
+    limit: int = typer.Option(
+        _PAGE_DEFAULT, "--limit", min=_PAGE_MIN, max=_PAGE_MAX, help="Page size"
+    ),
     json_output: bool = JSON_OPTION,
 ) -> None:
     """List the rules of this organization.
