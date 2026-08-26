@@ -35,6 +35,21 @@ def as_text(value: object) -> Text:
     return _highlighter(Text(str(value)))
 
 
+def _blank_if_null(value: object) -> object:
+    """Answers the empty string for a null, and the value itself otherwise.
+
+    A JSON null and an absent key say the same thing: the record carries no
+    value there. The test is `is None`, so a `0` or a `False` keeps its value.
+
+    Args:
+        value: What the record holds for that field, or None.
+
+    Returns:
+        The value, or "" when it is None.
+    """
+    return "" if value is None else value
+
+
 def _cell(value: object) -> Text:
     """Renders one table cell, with a null and an absent key alike.
 
@@ -44,7 +59,7 @@ def _cell(value: object) -> Text:
     Returns:
         A Text the console prints literally. See print_table.
     """
-    return Text("" if value is None else str(value))
+    return Text(str(_blank_if_null(value)))
 
 
 def print_table(
@@ -95,9 +110,13 @@ def print_detail(data: dict, fields: list[tuple[str, str]]) -> None:
 
     The label is a literal, so it keeps its markup. The value is not, so it
     goes through as_text. See print_table.
+
+    A null prints blank here for the same reason it does in a table. One record
+    read two ways is one record, so `runs get` and `runs list` must not answer
+    `None` and blank for the same null.
     """
     for key, label in fields:
-        console.print(f"[bold]{label}:[/bold]", as_text(data.get(key, "")))
+        console.print(f"[bold]{label}:[/bold]", as_text(_blank_if_null(data.get(key))))
 
 
 def print_json(data: object) -> None:

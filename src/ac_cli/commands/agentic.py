@@ -274,6 +274,16 @@ def _print_spans_hint(items: list[dict], next_cursor: str | None, since: str | N
     # meets an API older than this field. A KeyError would print a traceback
     # under a table it already rendered.
     newest = items[-1].get("updated_at") if items else None
+    if items and newest is None:
+        # An empty page that repeats the boundary is an idle poll, and it is
+        # correct. A full page that repeats it is not: the API answered rows
+        # this reader cannot advance past, so the poll re-reads them for ever.
+        # The two read alike on the line below, so say which this is.
+        rprint(
+            "[yellow]Warning:[/yellow] these spans carry no updated_at, so"
+            " --since cannot advance and this poll repeats. The API is older"
+            " than the reconnect read."
+        )
     rprint("[dim]Reconnect with:[/dim] --since", as_text(newest or since))
 
 

@@ -639,6 +639,31 @@ def test_runs_spans_reconnects_against_an_api_that_omits_updated_at(invoke, mock
     assert result.exit_code == 0
     assert "Traceback" not in result.output
     assert "Reconnect with: --since 2026-08-26T10:00:00+00:00" in result.output
+    assert "--since cannot advance" in result.output
+
+
+def test_runs_spans_idle_poll_warns_of_nothing(invoke, mock_api):
+    """An empty page repeats the boundary, and that is the correct answer.
+
+    It reads like the stuck poll on the line below, so only the stuck one
+    carries the warning.
+    """
+    mock_api.get(f"/api/v1/agentic/runs/{SAMPLE_RUN['id']}/spans").respond(
+        200, json={"items": [], "next_cursor": None}
+    )
+
+    result = invoke(
+        [
+            "agentic",
+            "runs",
+            "spans",
+            SAMPLE_RUN["id"],
+            "--since",
+            "2026-08-26T10:00:00+00:00",
+        ]
+    )
+
+    assert "cannot advance" not in result.output
 
 
 def test_runs_spans_forwards_an_empty_since_rather_than_dropping_it(invoke, mock_api):
