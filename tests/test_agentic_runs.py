@@ -34,6 +34,9 @@ SAMPLE_RUN = {
     "outcome": "started",
 }
 
+# Every key SpanNodeModel declares, and no key it does not. A hand-written
+# fixture that omits a nullable field hides how the API really answers: the
+# model always emits the key, so a test on a missing key tests nothing.
 SAMPLE_SPAN = {
     "span_id": "33333333-3333-4333-8333-333333333333",
     "parent_span_id": None,
@@ -41,8 +44,10 @@ SAMPLE_SPAN = {
     "name": "crm.search",
     "status": "ok",
     "started_at": "2026-08-23T10:00:02Z",
+    "updated_at": "2026-08-23T10:00:02Z",
     "duration_ms": 120,
     "usage_id": None,
+    "no_call_reason": None,
     "error": None,
 }
 
@@ -328,6 +333,46 @@ def test_runs_spans_pages(invoke, mock_api):
     assert params["limit"] == "5"
 
 
+def test_runs_spans_sends_since(invoke, mock_api):
+    """The reconnect read after a dropped stream.
+
+    The stream keeps no backlog, so a client that lost its connection asks for
+    the spans that moved while it was away. Without this parameter the CLI
+    cannot drive the route the API serves.
+    """
+    route = mock_api.get(f"/api/v1/agentic/runs/{SAMPLE_RUN['id']}/spans").respond(
+        200, json={"items": [], "next_cursor": None}
+    )
+
+    invoke(
+        [
+            "agentic",
+            "runs",
+            "spans",
+            SAMPLE_RUN["id"],
+            "--since",
+            "2026-08-26T10:00:00+00:00",
+        ]
+    )
+
+    assert route.calls[0].request.url.params["since"] == "2026-08-26T10:00:00+00:00"
+
+
+def test_runs_spans_omits_since_when_absent(invoke, mock_api):
+    """A plain read orders the page on `started_at`.
+
+    Sending an empty `since` would name a filter the caller did not choose,
+    and it would flip the page order the cursor is tagged for.
+    """
+    route = mock_api.get(f"/api/v1/agentic/runs/{SAMPLE_RUN['id']}/spans").respond(
+        200, json={"items": [], "next_cursor": None}
+    )
+
+    invoke(["agentic", "runs", "spans", SAMPLE_RUN["id"]])
+
+    assert "since" not in route.calls[0].request.url.params
+
+
 # --- cancel ----------------------------------------------------------------
 
 
@@ -401,3 +446,541 @@ def test_runs_start_renders_a_close_tag_on_the_duplicate_path(invoke, mock_api):
 
     assert result.exit_code == 0
     assert "run[/x]" in result.output
+
+
+def test_runs_spans_shows_why_a_span_made_no_call(invoke, mock_api):
+    """A `tool` span that reads `ok` is not always a call.
+
+    A gate that stopped for a person and a call answered from the journal both
+    close `ok` and both carry the tool name, so a person reading the table
+    needs the column that tells them apart.
+    """
+    mock_api.get(f"/api/v1/agentic/runs/{SAMPLE_RUN['id']}/spans").respond(
+        200,
+        json={
+            "items": [{**SAMPLE_SPAN, "no_call_reason": "gated"}],
+            "next_cursor": None,
+        },
+    )
+
+    result = invoke(["agentic", "runs", "spans", SAMPLE_RUN["id"]])
+
+    assert "gated" in result.output
+
+
+def test_runs_spans_leaves_the_no_call_cell_empty_for_a_real_call(invoke, mock_api):
+    """The span that did make the call carries a null, and null reads blank.
+
+    The API always emits the key, so the cell renders the null itself. Printed
+    as `None` it reads as a reason, and the column then names every row a
+    non-call, which inverts what a person counts with it.
+    """
+    mock_api.get(f"/api/v1/agentic/runs/{SAMPLE_RUN['id']}/spans").respond(
+        200, json={"items": [SAMPLE_SPAN], "next_cursor": None}
+    )
+
+    result = invoke(["agentic", "runs", "spans", SAMPLE_RUN["id"]])
+
+    assert SAMPLE_SPAN["no_call_reason"] is None
+    assert "None" not in result.output
+
+
+def test_runs_spans_next_page_hint_repeats_since(invoke, mock_api):
+    """The hint is a command a person pastes.
+
+    A cursor from a `--since` page is tagged `updated_at`. Pasted without
+    `--since` it pages `started_at` and answers 400, so the hint carries both.
+    """
+    mock_api.get(f"/api/v1/agentic/runs/{SAMPLE_RUN['id']}/spans").respond(
+        200, json={"items": [SAMPLE_SPAN], "next_cursor": "abc123"}
+    )
+
+    result = invoke(
+        [
+            "agentic",
+            "runs",
+            "spans",
+            SAMPLE_RUN["id"],
+            "--since",
+            "2026-08-26T10:00:00+00:00",
+        ]
+    )
+
+    assert "--since 2026-08-26T10:00:00+00:00 --cursor abc123" in result.output
+
+
+def test_runs_spans_next_page_hint_omits_since_on_a_plain_read(invoke, mock_api):
+    """A plain page is tagged `started_at`, so its hint names no `--since`."""
+    mock_api.get(f"/api/v1/agentic/runs/{SAMPLE_RUN['id']}/spans").respond(
+        200, json={"items": [SAMPLE_SPAN], "next_cursor": "abc123"}
+    )
+
+    result = invoke(["agentic", "runs", "spans", SAMPLE_RUN["id"]])
+
+    assert "--since" not in result.output
+    assert "--cursor abc123" in result.output
+
+
+def test_runs_spans_end_of_drain_names_the_next_since(invoke, mock_api):
+    """The reconnect loop reads `updated_at` off the page it just drained.
+
+    A table cell cannot carry it: a timestamp beside a span id truncates at 80
+    columns, so the value a person pastes prints on a line of its own. The page
+    is ordered ascending, so the last row is the newest.
+    """
+    mock_api.get(f"/api/v1/agentic/runs/{SAMPLE_RUN['id']}/spans").respond(
+        200,
+        json={
+            "items": [
+                {**SAMPLE_SPAN, "updated_at": "2026-08-23T10:00:04Z"},
+                {**SAMPLE_SPAN, "updated_at": "2026-08-23T10:00:09Z"},
+            ],
+            "next_cursor": None,
+        },
+    )
+
+    result = invoke(
+        [
+            "agentic",
+            "runs",
+            "spans",
+            SAMPLE_RUN["id"],
+            "--since",
+            "2026-08-26T10:00:00+00:00",
+        ]
+    )
+
+    assert "Reconnect with: --since 2026-08-23T10:00:09Z" in result.output
+
+
+def test_runs_spans_names_no_reconnect_before_the_drain_ends(invoke, mock_api):
+    """A `>=` filter re-answers its boundary, so `--since` moves last.
+
+    One `UPDATE` stamps every span of a batch alike. A reader that moved
+    `--since` while a cursor remained would re-read that group and never pass
+    it, so the line prints only when the cursor is spent.
+    """
+    mock_api.get(f"/api/v1/agentic/runs/{SAMPLE_RUN['id']}/spans").respond(
+        200, json={"items": [SAMPLE_SPAN], "next_cursor": "abc123"}
+    )
+
+    result = invoke(
+        [
+            "agentic",
+            "runs",
+            "spans",
+            SAMPLE_RUN["id"],
+            "--since",
+            "2026-08-26T10:00:00+00:00",
+        ]
+    )
+
+    assert "Reconnect with" not in result.output
+    assert "--since 2026-08-26T10:00:00+00:00 --cursor abc123" in result.output
+
+
+def test_runs_spans_plain_read_names_no_reconnect(invoke, mock_api):
+    """A plain read pages `started_at`, and it drives no reconnect loop."""
+    mock_api.get(f"/api/v1/agentic/runs/{SAMPLE_RUN['id']}/spans").respond(
+        200, json={"items": [SAMPLE_SPAN], "next_cursor": None}
+    )
+
+    result = invoke(["agentic", "runs", "spans", SAMPLE_RUN["id"]])
+
+    assert "Reconnect with" not in result.output
+
+
+def test_runs_spans_idle_poll_keeps_the_since_it_carried(invoke, mock_api):
+    """An empty page is the steady state of the loop, not the end of it.
+
+    Nothing moved, so the boundary stays where it is. Without the line a
+    script extracts an empty `--since`, which answers 422 and stops the poll.
+    """
+    mock_api.get(f"/api/v1/agentic/runs/{SAMPLE_RUN['id']}/spans").respond(
+        200, json={"items": [], "next_cursor": None}
+    )
+
+    result = invoke(
+        [
+            "agentic",
+            "runs",
+            "spans",
+            SAMPLE_RUN["id"],
+            "--since",
+            "2026-08-26T10:00:00+00:00",
+        ]
+    )
+
+    assert "Reconnect with: --since 2026-08-26T10:00:00+00:00" in result.output
+
+
+def test_runs_spans_reconnects_against_an_api_that_omits_updated_at(invoke, mock_api):
+    """The CLI ships to PyPI on its own cadence, so it meets an older API.
+
+    A subscript would raise KeyError under a table it already printed. The
+    boundary stays where it is instead.
+    """
+    older = {key: value for key, value in SAMPLE_SPAN.items() if key != "updated_at"}
+    mock_api.get(f"/api/v1/agentic/runs/{SAMPLE_RUN['id']}/spans").respond(
+        200, json={"items": [older], "next_cursor": None}
+    )
+
+    result = invoke(
+        [
+            "agentic",
+            "runs",
+            "spans",
+            SAMPLE_RUN["id"],
+            "--since",
+            "2026-08-26T10:00:00+00:00",
+        ]
+    )
+
+    assert result.exit_code == 0
+    assert "Traceback" not in result.output
+    assert "Reconnect with: --since 2026-08-26T10:00:00+00:00" in result.output
+    assert "--since cannot advance" in result.output
+
+
+def test_runs_spans_hint_keeps_a_long_cursor_on_one_line(invoke, mock_api):
+    """The hint is pasted, so the cursor must survive the copy.
+
+    A real cursor is about 108 characters and the line runs past 80. Hard
+    wrapped, it pastes back cut in three and answers 400.
+    """
+    cursor = (
+        "dXBkYXRlZF9hdHwyMDI2LTA4LTI2VDEwOjAwOjAwLjEyMzQ1NiswMDowMHwzMzMzMzMzMy0z"
+        "MzMzLTQzMzMtODMzMy0zMzMzMzMzMzMzMzM"
+    )
+    mock_api.get(f"/api/v1/agentic/runs/{SAMPLE_RUN['id']}/spans").respond(
+        200, json={"items": [SAMPLE_SPAN], "next_cursor": cursor}
+    )
+
+    result = invoke(
+        [
+            "agentic",
+            "runs",
+            "spans",
+            SAMPLE_RUN["id"],
+            "--since",
+            "2026-08-26T10:00:00+00:00",
+        ]
+    )
+
+    assert f"--cursor {cursor}" in result.output
+
+
+def test_runs_spans_warns_on_a_stamp_that_cannot_move_the_boundary(invoke, mock_api):
+    """An empty stamp moves the poll no further than a missing one.
+
+    Printed bare it names an empty `--since`, which answers 422 and stops the
+    loop this line exists to keep running. It takes the same fallback as a
+    null, so it takes the same warning.
+    """
+    mock_api.get(f"/api/v1/agentic/runs/{SAMPLE_RUN['id']}/spans").respond(
+        200,
+        json={"items": [{**SAMPLE_SPAN, "updated_at": ""}], "next_cursor": None},
+    )
+
+    result = invoke(
+        [
+            "agentic",
+            "runs",
+            "spans",
+            SAMPLE_RUN["id"],
+            "--since",
+            "2026-08-26T10:00:00+00:00",
+        ]
+    )
+
+    assert "--since cannot advance" in result.output
+    assert "Reconnect with: --since 2026-08-26T10:00:00+00:00" in result.output
+
+
+def test_runs_spans_takes_the_newest_usable_stamp_of_the_page(invoke, mock_api):
+    """A last row with no stamp must not discard the progress of the page.
+
+    The rows are ordered, so the first usable stamp from the end is the newest
+    one. Reading the last row alone would send the caller back to the boundary
+    it started from and re-read every row the page just answered.
+    """
+    mock_api.get(f"/api/v1/agentic/runs/{SAMPLE_RUN['id']}/spans").respond(
+        200,
+        json={
+            "items": [
+                {**SAMPLE_SPAN, "updated_at": "2026-08-26T11:00:00Z"},
+                {**SAMPLE_SPAN, "updated_at": None},
+            ],
+            "next_cursor": None,
+        },
+    )
+
+    result = invoke(
+        [
+            "agentic",
+            "runs",
+            "spans",
+            SAMPLE_RUN["id"],
+            "--since",
+            "2026-08-26T10:00:00+00:00",
+        ]
+    )
+
+    assert "Reconnect with: --since 2026-08-26T11:00:00Z" in result.output
+    assert "cannot advance" not in result.output
+
+
+def test_runs_spans_hint_repeats_a_page_size_the_caller_chose(invoke, mock_api):
+    """The hint is pasted, so it carries the whole read and not part of it.
+
+    A drain that starts at 200 rows a page and continues at the default reads
+    the run in four times the requests, and the pasted line says nothing.
+    """
+    mock_api.get(f"/api/v1/agentic/runs/{SAMPLE_RUN['id']}/spans").respond(
+        200, json={"items": [SAMPLE_SPAN], "next_cursor": "abc123"}
+    )
+
+    result = invoke(["agentic", "runs", "spans", SAMPLE_RUN["id"], "--limit", "100"])
+
+    assert "--limit 100 --cursor abc123" in result.output
+
+
+def test_runs_spans_hint_omits_the_default_page_size(invoke, mock_api):
+    """The default needs no flag, and a hint reads better without one."""
+    mock_api.get(f"/api/v1/agentic/runs/{SAMPLE_RUN['id']}/spans").respond(
+        200, json={"items": [SAMPLE_SPAN], "next_cursor": "abc123"}
+    )
+
+    result = invoke(["agentic", "runs", "spans", SAMPLE_RUN["id"]])
+
+    assert "--limit" not in result.output
+    assert "--cursor abc123" in result.output
+
+
+def test_runs_spans_refuses_a_page_size_the_api_refuses(invoke, mock_api):
+    """The route is `Query(50, ge=1, le=100)`, so the flag carries its bounds.
+
+    Unbounded, the read reached the API and answered 422 after a round trip.
+    """
+    result = invoke(["agentic", "runs", "spans", SAMPLE_RUN["id"], "--limit", "200"])
+
+    assert result.exit_code != 0
+    assert "100" in result.output
+
+
+def test_runs_spans_reconnect_line_repeats_a_page_size_the_caller_chose(invoke, mock_api):
+    """This is the line a poll loop re-reads on every cycle.
+
+    Dropped here, a loop started at 100 rows a page runs at 50 for the rest of
+    its life, which is the failure the next-page echo already prevents.
+    """
+    mock_api.get(f"/api/v1/agentic/runs/{SAMPLE_RUN['id']}/spans").respond(
+        200,
+        json={
+            "items": [{**SAMPLE_SPAN, "updated_at": "2026-08-26T11:00:00Z"}],
+            "next_cursor": None,
+        },
+    )
+
+    result = invoke(
+        [
+            "agentic",
+            "runs",
+            "spans",
+            SAMPLE_RUN["id"],
+            "--since",
+            "2026-08-26T10:00:00+00:00",
+            "--limit",
+            "100",
+        ]
+    )
+
+    assert "Reconnect with: --since 2026-08-26T11:00:00Z --limit 100" in result.output
+
+
+def test_runs_spans_refuses_a_naive_since_before_the_request(invoke, mock_api):
+    """A stamp with no offset names no instant, and the API answers 400.
+
+    Refused here it costs no authenticated round trip, and the message names
+    the flag and the value.
+    """
+    result = invoke(
+        ["agentic", "runs", "spans", SAMPLE_RUN["id"], "--since", "2026-08-26T10:00:00"]
+    )
+
+    assert result.exit_code == 2
+    assert "time zone" in result.output
+
+
+def test_runs_spans_refuses_a_since_that_is_not_a_stamp(invoke, mock_api):
+    """`--since yesterday` is not ISO 8601, and the flag says ISO 8601."""
+    result = invoke(["agentic", "runs", "spans", SAMPLE_RUN["id"], "--since", "yesterday"])
+
+    assert result.exit_code == 2
+    assert "ISO 8601" in result.output
+
+
+def test_runs_list_hint_repeats_a_page_size_the_caller_chose(invoke, mock_api):
+    """Every cursor hint of this file repeats the size, not the spans one alone.
+
+    A walk started at 100 rows a page that continues at the default reads the
+    set in twice the requests, and the pasted line says nothing.
+    """
+    mock_api.get("/api/v1/agentic/runs").respond(
+        200, json={"items": [SAMPLE_RUN], "next_cursor": "abc123"}
+    )
+
+    result = invoke(["agentic", "runs", "list", "--limit", "100"])
+
+    assert "--limit 100 --cursor abc123" in result.output
+
+
+def test_runs_spans_accepts_the_since_it_printed(invoke, mock_api):
+    """The round trip the whole flag exists for.
+
+    The API writes `Z` and the `Reconnect with:` line prints what it wrote, so
+    the value this command answers must be one it takes back. `fromisoformat`
+    reads a `Z` only from Python 3.11, and this package supports 3.10, so a
+    test that only ever passes `+00:00` would stay green while the loop is
+    dead on the oldest interpreter the package claims.
+    """
+    stamp = "2026-08-23T10:00:09Z"
+    route = mock_api.get(f"/api/v1/agentic/runs/{SAMPLE_RUN['id']}/spans").respond(
+        200,
+        json={"items": [{**SAMPLE_SPAN, "updated_at": stamp}], "next_cursor": None},
+    )
+
+    printed = invoke(
+        ["agentic", "runs", "spans", SAMPLE_RUN["id"], "--since", "2026-08-26T10:00:00+00:00"]
+    )
+    assert f"Reconnect with: --since {stamp}" in printed.output
+
+    replayed = invoke(["agentic", "runs", "spans", SAMPLE_RUN["id"], "--since", stamp])
+
+    assert replayed.exit_code == 0
+    assert route.calls[-1].request.url.params["since"] == "2026-08-23T10:00:09+00:00"
+
+
+def test_runs_spans_reports_a_bad_since_as_json_when_asked(invoke, mock_api):
+    """A poll drives this command with --json, and parses what it prints."""
+    result = invoke(
+        ["agentic", "runs", "spans", SAMPLE_RUN["id"], "--since", "yesterday", "--json"]
+    )
+
+    assert result.exit_code == 2
+    body = json.loads(result.output)
+    assert body["error"] is True
+    assert "--since" in body["detail"]
+
+
+def test_runs_list_hint_repeats_the_filters_the_read_carried(invoke, mock_api):
+    """A cursor is a keyset position and carries no filter.
+
+    Pasted without them the read answers page two of the unfiltered set, with
+    a 200 and nothing to say the filter was lost.
+    """
+    mock_api.get("/api/v1/agentic/runs").respond(
+        200, json={"items": [SAMPLE_RUN], "next_cursor": "abc123"}
+    )
+
+    result = invoke(["agentic", "runs", "list", "--status", "failed", "--all"])
+
+    assert "--status failed --all --cursor abc123" in result.output
+
+
+def test_runs_list_hint_quotes_a_value_a_shell_would_read(invoke, mock_api):
+    """The hint is pasted into a shell, so a glob must not reach it.
+
+    `crm.*` unquoted dies in zsh as `no matches found`, and in bash it matches
+    a file and pages a filter the caller never named.
+    """
+    mock_api.get("/api/v1/agentic/runs").respond(
+        200, json={"items": [SAMPLE_RUN], "next_cursor": "abc123"}
+    )
+
+    result = invoke(["agentic", "runs", "list", "--status", "crm.*"])
+
+    assert "--status 'crm.*'" in result.output
+
+
+def test_runs_spans_reports_a_limit_the_api_refuses_as_json(invoke, mock_api):
+    """A range on the Option renders a usage box, and a poll cannot parse one.
+
+    The bound is checked in the command, so `--json` answers the shape
+    _handle_error answers.
+    """
+    result = invoke(["agentic", "runs", "spans", SAMPLE_RUN["id"], "--limit", "200", "--json"])
+
+    assert result.exit_code == 2
+    body = json.loads(result.output)
+    assert body["error"] is True
+    assert "--limit" in body["detail"]
+
+
+def test_runs_spans_warns_when_the_api_reports_no_no_call_reason(invoke, mock_api):
+    """An absent key is not a null one.
+
+    A null says this span was the call. No key says the API does not report
+    the fact, so the column is blank on every row and reads as a run that
+    gated nothing.
+    """
+    older = {key: value for key, value in SAMPLE_SPAN.items() if key != "no_call_reason"}
+    mock_api.get(f"/api/v1/agentic/runs/{SAMPLE_RUN['id']}/spans").respond(
+        200, json={"items": [older], "next_cursor": None}
+    )
+
+    result = invoke(["agentic", "runs", "spans", SAMPLE_RUN["id"]])
+
+    assert "does not report no_call_reason" in result.output
+
+
+def test_runs_spans_stays_quiet_when_a_span_was_the_call(invoke, mock_api):
+    """A null is the common answer, and it is not a warning."""
+    mock_api.get(f"/api/v1/agentic/runs/{SAMPLE_RUN['id']}/spans").respond(
+        200, json={"items": [SAMPLE_SPAN], "next_cursor": None}
+    )
+
+    result = invoke(["agentic", "runs", "spans", SAMPLE_RUN["id"]])
+
+    assert "does not report" not in result.output
+
+
+def test_runs_spans_idle_poll_warns_of_nothing(invoke, mock_api):
+    """An empty page repeats the boundary, and that is the correct answer.
+
+    It reads like the stuck poll on the line below, so only the stuck one
+    carries the warning.
+    """
+    mock_api.get(f"/api/v1/agentic/runs/{SAMPLE_RUN['id']}/spans").respond(
+        200, json={"items": [], "next_cursor": None}
+    )
+
+    result = invoke(
+        [
+            "agentic",
+            "runs",
+            "spans",
+            SAMPLE_RUN["id"],
+            "--since",
+            "2026-08-26T10:00:00+00:00",
+        ]
+    )
+
+    assert "cannot advance" not in result.output
+
+
+def test_runs_spans_refuses_an_empty_since_rather_than_dropping_it(invoke, mock_api):
+    """An empty value is a failed extraction, and it must not read silently.
+
+    A poll builds `--since` from the last page. Dropped, the read loses its
+    filter and its order, and the loop re-reads the whole run on every poll
+    with nothing to say so. It is refused instead, and no request is made.
+    """
+    route = mock_api.get(f"/api/v1/agentic/runs/{SAMPLE_RUN['id']}/spans").respond(
+        200, json={"items": [], "next_cursor": None}
+    )
+
+    result = invoke(["agentic", "runs", "spans", SAMPLE_RUN["id"], "--since", ""])
+
+    assert result.exit_code == 2
+    assert not route.calls

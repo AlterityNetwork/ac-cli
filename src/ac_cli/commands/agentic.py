@@ -21,7 +21,10 @@ Agent Builder, Approval Inbox and The three admin surfaces.
 from __future__ import annotations
 
 import json
+import shlex
 import uuid
+from datetime import datetime
+from typing import NoReturn
 
 import typer
 from rich import print as rprint
@@ -30,10 +33,17 @@ from rich.text import Text
 from ac_cli.commands._helpers import (
     JSON_OPTION,
     _api_request,
+    _json_output,
     set_json_mode,
     should_skip_confirm,
 )
-from ac_cli.formatting import as_text, print_detail, print_json, print_table
+from ac_cli.formatting import (
+    as_text,
+    console,
+    print_detail,
+    print_json,
+    print_table,
+)
 
 app = typer.Typer(help="Agentic platform")
 
@@ -72,6 +82,13 @@ def _parse_input(input_json: str | None) -> dict:
     return parsed
 
 
+# Every agentic list route is `Query(50, ge=1, le=100)`. The flag carries the
+# same bounds, so a page size the API refuses never reaches it, and the hint
+# repeats the size only when the caller chose one.
+_PAGE_DEFAULT = 50
+_PAGE_MIN = 1
+_PAGE_MAX = 100
+
 _RUN_FIELDS = [
     ("id", "Run ID"),
     ("kind", "Kind"),
@@ -93,11 +110,23 @@ _LIST_FIELDS = [
     ("created_at", "Created"),
 ]
 
+# ⚠️ **`No call` is what makes the `Status` column readable.** A `tool` span
+# that reads `ok` is not always a call: a call that stopped for a person and a
+# call answered from the journal both close `ok` and both carry the tool name.
+# The column names which, so a person counting what a run did counts the rows
+# that leave it empty.
+#
+# It is the seventh column, and it costs width. At 80 columns `Span ID` falls
+# from 13 characters of the UUID to 9. Neither length is the whole id, and 8
+# hex characters still tell the spans of one run apart, so the column is worth
+# the four. An eighth would take a timestamp below that bar, which is why
+# `updated_at` prints on a line instead. See _print_spans_hint.
 _SPAN_FIELDS = [
     ("span_id", "Span ID"),
     ("kind", "Kind"),
     ("name", "Name"),
     ("status", "Status"),
+    ("no_call_reason", "No call"),
     ("duration_ms", "Duration (ms)"),
     ("started_at", "Started"),
 ]
@@ -186,11 +215,12 @@ def runs_list(
         False, "--all", help="Include child runs. The default returns roots only."
     ),
     cursor: str | None = typer.Option(None, "--cursor", help="Page to continue"),
-    limit: int = typer.Option(50, help="Page size"),
+    limit: int = typer.Option(_PAGE_DEFAULT, "--limit", help="Page size, 1 to 100"),
     json_output: bool = JSON_OPTION,
 ) -> None:
     """List agentic runs. It returns the top of each tree by default."""
     set_json_mode(json_output)
+    _checked_limit(limit)
     params: dict = {"limit": limit}
     # root_only is unset unless --all names it. The endpoint reads roots by
     # default and children when a parent is named, so sending it would refuse
@@ -216,24 +246,283 @@ def runs_list(
     items = data.get("items", [])
     print_table(items, _LIST_FIELDS, title=f"Runs ({len(items)})")
     if data.get("next_cursor"):
-        rprint("[dim]Next page:[/dim] --cursor", as_text(data["next_cursor"]))
+        _print_cursor_hint(
+            data["next_cursor"],
+            limit,
+            filters=[
+                ("--parent", parent),
+                ("--definition", definition_id),
+                ("--status", status),
+                ("--all", every),
+            ],
+        )
+
+
+def _checked_since(since: str | None) -> str | None:
+    """Refuses a `--since` the API would refuse, and answers what to send.
+
+    The API answers `400` for a stamp with no time zone: Postgres resolves a
+    naive literal in the session time zone, so the boundary of the filter moves
+    by that offset and no error says so. The refusal costs an authenticated
+    round trip and names the flag only in prose.
+
+    ⚠️ **It normalises a `Z` suffix, because `fromisoformat` reads one only
+    from Python 3.11.** This package supports 3.10, the API writes `Z`, and the
+    `Reconnect with:` line prints what the API wrote. Parsing the raw value
+    would make this command refuse its own output on 3.10, and every test that
+    passes `+00:00` would stay green while the loop cannot run.
+
+    Args:
+        since: What the caller typed, or None.
+
+    Returns:
+        The value to send, with a `Z` suffix written as `+00:00`. None stays
+        None.
+
+    Raises:
+        typer.Exit: The value is not ISO 8601, or it carries no time zone.
+    """
+    if since is None:
+        return None
+    normalized = f"{since[:-1]}+00:00" if since.endswith(("Z", "z")) else since
+    try:
+        parsed = datetime.fromisoformat(normalized)
+    except ValueError:
+        _refuse_option("--since", "is not ISO 8601", since)
+    if parsed.tzinfo is None:
+        _refuse_option("--since", "carries no time zone, so it names no instant", since)
+    return normalized
+
+
+def _refuse_option(flag: str, reason: str, value: object) -> NoReturn:
+    """Reports an option this command will not send, and exits.
+
+    A poll drives these commands with `--json`, so the refusal answers the
+    shape that caller parses. See _handle_error, which answers the same shape
+    for a refusal the API wrote.
+
+    ⚠️ **Click renders its own refusal as a usage box, never as JSON.** A range
+    on a typer.Option therefore breaks the `--json` contract, so the bounds of
+    a flag are checked here instead. See _checked_limit.
+
+    Args:
+        flag: The option that is wrong, written as the caller writes it.
+        reason: What is wrong with the value.
+        value: What the caller typed.
+
+    Raises:
+        typer.Exit: Always, with the validation code.
+    """
+    if _json_output.get():
+        print_json({"error": True, "status_code": None, "detail": f"{flag} {reason}: {value}"})
+    else:
+        rprint(f"[red]{flag} {reason}:[/red]", as_text(value))
+    raise typer.Exit(code=2)
+
+
+def _checked_limit(limit: int) -> int:
+    """Refuses a page size the API refuses, before the request.
+
+    Every agentic list route is `Query(50, ge=1, le=100)`. A range on the
+    typer.Option would refuse the same values, but Click renders that as a
+    usage box on stderr, so a `--json` caller parsing stdout reads nothing.
+
+    Args:
+        limit: The page size the caller asked for.
+
+    Returns:
+        The value, unchanged.
+
+    Raises:
+        typer.Exit: The value is outside the bounds the API serves.
+    """
+    if not _PAGE_MIN <= limit <= _PAGE_MAX:
+        _refuse_option("--limit", f"is not between {_PAGE_MIN} and {_PAGE_MAX}", limit)
+    return limit
+
+
+def _print_cursor_hint(
+    next_cursor: str,
+    limit: int,
+    *,
+    filters: list[tuple[str, object]] | None = None,
+    label: str = "Next page:",
+) -> None:
+    """Prints the command that reads the next page.
+
+    ⚠️ **A hint names the options and never the command, so it repeats every
+    option that shaped the read.** A caller writes the command and the run id
+    itself, and takes the rest of the line as it stands. A cursor is a keyset position and carries no filter, so a hint that
+    named the cursor alone paged the unfiltered set from that position and
+    answered 200. Page one filtered and page two not, with nothing to say so.
+    A page size behaves the same way: a walk that starts at 100 rows a page and
+    continues at the default reads the set in twice the requests.
+
+    `soft_wrap` keeps the cursor one token. A cursor is about 108 characters,
+    and a hard wrap at the terminal width pastes back cut in three, which
+    answers `400`.
+
+    Args:
+        next_cursor: The token of the next page.
+        limit: The page size the read carried.
+        filters: The flags that narrowed the read, as (flag, value) pairs. A
+          value of None or False is one the caller did not set.
+        label: The words before the options.
+    """
+    parts: list[object] = [f"[dim]{label}[/dim]"]
+    for flag, value in filters or []:
+        if value is None or value is False:
+            continue
+        parts.append(flag)
+        if value is not True:
+            # shlex.quote, because the line is pasted into a shell. `crm.*`
+            # unquoted dies in zsh as `no matches found`, and matches a file in
+            # bash, which pages a filter the caller never named. `in progress`
+            # unquoted reads as a value and a stray argument.
+            parts.append(as_text(shlex.quote(str(value))))
+    if limit != _PAGE_DEFAULT:
+        parts += ["--limit", as_text(limit)]
+    parts += ["--cursor", as_text(next_cursor)]
+    console.print(*parts, soft_wrap=True)
+
+
+def _print_spans_hint(
+    items: list[dict], next_cursor: str | None, since: str | None, limit: int
+) -> None:
+    """Prints the command that reads the next spans, or reconnects.
+
+    ⚠️ **A cursor names the order it was written for.** A `--since` page is
+    tagged `updated_at` and a plain page is tagged `started_at`, so the hint
+    repeats `--since`. Pasted without it, the same cursor answers `400`.
+
+    ⚠️ **The hint prints with `soft_wrap`, so the cursor stays one token.** A
+    cursor is about 108 characters, and the console hard wraps a longer line at
+    the terminal width. A person copying a folded line pastes a cursor cut in
+    three, which answers `400`.
+
+    ⚠️ **The reconnect value is a line and never a column.** A person builds
+    the next `--since` from the newest `updated_at` of the drain. `updated_at`
+    would be the eighth column of the table, and eight columns truncate every
+    timestamp at 80 columns beside a span id. The line prints the one value the
+    loop reads, at any width.
+
+    The reader drains the cursor before it moves `--since`. The filter is
+    `>=` and one `UPDATE` stamps every span of a batch alike, so a reader that
+    moved `--since` early would re-read that group and never pass it. So the
+    reconnect line prints at the end of the drain alone.
+
+    The page is ordered on `updated_at` ascending, so the last row carries the
+    newest value.
+
+    ⚠️ **A `--since` drain always ends with the line.** An idle poll is the
+    steady state of the loop, and it answers an empty page. A read against an
+    API that predates `updated_at` answers no value either. In both cases the
+    boundary stays where it is, so the line names the value the read carried.
+    A missing line leaves a script with an empty `--since`, which answers 422
+    and stops the loop the option exists for.
+
+    ⚠️ **The hint repeats every option the read was given.** A page size the
+    caller chose is one of them: a drain that starts at 200 rows a page and
+    continues at the default 50 reads the same run in four times the requests,
+    and nothing in the pasted line says why.
+
+    Args:
+        items: The page, ordered on the column the read selected.
+        next_cursor: The token of the next page, or None at the end of it.
+        since: The value this read carried, or None for a plain read.
+        limit: The page size the read carried.
+    """
+    if next_cursor:
+        page: list[object] = ["[dim]Next page:[/dim]"]
+        if since is not None:
+            page += ["--since", as_text(since)]
+        if limit != _PAGE_DEFAULT:
+            page += ["--limit", as_text(limit)]
+        page += ["--cursor", as_text(next_cursor)]
+        console.print(*page, soft_wrap=True)
+        return
+    if since is None:
+        return
+    # get, and not a subscript. The CLI ships to PyPI on its own cadence, so it
+    # meets an API older than this field. A KeyError would print a traceback
+    # under a table it already rendered.
+    # A truth test, and not `is None`. `_blank_if_null` asks whether a field
+    # holds a value to print, where `0` is one. This asks whether a stamp can
+    # move the boundary, and neither a null nor `""` can. Both take the same
+    # fallback, so both take the same warning.
+    #
+    # It reads the page backwards, and not the last row alone. The rows are
+    # ordered, so the first usable stamp from the end is the newest one. A page
+    # whose last row carries no stamp still moves the boundary as far as its
+    # rows allow, where reading that row alone would send the caller back to
+    # where it started and drop the progress the page held.
+    newest = next((row.get("updated_at") for row in reversed(items) if row.get("updated_at")), None)
+    if items and not newest:
+        # Both cases below end a drain, because a page with a cursor returned
+        # above. An empty one repeats the boundary because nothing moved, and
+        # that is an idle poll. One that carries rows repeats it because none
+        # of them names a stamp, and that poll re-reads those rows for ever.
+        # The two print the same line, so say which this is.
+        console.print(
+            "[yellow]Warning:[/yellow] these spans carry no usable updated_at,"
+            " so --since cannot advance and this poll repeats."
+        )
+    parts: list[object] = ["[dim]Reconnect with:[/dim] --since", as_text(newest or since)]
+    if limit != _PAGE_DEFAULT:
+        parts += ["--limit", as_text(limit)]
+    console.print(*parts, soft_wrap=True)
 
 
 @runs_app.command("spans")
 def runs_spans(
     ctx: typer.Context,
     run_id: str = typer.Argument(..., help="Run ID"),
+    since: str | None = typer.Option(
+        None,
+        "--since",
+        help="Read the spans that moved at or after this instant, as ISO 8601 with a time zone",
+    ),
     cursor: str | None = typer.Option(None, "--cursor", help="Page to continue"),
-    limit: int = typer.Option(50, help="Page size"),
+    limit: int = typer.Option(_PAGE_DEFAULT, "--limit", help="Page size, 1 to 100"),
     json_output: bool = JSON_OPTION,
 ) -> None:
     """List the spans of one run.
 
     It reads the spans of that run alone. A child run holds its own spans, so
     open the child to read them.
+
+    `--since` is what a client reads after a dropped stream. The run stream
+    keeps no backlog, so a reconnecting reader asks for the spans that moved
+    while it was away. It filters `updated_at`, so it answers a span that
+    opened before the gap and closed inside it.
+
+    ⚠️ **A cursor names the order it was written for.** `--since` orders the
+    page on `updated_at` and a plain read orders it on `started_at`, so a
+    cursor from one replayed against the other answers `400`. Carry both
+    options together, or neither, which is why the next-page hint repeats
+    `--since`.
+
+    Start a poll at any instant you choose: the `Created` of the run reads
+    every span it has, and the filter is inclusive. The first read is the one
+    that needs a value of your own, because the line below names each one
+    after it.
+
+    Drain the cursor, then read the `Reconnect with:` line the last page
+    prints. It names the `--since` of the next poll, and it prints on every
+    `--since` read that ends a drain, including one that moved nothing. It
+    names the options alone, so a poll writes the command and the run id and
+    appends what the line holds.
     """
     set_json_mode(json_output)
+    _checked_limit(limit)
+    since = _checked_since(since)
     params: dict = {"limit": limit}
+    # `is not None`, and not a truth test. A reconnect loop builds this value
+    # from the last page, and an empty one means the extraction failed. Sent
+    # on, it answers 422; dropped, it reads the whole run unfiltered and the
+    # loop re-reads it on every poll with nothing to say so.
+    if since is not None:
+        params["since"] = since
     if cursor:
         params["cursor"] = cursor
 
@@ -246,8 +535,17 @@ def runs_spans(
 
     items = data.get("items", [])
     print_table(items, _SPAN_FIELDS, title=f"Spans ({len(items)})")
-    if data.get("next_cursor"):
-        rprint("[dim]Next page:[/dim] --cursor", as_text(data["next_cursor"]))
+    if items and not any("no_call_reason" in span for span in items):
+        # An absent key, and not a null one. A null says this span was the
+        # call, which is the common answer. No key at all says the API does not
+        # report the fact, and the column is then blank on every row, which
+        # reads as a run that gated nothing.
+        console.print(
+            "[yellow]Warning:[/yellow] this API does not report no_call_reason,"
+            " so the No call column is blank on every row and a gated call"
+            " cannot be told from a real one."
+        )
+    _print_spans_hint(items, data.get("next_cursor"), since, limit)
 
 
 @runs_app.command("cancel")
@@ -365,7 +663,7 @@ def definitions_list(
     origin: str | None = typer.Option(None, "--origin", help="platform or custom"),
     state: str | None = typer.Option(None, "--state", help="draft, active or disabled"),
     cursor: str | None = typer.Option(None, "--cursor", help="Page to continue"),
-    limit: int = typer.Option(50, help="Page size"),
+    limit: int = typer.Option(_PAGE_DEFAULT, "--limit", help="Page size, 1 to 100"),
     json_output: bool = JSON_OPTION,
 ) -> None:
     """List the definitions this organization may see.
@@ -374,6 +672,7 @@ def definitions_list(
     templates that are active. A fork starts from a template.
     """
     set_json_mode(json_output)
+    _checked_limit(limit)
     params: dict = {"limit": limit}
     if kind:
         params["kind"] = kind
@@ -394,7 +693,11 @@ def definitions_list(
     items = data.get("items", [])
     print_table(items, _DEFINITION_LIST_FIELDS, title=f"Definitions ({len(items)})")
     if data.get("next_cursor"):
-        rprint("[dim]Next page:[/dim] --cursor", as_text(data["next_cursor"]))
+        _print_cursor_hint(
+            data["next_cursor"],
+            limit,
+            filters=[("--kind", kind), ("--origin", origin), ("--state", state)],
+        )
 
 
 @definitions_app.command("create")
@@ -696,7 +999,7 @@ def approvals_list(
         help="pending, approved, rejected, expired or cancelled. The default is pending.",
     ),
     cursor: str | None = typer.Option(None, "--cursor", help="Page to continue"),
-    limit: int = typer.Option(50, help="Page size"),
+    limit: int = typer.Option(_PAGE_DEFAULT, "--limit", help="Page size, 1 to 100"),
     json_output: bool = JSON_OPTION,
 ) -> None:
     """List the approvals of your organization, soonest expiry first.
@@ -705,6 +1008,7 @@ def approvals_list(
     so the pending page never offers one that nobody can answer.
     """
     set_json_mode(json_output)
+    _checked_limit(limit)
     params: dict = {"limit": limit}
     # The endpoint reads pending when no status is named, so sending the
     # default would name a filter the caller did not choose.
@@ -723,7 +1027,7 @@ def approvals_list(
     items = data.get("items", [])
     print_table(items, _APPROVAL_LIST_FIELDS, title=f"Approvals ({len(items)})")
     if data.get("next_cursor"):
-        rprint("[dim]Next page:[/dim] --cursor", as_text(data["next_cursor"]))
+        _print_cursor_hint(data["next_cursor"], limit, filters=[("--status", status)])
 
 
 @approvals_app.command("get")
@@ -991,7 +1295,7 @@ def policies_list(
         None, "--action", help="Read the rules bound to exactly this action"
     ),
     cursor: str | None = typer.Option(None, "--cursor", help="Page cursor"),
-    limit: int = typer.Option(50, "--limit", min=1, max=100, help="Page size"),
+    limit: int = typer.Option(_PAGE_DEFAULT, "--limit", help="Page size, 1 to 100"),
     json_output: bool = JSON_OPTION,
 ) -> None:
     """List the rules of this organization.
@@ -1004,6 +1308,7 @@ def policies_list(
     the two apart.
     """
     set_json_mode(json_output)
+    _checked_limit(limit)
     params: dict = {"limit": limit}
     if action:
         params["action"] = action
@@ -1018,7 +1323,9 @@ def policies_list(
         return
     print_table(data.get("items", []), _POLICY_LIST_FIELDS, title="Policies")
     if data.get("next_cursor"):
-        rprint("[dim]Next cursor:[/dim]", as_text(data["next_cursor"]))
+        _print_cursor_hint(
+            data["next_cursor"], limit, filters=[("--action", action)], label="Next cursor:"
+        )
 
 
 @policies_app.command("create")
