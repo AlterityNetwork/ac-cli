@@ -246,9 +246,10 @@ def _print_spans_hint(items: list[dict], next_cursor: str | None, since: str | N
     three, which answers `400`.
 
     ⚠️ **The reconnect value is a line and never a column.** A person builds
-    the next `--since` from the newest `updated_at` of the drain, and an
-    eighth column truncates every timestamp at 80 columns beside a span id.
-    The line prints the one value the loop reads, at any width.
+    the next `--since` from the newest `updated_at` of the drain. `updated_at`
+    would be the eighth column of the table, and eight columns truncate every
+    timestamp at 80 columns beside a span id. The line prints the one value the
+    loop reads, at any width.
 
     The reader drains the cursor before it moves `--since`. The filter is
     `>=` and one `UPDATE` stamps every span of a batch alike, so a reader that
@@ -291,7 +292,13 @@ def _print_spans_hint(items: list[dict], next_cursor: str | None, since: str | N
     # holds a value to print, where `0` is one. This asks whether a stamp can
     # move the boundary, and neither a null nor `""` can. Both take the same
     # fallback, so both take the same warning.
-    newest = items[-1].get("updated_at") if items else None
+    #
+    # It reads the page backwards, and not the last row alone. The rows are
+    # ordered, so the first usable stamp from the end is the newest one. A page
+    # whose last row carries no stamp still moves the boundary as far as its
+    # rows allow, where reading that row alone would send the caller back to
+    # where it started and drop the progress the page held.
+    newest = next((row.get("updated_at") for row in reversed(items) if row.get("updated_at")), None)
     if items and not newest:
         # An empty page that repeats the boundary is an idle poll, and it is
         # correct. A full page that repeats it is not: the API answered rows
@@ -1137,7 +1144,7 @@ def policies_list(
         return
     print_table(data.get("items", []), _POLICY_LIST_FIELDS, title="Policies")
     if data.get("next_cursor"):
-        rprint("[dim]Next cursor:[/dim]", as_text(data["next_cursor"]))
+        console.print("[dim]Next cursor:[/dim]", as_text(data["next_cursor"]), soft_wrap=True)
 
 
 @policies_app.command("create")

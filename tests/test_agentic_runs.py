@@ -697,6 +697,39 @@ def test_runs_spans_warns_on_a_stamp_that_cannot_move_the_boundary(invoke, mock_
     assert "Reconnect with: --since 2026-08-26T10:00:00+00:00" in result.output
 
 
+def test_runs_spans_takes_the_newest_usable_stamp_of_the_page(invoke, mock_api):
+    """A last row with no stamp must not discard the progress of the page.
+
+    The rows are ordered, so the first usable stamp from the end is the newest
+    one. Reading the last row alone would send the caller back to the boundary
+    it started from and re-read every row the page just answered.
+    """
+    mock_api.get(f"/api/v1/agentic/runs/{SAMPLE_RUN['id']}/spans").respond(
+        200,
+        json={
+            "items": [
+                {**SAMPLE_SPAN, "updated_at": "2026-08-26T11:00:00Z"},
+                {**SAMPLE_SPAN, "updated_at": None},
+            ],
+            "next_cursor": None,
+        },
+    )
+
+    result = invoke(
+        [
+            "agentic",
+            "runs",
+            "spans",
+            SAMPLE_RUN["id"],
+            "--since",
+            "2026-08-26T10:00:00+00:00",
+        ]
+    )
+
+    assert "Reconnect with: --since 2026-08-26T11:00:00Z" in result.output
+    assert "cannot advance" not in result.output
+
+
 def test_runs_spans_idle_poll_warns_of_nothing(invoke, mock_api):
     """An empty page repeats the boundary, and that is the correct answer.
 
