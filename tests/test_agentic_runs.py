@@ -798,6 +798,43 @@ def test_runs_spans_reconnect_line_repeats_a_page_size_the_caller_chose(invoke, 
     assert "Reconnect with: --since 2026-08-26T11:00:00Z --limit 100" in result.output
 
 
+def test_runs_spans_refuses_a_naive_since_before_the_request(invoke, mock_api):
+    """A stamp with no offset names no instant, and the API answers 400.
+
+    Refused here it costs no authenticated round trip, and the message names
+    the flag and the value.
+    """
+    result = invoke(
+        ["agentic", "runs", "spans", SAMPLE_RUN["id"], "--since", "2026-08-26T10:00:00"]
+    )
+
+    assert result.exit_code == 2
+    assert "time zone" in result.output
+
+
+def test_runs_spans_refuses_a_since_that_is_not_a_stamp(invoke, mock_api):
+    """`--since yesterday` is not ISO 8601, and the flag says ISO 8601."""
+    result = invoke(["agentic", "runs", "spans", SAMPLE_RUN["id"], "--since", "yesterday"])
+
+    assert result.exit_code == 2
+    assert "ISO 8601" in result.output
+
+
+def test_runs_list_hint_repeats_a_page_size_the_caller_chose(invoke, mock_api):
+    """Every cursor hint of this file repeats the size, not the spans one alone.
+
+    A walk started at 100 rows a page that continues at the default reads the
+    set in twice the requests, and the pasted line says nothing.
+    """
+    mock_api.get("/api/v1/agentic/runs").respond(
+        200, json={"items": [SAMPLE_RUN], "next_cursor": "abc123"}
+    )
+
+    result = invoke(["agentic", "runs", "list", "--limit", "100"])
+
+    assert "--limit 100 --cursor abc123" in result.output
+
+
 def test_runs_spans_idle_poll_warns_of_nothing(invoke, mock_api):
     """An empty page repeats the boundary, and that is the correct answer.
 
@@ -822,18 +859,18 @@ def test_runs_spans_idle_poll_warns_of_nothing(invoke, mock_api):
     assert "cannot advance" not in result.output
 
 
-def test_runs_spans_forwards_an_empty_since_rather_than_dropping_it(invoke, mock_api):
+def test_runs_spans_refuses_an_empty_since_rather_than_dropping_it(invoke, mock_api):
     """An empty value is a failed extraction, and it must not read silently.
 
     A poll builds `--since` from the last page. Dropped, the read loses its
     filter and its order, and the loop re-reads the whole run on every poll
-    with nothing to say so. Sent on, the API refuses it.
+    with nothing to say so. It is refused instead, and no request is made.
     """
     route = mock_api.get(f"/api/v1/agentic/runs/{SAMPLE_RUN['id']}/spans").respond(
-        422, json={"detail": "since is not a valid datetime"}
+        200, json={"items": [], "next_cursor": None}
     )
 
     result = invoke(["agentic", "runs", "spans", SAMPLE_RUN["id"], "--since", ""])
 
-    assert route.calls[0].request.url.params["since"] == ""
-    assert result.exit_code != 0
+    assert result.exit_code == 2
+    assert not route.calls

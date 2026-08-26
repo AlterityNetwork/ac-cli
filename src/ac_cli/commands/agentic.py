@@ -22,6 +22,7 @@ from __future__ import annotations
 
 import json
 import uuid
+from datetime import datetime
 
 import typer
 from rich import print as rprint
@@ -111,6 +112,12 @@ _LIST_FIELDS = [
 # call answered from the journal both close `ok` and both carry the tool name.
 # The column names which, so a person counting what a run did counts the rows
 # that leave it empty.
+#
+# It is the seventh column, and it costs width. At 80 columns `Span ID` falls
+# from 13 characters of the UUID to 9. Neither length is the whole id, and 8
+# hex characters still tell the spans of one run apart, so the column is worth
+# the four. An eighth would take a timestamp below that bar, which is why
+# `updated_at` prints on a line instead. See _print_spans_hint.
 _SPAN_FIELDS = [
     ("span_id", "Span ID"),
     ("kind", "Kind"),
@@ -237,9 +244,65 @@ def runs_list(
     items = data.get("items", [])
     print_table(items, _LIST_FIELDS, title=f"Runs ({len(items)})")
     if data.get("next_cursor"):
-        console.print(
-            "[dim]Next page:[/dim] --cursor", as_text(data["next_cursor"]), soft_wrap=True
-        )
+        _print_cursor_hint(data["next_cursor"], limit)
+
+
+def _checked_since(since: str | None) -> str | None:
+    """Refuses a `--since` the API would refuse, before the request.
+
+    The API answers `400` for a stamp with no time zone: Postgres resolves a
+    naive literal in the session time zone, so the boundary of the filter moves
+    by that offset and no error says so. The refusal costs an authenticated
+    round trip and names the flag only in prose.
+
+    It bites the first read alone. Every later value comes from the
+    `Reconnect with:` line, which carries an offset.
+
+    Args:
+        since: What the caller typed, or None.
+
+    Returns:
+        The value, unchanged.
+
+    Raises:
+        typer.Exit: The value is not ISO 8601, or it carries no time zone.
+    """
+    if since is None:
+        return None
+    try:
+        parsed = datetime.fromisoformat(since)
+    except ValueError:
+        rprint(f"[red]--since is not ISO 8601:[/red] {as_text(since)}")
+        raise typer.Exit(code=2) from None
+    if parsed.tzinfo is None:
+        rprint(f"[red]--since carries no time zone, so it names no instant:[/red] {as_text(since)}")
+        raise typer.Exit(code=2)
+    return since
+
+
+def _print_cursor_hint(next_cursor: str, limit: int, *, label: str = "Next page:") -> None:
+    """Prints the command that reads the next page.
+
+    ⚠️ **A hint is pasted, so it repeats every option the read was given.** A
+    page size is one: a walk that starts at 100 rows a page and continues at
+    the default 50 reads the same set in twice the requests, and the pasted
+    line says nothing. It carries the filters of no command, so a filtered
+    list still pages its filter by hand.
+
+    `soft_wrap` keeps the cursor one token. A cursor is about 108 characters,
+    and a hard wrap at the terminal width pastes back cut in three, which
+    answers `400`.
+
+    Args:
+        next_cursor: The token of the next page.
+        limit: The page size the read carried.
+        label: The words before the options.
+    """
+    parts: list[object] = [f"[dim]{label}[/dim]"]
+    if limit != _PAGE_DEFAULT:
+        parts += ["--limit", as_text(limit)]
+    parts += ["--cursor", as_text(next_cursor)]
+    console.print(*parts, soft_wrap=True)
 
 
 def _print_spans_hint(
@@ -319,7 +382,7 @@ def _print_spans_hint(
         # that is an idle poll. One that carries rows repeats it because none
         # of them names a stamp, and that poll re-reads those rows for ever.
         # The two print the same line, so say which this is.
-        rprint(
+        console.print(
             "[yellow]Warning:[/yellow] these spans carry no usable updated_at,"
             " so --since cannot advance and this poll repeats."
         )
@@ -370,6 +433,7 @@ def runs_spans(
     `--since` read that ends a drain, including one that moved nothing.
     """
     set_json_mode(json_output)
+    _checked_since(since)
     params: dict = {"limit": limit}
     # `is not None`, and not a truth test. A reconnect loop builds this value
     # from the last page, and an empty one means the extraction failed. Sent
@@ -538,9 +602,7 @@ def definitions_list(
     items = data.get("items", [])
     print_table(items, _DEFINITION_LIST_FIELDS, title=f"Definitions ({len(items)})")
     if data.get("next_cursor"):
-        console.print(
-            "[dim]Next page:[/dim] --cursor", as_text(data["next_cursor"]), soft_wrap=True
-        )
+        _print_cursor_hint(data["next_cursor"], limit)
 
 
 @definitions_app.command("create")
@@ -871,9 +933,7 @@ def approvals_list(
     items = data.get("items", [])
     print_table(items, _APPROVAL_LIST_FIELDS, title=f"Approvals ({len(items)})")
     if data.get("next_cursor"):
-        console.print(
-            "[dim]Next page:[/dim] --cursor", as_text(data["next_cursor"]), soft_wrap=True
-        )
+        _print_cursor_hint(data["next_cursor"], limit)
 
 
 @approvals_app.command("get")
@@ -1170,7 +1230,7 @@ def policies_list(
         return
     print_table(data.get("items", []), _POLICY_LIST_FIELDS, title="Policies")
     if data.get("next_cursor"):
-        console.print("[dim]Next cursor:[/dim]", as_text(data["next_cursor"]), soft_wrap=True)
+        _print_cursor_hint(data["next_cursor"], limit, label="Next cursor:")
 
 
 @policies_app.command("create")
