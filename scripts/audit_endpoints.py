@@ -66,11 +66,6 @@ PATH_CONSTANTS: dict[str, str] = {
 
 # API endpoints intentionally not covered by the CLI.
 OUT_OF_SCOPE: set[tuple[str, str]] = {
-    # Inngest platform callback (durable workflow/cron) — Inngest Cloud calls
-    # these; signature-verified, not a user-facing CLI command.
-    ("GET", "/api/inngest"),
-    ("POST", "/api/inngest"),
-    ("PUT", "/api/inngest"),
     # Frontend-only UI state: CRM surfaces poll this for the per-company
     # "Headhunter search in progress" indicator; not a CLI workflow.
     ("GET", "/api/v1/workflows/headhunter/active-runs"),
@@ -255,16 +250,13 @@ def collect_api_endpoints(spec: dict) -> set[tuple[str, str]]:
 #: OUT_OF_SCOPE paths the OpenAPI spec never declares, so staleness cannot be
 #: judged for them.
 #:
-#: `/api/inngest` is the Inngest serve mount. It is attached as raw ASGI and it
-#: is not a FastAPI route, so it appears in no spec and its absence says
-#: nothing. An entry here is exempt from the STALE-SCOPE check and from
-#: nothing else.
+#: It is empty. It holds a path the API serves outside FastAPI, such as a raw
+#: ASGI mount, which appears in no spec. An entry here is exempt from the
+#: STALE-SCOPE check and from nothing else.
 #:
 #: ⚠️ Keep this set small. Every entry is a path no check can watch, so a
 #: rename of one is invisible to this tool for ever.
-NOT_IN_SPEC: set[str] = {
-    "/api/inngest",
-}
+NOT_IN_SPEC: set[str] = set()
 
 
 def stale_out_of_scope(
