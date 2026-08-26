@@ -23,6 +23,7 @@ from __future__ import annotations
 import json
 import uuid
 from datetime import datetime
+from typing import NoReturn
 
 import typer
 from rich import print as rprint
@@ -31,6 +32,7 @@ from rich.text import Text
 from ac_cli.commands._helpers import (
     JSON_OPTION,
     _api_request,
+    _json_output,
     set_json_mode,
     should_skip_confirm,
 )
@@ -244,50 +246,90 @@ def runs_list(
     items = data.get("items", [])
     print_table(items, _LIST_FIELDS, title=f"Runs ({len(items)})")
     if data.get("next_cursor"):
-        _print_cursor_hint(data["next_cursor"], limit)
+        _print_cursor_hint(
+            data["next_cursor"],
+            limit,
+            filters=[
+                ("--parent", parent),
+                ("--definition", definition_id),
+                ("--status", status),
+                ("--all", every),
+            ],
+        )
 
 
 def _checked_since(since: str | None) -> str | None:
-    """Refuses a `--since` the API would refuse, before the request.
+    """Refuses a `--since` the API would refuse, and answers what to send.
 
     The API answers `400` for a stamp with no time zone: Postgres resolves a
     naive literal in the session time zone, so the boundary of the filter moves
     by that offset and no error says so. The refusal costs an authenticated
     round trip and names the flag only in prose.
 
-    It bites the first read alone. Every later value comes from the
-    `Reconnect with:` line, which carries an offset.
+    ⚠️ **It normalises a `Z` suffix, because `fromisoformat` reads one only
+    from Python 3.11.** This package supports 3.10, the API writes `Z`, and the
+    `Reconnect with:` line prints what the API wrote. Parsing the raw value
+    would make this command refuse its own output on 3.10, and every test that
+    passes `+00:00` would stay green while the loop cannot run.
 
     Args:
         since: What the caller typed, or None.
 
     Returns:
-        The value, unchanged.
+        The value to send, with a `Z` suffix written as `+00:00`. None stays
+        None.
 
     Raises:
         typer.Exit: The value is not ISO 8601, or it carries no time zone.
     """
     if since is None:
         return None
+    normalized = f"{since[:-1]}+00:00" if since.endswith(("Z", "z")) else since
     try:
-        parsed = datetime.fromisoformat(since)
+        parsed = datetime.fromisoformat(normalized)
     except ValueError:
-        rprint(f"[red]--since is not ISO 8601:[/red] {as_text(since)}")
-        raise typer.Exit(code=2) from None
+        _refuse_since("is not ISO 8601", since)
     if parsed.tzinfo is None:
-        rprint(f"[red]--since carries no time zone, so it names no instant:[/red] {as_text(since)}")
-        raise typer.Exit(code=2)
-    return since
+        _refuse_since("carries no time zone, so it names no instant", since)
+    return normalized
 
 
-def _print_cursor_hint(next_cursor: str, limit: int, *, label: str = "Next page:") -> None:
+def _refuse_since(reason: str, value: str) -> NoReturn:
+    """Reports a `--since` this command will not send, and exits.
+
+    A poll drives this command with `--json`, so the refusal answers the shape
+    that caller parses. See _handle_error, which answers the same shape for a
+    refusal the API wrote.
+
+    Args:
+        reason: What is wrong with the value.
+        value: What the caller typed.
+
+    Raises:
+        typer.Exit: Always, with the validation code.
+    """
+    if _json_output.get():
+        print_json({"error": True, "status_code": None, "detail": f"--since {reason}: {value}"})
+    else:
+        rprint(f"[red]--since {reason}:[/red]", as_text(value))
+    raise typer.Exit(code=2)
+
+
+def _print_cursor_hint(
+    next_cursor: str,
+    limit: int,
+    *,
+    filters: list[tuple[str, object]] | None = None,
+    label: str = "Next page:",
+) -> None:
     """Prints the command that reads the next page.
 
-    ⚠️ **A hint is pasted, so it repeats every option the read was given.** A
-    page size is one: a walk that starts at 100 rows a page and continues at
-    the default 50 reads the same set in twice the requests, and the pasted
-    line says nothing. It carries the filters of no command, so a filtered
-    list still pages its filter by hand.
+    ⚠️ **A hint is pasted whole, so it repeats every option that shaped the
+    read.** A cursor is a keyset position and carries no filter, so a hint that
+    named the cursor alone paged the unfiltered set from that position and
+    answered 200. Page one filtered and page two not, with nothing to say so.
+    A page size behaves the same way: a walk that starts at 100 rows a page and
+    continues at the default reads the set in twice the requests.
 
     `soft_wrap` keeps the cursor one token. A cursor is about 108 characters,
     and a hard wrap at the terminal width pastes back cut in three, which
@@ -296,9 +338,17 @@ def _print_cursor_hint(next_cursor: str, limit: int, *, label: str = "Next page:
     Args:
         next_cursor: The token of the next page.
         limit: The page size the read carried.
+        filters: The flags that narrowed the read, as (flag, value) pairs. A
+          value of None or False is one the caller did not set.
         label: The words before the options.
     """
     parts: list[object] = [f"[dim]{label}[/dim]"]
+    for flag, value in filters or []:
+        if value is None or value is False:
+            continue
+        parts.append(flag)
+        if value is not True:
+            parts.append(as_text(value))
     if limit != _PAGE_DEFAULT:
         parts += ["--limit", as_text(limit)]
     parts += ["--cursor", as_text(next_cursor)]
@@ -433,7 +483,7 @@ def runs_spans(
     `--since` read that ends a drain, including one that moved nothing.
     """
     set_json_mode(json_output)
-    _checked_since(since)
+    since = _checked_since(since)
     params: dict = {"limit": limit}
     # `is not None`, and not a truth test. A reconnect loop builds this value
     # from the last page, and an empty one means the extraction failed. Sent
@@ -602,7 +652,11 @@ def definitions_list(
     items = data.get("items", [])
     print_table(items, _DEFINITION_LIST_FIELDS, title=f"Definitions ({len(items)})")
     if data.get("next_cursor"):
-        _print_cursor_hint(data["next_cursor"], limit)
+        _print_cursor_hint(
+            data["next_cursor"],
+            limit,
+            filters=[("--kind", kind), ("--origin", origin), ("--state", state)],
+        )
 
 
 @definitions_app.command("create")
@@ -933,7 +987,7 @@ def approvals_list(
     items = data.get("items", [])
     print_table(items, _APPROVAL_LIST_FIELDS, title=f"Approvals ({len(items)})")
     if data.get("next_cursor"):
-        _print_cursor_hint(data["next_cursor"], limit)
+        _print_cursor_hint(data["next_cursor"], limit, filters=[("--status", status)])
 
 
 @approvals_app.command("get")
@@ -1230,7 +1284,9 @@ def policies_list(
         return
     print_table(data.get("items", []), _POLICY_LIST_FIELDS, title="Policies")
     if data.get("next_cursor"):
-        _print_cursor_hint(data["next_cursor"], limit, label="Next cursor:")
+        _print_cursor_hint(
+            data["next_cursor"], limit, filters=[("--action", action)], label="Next cursor:"
+        )
 
 
 @policies_app.command("create")

@@ -835,6 +835,59 @@ def test_runs_list_hint_repeats_a_page_size_the_caller_chose(invoke, mock_api):
     assert "--limit 100 --cursor abc123" in result.output
 
 
+def test_runs_spans_accepts_the_since_it_printed(invoke, mock_api):
+    """The round trip the whole flag exists for.
+
+    The API writes `Z` and the `Reconnect with:` line prints what it wrote, so
+    the value this command answers must be one it takes back. `fromisoformat`
+    reads a `Z` only from Python 3.11, and this package supports 3.10, so a
+    test that only ever passes `+00:00` would stay green while the loop is
+    dead on the oldest interpreter the package claims.
+    """
+    stamp = "2026-08-23T10:00:09Z"
+    route = mock_api.get(f"/api/v1/agentic/runs/{SAMPLE_RUN['id']}/spans").respond(
+        200,
+        json={"items": [{**SAMPLE_SPAN, "updated_at": stamp}], "next_cursor": None},
+    )
+
+    printed = invoke(
+        ["agentic", "runs", "spans", SAMPLE_RUN["id"], "--since", "2026-08-26T10:00:00+00:00"]
+    )
+    assert f"Reconnect with: --since {stamp}" in printed.output
+
+    replayed = invoke(["agentic", "runs", "spans", SAMPLE_RUN["id"], "--since", stamp])
+
+    assert replayed.exit_code == 0
+    assert route.calls[-1].request.url.params["since"] == "2026-08-23T10:00:09+00:00"
+
+
+def test_runs_spans_reports_a_bad_since_as_json_when_asked(invoke, mock_api):
+    """A poll drives this command with --json, and parses what it prints."""
+    result = invoke(
+        ["agentic", "runs", "spans", SAMPLE_RUN["id"], "--since", "yesterday", "--json"]
+    )
+
+    assert result.exit_code == 2
+    body = json.loads(result.output)
+    assert body["error"] is True
+    assert "--since" in body["detail"]
+
+
+def test_runs_list_hint_repeats_the_filters_the_read_carried(invoke, mock_api):
+    """A cursor is a keyset position and carries no filter.
+
+    Pasted without them the read answers page two of the unfiltered set, with
+    a 200 and nothing to say the filter was lost.
+    """
+    mock_api.get("/api/v1/agentic/runs").respond(
+        200, json={"items": [SAMPLE_RUN], "next_cursor": "abc123"}
+    )
+
+    result = invoke(["agentic", "runs", "list", "--status", "failed", "--all"])
+
+    assert "--status failed --all --cursor abc123" in result.output
+
+
 def test_runs_spans_idle_poll_warns_of_nothing(invoke, mock_api):
     """An empty page repeats the boundary, and that is the correct answer.
 
