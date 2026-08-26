@@ -2,18 +2,19 @@
 
 `ac agentic runs` drives the run surface of the new agentic platform,
 `ac agentic definitions` drives the definition lifecycle,
-`ac agentic tools` reads the catalogue a definition names its tools from, and
-`ac agentic approvals` answers a run that stopped for a person. All four sit
-beside the live `ac agents runs` and replace none of it: the two stacks are
-branch isolated until the cutover, so the alias and the deletion of the old
-commands belong to Phase 7.
+`ac agentic tools` reads the catalogue a definition names its tools from,
+`ac agentic approvals` answers a run that stopped for a person, and
+`ac agentic limits` reads and writes what an organization may spend in a day.
+All five sit beside the live `ac agents runs` and replace none of it: the two
+stacks are branch isolated until the cutover, so the alias and the deletion of
+the old commands belong to Phase 7.
 
 Every platform route sits under `/api/v1/agentic/`, so one path constant serves
 every group and the parity audit resolves each call.
 
 The endpoints are ac-docs, the file
 engineering/system-design/agentic-platform/interfaces/surfaces.md, Run Explorer,
-Agent Builder and Approval Inbox.
+Agent Builder, Approval Inbox and The three admin surfaces.
 """
 
 from __future__ import annotations
@@ -822,3 +823,108 @@ def approvals_reject(
 
 
 app.add_typer(approvals_app, name="approvals")
+
+
+limits_app = typer.Typer(help="Agentic organization spend ceilings")
+
+# The one ceiling this deploy enforces. A new kind is a database migration, so a
+# typo here cannot create a ceiling that nothing enforces.
+_DAILY_COST = "daily_cost"
+
+_LIMIT_FIELDS = [
+    ("kind", "Kind"),
+    ("value_cents", "Value (cents)"),
+    ("updated_at", "Updated"),
+]
+
+
+def _report_limit(data: dict) -> None:
+    """Prints one ceiling, or says the organization has none.
+
+    A null value is the no-cap state, and it is not an error. The accrual check
+    reads an absent row as no cap.
+
+    Args:
+        data: The limit the endpoint answered.
+    """
+    if data.get("value_cents") is None:
+        rprint("[green]No cap:[/green]", as_text(data["kind"]))
+        return
+    print_detail(data, _LIMIT_FIELDS)
+
+
+@limits_app.command("get")
+def limits_get(
+    ctx: typer.Context,
+    json_output: bool = JSON_OPTION,
+) -> None:
+    """Read what this organization may spend.
+
+    An organization that set no ceiling has no cap, and the list is empty.
+    """
+    set_json_mode(json_output)
+    resp = _api_request("get", f"{_AGENTIC}/limits")
+
+    data = resp.json()
+    if json_output:
+        print_json(data)
+        return
+    items = data.get("items", [])
+    if not items:
+        rprint("[yellow]No cap:[/yellow] this organization set no ceiling")
+        return
+    print_table(items, _LIMIT_FIELDS, title="Limits")
+
+
+@limits_app.command("set")
+def limits_set(
+    ctx: typer.Context,
+    value_cents: int = typer.Option(
+        ..., "--value-cents", min=0, help="What the organization may spend, in cents"
+    ),
+    kind: str = typer.Option(_DAILY_COST, "--kind", help="Which ceiling to write"),
+    json_output: bool = JSON_OPTION,
+) -> None:
+    """Set one spend ceiling.
+
+    Zero is a ceiling somebody set, and it stops every run: the check compares
+    the day's spend against the cap with `>=`. Use `limits clear` for no cap.
+    """
+    set_json_mode(json_output)
+    resp = _api_request(
+        "put", f"{_AGENTIC}/limits", json={"kind": kind, "value_cents": value_cents}
+    )
+
+    data = resp.json()
+    if json_output:
+        print_json(data)
+        return
+    _report_limit(data)
+
+
+@limits_app.command("clear")
+def limits_clear(
+    ctx: typer.Context,
+    kind: str = typer.Option(_DAILY_COST, "--kind", help="Which ceiling to remove"),
+    yes: bool = typer.Option(False, "--yes", "-y", help="Skip confirmation"),
+    json_output: bool = JSON_OPTION,
+) -> None:
+    """Remove one spend ceiling, so the organization returns to no cap.
+
+    It is the one path back. The value takes zero, and zero stops every run, so
+    a lower number never undoes a ceiling.
+    """
+    set_json_mode(json_output)
+    if not should_skip_confirm(yes):
+        typer.confirm(f"Remove the {kind} ceiling?", abort=True)
+
+    resp = _api_request("put", f"{_AGENTIC}/limits", json={"kind": kind, "value_cents": None})
+
+    data = resp.json()
+    if json_output:
+        print_json(data)
+        return
+    _report_limit(data)
+
+
+app.add_typer(limits_app, name="limits")
