@@ -251,7 +251,8 @@ def runs_spans(
     ⚠️ **A cursor names the order it was written for.** `--since` orders the
     page on `updated_at` and a plain read orders it on `started_at`, so a
     cursor from one replayed against the other answers `400`. Carry both
-    options together, or neither.
+    options together, or neither, which is why the next-page hint repeats
+    `--since`.
     """
     set_json_mode(json_output)
     params: dict = {"limit": limit}
@@ -270,7 +271,18 @@ def runs_spans(
     items = data.get("items", [])
     print_table(items, _SPAN_FIELDS, title=f"Spans ({len(items)})")
     if data.get("next_cursor"):
-        rprint("[dim]Next page:[/dim] --cursor", as_text(data["next_cursor"]))
+        # The hint is a command a person pastes, so it carries --since. The
+        # cursor of a --since page is tagged `updated_at`, and the same cursor
+        # without --since pages `started_at` and answers 400.
+        if since:
+            rprint(
+                "[dim]Next page:[/dim] --since",
+                as_text(since),
+                "--cursor",
+                as_text(data["next_cursor"]),
+            )
+        else:
+            rprint("[dim]Next page:[/dim] --cursor", as_text(data["next_cursor"]))
 
 
 @runs_app.command("cancel")

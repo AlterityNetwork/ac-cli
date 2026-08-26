@@ -34,6 +34,9 @@ SAMPLE_RUN = {
     "outcome": "started",
 }
 
+# Every key SpanNodeModel declares, and no key it does not. A hand-written
+# fixture that omits a nullable field hides how the API really answers: the
+# model always emits the key, so a test on a missing key tests nothing.
 SAMPLE_SPAN = {
     "span_id": "33333333-3333-4333-8333-333333333333",
     "parent_span_id": None,
@@ -41,8 +44,10 @@ SAMPLE_SPAN = {
     "name": "crm.search",
     "status": "ok",
     "started_at": "2026-08-23T10:00:02Z",
+    "updated_at": "2026-08-23T10:00:02Z",
     "duration_ms": 120,
     "usage_id": None,
+    "no_call_reason": None,
     "error": None,
 }
 
@@ -461,3 +466,56 @@ def test_runs_spans_shows_why_a_span_made_no_call(invoke, mock_api):
     result = invoke(["agentic", "runs", "spans", SAMPLE_RUN["id"]])
 
     assert "gated" in result.output
+
+
+def test_runs_spans_leaves_the_no_call_cell_empty_for_a_real_call(invoke, mock_api):
+    """The span that did make the call carries a null, and null reads blank.
+
+    The API always emits the key, so the cell renders the null itself. Printed
+    as `None` it reads as a reason, and the column then names every row a
+    non-call, which inverts what a person counts with it.
+    """
+    mock_api.get(f"/api/v1/agentic/runs/{SAMPLE_RUN['id']}/spans").respond(
+        200, json={"items": [SAMPLE_SPAN], "next_cursor": None}
+    )
+
+    result = invoke(["agentic", "runs", "spans", SAMPLE_RUN["id"]])
+
+    assert SAMPLE_SPAN["no_call_reason"] is None
+    assert "None" not in result.output
+
+
+def test_runs_spans_next_page_hint_repeats_since(invoke, mock_api):
+    """The hint is a command a person pastes.
+
+    A cursor from a `--since` page is tagged `updated_at`. Pasted without
+    `--since` it pages `started_at` and answers 400, so the hint carries both.
+    """
+    mock_api.get(f"/api/v1/agentic/runs/{SAMPLE_RUN['id']}/spans").respond(
+        200, json={"items": [SAMPLE_SPAN], "next_cursor": "abc123"}
+    )
+
+    result = invoke(
+        [
+            "agentic",
+            "runs",
+            "spans",
+            SAMPLE_RUN["id"],
+            "--since",
+            "2026-08-26T10:00:00+00:00",
+        ]
+    )
+
+    assert "--since 2026-08-26T10:00:00+00:00 --cursor abc123" in result.output
+
+
+def test_runs_spans_next_page_hint_omits_since_on_a_plain_read(invoke, mock_api):
+    """A plain page is tagged `started_at`, so its hint names no `--since`."""
+    mock_api.get(f"/api/v1/agentic/runs/{SAMPLE_RUN['id']}/spans").respond(
+        200, json={"items": [SAMPLE_SPAN], "next_cursor": "abc123"}
+    )
+
+    result = invoke(["agentic", "runs", "spans", SAMPLE_RUN["id"]])
+
+    assert "--since" not in result.output
+    assert "--cursor abc123" in result.output

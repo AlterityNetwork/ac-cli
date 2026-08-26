@@ -35,6 +35,18 @@ def as_text(value: object) -> Text:
     return _highlighter(Text(str(value)))
 
 
+def _cell(value: object) -> Text:
+    """Renders one table cell, with a null and an absent key alike.
+
+    Args:
+        value: What the row holds for that column, or None.
+
+    Returns:
+        A Text the console prints literally. See print_table.
+    """
+    return Text("" if value is None else str(value))
+
+
 def print_table(
     data: list[dict],
     columns: list[tuple[str, str]],
@@ -61,13 +73,17 @@ def print_table(
     Table applies `table.title` to a str title only, so the Text title names
     that style itself. For the same reason a `title_style` argument would not
     reach a Text title. Do not add one without reading Table.render_annotation.
+
+    ⚠️ **A null cell prints as blank, and not as `None`.** A JSON null and an
+    absent key say the same thing: the row carries no value for that column.
+    The test is `is None`, so a cell that holds `0` or `False` keeps its value.
     """
     table = Table(title=Text(title, style="table.title") if title else title, show_lines=False)
     for _, header in columns:
         table.add_column(header)
 
     for row in data:
-        table.add_row(*(Text(str(row.get(key, ""))) for key, _ in columns))
+        table.add_row(*(_cell(row.get(key)) for key, _ in columns))
 
     console.print(table)
 
