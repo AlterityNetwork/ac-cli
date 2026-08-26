@@ -350,8 +350,9 @@ def _print_cursor_hint(
 ) -> None:
     """Prints the command that reads the next page.
 
-    ⚠️ **A hint is pasted whole, so it repeats every option that shaped the
-    read.** A cursor is a keyset position and carries no filter, so a hint that
+    ⚠️ **A hint names the options and never the command, so it repeats every
+    option that shaped the read.** A caller writes the command and the run id
+    itself, and takes the rest of the line as it stands. A cursor is a keyset position and carries no filter, so a hint that
     named the cursor alone paged the unfiltered set from that position and
     answered 200. Page one filtered and page two not, with nothing to say so.
     A page size behaves the same way: a walk that starts at 100 rows a page and
@@ -508,7 +509,9 @@ def runs_spans(
 
     Drain the cursor, then read the `Reconnect with:` line the last page
     prints. It names the `--since` of the next poll, and it prints on every
-    `--since` read that ends a drain, including one that moved nothing.
+    `--since` read that ends a drain, including one that moved nothing. It
+    names the options alone, so a poll writes the command and the run id and
+    appends what the line holds.
     """
     set_json_mode(json_output)
     _checked_limit(limit)
