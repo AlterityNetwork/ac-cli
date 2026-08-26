@@ -2,9 +2,11 @@
 
 `ac agentic runs` drives the run surface of the new agentic platform,
 `ac agentic definitions` drives the definition lifecycle,
-`ac agentic tools` reads the catalogue a definition names its tools from, and
-`ac agentic approvals` answers a run that stopped for a person. All four sit
-beside the live `ac agents runs` and replace none of it: the two stacks are
+`ac agentic tools` reads the catalogue a definition names its tools from,
+`ac agentic approvals` answers a run that stopped for a person,
+`ac agentic policies` writes the rules an organization governs its agents with,
+and `ac agentic limits` reads and writes what it may spend in a day. All six
+sit beside the live `ac agents runs` and replace none of it: the two stacks are
 branch isolated until the cutover, so the alias and the deletion of the old
 commands belong to Phase 7.
 
@@ -13,7 +15,7 @@ every group and the parity audit resolves each call.
 
 The endpoints are ac-docs, the file
 engineering/system-design/agentic-platform/interfaces/surfaces.md, Run Explorer,
-Agent Builder and Approval Inbox.
+Agent Builder, Approval Inbox and The three admin surfaces.
 """
 
 from __future__ import annotations
@@ -822,3 +824,313 @@ def approvals_reject(
 
 
 app.add_typer(approvals_app, name="approvals")
+
+
+limits_app = typer.Typer(help="Agentic organization spend ceilings")
+
+# The one ceiling this deploy enforces. A new kind is a database migration, so a
+# typo here cannot create a ceiling that nothing enforces.
+_DAILY_COST = "daily_cost"
+
+_LIMIT_FIELDS = [
+    ("kind", "Kind"),
+    ("value_cents", "Value (cents)"),
+    ("updated_at", "Updated"),
+]
+
+
+def _report_limit(data: dict) -> None:
+    """Prints one ceiling, or says the organization has none.
+
+    A null value is the no-cap state, and it is not an error. The accrual check
+    reads an absent row as no cap.
+
+    Args:
+        data: The limit the endpoint answered.
+    """
+    if data.get("value_cents") is None:
+        rprint("[green]No cap:[/green]", as_text(data["kind"]))
+        return
+    print_detail(data, _LIMIT_FIELDS)
+
+
+@limits_app.command("get")
+def limits_get(
+    ctx: typer.Context,
+    json_output: bool = JSON_OPTION,
+) -> None:
+    """Read what this organization may spend.
+
+    An organization that set no ceiling has no cap, and the list is empty.
+    """
+    set_json_mode(json_output)
+    resp = _api_request("get", f"{_AGENTIC}/limits")
+
+    data = resp.json()
+    if json_output:
+        print_json(data)
+        return
+    items = data.get("items", [])
+    if not items:
+        rprint("[yellow]No cap:[/yellow] this organization set no ceiling")
+        return
+    print_table(items, _LIMIT_FIELDS, title="Limits")
+
+
+@limits_app.command("set")
+def limits_set(
+    ctx: typer.Context,
+    value_cents: int = typer.Option(
+        ..., "--value-cents", min=0, help="What the organization may spend, in cents"
+    ),
+    kind: str = typer.Option(_DAILY_COST, "--kind", help="Which ceiling to write"),
+    json_output: bool = JSON_OPTION,
+) -> None:
+    """Set one spend ceiling.
+
+    Zero is a ceiling somebody set, and it stops every run: the check compares
+    the day's spend against the cap with `>=`. Use `limits clear` for no cap.
+    """
+    set_json_mode(json_output)
+    resp = _api_request(
+        "put", f"{_AGENTIC}/limits", json={"kind": kind, "value_cents": value_cents}
+    )
+
+    data = resp.json()
+    if json_output:
+        print_json(data)
+        return
+    _report_limit(data)
+
+
+@limits_app.command("clear")
+def limits_clear(
+    ctx: typer.Context,
+    kind: str = typer.Option(_DAILY_COST, "--kind", help="Which ceiling to remove"),
+    yes: bool = typer.Option(False, "--yes", "-y", help="Skip confirmation"),
+    json_output: bool = JSON_OPTION,
+) -> None:
+    """Remove one spend ceiling, so the organization returns to no cap.
+
+    It is the one path back. The value takes zero, and zero stops every run, so
+    a lower number never undoes a ceiling.
+    """
+    set_json_mode(json_output)
+    if not should_skip_confirm(yes):
+        typer.confirm(f"Remove the {kind} ceiling?", abort=True)
+
+    resp = _api_request("put", f"{_AGENTIC}/limits", json={"kind": kind, "value_cents": None})
+
+    data = resp.json()
+    if json_output:
+        print_json(data)
+        return
+    _report_limit(data)
+
+
+app.add_typer(limits_app, name="limits")
+
+
+policies_app = typer.Typer(help="Agentic policy rules")
+
+_POLICY_FIELDS = [
+    ("id", "Policy ID"),
+    ("name", "Name"),
+    ("action", "Action"),
+    ("decision", "Decision"),
+    ("enabled", "Enabled"),
+    ("definition_id", "Narrowed to"),
+    ("approval_ttl_seconds", "Approval TTL (s)"),
+    ("created_at", "Created"),
+    ("updated_at", "Token"),
+]
+
+# The table holds no `updated_at`. The token is 32 characters, and a sixth
+# column of that width truncates every other one to nothing. `--json` carries
+# it, which is where `patch` reads it from.
+_POLICY_LIST_FIELDS = [
+    ("id", "Policy ID"),
+    ("name", "Name"),
+    ("action", "Action"),
+    ("decision", "Decision"),
+    ("enabled", "Enabled"),
+]
+
+
+def _parse_conditions(raw: str | None) -> dict | None:
+    """Reads the --conditions flag, or answers None.
+
+    A rule with no tree matches on the action alone.
+
+    Args:
+        raw: The JSON string the caller passed, or None.
+
+    Returns:
+        The parsed tree, or None.
+
+    Raises:
+        typer.Exit: The string is not a JSON object.
+    """
+    if raw is None:
+        return None
+    try:
+        parsed = json.loads(raw)
+    except json.JSONDecodeError:
+        rprint("[red]Invalid JSON for --conditions[/red]")
+        raise typer.Exit(code=1) from None
+    if not isinstance(parsed, dict):
+        rprint("[red]--conditions must be a JSON object[/red]")
+        raise typer.Exit(code=1)
+    return parsed
+
+
+@policies_app.command("list")
+def policies_list(
+    ctx: typer.Context,
+    action: str | None = typer.Option(
+        None, "--action", help="Read the rules bound to exactly this action"
+    ),
+    cursor: str | None = typer.Option(None, "--cursor", help="Page cursor"),
+    limit: int = typer.Option(50, "--limit", min=1, max=100, help="Page size"),
+    json_output: bool = JSON_OPTION,
+) -> None:
+    """List the rules of this organization.
+
+    The page holds the disabled rules too, because `enabled` is how a rule is
+    turned off rather than deleted.
+
+    `--action` matches the column exactly. It does not answer which rules
+    govern one action: a `crm.*` rule governs `crm.send` and this filter reads
+    the two apart.
+    """
+    set_json_mode(json_output)
+    params: dict = {"limit": limit}
+    if action:
+        params["action"] = action
+    if cursor:
+        params["cursor"] = cursor
+
+    resp = _api_request("get", f"{_AGENTIC}/policies", params=params)
+
+    data = resp.json()
+    if json_output:
+        print_json(data)
+        return
+    print_table(data.get("items", []), _POLICY_LIST_FIELDS, title="Policies")
+    if data.get("next_cursor"):
+        rprint("[dim]Next cursor:[/dim]", as_text(data["next_cursor"]))
+
+
+@policies_app.command("create")
+def policies_create(
+    ctx: typer.Context,
+    name: str = typer.Option(..., "--name", help="What to call the rule"),
+    action: str = typer.Option(..., "--action", help="An exact action, a domain wildcard, or *"),
+    decision: str = typer.Option(..., "--decision", help="allow, deny, or require_approval"),
+    definition_id: str | None = typer.Option(
+        None, "--definition", help="Narrow the rule to one agent or workflow"
+    ),
+    conditions: str | None = typer.Option(
+        None, "--conditions", help="The condition tree, as a JSON object"
+    ),
+    ttl: int | None = typer.Option(
+        None, "--ttl", min=1, help="How long a person has to answer, in seconds"
+    ),
+    disabled: bool = typer.Option(False, "--disabled", help="Save the rule turned off"),
+    json_output: bool = JSON_OPTION,
+) -> None:
+    """Write one rule.
+
+    A rule binds to an action first. Narrowing it to one definition is the
+    exception.
+
+    `--action '*'` is the organization kill switch. One rule of that shape,
+    deciding `deny`, stops every new agentic action.
+    """
+    set_json_mode(json_output)
+    body: dict = {
+        "name": name,
+        "action": action,
+        "decision": decision,
+        "enabled": not disabled,
+    }
+    if definition_id:
+        body["definition_id"] = definition_id
+    tree = _parse_conditions(conditions)
+    if tree is not None:
+        body["conditions"] = tree
+    if ttl is not None:
+        body["approval_ttl_seconds"] = ttl
+
+    resp = _api_request("post", f"{_AGENTIC}/policies", json=body)
+
+    data = resp.json()
+    if json_output:
+        print_json(data)
+        return
+    rprint("[green]Policy created:[/green]", as_text(data["id"]))
+    print_detail(data, _POLICY_FIELDS)
+
+
+@policies_app.command("patch")
+def policies_patch(
+    ctx: typer.Context,
+    policy_id: str = typer.Argument(..., help="Policy ID"),
+    expected_updated_at: str = typer.Option(
+        ...,
+        "--expected-updated-at",
+        help="The token the last read returned. Send it back unchanged.",
+    ),
+    patch: str = typer.Option(..., "--patch", help="The fields to replace, as a JSON object"),
+    json_output: bool = JSON_OPTION,
+) -> None:
+    """Replace the named fields of one rule.
+
+    The patch replaces each named field whole, and an explicit null clears one.
+    Set `enabled` to false to turn a rule off without deleting it.
+
+    The token is opaque. Echo back the `updated_at` that
+    `ac agentic policies list --json` returned, and never a value a date type
+    has parsed: a millisecond round trip answers stale.
+    """
+    set_json_mode(json_output)
+    body = {
+        "expected_updated_at": expected_updated_at,
+        **_parse_object(patch, "--patch"),
+    }
+
+    resp = _api_request("patch", f"{_AGENTIC}/policies/{policy_id}", json=body)
+
+    data = resp.json()
+    if json_output:
+        print_json(data)
+        return
+    rprint("[green]Policy saved:[/green]", as_text(data["id"]))
+    print_detail(data, _POLICY_FIELDS)
+
+
+@policies_app.command("delete")
+def policies_delete(
+    ctx: typer.Context,
+    policy_id: str = typer.Argument(..., help="Policy to remove"),
+    yes: bool = typer.Option(False, "--yes", "-y", help="Skip confirmation"),
+    json_output: bool = JSON_OPTION,
+) -> None:
+    """Remove one rule.
+
+    A rule restricts, so removing one widens what agents may do. Turn the rule
+    off with `patch` when you want to keep the row.
+    """
+    set_json_mode(json_output)
+    if not should_skip_confirm(yes):
+        typer.confirm(f"Delete policy {policy_id}?", abort=True)
+
+    _api_request("delete", f"{_AGENTIC}/policies/{policy_id}")
+
+    if json_output:
+        print_json({"id": policy_id, "deleted": True})
+        return
+    rprint("[green]Policy deleted:[/green]", as_text(policy_id))
+
+
+app.add_typer(policies_app, name="policies")
