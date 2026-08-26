@@ -48,6 +48,41 @@ def test_print_detail_missing_key(capsys):
     assert "Missing Field" in output
 
 
+# -- a null field ---------------------------------------------------------------
+#
+# A JSON null and an absent key say the same thing: the record carries no value
+# there. One record read two ways is one record, so a table and a detail view
+# must answer alike. `str(None)` printed `None`, which reads as a value.
+
+
+def test_print_table_renders_a_null_cell_blank(capsys):
+    print_table([{"name": "Acme", "ended_at": None}], [("name", "Name"), ("ended_at", "Ended")])
+    output = capsys.readouterr().out
+    assert "Acme" in output
+    assert "None" not in output
+
+
+def test_print_detail_renders_a_null_field_blank(capsys):
+    print_detail({"name": "Acme", "ended_at": None}, [("name", "Name"), ("ended_at", "Ended")])
+    output = capsys.readouterr().out
+    assert "Acme" in output
+    assert "None" not in output
+
+
+def test_a_falsy_value_is_not_a_null(capsys):
+    """The test is `is None`, so a zero and a False keep their value.
+
+    A truth test would blank both, and `Children: 0` is a fact a reader needs.
+    """
+    print_detail(
+        {"child_count": 0, "cancelled": False},
+        [("child_count", "Children"), ("cancelled", "Cancelled")],
+    )
+    output = capsys.readouterr().out
+    assert "0" in output
+    assert "False" in output
+
+
 # -- rich markup in text the CLI did not write ---------------------------------
 #
 # Every cell, title and value passes through a markup-enabled console. A close

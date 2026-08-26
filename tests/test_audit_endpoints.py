@@ -79,6 +79,11 @@ def test_the_real_entry_set_holds_no_unknown_exemption() -> None:
 
     An exemption for a path nobody lists is a path no check can watch, kept
     for a reason that no longer exists.
+
+    ⚠️ **NOT_IN_SPEC is empty, so this assertion holds for want of a member.**
+    It is the invariant an entry must meet, and it starts to test again with
+    the first one added. `test_a_path_no_spec_declares_is_exempt` covers the
+    mechanism meanwhile, on its own entry set.
     """
     listed = {path for _, path in audit.OUT_OF_SCOPE}
 
