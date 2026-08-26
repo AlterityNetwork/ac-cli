@@ -93,11 +93,17 @@ _LIST_FIELDS = [
     ("created_at", "Created"),
 ]
 
+# ⚠️ **`No call` is what makes the `Status` column readable.** A `tool` span
+# that reads `ok` is not always a call: a call that stopped for a person and a
+# call answered from the journal both close `ok` and both carry the tool name.
+# The column names which, so a person counting what a run did counts the rows
+# that leave it empty.
 _SPAN_FIELDS = [
     ("span_id", "Span ID"),
     ("kind", "Kind"),
     ("name", "Name"),
     ("status", "Status"),
+    ("no_call_reason", "No call"),
     ("duration_ms", "Duration (ms)"),
     ("started_at", "Started"),
 ]

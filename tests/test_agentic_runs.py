@@ -441,3 +441,23 @@ def test_runs_start_renders_a_close_tag_on_the_duplicate_path(invoke, mock_api):
 
     assert result.exit_code == 0
     assert "run[/x]" in result.output
+
+
+def test_runs_spans_shows_why_a_span_made_no_call(invoke, mock_api):
+    """A `tool` span that reads `ok` is not always a call.
+
+    A gate that stopped for a person and a call answered from the journal both
+    close `ok` and both carry the tool name, so a person reading the table
+    needs the column that tells them apart.
+    """
+    mock_api.get(f"/api/v1/agentic/runs/{SAMPLE_RUN['id']}/spans").respond(
+        200,
+        json={
+            "items": [{**SAMPLE_SPAN, "no_call_reason": "gated"}],
+            "next_cursor": None,
+        },
+    )
+
+    result = invoke(["agentic", "runs", "spans", SAMPLE_RUN["id"]])
+
+    assert "gated" in result.output
