@@ -225,6 +225,46 @@ def runs_list(
         rprint("[dim]Next page:[/dim] --cursor", as_text(data["next_cursor"]))
 
 
+def _print_spans_hint(items: list[dict], next_cursor: str | None, since: str | None) -> None:
+    """Prints the command that reads the next spans, or reconnects.
+
+    ⚠️ **A cursor names the order it was written for.** A `--since` page is
+    tagged `updated_at` and a plain page is tagged `started_at`, so the hint
+    repeats `--since`. Pasted without it, the same cursor answers `400`.
+
+    ⚠️ **The reconnect value is a line and never a column.** A person builds
+    the next `--since` from the newest `updated_at` of the drain, and an
+    eighth column truncates every timestamp at 80 columns beside a span id.
+    The line prints the one value the loop reads, at any width.
+
+    The reader drains the cursor before it moves `--since`. The filter is
+    `>=` and one `UPDATE` stamps every span of a batch alike, so a reader that
+    moved `--since` early would re-read that group and never pass it. So the
+    reconnect line prints at the end of the drain alone.
+
+    The page is ordered on `updated_at` ascending, so the last row carries the
+    newest value.
+
+    Args:
+        items: The page, ordered on the column the read selected.
+        next_cursor: The token of the next page, or None at the end of it.
+        since: The value this read carried, or None for a plain read.
+    """
+    if next_cursor:
+        if since is not None:
+            rprint(
+                "[dim]Next page:[/dim] --since",
+                as_text(since),
+                "--cursor",
+                as_text(next_cursor),
+            )
+        else:
+            rprint("[dim]Next page:[/dim] --cursor", as_text(next_cursor))
+        return
+    if since is not None and items:
+        rprint("[dim]Reconnect with:[/dim] --since", as_text(items[-1]["updated_at"]))
+
+
 @runs_app.command("spans")
 def runs_spans(
     ctx: typer.Context,
@@ -253,10 +293,17 @@ def runs_spans(
     cursor from one replayed against the other answers `400`. Carry both
     options together, or neither, which is why the next-page hint repeats
     `--since`.
+
+    Drain the cursor, then read the `Reconnect with:` line the last page
+    prints. It names the `--since` of the next poll.
     """
     set_json_mode(json_output)
     params: dict = {"limit": limit}
-    if since:
+    # `is not None`, and not a truth test. A reconnect loop builds this value
+    # from the last page, and an empty one means the extraction failed. Sent
+    # on, it answers 422; dropped, it reads the whole run unfiltered and the
+    # loop re-reads it on every poll with nothing to say so.
+    if since is not None:
         params["since"] = since
     if cursor:
         params["cursor"] = cursor
@@ -270,19 +317,7 @@ def runs_spans(
 
     items = data.get("items", [])
     print_table(items, _SPAN_FIELDS, title=f"Spans ({len(items)})")
-    if data.get("next_cursor"):
-        # The hint is a command a person pastes, so it carries --since. The
-        # cursor of a --since page is tagged `updated_at`, and the same cursor
-        # without --since pages `started_at` and answers 400.
-        if since:
-            rprint(
-                "[dim]Next page:[/dim] --since",
-                as_text(since),
-                "--cursor",
-                as_text(data["next_cursor"]),
-            )
-        else:
-            rprint("[dim]Next page:[/dim] --cursor", as_text(data["next_cursor"]))
+    _print_spans_hint(items, data.get("next_cursor"), since)
 
 
 @runs_app.command("cancel")

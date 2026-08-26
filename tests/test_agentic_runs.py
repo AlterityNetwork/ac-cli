@@ -519,3 +519,89 @@ def test_runs_spans_next_page_hint_omits_since_on_a_plain_read(invoke, mock_api)
 
     assert "--since" not in result.output
     assert "--cursor abc123" in result.output
+
+
+def test_runs_spans_end_of_drain_names_the_next_since(invoke, mock_api):
+    """The reconnect loop reads `updated_at` off the page it just drained.
+
+    A table cell cannot carry it: a timestamp beside a span id truncates at 80
+    columns, so the value a person pastes prints on a line of its own. The page
+    is ordered ascending, so the last row is the newest.
+    """
+    mock_api.get(f"/api/v1/agentic/runs/{SAMPLE_RUN['id']}/spans").respond(
+        200,
+        json={
+            "items": [
+                {**SAMPLE_SPAN, "updated_at": "2026-08-23T10:00:04Z"},
+                {**SAMPLE_SPAN, "updated_at": "2026-08-23T10:00:09Z"},
+            ],
+            "next_cursor": None,
+        },
+    )
+
+    result = invoke(
+        [
+            "agentic",
+            "runs",
+            "spans",
+            SAMPLE_RUN["id"],
+            "--since",
+            "2026-08-26T10:00:00+00:00",
+        ]
+    )
+
+    assert "Reconnect with: --since 2026-08-23T10:00:09Z" in result.output
+
+
+def test_runs_spans_names_no_reconnect_before_the_drain_ends(invoke, mock_api):
+    """A `>=` filter re-answers its boundary, so `--since` moves last.
+
+    One `UPDATE` stamps every span of a batch alike. A reader that moved
+    `--since` while a cursor remained would re-read that group and never pass
+    it, so the line prints only when the cursor is spent.
+    """
+    mock_api.get(f"/api/v1/agentic/runs/{SAMPLE_RUN['id']}/spans").respond(
+        200, json={"items": [SAMPLE_SPAN], "next_cursor": "abc123"}
+    )
+
+    result = invoke(
+        [
+            "agentic",
+            "runs",
+            "spans",
+            SAMPLE_RUN["id"],
+            "--since",
+            "2026-08-26T10:00:00+00:00",
+        ]
+    )
+
+    assert "Reconnect with" not in result.output
+    assert "--since 2026-08-26T10:00:00+00:00 --cursor abc123" in result.output
+
+
+def test_runs_spans_plain_read_names_no_reconnect(invoke, mock_api):
+    """A plain read pages `started_at`, and it drives no reconnect loop."""
+    mock_api.get(f"/api/v1/agentic/runs/{SAMPLE_RUN['id']}/spans").respond(
+        200, json={"items": [SAMPLE_SPAN], "next_cursor": None}
+    )
+
+    result = invoke(["agentic", "runs", "spans", SAMPLE_RUN["id"]])
+
+    assert "Reconnect with" not in result.output
+
+
+def test_runs_spans_forwards_an_empty_since_rather_than_dropping_it(invoke, mock_api):
+    """An empty value is a failed extraction, and it must not read silently.
+
+    A poll builds `--since` from the last page. Dropped, the read loses its
+    filter and its order, and the loop re-reads the whole run on every poll
+    with nothing to say so. Sent on, the API refuses it.
+    """
+    route = mock_api.get(f"/api/v1/agentic/runs/{SAMPLE_RUN['id']}/spans").respond(
+        422, json={"detail": "since is not a valid datetime"}
+    )
+
+    result = invoke(["agentic", "runs", "spans", SAMPLE_RUN["id"], "--since", ""])
+
+    assert route.calls[0].request.url.params["since"] == ""
+    assert result.exit_code != 0
