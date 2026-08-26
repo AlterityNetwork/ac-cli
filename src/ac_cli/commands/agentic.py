@@ -228,7 +228,9 @@ def runs_list(
     items = data.get("items", [])
     print_table(items, _LIST_FIELDS, title=f"Runs ({len(items)})")
     if data.get("next_cursor"):
-        rprint("[dim]Next page:[/dim] --cursor", as_text(data["next_cursor"]))
+        console.print(
+            "[dim]Next page:[/dim] --cursor", as_text(data["next_cursor"]), soft_wrap=True
+        )
 
 
 def _print_spans_hint(items: list[dict], next_cursor: str | None, since: str | None) -> None:
@@ -285,8 +287,12 @@ def _print_spans_hint(items: list[dict], next_cursor: str | None, since: str | N
     # get, and not a subscript. The CLI ships to PyPI on its own cadence, so it
     # meets an API older than this field. A KeyError would print a traceback
     # under a table it already rendered.
+    # A truth test, and not `is None`. `_blank_if_null` asks whether a field
+    # holds a value to print, where `0` is one. This asks whether a stamp can
+    # move the boundary, and neither a null nor `""` can. Both take the same
+    # fallback, so both take the same warning.
     newest = items[-1].get("updated_at") if items else None
-    if items and newest is None:
+    if items and not newest:
         # An empty page that repeats the boundary is an idle poll, and it is
         # correct. A full page that repeats it is not: the API answered rows
         # this reader cannot advance past, so the poll re-reads them for ever.
@@ -298,7 +304,7 @@ def _print_spans_hint(items: list[dict], next_cursor: str | None, since: str | N
         )
     console.print(
         "[dim]Reconnect with:[/dim] --since",
-        as_text(newest if newest is not None else since),
+        as_text(newest or since),
         soft_wrap=True,
     )
 
@@ -503,7 +509,9 @@ def definitions_list(
     items = data.get("items", [])
     print_table(items, _DEFINITION_LIST_FIELDS, title=f"Definitions ({len(items)})")
     if data.get("next_cursor"):
-        rprint("[dim]Next page:[/dim] --cursor", as_text(data["next_cursor"]))
+        console.print(
+            "[dim]Next page:[/dim] --cursor", as_text(data["next_cursor"]), soft_wrap=True
+        )
 
 
 @definitions_app.command("create")
@@ -832,7 +840,9 @@ def approvals_list(
     items = data.get("items", [])
     print_table(items, _APPROVAL_LIST_FIELDS, title=f"Approvals ({len(items)})")
     if data.get("next_cursor"):
-        rprint("[dim]Next page:[/dim] --cursor", as_text(data["next_cursor"]))
+        console.print(
+            "[dim]Next page:[/dim] --cursor", as_text(data["next_cursor"]), soft_wrap=True
+        )
 
 
 @approvals_app.command("get")

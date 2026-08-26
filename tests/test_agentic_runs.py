@@ -670,11 +670,12 @@ def test_runs_spans_hint_keeps_a_long_cursor_on_one_line(invoke, mock_api):
     assert f"--cursor {cursor}" in result.output
 
 
-def test_runs_spans_reconnect_line_takes_an_empty_updated_at_as_a_value(invoke, mock_api):
-    """`is None`, and not a truth test, is the rule this file states twice.
+def test_runs_spans_warns_on_a_stamp_that_cannot_move_the_boundary(invoke, mock_api):
+    """An empty stamp moves the poll no further than a missing one.
 
-    An `updated_at` of `""` under a truth test would fall back to the old
-    boundary with no warning, so the poll would stall and say nothing.
+    Printed bare it names an empty `--since`, which answers 422 and stops the
+    loop this line exists to keep running. It takes the same fallback as a
+    null, so it takes the same warning.
     """
     mock_api.get(f"/api/v1/agentic/runs/{SAMPLE_RUN['id']}/spans").respond(
         200,
@@ -692,7 +693,8 @@ def test_runs_spans_reconnect_line_takes_an_empty_updated_at_as_a_value(invoke, 
         ]
     )
 
-    assert "Reconnect with: --since 2026-08-26T10:00:00+00:00" not in result.output
+    assert "--since cannot advance" in result.output
+    assert "Reconnect with: --since 2026-08-26T10:00:00+00:00" in result.output
 
 
 def test_runs_spans_idle_poll_warns_of_nothing(invoke, mock_api):
