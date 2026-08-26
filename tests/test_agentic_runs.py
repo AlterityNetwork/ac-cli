@@ -642,6 +642,59 @@ def test_runs_spans_reconnects_against_an_api_that_omits_updated_at(invoke, mock
     assert "--since cannot advance" in result.output
 
 
+def test_runs_spans_hint_keeps_a_long_cursor_on_one_line(invoke, mock_api):
+    """The hint is pasted, so the cursor must survive the copy.
+
+    A real cursor is about 108 characters and the line runs past 80. Hard
+    wrapped, it pastes back cut in three and answers 400.
+    """
+    cursor = (
+        "dXBkYXRlZF9hdHwyMDI2LTA4LTI2VDEwOjAwOjAwLjEyMzQ1NiswMDowMHwzMzMzMzMzMy0z"
+        "MzMzLTQzMzMtODMzMy0zMzMzMzMzMzMzMzM"
+    )
+    mock_api.get(f"/api/v1/agentic/runs/{SAMPLE_RUN['id']}/spans").respond(
+        200, json={"items": [SAMPLE_SPAN], "next_cursor": cursor}
+    )
+
+    result = invoke(
+        [
+            "agentic",
+            "runs",
+            "spans",
+            SAMPLE_RUN["id"],
+            "--since",
+            "2026-08-26T10:00:00+00:00",
+        ]
+    )
+
+    assert f"--cursor {cursor}" in result.output
+
+
+def test_runs_spans_reconnect_line_takes_an_empty_updated_at_as_a_value(invoke, mock_api):
+    """`is None`, and not a truth test, is the rule this file states twice.
+
+    An `updated_at` of `""` under a truth test would fall back to the old
+    boundary with no warning, so the poll would stall and say nothing.
+    """
+    mock_api.get(f"/api/v1/agentic/runs/{SAMPLE_RUN['id']}/spans").respond(
+        200,
+        json={"items": [{**SAMPLE_SPAN, "updated_at": ""}], "next_cursor": None},
+    )
+
+    result = invoke(
+        [
+            "agentic",
+            "runs",
+            "spans",
+            SAMPLE_RUN["id"],
+            "--since",
+            "2026-08-26T10:00:00+00:00",
+        ]
+    )
+
+    assert "Reconnect with: --since 2026-08-26T10:00:00+00:00" not in result.output
+
+
 def test_runs_spans_idle_poll_warns_of_nothing(invoke, mock_api):
     """An empty page repeats the boundary, and that is the correct answer.
 

@@ -33,7 +33,13 @@ from ac_cli.commands._helpers import (
     set_json_mode,
     should_skip_confirm,
 )
-from ac_cli.formatting import as_text, print_detail, print_json, print_table
+from ac_cli.formatting import (
+    as_text,
+    console,
+    print_detail,
+    print_json,
+    print_table,
+)
 
 app = typer.Typer(help="Agentic platform")
 
@@ -232,6 +238,11 @@ def _print_spans_hint(items: list[dict], next_cursor: str | None, since: str | N
     tagged `updated_at` and a plain page is tagged `started_at`, so the hint
     repeats `--since`. Pasted without it, the same cursor answers `400`.
 
+    ⚠️ **The hint prints with `soft_wrap`, so the cursor stays one token.** A
+    cursor is about 108 characters, and the console hard wraps a longer line at
+    the terminal width. A person copying a folded line pastes a cursor cut in
+    three, which answers `400`.
+
     ⚠️ **The reconnect value is a line and never a column.** A person builds
     the next `--since` from the newest `updated_at` of the drain, and an
     eighth column truncates every timestamp at 80 columns beside a span id.
@@ -259,14 +270,15 @@ def _print_spans_hint(items: list[dict], next_cursor: str | None, since: str | N
     """
     if next_cursor:
         if since is not None:
-            rprint(
+            console.print(
                 "[dim]Next page:[/dim] --since",
                 as_text(since),
                 "--cursor",
                 as_text(next_cursor),
+                soft_wrap=True,
             )
         else:
-            rprint("[dim]Next page:[/dim] --cursor", as_text(next_cursor))
+            console.print("[dim]Next page:[/dim] --cursor", as_text(next_cursor), soft_wrap=True)
         return
     if since is None:
         return
@@ -284,7 +296,11 @@ def _print_spans_hint(items: list[dict], next_cursor: str | None, since: str | N
             " --since cannot advance and this poll repeats. The API is older"
             " than the reconnect read."
         )
-    rprint("[dim]Reconnect with:[/dim] --since", as_text(newest or since))
+    console.print(
+        "[dim]Reconnect with:[/dim] --since",
+        as_text(newest if newest is not None else since),
+        soft_wrap=True,
+    )
 
 
 @runs_app.command("spans")
