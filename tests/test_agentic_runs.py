@@ -730,6 +730,33 @@ def test_runs_spans_takes_the_newest_usable_stamp_of_the_page(invoke, mock_api):
     assert "cannot advance" not in result.output
 
 
+def test_runs_spans_hint_repeats_a_page_size_the_caller_chose(invoke, mock_api):
+    """The hint is pasted, so it carries the whole read and not part of it.
+
+    A drain that starts at 200 rows a page and continues at the default reads
+    the run in four times the requests, and the pasted line says nothing.
+    """
+    mock_api.get(f"/api/v1/agentic/runs/{SAMPLE_RUN['id']}/spans").respond(
+        200, json={"items": [SAMPLE_SPAN], "next_cursor": "abc123"}
+    )
+
+    result = invoke(["agentic", "runs", "spans", SAMPLE_RUN["id"], "--limit", "200"])
+
+    assert "--limit 200 --cursor abc123" in result.output
+
+
+def test_runs_spans_hint_omits_the_default_page_size(invoke, mock_api):
+    """The default needs no flag, and a hint reads better without one."""
+    mock_api.get(f"/api/v1/agentic/runs/{SAMPLE_RUN['id']}/spans").respond(
+        200, json={"items": [SAMPLE_SPAN], "next_cursor": "abc123"}
+    )
+
+    result = invoke(["agentic", "runs", "spans", SAMPLE_RUN["id"]])
+
+    assert "--limit" not in result.output
+    assert "--cursor abc123" in result.output
+
+
 def test_runs_spans_idle_poll_warns_of_nothing(invoke, mock_api):
     """An empty page repeats the boundary, and that is the correct answer.
 

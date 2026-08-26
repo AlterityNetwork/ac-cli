@@ -104,6 +104,9 @@ _LIST_FIELDS = [
 # call answered from the journal both close `ok` and both carry the tool name.
 # The column names which, so a person counting what a run did counts the rows
 # that leave it empty.
+# The API default. The hint repeats --limit only when the caller chose another.
+_SPANS_PAGE_DEFAULT = 50
+
 _SPAN_FIELDS = [
     ("span_id", "Span ID"),
     ("kind", "Kind"),
@@ -233,7 +236,9 @@ def runs_list(
         )
 
 
-def _print_spans_hint(items: list[dict], next_cursor: str | None, since: str | None) -> None:
+def _print_spans_hint(
+    items: list[dict], next_cursor: str | None, since: str | None, limit: int
+) -> None:
     """Prints the command that reads the next spans, or reconnects.
 
     ⚠️ **A cursor names the order it was written for.** A `--since` page is
@@ -266,22 +271,25 @@ def _print_spans_hint(items: list[dict], next_cursor: str | None, since: str | N
     A missing line leaves a script with an empty `--since`, which answers 422
     and stops the loop the option exists for.
 
+    ⚠️ **The hint repeats every option the read was given.** A page size the
+    caller chose is one of them: a drain that starts at 200 rows a page and
+    continues at the default 50 reads the same run in four times the requests,
+    and nothing in the pasted line says why.
+
     Args:
         items: The page, ordered on the column the read selected.
         next_cursor: The token of the next page, or None at the end of it.
         since: The value this read carried, or None for a plain read.
+        limit: The page size the read carried.
     """
     if next_cursor:
+        parts: list[object] = ["[dim]Next page:[/dim]"]
         if since is not None:
-            console.print(
-                "[dim]Next page:[/dim] --since",
-                as_text(since),
-                "--cursor",
-                as_text(next_cursor),
-                soft_wrap=True,
-            )
-        else:
-            console.print("[dim]Next page:[/dim] --cursor", as_text(next_cursor), soft_wrap=True)
+            parts += ["--since", as_text(since)]
+        if limit != _SPANS_PAGE_DEFAULT:
+            parts += ["--limit", as_text(limit)]
+        parts += ["--cursor", as_text(next_cursor)]
+        console.print(*parts, soft_wrap=True)
         return
     if since is None:
         return
@@ -305,9 +313,8 @@ def _print_spans_hint(items: list[dict], next_cursor: str | None, since: str | N
         # this reader cannot advance past, so the poll re-reads them for ever.
         # The two read alike on the line below, so say which this is.
         rprint(
-            "[yellow]Warning:[/yellow] these spans carry no updated_at, so"
-            " --since cannot advance and this poll repeats. The API is older"
-            " than the reconnect read."
+            "[yellow]Warning:[/yellow] these spans carry no usable updated_at,"
+            " so --since cannot advance and this poll repeats."
         )
     console.print(
         "[dim]Reconnect with:[/dim] --since",
@@ -326,7 +333,7 @@ def runs_spans(
         help="Read the spans that moved at or after this instant, as ISO 8601 with a time zone",
     ),
     cursor: str | None = typer.Option(None, "--cursor", help="Page to continue"),
-    limit: int = typer.Option(50, help="Page size"),
+    limit: int = typer.Option(_SPANS_PAGE_DEFAULT, help="Page size"),
     json_output: bool = JSON_OPTION,
 ) -> None:
     """List the spans of one run.
@@ -344,6 +351,11 @@ def runs_spans(
     cursor from one replayed against the other answers `400`. Carry both
     options together, or neither, which is why the next-page hint repeats
     `--since`.
+
+    Start a poll at any instant you choose: the `Created` of the run reads
+    every span it has, and the filter is inclusive. The first read is the one
+    that needs a value of your own, because the line below names each one
+    after it.
 
     Drain the cursor, then read the `Reconnect with:` line the last page
     prints. It names the `--since` of the next poll, and it prints on every
@@ -369,7 +381,7 @@ def runs_spans(
 
     items = data.get("items", [])
     print_table(items, _SPAN_FIELDS, title=f"Spans ({len(items)})")
-    _print_spans_hint(items, data.get("next_cursor"), since)
+    _print_spans_hint(items, data.get("next_cursor"), since, limit)
 
 
 @runs_app.command("cancel")
