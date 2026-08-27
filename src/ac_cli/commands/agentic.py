@@ -944,8 +944,11 @@ def tools_list(
     """List every tool a definition may name in `tool_ids`.
 
     The catalogue belongs to the platform, so every caller reads the same rows.
-    The table shows the tool id, the effect and the description. Use `--json`
-    for the two JSON Schemas, which no table renders.
+    The table shows the tool id, the effect and the description. A long id
+    folds over two or more lines. The table never cuts it.
+
+    Use `--json` to read a whole row. It carries the two JSON Schemas, which no
+    table renders. It also puts each tool id on one line, which a script reads.
     """
     set_json_mode(json_output)
 
