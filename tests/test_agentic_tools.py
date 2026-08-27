@@ -130,3 +130,29 @@ def test_tools_list_escapes_markup_in_a_description(invoke, mock_api):
 
     assert result.exit_code == 0
     assert "[id, name]" in result.output
+
+
+# `mcp.<connection_slug>.<remote_name>`. The design doc records that this shape
+# can pass 64 characters, so the table must not depend on a short id.
+LONG_MCP_TOOL = {
+    **SAMPLE,
+    "name": "mcp.acme_zendesk_production.send_message_to_customer_with_attachment",
+    "side_effects": "write",
+}
+
+
+def test_tools_list_renders_a_long_mcp_id_whole(monkeypatch, invoke, mock_api, table_column):
+    """The id is the value a caller copies into `tool_ids`, so it never cuts.
+
+    Pin the width. Rich reads the width of the real terminal, so an unpinned
+    test stops proving anything on a wide screen or under `pytest -s`. Three
+    columns at 80 leave the id about 32 characters, which is half of this name.
+    """
+    monkeypatch.setenv("COLUMNS", "80")
+    mock_api.get(BASE).respond(200, json={"items": [LONG_MCP_TOOL]})
+
+    result = invoke(["agentic", "tools", "list"])
+
+    assert result.exit_code == 0
+    assert "…" not in result.output
+    assert table_column(result.output, 0) == LONG_MCP_TOOL["name"]

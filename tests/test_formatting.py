@@ -212,3 +212,39 @@ def test_as_text_keeps_a_trailing_backslash(monkeypatch):
     out = console.file.getvalue()
     assert "C:\\share\\" in out
     assert "C:\\share\\\\" not in out
+
+
+def test_print_table_folds_a_value_that_holds_no_space(monkeypatch, capsys, table_column):
+    """A tool id, a run id and a UUID hold no space, so the column folds them.
+
+    Rich divides a line on a space. A cell of that shape is one word, so it
+    overflows its column and the default `ellipsis` cuts it. The reader then
+    cannot copy the value into the next command. No terminal is wide enough to
+    close the fault for every id the CLI prints.
+    """
+    monkeypatch.setenv("COLUMNS", "24")
+    tool_id = "mcp.acme_zendesk_production.send_message"
+
+    print_table([{"name": tool_id}], [("name", "Tool ID")])
+
+    output = capsys.readouterr().out
+    assert "…" not in output
+    assert table_column(output, 0) == tool_id
+
+
+def test_print_table_folds_the_long_word_only(monkeypatch, capsys):
+    """A fold divides one word that is wider than its column. It keeps the rest.
+
+    The cell holds one long id and three short words. The id divides, and no
+    short word does. A fix that cut every cell at the column edge would break
+    a short word too.
+    """
+    monkeypatch.setenv("COLUMNS", "24")
+    cell = "sent to mcp.acme_zendesk_production.send_message today"
+
+    print_table([{"d": cell}], [("d", "Detail")])
+
+    output = capsys.readouterr().out
+    assert "…" not in output
+    for word in ("sent", "to", "today"):
+        assert word in output

@@ -46,3 +46,30 @@ def invoke(mock_config, mock_api):
         return runner.invoke(app, args, input=input)
 
     return _invoke
+
+
+@pytest.fixture()
+def table_column():
+    """Returns a reader that joins one column of a rendered table.
+
+    A cell that folds spans two or more lines. The reader joins the parts, so
+    a test asserts the whole value and not one of its parts.
+
+    The reader takes the text `print_table` wrote and a zero based column
+    index. It answers that column with the fold points removed.
+
+    ⚠️ **The reader reads the default box only.** It finds a body row by the
+    `│` that starts it, and it splits that row on the same character. A table
+    with another `box` value gives a wrong answer, and so does a cell that
+    holds a `│`. Neither raises.
+    """
+
+    def _read(output: str, index: int) -> str:
+        parts = []
+        for line in output.splitlines():
+            if not line.startswith("│"):
+                continue
+            parts.append(line.split("│")[index + 1].strip())
+        return "".join(parts)
+
+    return _read

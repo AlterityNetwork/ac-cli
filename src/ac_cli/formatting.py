@@ -92,10 +92,22 @@ def print_table(
     ⚠️ **A null cell prints as blank, and not as `None`.** A JSON null and an
     absent key say the same thing: the row carries no value for that column.
     The test is `is None`, so a cell that holds `0` or `False` keeps its value.
+
+    ⚠️ **Every column folds, because the default `ellipsis` destroys an id.**
+    Rich divides a line on a space. A tool id, a run id and a UUID hold no
+    space. Each is therefore one word that overflows its column. The default
+    then cuts the tail off with an ellipsis. That id is the value a caller
+    copies into the next command, and a cut id is unusable. `fold` divides the
+    word at the column edge instead. The whole value stays on screen over two
+    or more lines. A cell that already fits renders as before, and so does
+    prose: `fold` changes one word that is wider than its column.
+
+    `no_wrap=False` is not the same fix. It is already the default, and it
+    decides whether a cell wraps at all, not how one long word is divided.
     """
     table = Table(title=Text(title, style="table.title") if title else title, show_lines=False)
     for _, header in columns:
-        table.add_column(header)
+        table.add_column(header, overflow="fold")
 
     for row in data:
         table.add_row(*(_cell(row.get(key)) for key, _ in columns))
