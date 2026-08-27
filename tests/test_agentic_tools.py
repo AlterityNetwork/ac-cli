@@ -156,3 +156,21 @@ def test_tools_list_renders_a_long_mcp_id_whole(monkeypatch, invoke, mock_api, t
     assert result.exit_code == 0
     assert "…" not in result.output
     assert table_column(result.output, 0) == LONG_MCP_TOOL["name"]
+
+
+def test_tools_list_help_names_json_as_the_way_to_read_a_row(monkeypatch, invoke):
+    """The help prose names `--json`, and not the options table alone.
+
+    Typer lists every option, so a test for the flag name proves nothing. The
+    table folds a long id over two or more lines. A reader who wants that row
+    on one line needs the prose to say which flag answers it.
+
+    Pin the width. Typer wraps the prose to the terminal, and a narrow screen
+    would break the sentence across two lines.
+    """
+    monkeypatch.setenv("COLUMNS", "100")
+
+    result = invoke(["agentic", "tools", "list", "--help"])
+
+    assert result.exit_code == 0
+    assert "Use `--json` to read a whole row." in result.output
