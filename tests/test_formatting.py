@@ -248,3 +248,20 @@ def test_print_table_folds_the_long_word_only(monkeypatch, capsys):
     assert "…" not in output
     for word in ("sent", "to", "today"):
         assert word in output
+
+
+def test_print_table_rules_off_each_row(monkeypatch, capsys, table_column):
+    """A rule separates two rows, because a folded row is more than one line.
+
+    Two folded ids make six body lines. The reader needs the rule to see which
+    three lines belong to the first row.
+    """
+    monkeypatch.setenv("COLUMNS", "24")
+    first = "0f3a9c21-8b4e-4d7a-9c15-2e6f8a1b3d47"
+    second = "7d2b1e60-3f9a-4c8b-a1d2-5b7e9c0f4a13"
+
+    print_table([{"id": first}, {"id": second}], [("id", "Run ID")])
+
+    output = capsys.readouterr().out
+    assert "├" in output
+    assert table_column(output, 0) == first + second

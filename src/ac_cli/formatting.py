@@ -104,8 +104,13 @@ def print_table(
 
     `no_wrap=False` is not the same fix. It is already the default, and it
     decides whether a cell wraps at all, not how one long word is divided.
+
+    ⚠️ **`show_lines` is on, because a folded row is more than one line tall.**
+    A folded id makes a row three lines tall. Without a rule between the rows
+    the reader cannot see where one row ends. A table that folds nothing pays
+    one rule line for each row. That cost is less harm than a cut id.
     """
-    table = Table(title=Text(title, style="table.title") if title else title, show_lines=False)
+    table = Table(title=Text(title, style="table.title") if title else title, show_lines=True)
     for _, header in columns:
         table.add_column(header, overflow="fold")
 
