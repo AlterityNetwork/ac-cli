@@ -71,6 +71,18 @@ def test_signals_list_workflow_run_company_id(invoke, mock_api):
     assert qs["workflow_run_company_id"] == "wrc-123"
 
 
+def test_signals_list_exclude_dismissed(invoke, mock_api):
+    """--exclude-dismissed forwards to /crm/signals so cleared companies drop out."""
+    route = mock_api.get("/api/v1/crm/signals").respond(
+        200, json={"data": [], "total": 0, "limit": 50, "offset": 0, "has_more": False}
+    )
+    result = invoke(["crm", "signals", "list", "--exclude-dismissed", "--json"])
+    assert result.exit_code == 0
+    assert route.called
+    qs = route.calls.last.request.url.params
+    assert qs["exclude_dismissed"] == "true"
+
+
 def test_signals_get(invoke, mock_api):
     mock_api.get("/api/v1/crm/signals/sig-1").respond(200, json=SIGNAL)
     result = invoke(["crm", "signals", "get", "sig-1", "--json"])

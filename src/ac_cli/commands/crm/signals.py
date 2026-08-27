@@ -42,6 +42,11 @@ def signals_list(
         "--workflow-run-company-id",
         help="Filter by workflow_run_companies.id (signals produced by a specific run row)",
     ),
+    exclude_dismissed: bool = typer.Option(
+        False,
+        "--exclude-dismissed",
+        help="Drop signals for companies cleared from the Launchpad",
+    ),
     limit: int = typer.Option(50, help="Max results"),
     offset: int = typer.Option(0, help="Offset"),
     json_output: bool = JSON_OPTION,
@@ -59,6 +64,8 @@ def signals_list(
         params["person_id"] = person_id
     if workflow_run_company_id:
         params["workflow_run_company_id"] = workflow_run_company_id
+    if exclude_dismissed:
+        params["exclude_dismissed"] = True
 
     resp = _api_request("get", f"{_CRM}/signals", params=params)
 
