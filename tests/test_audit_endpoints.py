@@ -88,3 +88,20 @@ def test_the_real_entry_set_holds_no_unknown_exemption() -> None:
     listed = {path for _, path in audit.OUT_OF_SCOPE}
 
     assert audit.NOT_IN_SPEC <= listed
+
+
+def test_the_prospect_prefix_is_registered_for_endpoint_discovery() -> None:
+    assert audit.PATH_CONSTANTS["_PROSPECTS"] == "/api/v1/agentic/prospects"
+
+
+def test_the_audit_finds_each_prospect_command() -> None:
+    calls = audit.collect_cli_calls(audit.CLI_ROOT)
+
+    assert {
+        ("GET", "/api/v1/agentic/prospects"),
+        ("GET", "/api/v1/agentic/prospects/{id}"),
+        ("GET", "/api/v1/agentic/prospects/{id}/people"),
+        ("GET", "/api/v1/agentic/prospects/{id}/signals"),
+        ("POST", "/api/v1/agentic/prospects/{id}/watch"),
+        ("POST", "/api/v1/agentic/prospects/{id}/dismiss"),
+    } <= calls

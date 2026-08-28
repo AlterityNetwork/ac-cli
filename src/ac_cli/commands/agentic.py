@@ -4,8 +4,9 @@
 `ac agentic definitions` drives the definition lifecycle,
 `ac agentic tools` reads the catalogue a definition names its tools from,
 `ac agentic approvals` answers a run that stopped for a person,
+`ac agentic prospects` reviews discovered companies,
 `ac agentic policies` writes the rules an organization governs its agents with,
-and `ac agentic limits` reads and writes what it may spend in a day. All six
+and `ac agentic limits` reads and writes what it may spend in a day. All seven
 sit beside the live `ac agents runs` and replace none of it: the two stacks are
 branch isolated until the cutover, so the alias and the deletion of the old
 commands belong to Phase 7.
@@ -37,6 +38,7 @@ from ac_cli.commands._helpers import (
     set_json_mode,
     should_skip_confirm,
 )
+from ac_cli.commands.prospects import app as prospects_app
 from ac_cli.formatting import (
     as_text,
     console,
@@ -1131,6 +1133,7 @@ def approvals_reject(
 
 
 app.add_typer(approvals_app, name="approvals")
+app.add_typer(prospects_app, name="prospects")
 
 
 limits_app = typer.Typer(help="Agentic organization spend ceilings")
