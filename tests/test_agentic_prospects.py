@@ -290,3 +290,88 @@ def test_prospects_help_lists_the_six_commands(invoke):
     assert result.exit_code == 0
     for command in ("list", "get", "people", "signals", "watch", "dismiss"):
         assert command in result.output
+
+
+PROMOTION = {
+    "prospect_id": PROSPECT_ID,
+    "review_state": "promoted",
+    "crm_company_id": "55555555-5555-4555-8555-555555555555",
+    "people": [
+        {
+            "prospect_person_id": "33333333-3333-4333-8333-333333333333",
+            "intel_person_id": "44444444-4444-4444-8444-444444444444",
+            "crm_person_id": "66666666-6666-4666-8666-666666666666",
+        }
+    ],
+    "list_id": None,
+}
+
+
+def test_promote_posts_the_selection_and_prints_the_references(invoke, mock_api):
+    route = mock_api.post(f"{BASE}/{PROSPECT_ID}/promote").respond(200, json=PROMOTION)
+
+    result = invoke(
+        [
+            "agentic",
+            "prospects",
+            "promote",
+            PROSPECT_ID,
+            "--person",
+            "33333333-3333-4333-8333-333333333333",
+            "--yes",
+        ]
+    )
+
+    assert result.exit_code == 0
+    assert json.loads(route.calls[0].request.content) == {
+        "person_ids": ["33333333-3333-4333-8333-333333333333"],
+        "list_id": None,
+    }
+    assert "promoted" in result.output
+
+
+def test_promote_sends_the_list_and_an_empty_selection(invoke, mock_api):
+    list_id = "77777777-7777-4777-8777-777777777777"
+    route = mock_api.post(f"{BASE}/{PROSPECT_ID}/promote").respond(
+        200, json={**PROMOTION, "people": [], "list_id": list_id}
+    )
+
+    result = invoke(
+        ["agentic", "prospects", "promote", PROSPECT_ID, "--list", list_id, "--yes"]
+    )
+
+    assert result.exit_code == 0
+    assert json.loads(route.calls[0].request.content) == {
+        "person_ids": [],
+        "list_id": list_id,
+    }
+
+
+def test_promote_json_keeps_the_whole_answer(invoke, mock_api):
+    mock_api.post(f"{BASE}/{PROSPECT_ID}/promote").respond(200, json=PROMOTION)
+
+    result = invoke(
+        ["agentic", "prospects", "promote", PROSPECT_ID, "--yes", "--json"]
+    )
+
+    assert json.loads(result.output) == PROMOTION
+
+
+def test_promote_asks_before_it_writes_crm(invoke, mock_api):
+    route = mock_api.post(f"{BASE}/{PROSPECT_ID}/promote").respond(200, json=PROMOTION)
+
+    result = invoke(["agentic", "prospects", "promote", PROSPECT_ID], input="n\n")
+
+    assert result.exit_code != 0
+    assert not route.calls
+
+
+def test_promote_reports_a_conflict(invoke, mock_api):
+    mock_api.post(f"{BASE}/{PROSPECT_ID}/promote").respond(
+        409, json={"detail": "The person cannot resolve"}
+    )
+
+    result = invoke(["agentic", "prospects", "promote", PROSPECT_ID, "--yes"])
+
+    assert result.exit_code != 0
+    assert "cannot resolve" in result.output
