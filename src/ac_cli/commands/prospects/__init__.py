@@ -5,7 +5,12 @@ from __future__ import annotations
 import typer
 from rich import print as rprint
 
-from ac_cli.commands._helpers import JSON_OPTION, _api_request, set_json_mode
+from ac_cli.commands._helpers import (
+    JSON_OPTION,
+    _api_request,
+    set_json_mode,
+    should_skip_confirm,
+)
 from ac_cli.formatting import as_text, console, print_detail, print_json, print_table
 
 app = typer.Typer(help="Review and curate agentic prospects")
@@ -251,3 +256,50 @@ def prospects_dismiss(
     set_json_mode(json_output)
     data = _api_request("post", f"{_PROSPECTS}/{prospect_id}/dismiss").json()
     _print_curation(data, json_output=json_output)
+
+
+_PROMOTION_FIELDS = [
+    ("prospect_id", "Prospect ID"),
+    ("review_state", "State"),
+    ("crm_company_id", "CRM company ID"),
+    ("list_id", "CRM list ID"),
+]
+_PROMOTED_PERSON_FIELDS = [
+    ("prospect_person_id", "Prospect person ID"),
+    ("intel_person_id", "Person ID"),
+    ("crm_person_id", "CRM person ID"),
+]
+
+
+@app.command("promote")
+def prospects_promote(
+    ctx: typer.Context,
+    prospect_id: str = typer.Argument(..., help="Prospect ID"),
+    person: list[str] = typer.Option(
+        [],
+        "--person",
+        help="A prospect person ID to promote. Repeat for each person.",
+    ),
+    list_id: str = typer.Option(None, "--list", help="A static CRM list the company joins."),
+    yes: bool = typer.Option(False, "--yes", "-y", help="Skip the confirmation."),
+    json_output: bool = JSON_OPTION,
+) -> None:
+    """Promote one prospect and its selected people into CRM."""
+    set_json_mode(json_output)
+    if not should_skip_confirm(yes):
+        typer.confirm(
+            f"Promote prospect {prospect_id} and {len(person)} people into CRM?",
+            abort=True,
+        )
+    data = _api_request(
+        "post",
+        f"{_PROSPECTS}/{prospect_id}/promote",
+        json={"person_ids": list(person), "list_id": list_id},
+    ).json()
+    if json_output:
+        print_json(data)
+        return
+    print_detail(data, _PROMOTION_FIELDS)
+    people = data.get("people") or []
+    if people:
+        print_table(people, _PROMOTED_PERSON_FIELDS, title="Promoted people")
