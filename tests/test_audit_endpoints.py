@@ -94,6 +94,10 @@ def test_the_prospect_prefix_is_registered_for_endpoint_discovery() -> None:
     assert audit.PATH_CONSTANTS["_PROSPECTS"] == "/api/v1/agentic/prospects"
 
 
+def test_the_saved_search_prefix_is_registered_for_endpoint_discovery() -> None:
+    assert audit.PATH_CONSTANTS["_SAVED_SEARCHES"] == "/api/v1/agentic/saved-searches"
+
+
 def test_the_audit_finds_each_prospect_command() -> None:
     calls = audit.collect_cli_calls(audit.CLI_ROOT)
 
