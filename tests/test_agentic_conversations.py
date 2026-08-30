@@ -146,6 +146,10 @@ def test_send_posts_the_text_with_a_fresh_key(invoke, mock_api):
     assert json.loads(request.content) == {"text": "what is my pipeline"}
     assert len(request.headers["Idempotency-Key"]) > 0
     assert MESSAGE_ID in result.output
+    # The id prints on both branches, so the line is what separates a 202 from
+    # the 200 a repeated key answers.
+    assert "Message sent" in result.output
+    assert "Duplicate" not in result.output
 
 
 def test_send_takes_a_key_the_caller_names(invoke, mock_api):
@@ -196,6 +200,7 @@ def test_send_reports_a_repeated_key_as_a_duplicate(invoke, mock_api):
 
     assert result.exit_code == 0
     assert "Duplicate" in result.output
+    assert "Message sent" not in result.output
 
 
 def test_send_json_keeps_the_message(invoke, mock_api):
