@@ -133,6 +133,12 @@ OUT_OF_SCOPE: set[tuple[str, str]] = {
     # so the CLI does drive the reconnect; the filter is a query parameter,
     # which this audit does not compare.
     ("GET", "/api/v1/agentic/runs/{id}/stream"),
+    # ENG-2244: the agentic conversation stream, out of scope for the same
+    # reason. It carries one turn's progress and its answer, and both are
+    # durable: `ac agentic conversations messages` reads the row the turn
+    # wrote, whatever the stream delivered. This one never closes on content
+    # either, so a CLI command would hold until the connection bound.
+    ("GET", "/api/v1/agentic/conversations/{id}/stream"),
     ("GET", "/api/v1/resources/{id}/stream"),
     ("GET", "/api/v1/resources/{id}/preview-url"),
     ("PATCH", "/api/v1/resources/{id}"),
