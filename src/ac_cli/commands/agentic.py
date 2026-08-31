@@ -1453,3 +1453,291 @@ def policies_delete(
 
 
 app.add_typer(policies_app, name="policies")
+
+
+triggers_app = typer.Typer(help="Agentic machine entry points")
+
+_TRIGGER_FIELDS = [
+    ("id", "Trigger ID"),
+    ("name", "Name"),
+    ("kind", "Kind"),
+    ("event_type", "Event"),
+    ("conditions", "Filter"),
+    ("cron", "Schedule"),
+    ("timezone", "Zone"),
+    ("target_definition_id", "Starts"),
+    ("input_builder", "Input"),
+    ("input_config", "Input config"),
+    ("scopes", "Scopes"),
+    ("authored_by", "Author"),
+    ("enabled", "Enabled"),
+    ("last_outcome", "Last outcome"),
+    ("last_outcome_at", "Last outcome at"),
+    ("last_run_id", "Last run"),
+    ("created_at", "Created"),
+    ("updated_at", "Token"),
+]
+
+# The table holds no `updated_at`. The token is 32 characters, and a column of
+# that width truncates every other one to nothing. `--json` carries it, which
+# is where `patch` reads it from.
+#
+# It does hold `last_outcome`. A skip writes no Run and no span, so this column
+# is the only place a person reads why nothing happened.
+_TRIGGER_LIST_FIELDS = [
+    ("id", "Trigger ID"),
+    ("name", "Name"),
+    ("kind", "Kind"),
+    ("enabled", "Enabled"),
+    ("last_outcome", "Last outcome"),
+]
+
+
+def _trigger_shape(schedule: str | None, on: str | None) -> dict:
+    """Reads the two flags that decide which shape the row takes.
+
+    Args:
+        schedule: The cron expression, or None.
+        on: The event type, or None.
+
+    Returns:
+        The `kind` and the half that goes with it.
+
+    Raises:
+        typer.Exit: The caller named both halves, or neither.
+    """
+    if schedule and on:
+        rprint("[red]Name --schedule or --on, and not both[/red]")
+        raise typer.Exit(code=1)
+    if schedule:
+        return {"kind": "schedule", "cron": schedule}
+    if on:
+        return {"kind": "event", "event_type": on}
+    rprint("[red]Name --schedule for a cron, or --on for an event type[/red]")
+    raise typer.Exit(code=1)
+
+
+@triggers_app.command("list")
+def triggers_list(
+    ctx: typer.Context,
+    enabled: bool = typer.Option(False, "--enabled", help="Read the live rows alone"),
+    disabled: bool = typer.Option(False, "--disabled", help="Read the stopped rows alone"),
+    cursor: str | None = typer.Option(None, "--cursor", help="Page cursor"),
+    limit: int = typer.Option(_PAGE_DEFAULT, "--limit", help="Page size, 1 to 100"),
+    json_output: bool = JSON_OPTION,
+) -> None:
+    """List the machine entry points of this organization.
+
+    The page holds the stopped rows too, because `enabled` is how a trigger is
+    turned off rather than deleted.
+
+    `Last outcome` is what the last dispatch did. A skip writes no Run, so it
+    is the one place a `budget` or a `duplicate` answer is readable.
+    """
+    set_json_mode(json_output)
+    _checked_limit(limit)
+    if enabled and disabled:
+        rprint("[red]Name --enabled or --disabled, and not both[/red]")
+        raise typer.Exit(code=1)
+    params: dict = {"limit": limit}
+    if enabled:
+        params["enabled"] = "true"
+    if disabled:
+        params["enabled"] = "false"
+    if cursor:
+        params["cursor"] = cursor
+
+    resp = _api_request("get", f"{_AGENTIC}/triggers", params=params)
+
+    data = resp.json()
+    if json_output:
+        print_json(data)
+        return
+    print_table(data.get("items", []), _TRIGGER_LIST_FIELDS, title="Triggers")
+    if data.get("next_cursor"):
+        # The filters ride on the hint. A cursor is a keyset position and
+        # carries none, so a hint naming the cursor alone pages the unfiltered
+        # set from that position: page one filtered and page two not, with
+        # nothing to say so.
+        _print_cursor_hint(
+            data["next_cursor"],
+            limit,
+            # The helper skips a False value and prints a True one as the
+            # bare flag, so the two booleans go through as they are.
+            filters=[("--enabled", enabled), ("--disabled", disabled)],
+            label="Next cursor:",
+        )
+
+
+@triggers_app.command("create")
+def triggers_create(
+    ctx: typer.Context,
+    name: str = typer.Option(..., "--name", help="What to call the trigger"),
+    definition_id: str = typer.Option(
+        ..., "--definition", help="The agent or workflow this trigger starts"
+    ),
+    scopes: list[str] = typer.Option(
+        ..., "--scope", help="A tool name this trigger may use. Repeat for more."
+    ),
+    schedule: str | None = typer.Option(
+        None, "--schedule", help="A five field cron expression, for a scheduled trigger"
+    ),
+    on: str | None = typer.Option(None, "--on", help="A platform event type, for an event trigger"),
+    timezone: str = typer.Option("UTC", "--timezone", help="The zone the schedule is read in"),
+    conditions: str | None = typer.Option(
+        None, "--conditions", help="The condition tree, as a JSON object"
+    ),
+    input_builder: str = typer.Option(
+        "static", "--input-builder", help="Which builder renders the run input"
+    ),
+    input_config: str | None = typer.Option(
+        None, "--input-config", help="What the builder reads, as a JSON object"
+    ),
+    json_output: bool = JSON_OPTION,
+) -> None:
+    """Write one machine entry point.
+
+    A trigger is never wider than the person who wrote it. Every `--scope` is
+    checked against your own rights at save, and against the author's rights
+    again at every run.
+
+    The row is saved stopped. Read it, then `ac agentic triggers enable <id>`.
+
+    A scheduled saved search names `--input-builder saved_search` and
+    `--input-config '{"saved_search_id": "..."}'`. The static builder cannot
+    start one: the baseline changes on every run.
+    """
+    set_json_mode(json_output)
+    body: dict = {
+        "name": name,
+        **_trigger_shape(schedule, on),
+        "timezone": timezone,
+        "target_definition_id": definition_id,
+        "input_builder": input_builder,
+        "input_config": _parse_object(input_config, "--input-config") if input_config else {},
+        "scopes": list(scopes),
+    }
+    tree = _parse_conditions(conditions)
+    if tree is not None:
+        body["conditions"] = tree
+
+    resp = _api_request("post", f"{_AGENTIC}/triggers", json=body)
+
+    data = resp.json()
+    if json_output:
+        print_json(data)
+        return
+    rprint("[green]Trigger created, and stopped:[/green]", as_text(data["id"]))
+    rprint("Run [cyan]ac agentic triggers enable[/cyan]", as_text(data["id"]), "to start it")
+    print_detail(data, _TRIGGER_FIELDS)
+
+
+@triggers_app.command("patch")
+def triggers_patch(
+    ctx: typer.Context,
+    trigger_id: str = typer.Argument(..., help="Trigger ID"),
+    expected_updated_at: str = typer.Option(
+        ...,
+        "--expected-updated-at",
+        help="The token the last read returned. Send it back unchanged.",
+    ),
+    patch: str = typer.Option(..., "--patch", help="The fields to replace, as a JSON object"),
+    json_output: bool = JSON_OPTION,
+) -> None:
+    """Replace the named fields of one trigger.
+
+    The patch replaces each named field whole. `kind` is not one of them: a
+    schedule that became an event row would keep the name and the id of a row
+    whose whole meaning changed. Write a new trigger instead.
+
+    The token is opaque. Echo back the `updated_at` that
+    `ac agentic triggers list --json` returned, and never a value a date type
+    has parsed: a millisecond round trip answers stale.
+    """
+    set_json_mode(json_output)
+    body = {
+        "expected_updated_at": expected_updated_at,
+        **_parse_object(patch, "--patch"),
+    }
+
+    resp = _api_request("patch", f"{_AGENTIC}/triggers/{trigger_id}", json=body)
+
+    data = resp.json()
+    if json_output:
+        print_json(data)
+        return
+    rprint("[green]Trigger saved:[/green]", as_text(data["id"]))
+    print_detail(data, _TRIGGER_FIELDS)
+
+
+@triggers_app.command("enable")
+def triggers_enable(
+    ctx: typer.Context,
+    trigger_id: str = typer.Argument(..., help="Trigger to start"),
+    json_output: bool = JSON_OPTION,
+) -> None:
+    """Turn one trigger on.
+
+    From here it starts Runs with no person watching. Read the row first.
+    """
+    set_json_mode(json_output)
+    resp = _api_request("post", f"{_AGENTIC}/triggers/{trigger_id}/enable")
+
+    data = resp.json()
+    if json_output:
+        print_json(data)
+        return
+    rprint("[green]Trigger enabled:[/green]", as_text(data["id"]))
+    print_detail(data, _TRIGGER_FIELDS)
+
+
+@triggers_app.command("disable")
+def triggers_disable(
+    ctx: typer.Context,
+    trigger_id: str = typer.Argument(..., help="Trigger to stop"),
+    json_output: bool = JSON_OPTION,
+) -> None:
+    """Turn one trigger off.
+
+    It carries no token and it never answers stale, so it works at 02:00.
+
+    It stops no Run the trigger already started. Cancel those with
+    `ac agentic runs cancel <run-id>`.
+    """
+    set_json_mode(json_output)
+    resp = _api_request("post", f"{_AGENTIC}/triggers/{trigger_id}/disable")
+
+    data = resp.json()
+    if json_output:
+        print_json(data)
+        return
+    rprint("[green]Trigger disabled:[/green]", as_text(data["id"]))
+    rprint("It starts nothing new. Cancel any Run it already started.")
+    print_detail(data, _TRIGGER_FIELDS)
+
+
+@triggers_app.command("delete")
+def triggers_delete(
+    ctx: typer.Context,
+    trigger_id: str = typer.Argument(..., help="Trigger to remove"),
+    yes: bool = typer.Option(False, "--yes", "-y", help="Skip confirmation"),
+    json_output: bool = JSON_OPTION,
+) -> None:
+    """Remove one trigger.
+
+    It stops no Run the trigger already started. Use `disable` when you want to
+    keep the row and its record of what it last did.
+    """
+    set_json_mode(json_output)
+    if not should_skip_confirm(yes):
+        typer.confirm(f"Delete trigger {trigger_id}?", abort=True)
+
+    _api_request("delete", f"{_AGENTIC}/triggers/{trigger_id}")
+
+    if json_output:
+        print_json({"id": trigger_id, "deleted": True})
+        return
+    rprint("[green]Trigger deleted:[/green]", as_text(trigger_id))
+
+
+app.add_typer(triggers_app, name="triggers")
