@@ -169,6 +169,11 @@ OUT_OF_SCOPE: set[tuple[str, str]] = {
     # Route is /agent-runtime/{provider}/webhook; OUT_OF_SCOPE is matched raw against
     # normalized API paths, so the param must be the normalized {id} form.
     ("POST", "/api/v1/agent-runtime/{id}/webhook"),
+    # Agentic provider job callback (signature-verified server-to-server) [ENG-2227].
+    # Route is /agentic/webhooks/{provider}/{job_id}. Both params normalize to
+    # {id}, so the entry carries the pair. A provider posts here and no person
+    # does, so the CLI exposes nothing.
+    ("POST", "/api/v1/agentic/webhooks/{id}/{id}"),
     # Frontend-only activity logger
     ("POST", "/api/v1/orgs/{id}/activity-events"),
     # Cross-org outputs feed (admin-style, not exposed to CLI today)
