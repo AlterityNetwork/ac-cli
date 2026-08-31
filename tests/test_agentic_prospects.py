@@ -336,9 +336,7 @@ def test_promote_sends_the_list_and_an_empty_selection(invoke, mock_api):
         200, json={**PROMOTION, "people": [], "list_id": list_id}
     )
 
-    result = invoke(
-        ["agentic", "prospects", "promote", PROSPECT_ID, "--list", list_id, "--yes"]
-    )
+    result = invoke(["agentic", "prospects", "promote", PROSPECT_ID, "--list", list_id, "--yes"])
 
     assert result.exit_code == 0
     assert json.loads(route.calls[0].request.content) == {
@@ -350,9 +348,7 @@ def test_promote_sends_the_list_and_an_empty_selection(invoke, mock_api):
 def test_promote_json_keeps_the_whole_answer(invoke, mock_api):
     mock_api.post(f"{BASE}/{PROSPECT_ID}/promote").respond(200, json=PROMOTION)
 
-    result = invoke(
-        ["agentic", "prospects", "promote", PROSPECT_ID, "--yes", "--json"]
-    )
+    result = invoke(["agentic", "prospects", "promote", PROSPECT_ID, "--yes", "--json"])
 
     assert json.loads(result.output) == PROMOTION
 
