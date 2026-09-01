@@ -34,7 +34,7 @@ paths:
   - `_PLAYBOOKS = "/api/v1/playbooks"` in `envoy/playbooks.py` (top-level since ENG-592)
   - `_WORKFLOWS = "/api/v1/workflows"` in `workflows/__init__.py`
   - `_ADMIN = "/api/v1/admin"` in `admin/__init__.py`
-  - `_CHAT = "/api/v1/chat"` in `chat/__init__.py`
+  - `_CONVERSATIONS = "/api/v1/agentic/conversations"` in `conversations/__init__.py`
   - `_PROFILES = "/api/v1/profiles"` in `profiles.py`
   - `_STYLES = "/api/v1/writing-styles"` in `writing_styles.py`
   - `_APPS = "/api/v1/orgs"` in `apps.py`

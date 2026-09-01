@@ -13,7 +13,6 @@ from ac_cli.commands import (
     analytics,
     apps,
     auth,
-    chat,
     crm,
     env,
     envoy,
@@ -81,7 +80,6 @@ app.add_typer(agentic.app, name="agentic")
 app.add_typer(analytics.app, name="analytics")
 app.add_typer(apps.app, name="apps")
 app.add_typer(auth.app, name="auth")
-app.add_typer(chat.app, name="chat")
 app.add_typer(crm.app, name="crm")
 app.add_typer(env.app, name="env")
 app.add_typer(health.app, name="health")
