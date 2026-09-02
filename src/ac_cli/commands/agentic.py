@@ -172,9 +172,9 @@ def capabilities_start(
         value = json.loads(input_json)
         if not isinstance(value, dict):
             raise ValueError("input is not an object")
-        json.dumps(value, allow_nan=False)
+        json.dumps(value, allow_nan=False, ensure_ascii=False).encode("utf-8")
     except (ValueError, RecursionError):
-        _refuse_option("--input", "must be a JSON object with finite numbers", "")
+        _refuse_option("--input", "must be a UTF-8 JSON object with finite numbers", "")
     capability_id = quote(capability_id, safe="")
     resp = _api_request(
         "post",

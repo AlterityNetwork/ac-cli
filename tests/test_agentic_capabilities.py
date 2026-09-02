@@ -76,6 +76,7 @@ def test_required_flags_cannot_default(invoke, mock_api, flag):
 @pytest.mark.parametrize(
     "flag,value",
     [
+        ("--input", '{"query":"\\ud800"}'),
         ("--input", "[]"),
         ("--input", "null"),
         ("--input", "{"),
