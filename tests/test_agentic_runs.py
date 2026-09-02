@@ -999,13 +999,15 @@ def test_runs_get_preserves_null_capability(invoke, mock_api):
     run = {**SAMPLE_RUN, "capability_id": None, "contract_version": None}
     mock_api.get(f"/api/v1/agentic/runs/{run['id']}").respond(200, json=run)
     result = invoke(["agentic", "runs", "get", run["id"], "--json"])
-    assert json.loads(result.output)["capability_id"] is None
-    assert json.loads(result.output)["contract_version"] is None
+    body = json.loads(result.output)
+    assert body["capability_id"] is None
+    assert body["contract_version"] is None
 
 
 def test_run_list_json_keeps_identity(invoke, mock_api):
     run = {**SAMPLE_RUN, "capability_id": "signals.search", "contract_version": 4}
     mock_api.get("/api/v1/agentic/runs").respond(200, json={"items": [run], "next_cursor": None})
     result = invoke(["agentic", "runs", "list", "--json"])
-    assert json.loads(result.output)["items"][0]["capability_id"] == "signals.search"
-    assert json.loads(result.output)["items"][0]["contract_version"] == 4
+    item = json.loads(result.output)["items"][0]
+    assert item["capability_id"] == "signals.search"
+    assert item["contract_version"] == 4
