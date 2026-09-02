@@ -984,3 +984,28 @@ def test_runs_spans_refuses_an_empty_since_rather_than_dropping_it(invoke, mock_
 
     assert result.exit_code == 2
     assert not route.calls
+
+
+def test_runs_get_shows_capability_identity(invoke, mock_api):
+    run = {**SAMPLE_RUN, "capability_id": "company.search", "contract_version": 7}
+    mock_api.get(f"/api/v1/agentic/runs/{run['id']}").respond(200, json=run)
+    result = invoke(["agentic", "runs", "get", run["id"]])
+    assert result.exit_code == 0
+    assert "company.search" in result.output
+    assert "Contract version" in result.output
+
+
+def test_runs_get_preserves_null_capability(invoke, mock_api):
+    run = {**SAMPLE_RUN, "capability_id": None, "contract_version": None}
+    mock_api.get(f"/api/v1/agentic/runs/{run['id']}").respond(200, json=run)
+    result = invoke(["agentic", "runs", "get", run["id"], "--json"])
+    assert json.loads(result.output)["capability_id"] is None
+    assert json.loads(result.output)["contract_version"] is None
+
+
+def test_run_list_json_keeps_identity(invoke, mock_api):
+    run = {**SAMPLE_RUN, "capability_id": "signals.search", "contract_version": 4}
+    mock_api.get("/api/v1/agentic/runs").respond(200, json={"items": [run], "next_cursor": None})
+    result = invoke(["agentic", "runs", "list", "--json"])
+    assert json.loads(result.output)["items"][0]["capability_id"] == "signals.search"
+    assert json.loads(result.output)["items"][0]["contract_version"] == 4
