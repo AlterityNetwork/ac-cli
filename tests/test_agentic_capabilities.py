@@ -301,6 +301,27 @@ def test_capabilities_get_reports_a_refusal(invoke, mock_api):
     assert "may not start" in result.output
 
 
+def test_capabilities_get_encodes_a_reserved_character(invoke, mock_api):
+    """A slash in the argument must not become a second path segment.
+
+    `capabilities start` encodes its ID and this command must agree. Unencoded,
+    `a/b` reads a two-segment path that names another route.
+
+    ⚠️ **The assertion reads `raw_path` and not `path`.** httpx decodes `path`,
+    and respx matches on the decoded form, so a route registered for `a%2Fb`
+    matches an unencoded request too. Only the raw bytes tell the two apart.
+    """
+    route = mock_api.get(url__regex=r".*/capabilities/.*").respond(
+        404, json={"detail": "unknown capability id"}
+    )
+
+    result = invoke(["agentic", "capabilities", "get", "a/b"])
+
+    assert route.called
+    assert route.calls[0].request.url.raw_path.endswith(b"/capabilities/a%2Fb")
+    assert result.exit_code == 3
+
+
 def test_capabilities_get_reports_a_server_refusal(invoke, mock_api):
     """`list` guarded its 5xx path and `get` did not.
 
