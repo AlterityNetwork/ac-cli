@@ -3,12 +3,13 @@
 `ac agentic runs` drives the run surface of the new agentic platform,
 `ac agentic definitions` drives the definition lifecycle,
 `ac agentic tools` reads the catalogue a definition names its tools from,
+`ac agentic capabilities` reads the five product capabilities of this tenant,
 `ac agentic approvals` answers a run that stopped for a person,
 `ac agentic conversations` reads and writes web chat conversations,
 `ac agentic prospects` reviews discovered companies,
 `ac agentic saved-searches` manages repeatable Signals Search briefs,
 `ac agentic policies` writes the rules an organization governs its agents with,
-and `ac agentic limits` reads and writes what it may spend in a day. All nine
+and `ac agentic limits` reads and writes what it may spend in a day. All ten
 sit beside the live `ac agents runs` and replace none of it: the two stacks are
 branch isolated until the cutover, so the alias and the deletion of the old
 commands belong to Phase 7.
@@ -972,6 +973,99 @@ def tools_list(
 
 
 app.add_typer(tools_app, name="tools")
+
+
+capabilities_app = typer.Typer(help="Agentic product capabilities")
+
+# The list table. It drops the two schemas, which no table renders, and it
+# drops `required_scopes`, which is a list. `--json` and `get` answer both.
+_CAPABILITY_LIST_FIELDS = [
+    ("capability_id", "Capability ID"),
+    ("availability", "Availability"),
+    ("reason", "Reason"),
+    ("name", "Name"),
+    ("contract_version", "Version"),
+]
+
+_CAPABILITY_FIELDS = [
+    ("capability_id", "Capability ID"),
+    ("availability", "Availability"),
+    ("reason", "Reason"),
+    ("name", "Name"),
+    ("description", "Description"),
+    ("contract_version", "Version"),
+    ("executor_type", "Executor"),
+]
+
+
+@capabilities_app.command("list")
+def capabilities_list(
+    ctx: typer.Context,
+    show_all: bool = typer.Option(
+        False,
+        "--all",
+        help="Also show the capabilities you cannot start, each with a reason",
+    ),
+    json_output: bool = JSON_OPTION,
+) -> None:
+    """List the product capabilities of this organization.
+
+    The catalogue is not paginated. The five IDs are fixed by the deploy, so
+    the answer is the whole list and there is no cursor.
+
+    An empty list means you can start nothing. It carries no reason, because
+    the same empty list answers a caller with no run right and an organization
+    that installed nothing. Use `--all` to read the reason of each.
+    """
+    set_json_mode(json_output)
+
+    resp = _api_request(
+        "get",
+        f"{_AGENTIC}/capabilities",
+        params={"available_only": "false" if show_all else "true"},
+    )
+
+    data = resp.json()
+    if json_output:
+        print_json(data)
+        return
+
+    items = data.get("items", [])
+    print_table(items, _CAPABILITY_LIST_FIELDS, title=f"Capabilities ({len(items)})")
+    if not items and not show_all:
+        rprint("[dim]Nothing you can start. Run with --all to read why.[/dim]")
+
+
+@capabilities_app.command("get")
+def capabilities_get(
+    ctx: typer.Context,
+    capability_id: str = typer.Argument(
+        ..., help="A stable ID, such as company.search. It is case-sensitive"
+    ),
+    json_output: bool = JSON_OPTION,
+) -> None:
+    """Read one product capability.
+
+    An ID outside the five answers 404, and one you may not start answers 403.
+    An installed product you may start carries the two JSON Schemas, which no
+    table renders. Use `--json` to read them.
+    """
+    set_json_mode(json_output)
+
+    resp = _api_request("get", f"{_AGENTIC}/capabilities/{capability_id}")
+
+    data = resp.json()
+    if json_output:
+        print_json(data)
+        return
+
+    print_detail(data, _CAPABILITY_FIELDS)
+    scopes = data.get("required_scopes")
+    if scopes:
+        rprint("[bold]Required scopes:[/bold]", as_text(", ".join(scopes)))
+
+
+app.add_typer(capabilities_app, name="capabilities")
 
 
 approvals_app = typer.Typer(help="Agentic approval inbox")
