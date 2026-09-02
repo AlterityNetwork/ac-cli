@@ -198,3 +198,17 @@ def test_capabilities_list_renders_foreign_text_as_text(invoke, mock_api):
 
     assert result.exit_code == 0
     assert "beta" in result.output
+
+
+def test_capabilities_list_all_does_not_repeat_the_hint(invoke, mock_api):
+    """A caller who already asked for the reasons must not be told to ask.
+
+    `--all` with an empty answer means this tenant reads no record at all. The
+    default-only guard is what keeps the hint off that path.
+    """
+    mock_api.get(BASE).respond(200, json={"items": []})
+
+    result = invoke(["agentic", "capabilities", "list", "--all"])
+
+    assert result.exit_code == 0
+    assert "--all" not in result.output
