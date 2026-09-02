@@ -301,6 +301,22 @@ def test_capabilities_get_reports_a_refusal(invoke, mock_api):
     assert "may not start" in result.output
 
 
+def test_capabilities_get_reports_a_server_refusal(invoke, mock_api):
+    """`list` guarded its 5xx path and `get` did not.
+
+    The stdout assertion is what separates a handled refusal from a crash. A
+    `MarkupError` inside the renderer also exits 1, and it prints nothing.
+    """
+    mock_api.get(f"{BASE}/company.search").respond(
+        500, json={"detail": "the rights read did not answer"}
+    )
+
+    result = invoke(["agentic", "capabilities", "get", "company.search"])
+
+    assert result.exit_code == 1
+    assert "the rights read did not answer" in result.output
+
+
 def test_capabilities_list_reports_a_server_refusal(invoke, mock_api):
     """Exit 1 and the reason on stdout.
 
