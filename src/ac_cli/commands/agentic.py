@@ -1,5 +1,6 @@
 """Agentic platform commands.
 
+`ac agentic capabilities` starts a published product contract,
 `ac agentic runs` drives the run surface of the new agentic platform,
 `ac agentic definitions` drives the definition lifecycle,
 `ac agentic tools` reads the catalogue a definition names its tools from,
@@ -8,7 +9,7 @@
 `ac agentic prospects` reviews discovered companies,
 `ac agentic saved-searches` manages repeatable Signals Search briefs,
 `ac agentic policies` writes the rules an organization governs its agents with,
-and `ac agentic limits` reads and writes what it may spend in a day. All nine
+and `ac agentic limits` reads and writes what it may spend in a day. All ten
 sit beside the live `ac agents runs` and replace none of it: the two stacks are
 branch isolated until the cutover, so the alias and the deletion of the old
 commands belong to Phase 7.
@@ -28,6 +29,7 @@ import shlex
 import uuid
 from datetime import datetime
 from typing import NoReturn
+from urllib.parse import quote
 
 import typer
 from rich import print as rprint
@@ -56,6 +58,7 @@ app = typer.Typer(help="Agentic platform")
 _AGENTIC = "/api/v1/agentic"
 
 runs_app = typer.Typer(help="Agentic run operations")
+capabilities_app = typer.Typer(help="Start product capabilities")
 
 
 @app.callback()
@@ -138,6 +141,52 @@ _SPAN_FIELDS = [
     ("duration_ms", "Duration (ms)"),
     ("started_at", "Started"),
 ]
+
+
+@capabilities_app.command("start")
+def capabilities_start(
+    capability_id: str = typer.Argument(..., help="Stable capability ID, such as company.search"),
+    contract_version: int = typer.Option(
+        ..., "--contract-version", help="Published contract version"
+    ),
+    input_json: str = typer.Option(..., "--input", help="Capability input as a JSON object"),
+    idempotency_key: str = typer.Option(
+        ..., "--idempotency-key", help="Delivery key; reuse it only for the same request"
+    ),
+    json_output: bool = JSON_OPTION,
+) -> None:
+    """Start a capability with an explicit contract version and delivery key."""
+    set_json_mode(json_output)
+    if contract_version < 1:
+        _refuse_option("--contract-version", "must be positive", contract_version)
+    if (
+        not idempotency_key.strip()
+        or len(idempotency_key) > 200
+        or not idempotency_key.isascii()
+        or any(ord(char) < 32 or ord(char) == 127 for char in idempotency_key)
+    ):
+        _refuse_option(
+            "--idempotency-key", "must contain 1–200 header-safe ASCII characters", idempotency_key
+        )
+    try:
+        value = json.loads(input_json)
+        if not isinstance(value, dict):
+            raise ValueError("input is not an object")
+        json.dumps(value, allow_nan=False)
+    except (ValueError, RecursionError):
+        _refuse_option("--input", "must be a JSON object with finite numbers", "")
+    capability_id = quote(capability_id, safe="")
+    resp = _api_request(
+        "post",
+        f"{_AGENTIC}/capabilities/{capability_id}/runs",
+        json={"contract_version": contract_version, "input": value},
+        headers={"Idempotency-Key": idempotency_key},
+    )
+    data = resp.json()
+    if json_output:
+        print_json(data)
+        return
+    print_detail(data, [("outcome", "Outcome"), *_RUN_FIELDS])
 
 
 @runs_app.command("start")
@@ -582,6 +631,7 @@ def runs_cancel(
 
 
 app.add_typer(runs_app, name="runs")
+app.add_typer(capabilities_app, name="capabilities")
 
 
 definitions_app = typer.Typer(help="Agentic definition lifecycle")
