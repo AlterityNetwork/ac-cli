@@ -99,6 +99,8 @@ _RUN_FIELDS = [
     ("id", "Run ID"),
     ("kind", "Kind"),
     ("definition_name", "Definition"),
+    ("capability_id", "Capability"),
+    ("contract_version", "Contract version"),
     ("status", "Status"),
     ("waiting_on", "Waiting on"),
     ("source", "Source"),
