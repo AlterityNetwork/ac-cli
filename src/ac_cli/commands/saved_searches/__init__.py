@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import json
-import uuid
 from typing import NoReturn
 
 import typer
@@ -76,6 +75,29 @@ def _checked_limit(limit: int, *, json_output: bool) -> int:
         return limit
     _refuse(
         f"--limit is not between {_PAGE_MIN} and {_PAGE_MAX}: {limit}",
+        json_output=json_output,
+    )
+
+
+def _checked_contract_version(version: int, *, json_output: bool) -> int:
+    """Refuse a version that the stable capability contract refuses."""
+    if version >= 1:
+        return version
+    _refuse("--contract-version must be positive", json_output=json_output)
+
+
+def _checked_key(key: str, *, json_output: bool) -> str:
+    """Refuse a key that cannot travel in the request header."""
+    if (
+        key.strip()
+        and key == key.strip()
+        and len(key) <= 200
+        and key.isascii()
+        and all(32 <= ord(char) < 127 for char in key)
+    ):
+        return key
+    _refuse(
+        "--idempotency-key must contain 1–200 header-safe ASCII characters",
         json_output=json_output,
     )
 
@@ -220,23 +242,24 @@ def saved_searches_delete(
 def saved_searches_start(
     ctx: typer.Context,
     search_id: str = typer.Argument(..., help="Saved search ID"),
-    definition_id: str = typer.Option(
-        ..., "--definition", help="Published Signals Search workflow"
+    contract_version: int = typer.Option(
+        ..., "--contract-version", help="Published Signals Search contract version"
     ),
-    idempotency_key: str | None = typer.Option(
-        None,
+    idempotency_key: str = typer.Option(
+        ...,
         "--idempotency-key",
-        help="Delivery identity. A fresh value is minted when absent.",
+        help="Delivery identity. Reuse it only for the same saved-search request.",
     ),
     json_output: bool = JSON_OPTION,
 ) -> None:
     """Start one Run with the stored brief and current baseline."""
     set_json_mode(json_output)
-    key = idempotency_key or str(uuid.uuid4())
+    version = _checked_contract_version(contract_version, json_output=json_output)
+    key = _checked_key(idempotency_key, json_output=json_output)
     data = _api_request(
         "post",
         f"{_SAVED_SEARCHES}/{search_id}/runs",
-        json={"definition_id": definition_id},
+        json={"contract_version": version},
         headers={"Idempotency-Key": key},
     ).json()
     if json_output:

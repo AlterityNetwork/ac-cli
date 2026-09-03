@@ -314,7 +314,7 @@ def test_delete_with_yes_prints_success(invoke, mock_api):
     assert "Saved search deleted" in result.output
 
 
-def test_start_sends_definition_and_given_key(invoke, mock_api):
+def test_start_sends_contract_version_and_given_key(invoke, mock_api):
     route = mock_api.post(f"{BASE}/{SEARCH_ID}/runs").respond(200, json=RUN)
 
     result = invoke(
@@ -323,35 +323,62 @@ def test_start_sends_definition_and_given_key(invoke, mock_api):
             "saved-searches",
             "start",
             SEARCH_ID,
-            "--definition",
-            DEFINITION_ID,
+            "--contract-version",
+            "1",
             "--idempotency-key",
             "delivery-1",
         ]
     )
 
     assert result.exit_code == 0
-    assert json.loads(route.calls[0].request.content) == {"definition_id": DEFINITION_ID}
+    assert json.loads(route.calls[0].request.content) == {"contract_version": 1}
     assert route.calls[0].request.headers["Idempotency-Key"] == "delivery-1"
     assert RUN_ID in result.output
 
 
-def test_start_mints_a_fresh_key_when_absent(invoke, mock_api):
+def test_start_requires_version_and_key(invoke, mock_api):
     route = mock_api.post(f"{BASE}/{SEARCH_ID}/runs").respond(200, json=RUN)
 
-    result = invoke(
-        [
-            "agentic",
-            "saved-searches",
-            "start",
-            SEARCH_ID,
-            "--definition",
-            DEFINITION_ID,
-        ]
+    missing_version = invoke(
+        ["agentic", "saved-searches", "start", SEARCH_ID, "--idempotency-key", "key"]
+    )
+    missing_key = invoke(
+        ["agentic", "saved-searches", "start", SEARCH_ID, "--contract-version", "1"]
     )
 
-    assert result.exit_code == 0
-    assert route.calls[0].request.headers["Idempotency-Key"]
+    assert missing_version.exit_code == 2
+    assert missing_key.exit_code == 2
+    assert not route.called
+
+
+def test_start_refuses_invalid_version_and_key_before_request(invoke, mock_api):
+    route = mock_api.post(f"{BASE}/{SEARCH_ID}/runs").respond(200, json=RUN)
+    base = [
+        "agentic",
+        "saved-searches",
+        "start",
+        SEARCH_ID,
+        "--contract-version",
+        "1",
+        "--idempotency-key",
+        "delivery-1",
+        "--json",
+    ]
+
+    for flag, value in (
+        ("--contract-version", "0"),
+        ("--idempotency-key", " "),
+        ("--idempotency-key", " delivery-1"),
+        ("--idempotency-key", "delivery-1 "),
+        ("--idempotency-key", "x" * 201),
+        ("--idempotency-key", "é"),
+    ):
+        args = base.copy()
+        args[args.index(flag) + 1] = value
+        result = invoke(args)
+        assert result.exit_code == 2
+        assert json.loads(result.output)["error"] is True
+    assert not route.called
 
 
 def test_start_json_keeps_run_detail(invoke, mock_api):
@@ -363,8 +390,10 @@ def test_start_json_keeps_run_detail(invoke, mock_api):
             "saved-searches",
             "start",
             SEARCH_ID,
-            "--definition",
-            DEFINITION_ID,
+            "--contract-version",
+            "1",
+            "--idempotency-key",
+            "delivery-1",
             "--json",
         ]
     )
@@ -381,12 +410,37 @@ def test_start_reports_duplicate_run(invoke, mock_api):
             "saved-searches",
             "start",
             SEARCH_ID,
-            "--definition",
-            DEFINITION_ID,
+            "--contract-version",
+            "1",
+            "--idempotency-key",
+            "delivery-1",
         ]
     )
 
     assert "Duplicate" in result.output
+
+
+def test_start_maps_in_progress_to_conflict_exit(invoke, mock_api):
+    mock_api.post(f"{BASE}/{SEARCH_ID}/runs").respond(
+        409, json={"detail": {"code": "start_in_progress"}}
+    )
+
+    result = invoke(
+        [
+            "agentic",
+            "saved-searches",
+            "start",
+            SEARCH_ID,
+            "--contract-version",
+            "1",
+            "--idempotency-key",
+            "delivery-1",
+            "--json",
+        ]
+    )
+
+    assert result.exit_code == 5
+    assert json.loads(result.output)["detail"]["code"] == "start_in_progress"
 
 
 def test_diff_prints_nested_prospect_and_change_reasons(invoke, mock_api, table_column):
