@@ -109,7 +109,11 @@ def _print_saved_search(data: dict) -> None:
 def saved_searches_create(
     ctx: typer.Context,
     name: str = typer.Option(..., "--name", help="What to call the saved search"),
-    brief: str = typer.Option(..., "--brief", help="Signals Search brief as JSON"),
+    brief: str = typer.Option(
+        ...,
+        "--brief",
+        help="Brief JSON with persona lists: titles, departments, seniority, country_codes",
+    ),
     json_output: bool = JSON_OPTION,
 ) -> None:
     """Create one repeatable Signals Search brief."""
@@ -171,7 +175,11 @@ def saved_searches_patch(
         help="The opaque token from the last read",
     ),
     name: str | None = typer.Option(None, "--name", help="Replacement name"),
-    brief: str | None = typer.Option(None, "--brief", help="Replacement brief as JSON"),
+    brief: str | None = typer.Option(
+        None,
+        "--brief",
+        help="Full replacement brief JSON; preserve other fields and correct persona lists",
+    ),
     json_output: bool = JSON_OPTION,
 ) -> None:
     """Replace the name, brief, or both under one write token."""

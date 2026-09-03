@@ -15,7 +15,12 @@ SUMMARY = {
     "created_at": "2026-08-28T09:00:00Z",
     "updated_at": "2026-08-28T10:00:00.123456Z",
 }
-DETAIL = {**SUMMARY, "brief": {"icp": "UK fintech", "region": "UK"}}
+BRIEF = {
+    "icp": "UK fintech",
+    "region": "UK",
+    "persona": {"titles": ["CTO", "CEO"], "country_codes": ["GB"]},
+}
+DETAIL = {**SUMMARY, "brief": BRIEF}
 RUN = {
     "id": RUN_ID,
     "definition_id": DEFINITION_ID,
@@ -58,14 +63,12 @@ def test_create_sends_name_and_full_brief(invoke, mock_api):
             "--name",
             "UK fintech",
             "--brief",
-            '{"icp":"UK fintech","region":"UK"}',
+            json.dumps(BRIEF),
         ]
     )
 
     assert result.exit_code == 0
-    assert route.calls[0].request.content == (
-        b'{"name":"UK fintech","brief":{"icp":"UK fintech","region":"UK"}}'
-    )
+    assert json.loads(route.calls[0].request.content) == {"name": "UK fintech", "brief": BRIEF}
     assert "UK fintech" in result.output
     assert "region" in result.output
 
@@ -81,7 +84,7 @@ def test_create_json_keeps_the_detail(invoke, mock_api):
             "--name",
             "UK fintech",
             "--brief",
-            '{"icp":"UK fintech"}',
+            json.dumps(BRIEF),
             "--json",
         ]
     )
