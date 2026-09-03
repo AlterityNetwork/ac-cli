@@ -1103,7 +1103,8 @@ def capabilities_get(
     # Encoded, as `capabilities start` encodes it. The five IDs hold a dot and
     # letters, which a path segment carries as they are. A reserved character
     # in the argument would otherwise change the path this reads.
-    resp = _api_request("get", f"{_AGENTIC}/capabilities/{quote(capability_id, safe='')}")
+    capability_id = quote(capability_id, safe="")
+    resp = _api_request("get", f"{_AGENTIC}/capabilities/{capability_id}")
 
     data = resp.json()
     if json_output:
