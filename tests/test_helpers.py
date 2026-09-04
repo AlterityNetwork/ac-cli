@@ -245,3 +245,30 @@ def test_handle_connection_error_renders_a_close_tag(invoke, mock_api):
 
     assert result.exit_code == 1
     assert "[/urgent]" in result.output
+
+
+# -- header_safe_key -----------------------------------------------------------
+
+
+def test_header_safe_key_accepts_a_plain_key():
+    """One printable ASCII key of 1 to 200 characters travels in a header."""
+    from ac_cli.commands._helpers import header_safe_key
+
+    assert header_safe_key("delivery-42")
+    assert header_safe_key("x" * 200)
+
+
+def test_header_safe_key_refuses_a_padded_key():
+    """A header strips the outer space, so the sent key is not the typed key."""
+    from ac_cli.commands._helpers import header_safe_key
+
+    assert not header_safe_key(" delivery-42")
+    assert not header_safe_key("delivery-42 ")
+
+
+def test_header_safe_key_refuses_an_unsendable_key():
+    """Empty, oversize, control and non-ASCII keys cannot travel."""
+    from ac_cli.commands._helpers import header_safe_key
+
+    for key in ("", " ", "x" * 201, "line\nbreak", "tab\there", "del\x7f", "é"):
+        assert not header_safe_key(key), key

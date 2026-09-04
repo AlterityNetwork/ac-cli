@@ -11,6 +11,7 @@ from rich import print as rprint
 from ac_cli.commands._helpers import (
     JSON_OPTION,
     _api_request,
+    header_safe_key,
     set_json_mode,
     should_skip_confirm,
 )
@@ -88,13 +89,7 @@ def _checked_contract_version(version: int, *, json_output: bool) -> int:
 
 def _checked_key(key: str, *, json_output: bool) -> str:
     """Refuse a key that cannot travel in the request header."""
-    if (
-        key.strip()
-        and key == key.strip()
-        and len(key) <= 200
-        and key.isascii()
-        and all(32 <= ord(char) < 127 for char in key)
-    ):
+    if header_safe_key(key):
         return key
     _refuse(
         "--idempotency-key must contain 1–200 header-safe ASCII characters",

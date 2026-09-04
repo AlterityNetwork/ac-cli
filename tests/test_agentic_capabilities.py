@@ -92,6 +92,8 @@ def test_required_flags_cannot_default(invoke, mock_api, flag):
         ("--input", '{"limit":NaN}'),
         ("--input", '{"limit":Infinity}'),
         ("--idempotency-key", " "),
+        ("--idempotency-key", " delivery-42"),
+        ("--idempotency-key", "delivery-42 "),
         ("--idempotency-key", "x" * 201),
         ("--idempotency-key", "line\nbreak"),
         ("--idempotency-key", "é"),

@@ -90,6 +90,32 @@ def test_the_real_entry_set_holds_no_unknown_exemption() -> None:
     assert audit.NOT_IN_SPEC <= listed
 
 
+def test_the_agentic_prefix_is_registered_for_endpoint_discovery() -> None:
+    """Every capability path resolves through this one constant.
+
+    A capability call is an f-string over `_AGENTIC`. The audit substitutes
+    the constant to read the path, so a rename here turns all three capability
+    routes into false CLI-only entries.
+    """
+    assert audit.PATH_CONSTANTS["_AGENTIC"] == "/api/v1/agentic"
+
+
+def test_the_audit_finds_each_capability_command() -> None:
+    """The three capability routes must reach the parity gate.
+
+    `capabilities get` and `capabilities start` percent-encode the ID before
+    the f-string, so the literal path stays readable to the audit. This test
+    fails if that encoding moves back inside the f-string.
+    """
+    calls = audit.collect_cli_calls(audit.CLI_ROOT)
+
+    assert {
+        ("GET", "/api/v1/agentic/capabilities"),
+        ("GET", "/api/v1/agentic/capabilities/{id}"),
+        ("POST", "/api/v1/agentic/capabilities/{id}/runs"),
+    } <= calls
+
+
 def test_the_prospect_prefix_is_registered_for_endpoint_discovery() -> None:
     assert audit.PATH_CONSTANTS["_PROSPECTS"] == "/api/v1/agentic/prospects"
 
