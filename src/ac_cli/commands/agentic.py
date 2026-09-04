@@ -40,6 +40,7 @@ from ac_cli.commands._helpers import (
     JSON_OPTION,
     _api_request,
     _json_output,
+    header_safe_key,
     set_json_mode,
     should_skip_confirm,
 )
@@ -160,12 +161,7 @@ def capabilities_start(
     set_json_mode(json_output)
     if contract_version < 1:
         _refuse_option("--contract-version", "must be positive", contract_version)
-    if (
-        not idempotency_key.strip()
-        or len(idempotency_key) > 200
-        or not idempotency_key.isascii()
-        or any(ord(char) < 32 or ord(char) == 127 for char in idempotency_key)
-    ):
+    if not header_safe_key(idempotency_key):
         _refuse_option(
             "--idempotency-key", "must contain 1–200 header-safe ASCII characters", idempotency_key
         )
