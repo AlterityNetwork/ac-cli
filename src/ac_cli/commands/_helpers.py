@@ -196,3 +196,25 @@ def _build_body(**fields: object) -> dict:
             else:
                 body[key] = value
     return body
+
+
+def header_safe_key(key: str) -> bool:
+    """Reports whether one idempotency key can travel in a request header.
+
+    An HTTP header strips the outer whitespace of a value, so a padded key
+    reaches the server as a different key than the person typed. Refuse it
+    here, so the CLI and the server always name the same key.
+
+    Args:
+        key: The key the caller supplied.
+
+    Returns:
+        True when the key holds 1 to 200 printable ASCII characters and no
+        outer whitespace.
+    """
+    return (
+        bool(key)
+        and key == key.strip()
+        and len(key) <= 200
+        and all(32 <= ord(char) < 127 for char in key)
+    )
