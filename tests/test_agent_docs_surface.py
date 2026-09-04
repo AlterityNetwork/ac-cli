@@ -29,7 +29,7 @@ def registered_groups() -> set[str]:
 def documented_groups() -> set[str]:
     """Reads the first cell of every row of the Command Groups table."""
     table = CLAUDE_MD.read_text().split("## Command Groups", 1)[1]
-    table = table.split("Run `ac <group> --help>", 1)[0]
+    table = table.split("Run `ac <group> --help`", 1)[0]
 
     return set(re.findall(r"^\| `([a-z-]+)` \|", table, flags=re.MULTILINE))
 
@@ -63,8 +63,10 @@ def _is_path(value: ast.expr) -> bool:
         return isinstance(value.value, str) and value.value.startswith("/")
     if isinstance(value, ast.JoinedStr) and value.values:
         head = value.values[0]
+        if isinstance(head, ast.FormattedValue):
+            return isinstance(head.value, ast.Name)
 
-        return isinstance(head, ast.FormattedValue) and isinstance(head.value, ast.Name)
+        return isinstance(head, ast.Constant) and str(head.value).startswith("/")
 
     return False
 
