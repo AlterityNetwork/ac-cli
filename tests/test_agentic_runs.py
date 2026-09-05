@@ -9,6 +9,7 @@ import uuid
 
 import pytest
 
+from ac_cli.commands._helpers import HEADER_KEY_MAX_LENGTH
 from tests.conftest import UNSENDABLE_KEYS
 
 SAMPLE_RUN = {
@@ -1087,9 +1088,9 @@ def test_runs_start_never_mints_a_key_for_an_empty_flag(invoke, mock_api):
 
 
 def test_runs_start_sends_a_key_at_the_length_bound(invoke, mock_api):
-    """200 characters is the last length the header check accepts."""
+    """HEADER_KEY_MAX_LENGTH is the last length the header check accepts."""
     route = mock_api.post("/api/v1/agentic/runs").respond(200, json=SAMPLE_RUN)
-    key = "x" * 200
+    key = "x" * HEADER_KEY_MAX_LENGTH
 
     result = invoke(
         [
