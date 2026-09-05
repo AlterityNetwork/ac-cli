@@ -16,6 +16,10 @@ Every such argument must be one of:
 - a renderable the parser never reads: `Text`, `Table`, `Pretty`, `_cell`
 - a name, an `a if b else c` or an `a + b` built only from those
 
+The check also reads the value count of a `styled` call. A count that does not
+match raises ValueError, so the command exits 1 with no output — the same
+fault, from the helper that closes it.
+
 `add_column` is not checked. A header is the label side, and every call site
 passes a literal. See print_table in formatting.py.
 
@@ -32,6 +36,8 @@ from __future__ import annotations
 import ast
 import pathlib
 import sys
+
+from rich.text import Text
 
 # `rprint` is `rich.print`, and the CLI imports it under that name in every
 # command module. `<console>.print` and `<table>.add_row` reach the same
@@ -92,10 +98,17 @@ def _targets(node: ast.expr) -> list[str]:
 
 
 def _own_nodes(scope_node: ast.AST):
-    """Walks one scope, and stops at the body of a scope inside it."""
-    if isinstance(scope_node, ast.Lambda):
-        return
-    for field, value in ast.iter_fields(scope_node):
+    """Walks one scope, and stops at the body of a scope inside it.
+
+    A lambda yields its body only. Its arguments are names it binds, and
+    _build_scope has already read them.
+    """
+    fields = (
+        [("body", scope_node.body)]
+        if isinstance(scope_node, ast.Lambda)
+        else ast.iter_fields(scope_node)
+    )
+    for field, value in fields:
         children = value if isinstance(value, list) else [value]
         for child in children:
             if not isinstance(child, ast.AST):
@@ -184,9 +197,12 @@ class _Checker:
     @staticmethod
     def _child_scopes(scope_node: ast.AST):
         """Answers the scopes defined directly inside this one."""
-        if isinstance(scope_node, ast.Lambda):
-            return
-        for field, value in ast.iter_fields(scope_node):
+        fields = (
+            [("body", scope_node.body)]
+            if isinstance(scope_node, ast.Lambda)
+            else ast.iter_fields(scope_node)
+        )
+        for field, value in fields:
             children = value if isinstance(value, list) else [value]
             for child in children:
                 if isinstance(child, _SCOPE_NODES):
@@ -211,6 +227,30 @@ class _Checker:
 
     def _fail(self, lineno: int, source: ast.expr, why: str) -> None:
         self.failures.append((lineno, f"{why} — {ast.unparse(source)[:88]}"))
+
+    def _check_places(self, node: ast.Call, template: str, lineno: int) -> None:
+        """Fails when a styled call cannot fill its own template.
+
+        A wrong count raises ValueError at run time, and the command then
+        exits 1 with no output. That is the fault this file exists to stop.
+
+        The count is read the way styled reads it, and not by counting `{}`.
+        The two disagree for a `{}` inside a tag: `[link={}]{}[/link]` holds
+        two of them, and the parser eats the first into the tag. That call
+        site raises, and a count of `{}` alone calls it well formed.
+
+        Args:
+            node: The styled call, where args[0] is the template.
+            template: The literal template.
+            lineno: The line of the print call, which is what a reader fixes.
+        """
+        places = Text.from_markup(template.replace("{}", "\x00")).plain.count("\x00")
+        if places != template.count("{}"):
+            self._fail(lineno, node, "styled() has a {} inside a tag, which is not a place")
+            return
+        values = len(node.args) - 1
+        if places != values:
+            self._fail(lineno, node, f"styled() takes {places} value(s) here, and got {values}")
 
     def _check(self, node: ast.expr, lineno: int, scope: _Scope, seen: set[str]) -> None:
         """Adds a failure when this argument can reach the markup parser.
@@ -237,18 +277,7 @@ class _Checker:
                 if not isinstance(template, ast.Constant) or not isinstance(template.value, str):
                     self._check(template, lineno, scope, seen)
                     return
-                # A wrong count raises ValueError at run time, and the command
-                # then exits 1 with no output. That is the fault this file
-                # exists to stop, so read it here. A `{}` inside a tag cannot
-                # reach this: the parser eats the tag, so styled() never
-                # matches the count and no call site can hold one.
-                places = template.value.count("{}")
-                if places != len(node.args) - 1:
-                    self._fail(
-                        lineno,
-                        node,
-                        f"styled() takes {places} value(s) here, and got {len(node.args) - 1}",
-                    )
+                self._check_places(node, template.value, lineno)
             return
 
         if isinstance(node, ast.IfExp):
@@ -272,7 +301,14 @@ class _Checker:
             return
 
         if isinstance(node, (ast.GeneratorExp, ast.ListComp)):
-            self._check(node.elt, lineno, scope, seen)
+            # A comprehension holds its own targets, and each one can carry a
+            # value the CLI did not write. Read the element in a scope that
+            # binds them, so a target never borrows an enclosing name.
+            inner = _Scope(scope)
+            for generator in node.generators:
+                for name in _targets(generator.target):
+                    inner.bind(name, UNREADABLE)
+            self._check(node.elt, lineno, inner, seen)
             return
 
         if isinstance(node, ast.Name):

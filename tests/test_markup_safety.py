@@ -125,10 +125,57 @@ def test_the_gate_reports_one_argument_once(tmp_path):
     assert len(check_markup.check(module)) == 1
 
 
+def test_the_gate_fails_a_comprehension_target_that_shares_a_name(tmp_path):
+    """A comprehension holds its own target, and it can carry an API value.
+
+    This is the loop-target fault in another shape: the target shadowed a safe
+    name in the scope around it, and the gate then read the safe one.
+    """
+    module = tmp_path / "sample.py"
+    module.write_text(
+        'def show(rows):\n    name = "safe literal"\n    rprint(*(name for name in rows))\n'
+    )
+    assert check_markup.check(module) != []
+
+
+def test_the_gate_reads_a_print_inside_a_lambda(tmp_path):
+    """A lambda body is a scope, and nothing walked it."""
+    module = tmp_path / "sample.py"
+    module.write_text('show = lambda data: rprint(data["name"])\n')
+    assert check_markup.check(module) != []
+
+
+def test_the_gate_reads_a_print_inside_a_nested_lambda(tmp_path):
+    module = tmp_path / "sample.py"
+    module.write_text('def outer(rows):\n    render = lambda row: rprint(row["name"])\n')
+    assert check_markup.check(module) != []
+
+
+def test_the_gate_fails_a_styled_place_inside_a_tag(tmp_path):
+    """`[link={}]` reads as a tag, so the parser eats that place.
+
+    Counting `{}` calls the line well formed, and it raises ValueError at run
+    time. The gate reads the count the way styled does.
+    """
+    module = tmp_path / "sample.py"
+    module.write_text('rprint(styled("[link={}]{}[/link]", url, label))\n')
+    assert check_markup.check(module) != []
+
+
+def test_styled_raises_for_a_place_inside_a_tag():
+    """The gate and the helper must agree on what the template holds."""
+    import pytest
+
+    with pytest.raises(ValueError):
+        styled("[link={}]{}[/link]", "https://acme.com", "Acme")
+
+
 def test_every_styled_call_site_gives_the_right_value_count():
     """The count guard reads a literal template, and every call site has one."""
     for path in sorted(SRC.rglob("*.py")):
-        assert "styled() takes" not in " ".join(check_markup.check(path)), path
+        messages = " ".join(check_markup.check(path))
+        assert "styled() takes" not in messages, path
+        assert "inside a tag" not in messages, path
 
 
 # -- every styled template in the source ----------------------------------------
