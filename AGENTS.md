@@ -46,14 +46,17 @@ uv sync --all-extras       # Install with dev dependencies (pytest, respx)
 | `files` | Image upload/delete |
 | `workflows` | Runs, schedules, presets, csv-parse |
 | `apps` | Organization app install/config |
+| `agentic` | Agentic platform: capabilities, runs, definitions, tools, approvals, conversations, prospects, saved-searches, triggers, policies, limits |
+| `agents` | Managed agent runs (the live stack the agentic platform sits beside) |
+| `analytics` | Customer-facing organization analytics overview |
 | `admin` | Users, orgs, queues, demo, onboarding, app-usage, ai-usage, platform-activity, legal-docs, resources, apps, subscriptions, subscription-plans (super admin) |
 | `profiles` | User profile (incl. set-organization, set-password, subscription) |
 | `resources` | Knowledge base resource management |
 | `styles` | Writing styles |
 | `nylas` | Email integration, thread sync, attachment download |
-| `messaging` | Messaging platform sessions and account linking |
-| `hooks` | Platform hooks |
+| `notifications` | In-app notifications and per-channel preferences |
 | `health` | Health checks |
+| `auth` | Sign in, sign out, whoami (also promoted to top level) |
 | `env` | Environment switching (local, staging, production) |
 | `legal-docs` | Legal document retrieval and acceptance |
 | `tos` | Terms of service config, status, acceptance |
@@ -63,6 +66,12 @@ uv sync --all-extras       # Install with dev dependencies (pytest, respx)
 | `launchpad` | Signal-feed preferences, companies cleared from the feed |
 
 Run `ac <group> --help` for full subcommand listing.
+
+`tests/test_agent_docs_surface.py` holds this table to the `add_typer` calls in
+`main.py`. Add the row in the same commit as the group.
+
+The table documents the branch it is read on. `agentic` and `agents` exist on
+`agentic-platform` only until the Phase 7 cutover of ENG-2068.
 
 ## Agent-Friendly Features
 

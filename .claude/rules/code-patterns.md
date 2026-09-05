@@ -19,7 +19,7 @@ paths:
 - All commands use `_api_request()` helper from `commands/_helpers.py` for HTTP calls with built-in error handling
 - Use `_build_body()` helper from `commands/_helpers.py` to construct request bodies from non-None fields (handles tags splitting)
 - Package-based domains (crm, envoy, workflows, admin) have their own `__init__.py` with prefix constant and a simple callback for context initialization
-- Standalone domains (writing_styles, apps, nylas, hooks) are single-file modules with their own prefix constant and callback
+- Standalone domains (writing_styles, apps, nylas, notifications) are single-file modules with their own prefix constant and callback
 - `--json` is a subcommand-level option (not group-level) — use `JSON_OPTION` from `_helpers.py` on each command
 - IDs are positional `typer.Argument()`, optional fields are `typer.Option(None, ...)`
 - Tags: accept comma-separated string on CLI, `_build_body` splits to list automatically
@@ -28,29 +28,43 @@ paths:
 
 ## API Route Prefix
 - Each domain defines its own prefix constant in its `__init__.py` or module file:
+  - `_ADMIN = "/api/v1/admin"` in `admin/__init__.py`
+  - `_AGENTIC = "/api/v1/agentic"` in `agentic.py`
+  - `_AGENTS = "/api/v1/agents"` in `agents.py`
+  - `_ANALYTICS = "/api/v1/analytics"` in `analytics.py`
+  - `_APPS = "/api/v1/orgs"` in `apps.py`
+  - `_BASE = f"{_ADMIN}/searches"` in `admin/searches.py`
+  - `_BATTLECARDS = "/api/v1/battlecards"` in `envoy/battlecards.py` (top-level since ENG-592)
+  - `_CONVERSATIONS = "/api/v1/agentic/conversations"` in `conversations/__init__.py`
   - `_CRM = "/api/v1/crm"` in `crm/__init__.py`
   - `_ENVOY = "/api/v1/envoy"` in `envoy/__init__.py`
-  - `_BATTLECARDS = "/api/v1/battlecards"` in `envoy/battlecards.py` (top-level since ENG-592)
-  - `_PLAYBOOKS = "/api/v1/playbooks"` in `envoy/playbooks.py` (top-level since ENG-592)
-  - `_WORKFLOWS = "/api/v1/workflows"` in `workflows/__init__.py`
-  - `_ADMIN = "/api/v1/admin"` in `admin/__init__.py`
-  - `_CONVERSATIONS = "/api/v1/agentic/conversations"` in `conversations/__init__.py`
-  - `_PROFILES = "/api/v1/profiles"` in `profiles.py`
-  - `_STYLES = "/api/v1/writing-styles"` in `writing_styles.py`
-  - `_APPS = "/api/v1/orgs"` in `apps.py`
-  - `_NYLAS = "/api/v1/nylas"` in `nylas.py`
   - `_FILES = "/api/v1/files"` in `files/__init__.py`
-  - `_HOOKS = "/api/v1/platform/hooks"` in `hooks.py`
+  - `_IMPERSONATION = "/api/v1/impersonation"` in `admin/users.py`
+  - `_INTEL = f"{_ADMIN}/intelligence"` in `admin/intelligence/__init__.py`
+  - `_LAUNCHPAD = "/api/v1/launchpad"` in `launchpad/__init__.py`
   - `_LEGAL = "/api/v1/legal-documents"` in `legal_documents.py`
-  - `_TOS = "/api/v1/tos"` in `tos.py`
+  - `_MERGE = f"{_CRM}/companies/merge"` in `crm/merge.py`
   - `_MKT = "/api/v1/marketplace"` in `marketplace.py`
   - `_NET = "/api/v1/network"` in `network.py`
+  - `_NOTIFICATIONS = "/api/v1/notifications"` in `notifications.py`
+  - `_NYLAS = "/api/v1/nylas"` in `nylas.py`
   - `_ONBOARD = "/api/v1/managed-onboarding"` in `managed_onboarding.py`
+  - `_ONBOARDING = f"{_ADMIN}/onboarding"` in `admin/onboarding.py`
+  - `_PLAYBOOKS = "/api/v1/playbooks"` in `envoy/playbooks.py` (top-level since ENG-592)
+  - `_PROFILES = "/api/v1/profiles"` in `profiles.py`
+  - `_PROSPECTS = "/api/v1/agentic/prospects"` in `prospects/__init__.py`
+  - `_RESOURCES = "/api/v1/resources"` in `resources.py`
+  - `_SAVED_SEARCHES = "/api/v1/agentic/saved-searches"` in `saved_searches/__init__.py`
+  - `_STYLES = "/api/v1/writing-styles"` in `writing_styles.py`
+  - `_TOS = "/api/v1/tos"` in `tos.py`
+  - `_WORKFLOWS = "/api/v1/workflows"` in `workflows/__init__.py`
 - All domains share `_api_request()`, `_build_body()`, and `_handle_error()` from `commands/_helpers.py`
 - Non-versioned routes (`/whoami`, `/health`) use root paths directly
 - No trailing slashes on API paths
 - When adding a new path constant, also register it in `PATH_CONSTANTS` inside
-  `scripts/audit_endpoints.py` so the audit script can resolve f-string CLI calls
+  `scripts/audit_endpoints.py` so the audit script can resolve f-string CLI calls,
+  and add the row above. `tests/test_agent_docs_surface.py` holds this list to the
+  constants that `commands/` defines
 
 ## Error Handling
 - `_api_request()` catches both `httpx.HTTPStatusError` (API errors) and `httpx.HTTPError` (connection errors)
