@@ -53,7 +53,7 @@ def inbox_count(
     """Get inbox thread count."""
     from rich import print as rprint
 
-    from ac_cli.formatting import print_json
+    from ac_cli.formatting import as_text, print_json
 
     set_json_mode(json_output)
     resp = _api_request("get", f"{_ENVOY}/dashboard/inbox-count")
@@ -61,4 +61,4 @@ def inbox_count(
     if json_output:
         print_json(data)
     else:
-        rprint(f"Inbox count: {data.get('count', data)}")
+        rprint(as_text(f"Inbox count: {data.get('count', data)}"))

@@ -15,7 +15,7 @@ from ac_cli.commands._helpers import (
     should_skip_confirm,
 )
 from ac_cli.commands.admin import _ADMIN
-from ac_cli.formatting import print_detail, print_json, print_table
+from ac_cli.formatting import print_detail, print_json, print_table, styled
 
 subscription_plans_app = typer.Typer(help="Subscription plan catalog (super admin)")
 
@@ -26,7 +26,7 @@ def _features_from(features_json: str | None) -> dict | None:
     try:
         parsed = _json.loads(features_json)
     except _json.JSONDecodeError as exc:
-        rprint(f"[red]--features is not valid JSON: {exc}[/red]")
+        rprint(styled("[red]--features is not valid JSON: {}[/red]", exc))
         raise typer.Exit(code=2)
     if not isinstance(parsed, dict):
         rprint("[red]--features must be a JSON object[/red]")
@@ -123,7 +123,7 @@ def plans_create(
     if json_output:
         print_json(data)
     else:
-        rprint(f"[green]Created plan:[/green] {data.get('slug')} ({data.get('id')})")
+        rprint(styled("[green]Created plan:[/green] {} ({})", data.get("slug"), data.get("id")))
 
 
 @subscription_plans_app.command("update")
@@ -158,7 +158,7 @@ def plans_update(
     if json_output:
         print_json(data)
     else:
-        rprint(f"[green]Updated plan {plan_id}[/green]")
+        rprint(styled("[green]Updated plan {}[/green]", plan_id))
 
 
 @subscription_plans_app.command("delete")
@@ -170,4 +170,4 @@ def plans_delete(
     if not should_skip_confirm(yes):
         typer.confirm(f"Delete plan {plan_id}?", abort=True)
     _api_request("delete", f"{_ADMIN}/subscription-plans/{plan_id}")
-    rprint(f"[green]Deleted plan {plan_id}[/green]")
+    rprint(styled("[green]Deleted plan {}[/green]", plan_id))

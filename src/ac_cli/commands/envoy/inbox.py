@@ -5,9 +5,15 @@ from __future__ import annotations
 import typer
 from rich import print as rprint
 
-from ac_cli.commands._helpers import JSON_OPTION, _api_request, _build_body, set_json_mode
+from ac_cli.commands._helpers import (
+    JSON_OPTION,
+    _api_request,
+    _build_body,
+    _handle_connection_error,
+    set_json_mode,
+)
 from ac_cli.commands.envoy import _ENVOY
-from ac_cli.formatting import print_json, print_table
+from ac_cli.formatting import print_json, print_table, styled
 
 inbox_app = typer.Typer(help="Inbox thread operations")
 
@@ -107,7 +113,7 @@ def inbox_archive(
     if json_output:
         print_json(data)
     else:
-        rprint(f"[green]Archived thread {thread_id}[/green]")
+        rprint(styled("[green]Archived thread {}[/green]", thread_id))
 
 
 @inbox_app.command("unarchive")
@@ -124,7 +130,7 @@ def inbox_unarchive(
     if json_output:
         print_json(data)
     else:
-        rprint(f"[green]Unarchived thread {thread_id}[/green]")
+        rprint(styled("[green]Unarchived thread {}[/green]", thread_id))
 
 
 @inbox_app.command("assign")
@@ -144,7 +150,7 @@ def inbox_assign(
     if json_output:
         print_json(data)
     else:
-        rprint(f"[green]Assigned thread {thread_id} to {user_id}[/green]")
+        rprint(styled("[green]Assigned thread {} to {}[/green]", thread_id, user_id))
 
 
 @inbox_app.command("snooze")
@@ -164,7 +170,7 @@ def inbox_snooze(
     if json_output:
         print_json(data)
     else:
-        rprint(f"[green]Snoozed thread {thread_id} until {until}[/green]")
+        rprint(styled("[green]Snoozed thread {} until {}[/green]", thread_id, until))
 
 
 @inbox_app.command("complete")
@@ -181,7 +187,7 @@ def inbox_complete(
     if json_output:
         print_json(data)
     else:
-        rprint(f"[green]Completed thread {thread_id}[/green]")
+        rprint(styled("[green]Completed thread {}[/green]", thread_id))
 
 
 @inbox_app.command("update-status")
@@ -201,7 +207,7 @@ def inbox_update_status(
     if json_output:
         print_json(data)
     else:
-        rprint(f"[green]Updated thread {thread_id} status to {status}[/green]")
+        rprint(styled("[green]Updated thread {} status to {}[/green]", thread_id, status))
 
 
 @inbox_app.command("add-tags")
@@ -220,7 +226,7 @@ def inbox_add_tags(
     if json_output:
         print_json(data)
     else:
-        rprint(f"[green]Added tags to thread {thread_id}[/green]")
+        rprint(styled("[green]Added tags to thread {}[/green]", thread_id))
 
 
 @inbox_app.command("remove-tags")
@@ -249,14 +255,13 @@ def inbox_remove_tags(
 
             _handle_error(exc)
         except httpx.HTTPError as exc:
-            rprint(f"[red]Connection error:[/red] {exc}")
-            raise typer.Exit(code=1)
+            _handle_connection_error(exc)
 
     data = resp.json()
     if json_output:
         print_json(data)
     else:
-        rprint(f"[green]Removed tags from thread {thread_id}[/green]")
+        rprint(styled("[green]Removed tags from thread {}[/green]", thread_id))
 
 
 @inbox_app.command("reply")
@@ -276,4 +281,4 @@ def inbox_reply(
     if json_output:
         print_json(data)
     else:
-        rprint(f"[green]Replied to thread {thread_id}[/green]")
+        rprint(styled("[green]Replied to thread {}[/green]", thread_id))

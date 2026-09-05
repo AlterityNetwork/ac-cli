@@ -25,7 +25,7 @@ from ac_cli.commands._helpers import (
     should_skip_confirm,
 )
 from ac_cli.commands.crm import _CRM
-from ac_cli.formatting import print_json, print_table
+from ac_cli.formatting import print_json, print_table, styled
 
 pipeline_app = typer.Typer(help="Per-org deal pipeline stages")
 
@@ -74,7 +74,7 @@ def pipeline_stages_create(
     if json_output:
         print_json(data)
     else:
-        rprint(f"[green]Created stage:[/green] {data['label']} ({data['key']})")
+        rprint(styled("[green]Created stage:[/green] {} ({})", data["label"], data["key"]))
 
 
 @pipeline_app.command("update")
@@ -102,7 +102,7 @@ def pipeline_stages_update(
     if json_output:
         print_json(data)
     else:
-        rprint(f"[green]Updated stage:[/green] {data['label']} ({data['key']})")
+        rprint(styled("[green]Updated stage:[/green] {} ({})", data["label"], data["key"]))
 
 
 @pipeline_app.command("delete")
@@ -134,7 +134,7 @@ def pipeline_stages_delete(
     if json_output:
         print_json({"deleted": True, "id": stage_id, "reassign_to": reassign_to})
     else:
-        rprint(f"[green]Deleted stage:[/green] {stage_id}")
+        rprint(styled("[green]Deleted stage:[/green] {}", stage_id))
 
 
 @pipeline_app.command("reorder")
@@ -152,7 +152,7 @@ def pipeline_stages_reorder(
     try:
         parsed = _json.loads(items)
     except _json.JSONDecodeError as exc:
-        rprint(f"[red]--items must be valid JSON:[/red] {exc}")
+        rprint(styled("[red]--items must be valid JSON:[/red] {}", exc))
         raise typer.Exit(code=2) from exc
 
     if not isinstance(parsed, list):
@@ -165,4 +165,4 @@ def pipeline_stages_reorder(
     if json_output:
         print_json(data)
     else:
-        rprint(f"[green]Reordered {len(data)} stages.[/green]")
+        rprint(styled("[green]Reordered {} stages.[/green]", len(data)))

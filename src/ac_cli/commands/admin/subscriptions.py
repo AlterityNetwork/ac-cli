@@ -13,7 +13,7 @@ from ac_cli.commands._helpers import (
     should_skip_confirm,
 )
 from ac_cli.commands.admin import _ADMIN
-from ac_cli.formatting import print_detail, print_json, print_table
+from ac_cli.formatting import print_detail, print_json, print_table, styled
 
 subscriptions_app = typer.Typer(help="Manage org subscriptions (super admin)")
 
@@ -140,7 +140,7 @@ def subscriptions_create(
     if json_output:
         print_json(data)
     else:
-        rprint(f"[green]Created subscription {data.get('id')}[/green]")
+        rprint(styled("[green]Created subscription {}[/green]", data.get("id")))
 
 
 @subscriptions_app.command("update")
@@ -183,7 +183,7 @@ def subscriptions_update(
     if json_output:
         print_json(data)
     else:
-        rprint(f"[green]Updated subscription {subscription_id}[/green]")
+        rprint(styled("[green]Updated subscription {}[/green]", subscription_id))
 
 
 @subscriptions_app.command("delete")
@@ -195,7 +195,7 @@ def subscriptions_delete(
     if not should_skip_confirm(yes):
         typer.confirm(f"Delete subscription {subscription_id}?", abort=True)
     _api_request("delete", f"{_ADMIN}/subscriptions/{subscription_id}")
-    rprint(f"[green]Deleted subscription {subscription_id}[/green]")
+    rprint(styled("[green]Deleted subscription {}[/green]", subscription_id))
 
 
 @subscriptions_app.command("activate-billing")
@@ -223,7 +223,9 @@ def subscriptions_activate_billing(
     if json_output:
         print_json(data)
     else:
-        rprint(f"[green]Activated {subscription_id} (status: {data.get('status')})[/green]")
+        rprint(
+            styled("[green]Activated {} (status: {})[/green]", subscription_id, data.get("status"))
+        )
 
 
 @subscriptions_app.command("link")
@@ -261,8 +263,12 @@ def subscriptions_link(
         print_json(data)
     else:
         rprint(
-            f"[green]Linked {subscription_id} -> {stripe_subscription_id} "
-            f"(status: {data.get('status')})[/green]"
+            styled(
+                "[green]Linked {} -> {} (status: {})[/green]",
+                subscription_id,
+                stripe_subscription_id,
+                data.get("status"),
+            )
         )
 
 
@@ -285,7 +291,7 @@ def subscriptions_unlink(
     if json_output:
         print_json(data)
     else:
-        rprint(f"[green]Unlinked {subscription_id}[/green]")
+        rprint(styled("[green]Unlinked {}[/green]", subscription_id))
 
 
 @subscriptions_app.command("pause")
@@ -307,7 +313,7 @@ def subscriptions_pause(
     if json_output:
         print_json(data)
     else:
-        rprint(f"[green]Paused {subscription_id}[/green]")
+        rprint(styled("[green]Paused {}[/green]", subscription_id))
 
 
 @subscriptions_app.command("resume")
@@ -326,7 +332,9 @@ def subscriptions_resume(
     if json_output:
         print_json(data)
     else:
-        rprint(f"[green]Resumed {subscription_id} (status: {data.get('status')})[/green]")
+        rprint(
+            styled("[green]Resumed {} (status: {})[/green]", subscription_id, data.get("status"))
+        )
 
 
 @subscriptions_app.command("switch-comped")
@@ -349,7 +357,7 @@ def subscriptions_switch_comped(
     if json_output:
         print_json(data)
     else:
-        rprint(f"[green]Switched {subscription_id} to free (comped)[/green]")
+        rprint(styled("[green]Switched {} to free (comped)[/green]", subscription_id))
 
 
 @subscriptions_app.command("send-reminder")
@@ -371,7 +379,9 @@ def subscriptions_send_reminder(
     if json_output:
         print_json(data)
     else:
-        rprint(f"[green]Reminder sent (total {data.get('payment_reminder_count')})[/green]")
+        rprint(
+            styled("[green]Reminder sent (total {})[/green]", data.get("payment_reminder_count"))
+        )
 
 
 @subscriptions_app.command("worklists")

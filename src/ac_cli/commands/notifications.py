@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import typer
 from rich import print as rprint
+from rich.pretty import Pretty
 
 from ac_cli.commands._helpers import (
     JSON_OPTION,
@@ -11,7 +12,7 @@ from ac_cli.commands._helpers import (
     set_json_mode,
     should_skip_confirm,
 )
-from ac_cli.formatting import print_json, print_table
+from ac_cli.formatting import print_json, print_table, styled
 
 app = typer.Typer(help="In-app notifications")
 
@@ -69,7 +70,7 @@ def notifications_unread_count(
         print_json(data)
     else:
         count = data.get("count", data) if isinstance(data, dict) else data
-        rprint(f"[bold]Unread:[/bold] {count}")
+        rprint(styled("[bold]Unread:[/bold] {}", count))
 
 
 @app.command("read")
@@ -85,7 +86,7 @@ def notifications_read(
     if json_output:
         print_json({"ok": True, "id": notification_id, "action": "read"})
     else:
-        rprint(f"[green]Marked notification {notification_id} read[/green]")
+        rprint(styled("[green]Marked notification {} read[/green]", notification_id))
 
 
 @app.command("read-all")
@@ -123,7 +124,7 @@ def notifications_delete(
     if json_output:
         print_json({"ok": True, "id": notification_id, "action": "delete"})
     else:
-        rprint(f"[green]Deleted notification {notification_id}[/green]")
+        rprint(styled("[green]Deleted notification {}[/green]", notification_id))
 
 
 @app.command("preferences")
@@ -148,7 +149,7 @@ def notifications_preferences(
             title="Notification Preferences",
         )
     else:
-        rprint(items)
+        rprint(Pretty(items))
 
 
 @app.command("set-preference")
@@ -169,7 +170,7 @@ def notifications_set_preference(
         print_json(data or body)
     else:
         state = "enabled" if enabled else "disabled"
-        rprint(f"[green]Preference {type_}/{channel} {state}[/green]")
+        rprint(styled("[green]Preference {}/{} {}[/green]", type_, channel, state))
 
 
 @app.command("reset-preferences")

@@ -10,7 +10,7 @@ from rich import print as rprint
 from ac_cli.commands._helpers import JSON_OPTION, set_json_mode, should_skip_confirm
 from ac_cli.commands.crm import _api_request
 from ac_cli.commands.envoy import _ENVOY
-from ac_cli.formatting import print_json, print_table
+from ac_cli.formatting import print_json, print_table, styled
 
 recipients_app = typer.Typer(help="Sequence recipient operations")
 
@@ -121,8 +121,11 @@ def recipients_add(
     if needs_confirm and not reenroll:
         names = ", ".join((p.get("full_name") or p.get("prospect_id", "?")) for p in needs_confirm)
         rprint(
-            f"[yellow]{len(needs_confirm)} prospect(s) were previously in this "
-            f"sequence (removed/completed/error) and were NOT re-added: {names}[/yellow]"
+            styled(
+                "[yellow]{} prospect(s) were previously in this sequence (removed/completed/error) and were NOT re-added: {}[/yellow]",
+                len(needs_confirm),
+                names,
+            )
         )
         rprint("[yellow]Re-adding them may send them outreach again.[/yellow]")
         proceed = should_skip_confirm(False) or typer.confirm(
@@ -142,16 +145,20 @@ def recipients_add(
             needs_confirm = []
 
     if added:
-        rprint(f"[green]Added {len(added)} recipient(s) to sequence {sequence_id}[/green]")
+        rprint(
+            styled("[green]Added {} recipient(s) to sequence {}[/green]", len(added), sequence_id)
+        )
     if already_active:
-        rprint(f"[dim]{len(already_active)} already enrolled (skipped)[/dim]")
+        rprint(styled("[dim]{} already enrolled (skipped)[/dim]", len(already_active)))
     if needs_confirm:
         rprint(
-            f"[yellow]{len(needs_confirm)} previously-enrolled prospect(s) not re-added. "
-            f"Re-run with --reenroll to reactivate them.[/yellow]"
+            styled(
+                "[yellow]{} previously-enrolled prospect(s) not re-added. Re-run with --reenroll to reactivate them.[/yellow]",
+                len(needs_confirm),
+            )
         )
     if not added and not already_active and not needs_confirm:
-        rprint(f"[yellow]No recipients added to sequence {sequence_id}[/yellow]")
+        rprint(styled("[yellow]No recipients added to sequence {}[/yellow]", sequence_id))
 
 
 @recipients_app.command("remove")
@@ -166,4 +173,6 @@ def recipients_remove(
 
     _api_request("delete", f"{_ENVOY}/sequences/{sequence_id}/recipients/{recipient_id}")
 
-    rprint(f"[green]Removed recipient {recipient_id} from sequence {sequence_id}[/green]")
+    rprint(
+        styled("[green]Removed recipient {} from sequence {}[/green]", recipient_id, sequence_id)
+    )

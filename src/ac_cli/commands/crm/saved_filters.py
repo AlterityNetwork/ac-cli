@@ -16,7 +16,7 @@ from ac_cli.commands._helpers import (
     should_skip_confirm,
 )
 from ac_cli.commands.crm import _CRM
-from ac_cli.formatting import print_detail, print_json, print_table
+from ac_cli.formatting import print_detail, print_json, print_table, styled
 
 saved_filters_app = typer.Typer(help="Saved-filter presets for CRM list views")
 
@@ -28,7 +28,7 @@ def _parse_criteria(raw: str | None) -> dict[str, Any] | None:
     try:
         value = _json.loads(raw)
     except _json.JSONDecodeError as exc:
-        rprint(f"[red]--criteria must be valid JSON:[/red] {exc}")
+        rprint(styled("[red]--criteria must be valid JSON:[/red] {}", exc))
         raise typer.Exit(code=2) from exc
     if not isinstance(value, dict):
         rprint("[red]--criteria must decode to a JSON object[/red]")
@@ -125,7 +125,7 @@ def saved_filters_create(
     if json_output:
         print_json(data)
     else:
-        rprint(f"[green]Created saved filter:[/green] {data['name']} ({data['id']})")
+        rprint(styled("[green]Created saved filter:[/green] {} ({})", data["name"], data["id"]))
 
 
 @saved_filters_app.command("update")
@@ -157,7 +157,7 @@ def saved_filters_update(
     if json_output:
         print_json(data)
     else:
-        rprint(f"[green]Updated saved filter:[/green] {data['name']} ({data['id']})")
+        rprint(styled("[green]Updated saved filter:[/green] {} ({})", data["name"], data["id"]))
 
 
 @saved_filters_app.command("delete")
@@ -177,4 +177,4 @@ def saved_filters_delete(
     if json_output:
         print_json({"deleted": True, "id": filter_id})
     else:
-        rprint(f"[green]Deleted saved filter:[/green] {filter_id}")
+        rprint(styled("[green]Deleted saved filter:[/green] {}", filter_id))

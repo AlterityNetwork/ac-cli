@@ -12,7 +12,7 @@ from ac_cli.commands._helpers import (
     set_json_mode,
     should_skip_confirm,
 )
-from ac_cli.formatting import print_detail, print_json, print_table
+from ac_cli.formatting import print_detail, print_json, print_table, styled
 
 app = typer.Typer(help="Writing style operations")
 
@@ -118,7 +118,7 @@ def styles_create(
     if json_output:
         print_json(data)
     else:
-        rprint(f"[green]Created style:[/green] {data['style_name']} ({data['id']})")
+        rprint(styled("[green]Created style:[/green] {} ({})", data["style_name"], data["id"]))
 
 
 @app.command("update")
@@ -154,7 +154,7 @@ def styles_update(
     if json_output:
         print_json(data)
     else:
-        rprint(f"[green]Updated style:[/green] {data['style_name']} ({data['id']})")
+        rprint(styled("[green]Updated style:[/green] {} ({})", data["style_name"], data["id"]))
 
 
 @app.command("delete")
@@ -168,7 +168,7 @@ def styles_delete(
 
     _api_request("delete", f"{_STYLES}/{style_id}")
 
-    rprint(f"[green]Deleted style {style_id}[/green]")
+    rprint(styled("[green]Deleted style {}[/green]", style_id))
 
 
 @app.command("train")
@@ -186,7 +186,7 @@ def styles_train(
     if json_output:
         print_json(data)
     else:
-        rprint(f"[green]Training session started:[/green] {data['session_id']}")
+        rprint(styled("[green]Training session started:[/green] {}", data["session_id"]))
 
 
 @app.command("feedback")
@@ -209,7 +209,7 @@ def styles_feedback(
     if json_output:
         print_json(data)
     else:
-        rprint(f"[green]Feedback submitted for session {session_id}[/green]")
+        rprint(styled("[green]Feedback submitted for session {}[/green]", session_id))
 
 
 @app.command("iterate")
@@ -229,7 +229,7 @@ def styles_iterate(
     if json_output:
         print_json(data)
     else:
-        rprint(f"[green]Iteration submitted for session {session_id}[/green]")
+        rprint(styled("[green]Iteration submitted for session {}[/green]", session_id))
 
 
 @app.command("analyze")
@@ -246,4 +246,4 @@ def styles_analyze(
     if json_output:
         print_json(data)
     else:
-        rprint(f"[green]Analysis:[/green] {data.get('analysis', data)}")
+        rprint(styled("[green]Analysis:[/green] {}", data.get("analysis", data)))

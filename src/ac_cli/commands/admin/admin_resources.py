@@ -7,7 +7,7 @@ from rich import print as rprint
 
 from ac_cli.commands._helpers import JSON_OPTION, _api_request, set_json_mode, should_skip_confirm
 from ac_cli.commands.admin import _ADMIN
-from ac_cli.formatting import print_detail, print_json, print_table
+from ac_cli.formatting import print_detail, print_json, print_table, styled
 
 admin_resources_app = typer.Typer(help="Admin resource management")
 
@@ -89,7 +89,9 @@ def resources_upload(
     if json_output:
         print_json(data)
     else:
-        rprint(f"[green]Uploaded resource:[/green] {data.get('name', data.get('id', data))}")
+        rprint(
+            styled("[green]Uploaded resource:[/green] {}", data.get("name", data.get("id", data)))
+        )
 
 
 @admin_resources_app.command("chunks")
@@ -127,7 +129,7 @@ def resources_preview_url(
     if json_output:
         print_json(data)
     else:
-        rprint(f"[green]Preview URL:[/green] {data.get('url', data)}")
+        rprint(styled("[green]Preview URL:[/green] {}", data.get("url", data)))
 
 
 @admin_resources_app.command("update")
@@ -152,7 +154,7 @@ def resources_update(
     if json_output:
         print_json(data)
     else:
-        rprint(f"[green]Updated resource {resource_id}[/green]")
+        rprint(styled("[green]Updated resource {}[/green]", resource_id))
 
 
 @admin_resources_app.command("delete")
@@ -166,7 +168,7 @@ def resources_delete(
 
     _api_request("delete", f"{_ADMIN}/resources/{resource_id}")
 
-    rprint(f"[green]Deleted resource {resource_id}[/green]")
+    rprint(styled("[green]Deleted resource {}[/green]", resource_id))
 
 
 @admin_resources_app.command("reprocess")
@@ -183,4 +185,4 @@ def resources_reprocess(
     if json_output:
         print_json(data)
     else:
-        rprint(f"[green]Reprocessing resource {resource_id}[/green]")
+        rprint(styled("[green]Reprocessing resource {}[/green]", resource_id))

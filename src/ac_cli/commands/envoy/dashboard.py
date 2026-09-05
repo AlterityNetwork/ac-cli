@@ -6,7 +6,7 @@ from rich import print as rprint
 from ac_cli.commands._helpers import JSON_OPTION, set_json_mode
 from ac_cli.commands.crm import _api_request
 from ac_cli.commands.envoy import _ENVOY
-from ac_cli.formatting import print_json
+from ac_cli.formatting import as_text, print_json
 
 
 def dashboard_command(
@@ -23,8 +23,8 @@ def dashboard_command(
         return
 
     rprint("\n[bold]Envoy Dashboard[/bold]\n")
-    rprint(f"  Reply rate: {data.get('reply_rate', 0):.1%}")
-    rprint(f"  Emails sent: {data.get('emails_sent', 0)}")
-    rprint(f"  Meetings booked: {data.get('meetings_booked', 0)}")
-    rprint(f"  Active sessions: {data.get('active_sessions', 0)}")
-    rprint(f"  Ready for review: {data.get('ready_for_review', 0)}")
+    rprint(as_text(f"  Reply rate: {data.get('reply_rate', 0):.1%}"))
+    rprint(as_text(f"  Emails sent: {data.get('emails_sent', 0)}"))
+    rprint(as_text(f"  Meetings booked: {data.get('meetings_booked', 0)}"))
+    rprint(as_text(f"  Active sessions: {data.get('active_sessions', 0)}"))
+    rprint(as_text(f"  Ready for review: {data.get('ready_for_review', 0)}"))

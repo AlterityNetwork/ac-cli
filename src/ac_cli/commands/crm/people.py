@@ -15,7 +15,7 @@ from ac_cli.commands._helpers import (
     should_skip_confirm,
 )
 from ac_cli.commands.crm import _CRM, _api_request, _build_body
-from ac_cli.formatting import print_detail, print_json, print_table
+from ac_cli.formatting import print_detail, print_json, print_table, styled
 
 people_app = typer.Typer(help="People/contact operations")
 
@@ -173,7 +173,7 @@ def people_create(
         print_json(data)
     else:
         label = data.get("full_name") or data.get("email") or data["id"]
-        rprint(f"[green]Created person:[/green] {label} ({data['id']})")
+        rprint(styled("[green]Created person:[/green] {} ({})", label, data["id"]))
 
 
 @people_app.command("update")
@@ -236,7 +236,7 @@ def people_update(
         print_json(data)
     else:
         label = data.get("full_name") or data.get("email") or data["id"]
-        rprint(f"[green]Updated person:[/green] {label} ({data['id']})")
+        rprint(styled("[green]Updated person:[/green] {} ({})", label, data["id"]))
 
 
 @people_app.command("delete")
@@ -263,7 +263,7 @@ def people_delete(
     if json_output:
         print_json({"ok": True, "id": resolved, "action": "delete"})
     else:
-        rprint(f"[green]Deleted person {resolved}[/green]")
+        rprint(styled("[green]Deleted person {}[/green]", resolved))
 
 
 @people_app.command("bulk-upsert")
@@ -279,7 +279,7 @@ def people_bulk_upsert(
     set_json_mode(json_output)
     path = Path(file)
     if not path.exists():
-        rprint(f"[red]File not found:[/red] {file}")
+        rprint(styled("[red]File not found:[/red] {}", file))
         raise typer.Exit(code=1)
 
     try:
@@ -298,7 +298,7 @@ def people_bulk_upsert(
     if json_output:
         print_json(data)
     else:
-        rprint(f"[green]Upserted {data.get('count', 0)} people[/green]")
+        rprint(styled("[green]Upserted {} people[/green]", data.get("count", 0)))
 
 
 @people_app.command("bulk-delete")
@@ -322,7 +322,7 @@ def people_bulk_delete(
     if json_output:
         print_json({"ok": True, "ids": id_list, "count": len(id_list), "action": "bulk-delete"})
     else:
-        rprint(f"[green]Deleted {len(id_list)} people[/green]")
+        rprint(styled("[green]Deleted {} people[/green]", len(id_list)))
 
 
 def _split_ids(ids: str) -> list[str]:
@@ -346,7 +346,7 @@ def people_approve(
     if json_output:
         print_json(data)
     else:
-        rprint(f"[green]Approved {data.get('updated_count', 0)} people[/green]")
+        rprint(styled("[green]Approved {} people[/green]", data.get("updated_count", 0)))
 
 
 @people_app.command("mark-actioned")
@@ -376,7 +376,7 @@ def people_mark_actioned(
     if json_output:
         print_json(data)
     else:
-        rprint(f"[green]Marked {data.get('updated_count', 0)} people actioned[/green]")
+        rprint(styled("[green]Marked {} people actioned[/green]", data.get("updated_count", 0)))
 
 
 @people_app.command("unapprove")
@@ -392,4 +392,4 @@ def people_unapprove(
     if json_output:
         print_json(data)
     else:
-        rprint(f"[yellow]Unapproved {data.get('updated_count', 0)} people[/yellow]")
+        rprint(styled("[yellow]Unapproved {} people[/yellow]", data.get("updated_count", 0)))

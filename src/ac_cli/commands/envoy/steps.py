@@ -8,7 +8,7 @@ from rich import print as rprint
 from ac_cli.commands._helpers import JSON_OPTION, set_json_mode, should_skip_confirm
 from ac_cli.commands.crm import _api_request, _build_body
 from ac_cli.commands.envoy import _ENVOY
-from ac_cli.formatting import print_json, print_table
+from ac_cli.formatting import print_json, print_table, styled
 
 steps_app = typer.Typer(help="Sequence step operations")
 
@@ -44,7 +44,11 @@ def steps_create(
     if json_output:
         print_json(data)
     else:
-        rprint(f"[green]Created step:[/green] {data.get('step_type', step_type)} ({data['id']})")
+        rprint(
+            styled(
+                "[green]Created step:[/green] {} ({})", data.get("step_type", step_type), data["id"]
+            )
+        )
 
 
 @steps_app.command("update")
@@ -79,7 +83,7 @@ def steps_update(
     if json_output:
         print_json(data)
     else:
-        rprint(f"[green]Updated step {step_id}[/green]")
+        rprint(styled("[green]Updated step {}[/green]", step_id))
 
 
 @steps_app.command("delete")
@@ -94,7 +98,7 @@ def steps_delete(
 
     _api_request("delete", f"{_ENVOY}/sequences/{sequence_id}/steps/{step_id}")
 
-    rprint(f"[green]Deleted step {step_id}[/green]")
+    rprint(styled("[green]Deleted step {}[/green]", step_id))
 
 
 @steps_app.command("reorder")
@@ -117,7 +121,9 @@ def steps_reorder(
     if json_output:
         print_json(data)
     else:
-        rprint(f"[green]Reordered {len(ids_list)} steps in sequence {sequence_id}[/green]")
+        rprint(
+            styled("[green]Reordered {} steps in sequence {}[/green]", len(ids_list), sequence_id)
+        )
 
 
 @steps_app.command("stats")
@@ -170,6 +176,9 @@ def steps_retry(
         print_json(data)
     else:
         rprint(
-            f"[green]Re-queued {data.get('retried', 0)} failed recipient(s) "
-            f"for step {step_id}[/green]"
+            styled(
+                "[green]Re-queued {} failed recipient(s) for step {}[/green]",
+                data.get("retried", 0),
+                step_id,
+            )
         )

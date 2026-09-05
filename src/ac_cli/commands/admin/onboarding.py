@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import typer
 from rich import print as rprint
+from rich.pretty import Pretty
 
 from ac_cli.commands._helpers import (
     JSON_OPTION,
@@ -13,7 +14,7 @@ from ac_cli.commands._helpers import (
     should_skip_confirm,
 )
 from ac_cli.commands.admin import _ADMIN
-from ac_cli.formatting import print_json, print_table
+from ac_cli.formatting import as_text, print_json, print_table, styled
 
 onboarding_app = typer.Typer(help="Managed onboarding account management")
 
@@ -148,7 +149,7 @@ def onboarding_get(
     if json_output:
         print_json(data)
     else:
-        rprint(data)
+        rprint(Pretty(data))
 
 
 @onboarding_app.command("delete")
@@ -162,7 +163,7 @@ def onboarding_delete(
 
     _api_request("delete", f"{_ONBOARDING}/accounts/{org_id}")
 
-    rprint(f"[green]Deleted managed account {org_id}[/green]")
+    rprint(styled("[green]Deleted managed account {}[/green]", org_id))
 
 
 @onboarding_app.command("send-link")
@@ -185,7 +186,7 @@ def onboarding_send_link(
         print_json(data)
         return
 
-    rprint(f"[green]Onboarding link:[/green] {data.get('onboarding_link', '')}")
+    rprint(styled("[green]Onboarding link:[/green] {}", data.get("onboarding_link", "")))
     if data.get("email_sent"):
         rprint("[green]Email sent successfully[/green]")
 
@@ -205,7 +206,7 @@ def onboarding_impersonate(
         print_json(data)
         return
 
-    rprint(f"[green]Magic link:[/green] {data.get('magic_link', '')}")
+    rprint(styled("[green]Magic link:[/green] {}", data.get("magic_link", "")))
 
 
 @onboarding_app.command("end-impersonation")
@@ -223,7 +224,7 @@ def onboarding_end_impersonation(
         print_json(data)
         return
 
-    rprint(f"[green]Impersonation ended for {org_id}[/green]")
+    rprint(styled("[green]Impersonation ended for {}[/green]", org_id))
 
 
 @onboarding_app.command("activate")
@@ -250,9 +251,9 @@ def onboarding_activate(
         print_json(data)
         return
 
-    rprint(f"[green]Account {org_id} activated[/green]")
+    rprint(styled("[green]Account {} activated[/green]", org_id))
     if data.get("status"):
-        rprint(f"Status: {data['status']}")
+        rprint(as_text(f"Status: {data['status']}"))
 
 
 @onboarding_app.command("deactivate")
@@ -270,9 +271,9 @@ def onboarding_deactivate(
         print_json(data)
         return
 
-    rprint(f"[green]Account {org_id} deactivated[/green]")
+    rprint(styled("[green]Account {} deactivated[/green]", org_id))
     if data.get("status"):
-        rprint(f"Status: {data['status']}")
+        rprint(as_text(f"Status: {data['status']}"))
 
 
 @onboarding_app.command("update-config")
@@ -300,7 +301,7 @@ def onboarding_update_config(
         print_json(data)
         return
 
-    rprint(f"[green]Updated onboarding config for {org_id}[/green]")
+    rprint(styled("[green]Updated onboarding config for {}[/green]", org_id))
 
 
 @onboarding_app.command("get-settings")
@@ -316,7 +317,7 @@ def onboarding_get_settings(
     if json_output:
         print_json(data)
     else:
-        rprint(data)
+        rprint(Pretty(data))
 
 
 @onboarding_app.command("update-settings")

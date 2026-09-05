@@ -10,7 +10,7 @@ from rich import print as rprint
 
 from ac_cli.commands._helpers import JSON_OPTION, _get_org_id, set_json_mode
 from ac_cli.commands.crm import _CRM, _api_request
-from ac_cli.formatting import print_json, print_table
+from ac_cli.formatting import as_text, print_json, print_table, styled
 
 imports_app = typer.Typer(help="Import operations")
 
@@ -35,13 +35,13 @@ def import_preview(
     """Preview an import from a JSON file."""
     set_json_mode(json_output)
     if not file.exists():
-        rprint(f"[red]File not found:[/red] {file}")
+        rprint(styled("[red]File not found:[/red] {}", file))
         raise typer.Exit(code=1)
 
     try:
         items = json_lib.loads(file.read_text())
     except json_lib.JSONDecodeError:
-        rprint(f"[red]Invalid JSON in file:[/red] {file}")
+        rprint(styled("[red]Invalid JSON in file:[/red] {}", file))
         raise typer.Exit(code=1)
 
     body = {
@@ -57,13 +57,13 @@ def import_preview(
         return
 
     preview_id = data.get("preview_id", "?")
-    rprint(f"\n[bold]Import Preview[/bold] (ID: {preview_id})\n")
+    rprint(styled("\n[bold]Import Preview[/bold] (ID: {})\n", preview_id))
 
     preview_items = data.get("items", [])
     counts = Counter(i.get("proposed_action", "?") for i in preview_items)
-    rprint(f"  Create: {counts.get('create', 0)}")
-    rprint(f"  Merge: {counts.get('merge', 0)}")
-    rprint(f"  Skip: {counts.get('skip', 0)}")
+    rprint(as_text(f"  Create: {counts.get('create', 0)}"))
+    rprint(as_text(f"  Merge: {counts.get('merge', 0)}"))
+    rprint(as_text(f"  Skip: {counts.get('skip', 0)}"))
 
     if preview_items:
         rows = []
@@ -109,13 +109,13 @@ def import_commit(
     """Commit a previewed import by accepting each item's proposed action."""
     set_json_mode(json_output)
     if not preview_file.exists():
-        rprint(f"[red]File not found:[/red] {preview_file}")
+        rprint(styled("[red]File not found:[/red] {}", preview_file))
         raise typer.Exit(code=1)
 
     try:
         preview = json_lib.loads(preview_file.read_text())
     except json_lib.JSONDecodeError:
-        rprint(f"[red]Invalid JSON in file:[/red] {preview_file}")
+        rprint(styled("[red]Invalid JSON in file:[/red] {}", preview_file))
         raise typer.Exit(code=1)
 
     preview_id = preview.get("preview_id")
@@ -147,9 +147,11 @@ def import_commit(
     results = data.get("results", [])
     counts = Counter(r.get("status", "?") for r in results)
     rprint(
-        f"[green]Import committed:[/green] "
-        f"{counts.get('created', 0)} created, "
-        f"{counts.get('merged', 0)} merged, "
-        f"{counts.get('skipped', 0)} skipped, "
-        f"{counts.get('failed', 0)} failed"
+        styled(
+            "[green]Import committed:[/green] {} created, {} merged, {} skipped, {} failed",
+            counts.get("created", 0),
+            counts.get("merged", 0),
+            counts.get("skipped", 0),
+            counts.get("failed", 0),
+        )
     )

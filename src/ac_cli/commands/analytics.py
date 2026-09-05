@@ -6,7 +6,7 @@ import typer
 from rich import print as rprint
 
 from ac_cli.commands._helpers import JSON_OPTION, _api_request, set_json_mode
-from ac_cli.formatting import print_json, print_table
+from ac_cli.formatting import as_text, print_json, print_table, styled
 
 app = typer.Typer(help="Customer-facing org analytics")
 
@@ -59,8 +59,12 @@ def analytics_overview(
         return
 
     rprint(
-        f"[bold]Org analytics[/bold] {data.get('start_date')} to {data.get('end_date')}"
-        f" ({data.get('period_days')} days)"
+        styled(
+            "[bold]Org analytics[/bold] {} to {} ({} days)",
+            data.get("start_date"),
+            data.get("end_date"),
+            data.get("period_days"),
+        )
     )
     rows = []
     for key, label in _DELTA_METRICS:
@@ -87,8 +91,8 @@ def analytics_overview(
         ],
         title="Period metrics",
     )
-    rprint(f"  Reply rate: {data.get('reply_rate', 0.0):.1f}%")
-    rprint(f"  Task completion rate: {data.get('task_completion_rate', 0.0):.1f}%")
-    rprint(f"  Active sequences: {data.get('sequences_active', 0)}")
-    rprint(f"  Companies total: {data.get('companies_total', 0)}")
-    rprint(f"  People total: {data.get('people_total', 0)}")
+    rprint(as_text(f"  Reply rate: {data.get('reply_rate', 0.0):.1f}%"))
+    rprint(as_text(f"  Task completion rate: {data.get('task_completion_rate', 0.0):.1f}%"))
+    rprint(as_text(f"  Active sequences: {data.get('sequences_active', 0)}"))
+    rprint(as_text(f"  Companies total: {data.get('companies_total', 0)}"))
+    rprint(as_text(f"  People total: {data.get('people_total', 0)}"))

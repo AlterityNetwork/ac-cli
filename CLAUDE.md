@@ -70,7 +70,9 @@ src/ac_cli/
     _helpers.py        → Shared helpers (_api_request, _build_body, _get_org_id, exit codes)
 tests/                 → One test file per command group (test_<domain>_<group>.py)
 scripts/               → bump.sh (manual version), auto-version-tag.sh (post-commit hook),
-                         lint.sh (ruff lint + format), audit_endpoints.py (CLI vs API endpoint diff)
+                         lint.sh (ruff lint + format + markup gate),
+                         check_markup.py (no unwrapped value reaches rich markup),
+                         audit_endpoints.py (CLI vs API endpoint diff)
 ```
 
 ## Running Checks
@@ -81,6 +83,7 @@ uv run pytest tests/test_crm_companies.py  # Single file
 uv run python -m ac_cli.main --help        # Verify CLI loads
 ./scripts/lint.sh                          # Ruff lint + format check
 ./scripts/lint.sh --fix                    # Ruff auto-fix + format
+uv run python scripts/check_markup.py      # No unwrapped value reaches rich markup
 uv run vulture src/                        # Dead-code scan
 uv run deptry src/                         # Dependency hygiene
 python scripts/audit_endpoints.py --strict # Diff CLI calls vs live OpenAPI

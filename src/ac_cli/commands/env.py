@@ -11,7 +11,7 @@ from ac_cli.config import (
     load_full_config,
     set_active_env,
 )
-from ac_cli.formatting import as_text, print_json
+from ac_cli.formatting import as_text, print_json, styled
 
 app = typer.Typer(help="Manage CLI environments (local, staging, production)")
 
@@ -93,7 +93,7 @@ def show(
     rprint("[bold]API URL:[/bold]    ", as_text(info["api_url"]))
     rprint("[bold]Supabase:[/bold]   ", as_text(info["supabase_url"]))
     status = "[green]logged in[/green]" if info["logged_in"] else "[dim]not logged in[/dim]"
-    rprint(f"[bold]Status:[/bold]      {status}")
+    rprint("[bold]Status:[/bold]     ", status)
 
 
 @app.command()
@@ -103,7 +103,7 @@ def use(
     """Switch the active environment."""
     if name not in ENV_NAMES:
         rprint("[red]Unknown environment:[/red]", as_text(name))
-        rprint(f"Available: {', '.join(ENV_NAMES)}")
+        rprint(as_text(f"Available: {', '.join(ENV_NAMES)}"))
         raise typer.Exit(code=1)
 
     full = load_full_config()
@@ -111,6 +111,12 @@ def use(
     set_active_env(name)
 
     if not env_data.get("access_token"):
-        rprint(f"[yellow]Switched to {name} (not logged in — run `ac login --env {name}`)[/yellow]")
+        rprint(
+            styled(
+                "[yellow]Switched to {} (not logged in — run `ac login --env {}`)[/yellow]",
+                name,
+                name,
+            )
+        )
     else:
-        rprint(f"[green]Switched to {name}[/green]")
+        rprint(styled("[green]Switched to {}[/green]", name))
