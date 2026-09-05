@@ -2,7 +2,7 @@
 
 import contextvars
 import os
-from typing import NoReturn
+from typing import Final, NoReturn
 
 import httpx
 import typer
@@ -18,6 +18,12 @@ JSON_OPTION = typer.Option(False, "--json", help="Output raw JSON")
 _EXIT_CODES = {401: 4, 403: 4, 404: 3, 409: 5, 422: 2}
 
 _KEY_FLAG = "--idempotency-key"
+
+# The longest idempotency key a command sends. `ac-python-api` names the same
+# number in `src/shared/idempotency.py`, and every route that reads the header
+# refuses one character more. A smaller number here refuses a key the API
+# accepts, and nothing then names which side is right.
+HEADER_KEY_MAX_LENGTH: Final[int] = 255
 
 
 def set_json_mode(enabled: bool) -> None:
@@ -228,20 +234,20 @@ def header_safe_key(key: str) -> bool:
     A tab and DEL travel with no error. This function refuses them too. An
     invisible character makes two keys that look equal name two deliveries.
 
-    The bound is 200 characters. The agentic run and conversation routes cap
-    the header at 255, so this bound is the stricter of the two.
+    The bound is HEADER_KEY_MAX_LENGTH characters, and every route of the API
+    that reads this header names the same number.
 
     Args:
         key: The key the caller supplied.
 
     Returns:
-        True when the key holds 1 to 200 printable ASCII characters and no
-        outer whitespace.
+        True when the key holds 1 to HEADER_KEY_MAX_LENGTH printable ASCII
+        characters and no outer whitespace.
     """
     return (
         bool(key)
         and key == key.strip()
-        and len(key) <= 200
+        and len(key) <= HEADER_KEY_MAX_LENGTH
         and all(32 <= ord(char) < 127 for char in key)
     )
 
@@ -301,4 +307,4 @@ def checked_header_key(key: str) -> str:
     """
     if header_safe_key(key):
         return key
-    refuse_local(f"{_KEY_FLAG} must contain 1–200 header-safe ASCII characters")
+    refuse_local(f"{_KEY_FLAG} must contain 1–{HEADER_KEY_MAX_LENGTH} header-safe ASCII characters")
