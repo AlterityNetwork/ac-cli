@@ -14,7 +14,6 @@ engineering/system-design/agentic-platform/interfaces/surfaces.md, Web chat.
 from __future__ import annotations
 
 import uuid
-from typing import NoReturn
 
 import typer
 from rich import print as rprint
@@ -23,6 +22,7 @@ from ac_cli.commands._helpers import (
     JSON_OPTION,
     _api_request,
     checked_header_key,
+    refuse_local,
     set_json_mode,
 )
 from ac_cli.formatting import as_text, print_detail, print_json, print_table
@@ -64,30 +64,12 @@ _MESSAGE_FIELDS = [
 ]
 
 
-def _refuse(detail: str, *, json_output: bool) -> NoReturn:
-    """Reports one local input error in the requested output shape.
-
-    Args:
-        detail: What the caller must change.
-        json_output: Whether the caller asked for JSON.
-
-    Raises:
-        typer.Exit: Always, with code 2.
-    """
-    if json_output:
-        print_json({"error": True, "status_code": None, "detail": detail})
-    else:
-        rprint("[red]Invalid option:[/red]", as_text(detail))
-    raise typer.Exit(code=2)
-
-
-def _page_params(limit: int, cursor: str | None, *, json_output: bool) -> dict[str, object]:
+def _page_params(limit: int, cursor: str | None) -> dict[str, object]:
     """Builds the query of one page, and refuses a size the API refuses.
 
     Args:
         limit: The page size the caller asked for.
         cursor: The position a previous page returned.
-        json_output: Whether the caller asked for JSON.
 
     Returns:
         The query parameters.
@@ -96,7 +78,7 @@ def _page_params(limit: int, cursor: str | None, *, json_output: bool) -> dict[s
         typer.Exit: The limit is outside 1 to 100.
     """
     if not _PAGE_MIN <= limit <= _PAGE_MAX:
-        _refuse(f"--limit is {_PAGE_MIN} to {_PAGE_MAX}", json_output=json_output)
+        refuse_local(f"--limit is {_PAGE_MIN} to {_PAGE_MAX}")
     params: dict[str, object] = {"limit": limit}
     if cursor:
         params["cursor"] = cursor
@@ -128,7 +110,7 @@ def conversations_list(
     data = _api_request(
         "get",
         _CONVERSATIONS,
-        params=_page_params(limit, cursor, json_output=json_output),
+        params=_page_params(limit, cursor),
     ).json()
     if json_output:
         print_json(data)
@@ -168,7 +150,7 @@ def conversations_messages(
     data = _api_request(
         "get",
         f"{_CONVERSATIONS}/{conversation_id}/messages",
-        params=_page_params(limit, cursor, json_output=json_output),
+        params=_page_params(limit, cursor),
     ).json()
     if json_output:
         print_json(data)

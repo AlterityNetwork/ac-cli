@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import json
-from typing import NoReturn
 
 import typer
 from rich import print as rprint
@@ -12,6 +11,7 @@ from ac_cli.commands._helpers import (
     JSON_OPTION,
     _api_request,
     checked_header_key,
+    refuse_local,
     set_json_mode,
     should_skip_confirm,
 )
@@ -50,46 +50,34 @@ _DIFF_FIELDS = [
 ]
 
 
-def _refuse(detail: str, *, json_output: bool) -> NoReturn:
-    """Report one local input error in the requested output shape."""
-    if json_output:
-        print_json({"error": True, "status_code": None, "detail": detail})
-    else:
-        rprint("[red]Invalid option:[/red]", as_text(detail))
-    raise typer.Exit(code=2)
-
-
-def _parse_object(raw: str, flag: str, *, json_output: bool) -> dict:
+def _parse_object(raw: str, flag: str) -> dict:
     """Parse one required JSON object flag."""
     try:
         value = json.loads(raw)
     except json.JSONDecodeError:
-        _refuse(f"{flag} is not valid JSON", json_output=json_output)
+        refuse_local(f"{flag} is not valid JSON")
     if not isinstance(value, dict):
-        _refuse(f"{flag} must be a JSON object", json_output=json_output)
+        refuse_local(f"{flag} must be a JSON object")
     return value
 
 
-def _checked_limit(limit: int, *, json_output: bool) -> int:
+def _checked_limit(limit: int) -> int:
     """Refuse a page size that the API refuses."""
     if _PAGE_MIN <= limit <= _PAGE_MAX:
         return limit
-    _refuse(
-        f"--limit is not between {_PAGE_MIN} and {_PAGE_MAX}: {limit}",
-        json_output=json_output,
-    )
+    refuse_local(f"--limit is not between {_PAGE_MIN} and {_PAGE_MAX}", limit)
 
 
-def _checked_contract_version(version: int, *, json_output: bool) -> int:
+def _checked_contract_version(version: int) -> int:
     """Refuse a version that the stable capability contract refuses."""
     if version >= 1:
         return version
-    _refuse("--contract-version must be positive", json_output=json_output)
+    refuse_local("--contract-version must be positive")
 
 
-def _page_params(limit: int, cursor: str | None, *, json_output: bool) -> dict[str, object]:
+def _page_params(limit: int, cursor: str | None) -> dict[str, object]:
     """Build one page query and preserve an explicit empty cursor."""
-    params: dict[str, object] = {"limit": _checked_limit(limit, json_output=json_output)}
+    params: dict[str, object] = {"limit": _checked_limit(limit)}
     if cursor is not None:
         params["cursor"] = cursor
     return params
@@ -127,7 +115,7 @@ def saved_searches_create(
     set_json_mode(json_output)
     body = {
         "name": name,
-        "brief": _parse_object(brief, "--brief", json_output=json_output),
+        "brief": _parse_object(brief, "--brief"),
     }
     data = _api_request("post", _SAVED_SEARCHES, json=body).json()
     if json_output:
@@ -148,7 +136,7 @@ def saved_searches_list(
     data = _api_request(
         "get",
         _SAVED_SEARCHES,
-        params=_page_params(limit, cursor, json_output=json_output),
+        params=_page_params(limit, cursor),
     ).json()
     if json_output:
         print_json(data)
@@ -192,12 +180,12 @@ def saved_searches_patch(
     """Replace the name, brief, or both under one write token."""
     set_json_mode(json_output)
     if name is None and brief is None:
-        _refuse("provide --name or --brief", json_output=json_output)
+        refuse_local("provide --name or --brief")
     body: dict = {"expected_updated_at": expected_updated_at}
     if name is not None:
         body["name"] = name
     if brief is not None:
-        body["brief"] = _parse_object(brief, "--brief", json_output=json_output)
+        body["brief"] = _parse_object(brief, "--brief")
     data = _api_request("patch", f"{_SAVED_SEARCHES}/{search_id}", json=body).json()
     if json_output:
         print_json(data)
@@ -239,7 +227,7 @@ def saved_searches_start(
 ) -> None:
     """Start one Run with the stored brief and current baseline."""
     set_json_mode(json_output)
-    version = _checked_contract_version(contract_version, json_output=json_output)
+    version = _checked_contract_version(contract_version)
     key = checked_header_key(idempotency_key)
     data = _api_request(
         "post",
@@ -275,7 +263,7 @@ def saved_searches_diff(
     data = _api_request(
         "get",
         f"{_SAVED_SEARCHES}/{search_id}/diff",
-        params=_page_params(limit, cursor, json_output=json_output),
+        params=_page_params(limit, cursor),
     ).json()
     if json_output:
         print_json(data)
