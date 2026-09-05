@@ -65,12 +65,20 @@ def test_list_sends_the_cursor_and_the_limit(invoke, mock_api):
 
 
 def test_list_refuses_a_page_size_the_api_refuses(invoke, mock_api):
-    """The flag carries the API bounds, so a bad size never travels."""
+    """The flag carries the API bounds, so a bad size never travels.
+
+    The refusal answers JSON, because refuse_local reads a contextvar that
+    set_json_mode writes. A command that refuses before it calls set_json_mode
+    answers human text to a poll, and this assertion is what catches that.
+    """
     route = mock_api.get(BASE).respond(200, json={"items": [], "next_cursor": None})
 
     result = invoke(["agentic", "conversations", "list", "--limit", "101", "--json"])
 
     assert result.exit_code == 2
+    body = json.loads(result.output)
+    assert body["error"] is True
+    assert "--limit" in body["detail"]
     assert not route.called
 
 
