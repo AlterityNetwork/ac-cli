@@ -16,11 +16,11 @@ console = Console()
 # above at others. It owns a highlighter so the two agree.
 _highlighter = ReprHighlighter()
 
-# Every C0 and C1 control character except the tab and the newline. The tab and
-# the newline carry text, and a mail body holds both. The rest carry commands:
-# `\x1b` opens an ANSI sequence, `\u009b` opens one on its own, and `\r` moves
-# the cursor back over the line the CLI already wrote.
-_CONTROL_CHARS = set(range(0x00, 0x20)) - {0x09, 0x0A} | {0x7F} | set(range(0x80, 0xA0))
+# Every C0 and C1 control character except the tab, the newline and the
+# carriage return. The tab and the newline carry text, and _visible reads the
+# carriage return as a line ending. The rest carry commands: `\x1b` opens an
+# ANSI sequence, and `\u009b` opens one on its own.
+_CONTROL_CHARS = set(range(0x00, 0x20)) - {0x09, 0x0A, 0x0D} | {0x7F} | set(range(0x80, 0xA0))
 _CONTROL_TABLE = {code: f"\\x{code:02x}" for code in _CONTROL_CHARS}
 
 
@@ -35,13 +35,19 @@ def _visible(value: object) -> str:
 
     The tab and the newline stay, because both carry text.
 
+    A mail body ends each line with CRLF, so the carriage return is a line
+    ending and not a cursor move. It becomes a newline. Rich removes it too
+    (`rich.control.STRIP_CONTROL_CODES`), so this keeps what a reader saw
+    before and does not depend on that list.
+
     Args:
         value: What the record holds, of any type.
 
     Returns:
         The value as text, with each control byte replaced by its escape.
     """
-    return str(value).translate(_CONTROL_TABLE)
+    text = str(value).replace("\r\n", "\n").replace("\r", "\n")
+    return text.translate(_CONTROL_TABLE)
 
 
 def as_text(value: object) -> Text:

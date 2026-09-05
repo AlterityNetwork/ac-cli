@@ -60,7 +60,7 @@ def list_envs(
         api_url = env_data.get("api_url", ENVIRONMENTS[name]["api_url"])
         logged_in = bool(env_data.get("access_token"))
         status = "[green]logged in[/green]" if logged_in else "[dim]not logged in[/dim]"
-        table.add_row(marker, name, as_text(api_url), status)
+        table.add_row(marker, as_text(name), as_text(api_url), status)
 
     rprint(table)
 

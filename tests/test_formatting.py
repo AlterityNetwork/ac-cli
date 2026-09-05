@@ -285,13 +285,21 @@ def test_as_text_shows_an_escape_byte(monkeypatch):
     assert "\\x1b" in text.plain
 
 
-def test_as_text_shows_a_carriage_return(monkeypatch):
-    """A `\\r` rewrites the line the CLI already wrote, so it is not a newline."""
+def test_as_text_reads_a_carriage_return_as_a_line_ending(monkeypatch):
+    """A mail body ends each line with CRLF, and RFC 5322 makes that a line.
+
+    Escaping it printed `\\x0d` at the end of every line of every inbound mail.
+    Rich removed the byte before this change, so a reader saw a clean line.
+    """
     import ac_cli.formatting as fmt
 
-    text = fmt.as_text("first\rsecond")
-    assert "\r" not in text.plain
-    assert "\\x0d" in text.plain
+    assert fmt.as_text("first\r\nsecond\rthird").plain == "first\nsecond\nthird"
+
+
+def test_a_crlf_mail_body_renders_no_escape(capsys):
+    """The reported command prints an inbound body. See communications thread."""
+    print_detail({"body": "Hi Jane,\r\n\r\nSee the page.\r\nBob"}, [("body", "Body")])
+    assert "x0d" not in capsys.readouterr().out
 
 
 def test_as_text_keeps_a_newline_and_a_tab(monkeypatch):

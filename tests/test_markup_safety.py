@@ -67,6 +67,70 @@ def test_the_gate_fails_a_template_that_is_not_a_literal(tmp_path):
     assert check_markup.check(module) != []
 
 
+def test_the_gate_fails_a_loop_variable_that_shares_a_module_name(tmp_path):
+    """A name is read in one scope. A module constant does not cover a local.
+
+    The binding table was module-wide, so a loop target that shared a name
+    with any safe assignment in the file passed. That is the shape the next
+    unwrapped value takes.
+    """
+    module = tmp_path / "sample.py"
+    module.write_text(
+        'name = "safe literal"\ndef show(rows):\n    for name in rows:\n        rprint(name)\n'
+    )
+    assert check_markup.check(module) != []
+
+
+def test_the_gate_fails_a_parameter_that_shares_a_module_name(tmp_path):
+    """A parameter carries whatever the caller passed, so it is not readable."""
+    module = tmp_path / "sample.py"
+    module.write_text('detail = "safe literal"\ndef render(detail):\n    rprint(detail)\n')
+    assert check_markup.check(module) != []
+
+
+def test_the_gate_fails_a_styled_call_with_too_many_values(tmp_path):
+    """A wrong count raises ValueError, so the command exits 1 with no output.
+
+    That is the fault the sweep removes, so the gate must not let a new call
+    site reintroduce it.
+    """
+    module = tmp_path / "sample.py"
+    module.write_text('rprint(styled("[b]{}[/b]", a["x"], a["y"]))\n')
+    assert check_markup.check(module) != []
+
+
+def test_the_gate_fails_a_styled_call_with_too_few_values(tmp_path):
+    module = tmp_path / "sample.py"
+    module.write_text('rprint(styled("[b]{}[/b] {}", a["x"]))\n')
+    assert check_markup.check(module) != []
+
+
+def test_the_gate_reads_add_row(tmp_path):
+    """A hand-built Table reaches the same parser as a print does."""
+    module = tmp_path / "sample.py"
+    module.write_text("def show(rows):\n    table.add_row(rows[0])\n")
+    assert check_markup.check(module) != []
+
+
+def test_the_gate_reports_one_argument_once(tmp_path):
+    """Two loops that bind one name are one fix, not two lines to read."""
+    module = tmp_path / "sample.py"
+    module.write_text(
+        "def show(rows):\n"
+        "    for name in rows:\n"
+        "        pass\n"
+        "    for name in rows:\n"
+        "        rprint(name)\n"
+    )
+    assert len(check_markup.check(module)) == 1
+
+
+def test_every_styled_call_site_gives_the_right_value_count():
+    """The count guard reads a literal template, and every call site has one."""
+    for path in sorted(SRC.rglob("*.py")):
+        assert "styled() takes" not in " ".join(check_markup.check(path)), path
+
+
 # -- every styled template in the source ----------------------------------------
 
 
