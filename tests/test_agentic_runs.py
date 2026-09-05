@@ -127,6 +127,13 @@ def test_runs_start_default_input(invoke, mock_api):
 
 
 def test_runs_start_invalid_input(invoke, mock_api):
+    """A typing error in --input answers the validation code, never code 1.
+
+    Code 1 is the connection error of _api_request. A script that reads code 1
+    from this command cannot tell a typing error from an unreachable API.
+    """
+    route = mock_api.post("/api/v1/agentic/runs").respond(200, json=SAMPLE_RUN)
+
     result = invoke(
         [
             "agentic",
@@ -138,8 +145,44 @@ def test_runs_start_invalid_input(invoke, mock_api):
             "{bad",
         ]
     )
-    assert result.exit_code == 1
-    assert "Invalid JSON" in result.output
+
+    assert result.exit_code == 2
+    assert "--input is not valid JSON" in result.output
+    assert not route.called
+
+
+@pytest.mark.parametrize(
+    ("input_json", "detail"),
+    [
+        ("{bad", "--input is not valid JSON"),
+        ('["a"]', "--input must be a JSON object"),
+    ],
+)
+def test_runs_start_refuses_an_invalid_input_as_json(invoke, mock_api, input_json, detail):
+    """`--json` parses both refusals, and no rich text reaches stdout.
+
+    refuse_local reads a contextvar, so the command must call set_json_mode
+    before it refuses. This assertion is what catches an order that is wrong.
+    """
+    route = mock_api.post("/api/v1/agentic/runs").respond(200, json=SAMPLE_RUN)
+
+    result = invoke(
+        [
+            "agentic",
+            "runs",
+            "start",
+            "--definition",
+            SAMPLE_RUN["definition_id"],
+            "--input",
+            input_json,
+            "--json",
+        ]
+    )
+
+    assert result.exit_code == 2
+    body = json.loads(result.output)
+    assert body == {"error": True, "status_code": None, "detail": detail}
+    assert not route.called
 
 
 def test_runs_start_json(invoke, mock_api):

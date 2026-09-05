@@ -11,6 +11,7 @@ from ac_cli.commands._helpers import (
     JSON_OPTION,
     _api_request,
     checked_header_key,
+    refuse_local,
     set_json_mode,
     should_skip_confirm,
 )
@@ -35,8 +36,8 @@ def runs_create(
         try:
             body["trigger_data"] = json.loads(input_json)
         except json.JSONDecodeError:
-            rprint("[red]Invalid JSON for --input[/red]")
-            raise typer.Exit(code=1)
+            # Name no value. A refused input is the whole flag, and it can be long.
+            refuse_local("--input is not valid JSON")
 
     # Read the flag with `is not None`. An empty flag is a typing error.
     # Truthiness would send an unkeyed start with no duplicate guard.

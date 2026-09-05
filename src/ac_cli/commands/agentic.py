@@ -70,18 +70,18 @@ def _parse_input(input_json: str | None) -> dict:
         The parsed input.
 
     Raises:
-        typer.Exit: The string is not JSON.
+        typer.Exit: Code 2, when the string is not JSON, or is JSON that is
+          not an object.
     """
     if not input_json:
         return {}
     try:
         parsed = json.loads(input_json)
     except json.JSONDecodeError:
-        rprint("[red]Invalid JSON for --input[/red]")
-        raise typer.Exit(code=1) from None
+        # Name no value. A refused input is the whole flag, and it can be long.
+        refuse_local("--input is not valid JSON")
     if not isinstance(parsed, dict):
-        rprint("[red]--input must be a JSON object[/red]")
-        raise typer.Exit(code=1)
+        refuse_local("--input must be a JSON object")
     return parsed
 
 
