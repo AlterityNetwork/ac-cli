@@ -2,6 +2,8 @@
 
 import json
 
+import pytest
+
 from tests.conftest import WHOAMI_RESPONSE
 
 # -- _build_body ---------------------------------------------------------------
@@ -335,3 +337,51 @@ def test_checked_header_key_never_echoes_the_value(capsys):
         pass
 
     assert "\x00" not in capsys.readouterr().out
+
+
+# -- refuse_local --------------------------------------------------------------
+
+
+def test_refuse_local_names_no_value_when_none_is_given(capsys):
+    """The message is the detail alone, and no colon trails it."""
+    import typer
+
+    from ac_cli.commands._helpers import refuse_local, set_json_mode
+
+    set_json_mode(True)
+    with pytest.raises(typer.Exit) as exit_:
+        refuse_local("--limit is not between 1 and 100")
+
+    assert exit_.value.exit_code == 2
+    assert json.loads(capsys.readouterr().out) == {
+        "error": True,
+        "status_code": None,
+        "detail": "--limit is not between 1 and 100",
+    }
+
+
+def test_refuse_local_appends_the_value_the_caller_typed(capsys):
+    """A value the caller passes reaches the detail after one colon."""
+    import typer
+
+    from ac_cli.commands._helpers import refuse_local, set_json_mode
+
+    set_json_mode(True)
+    with pytest.raises(typer.Exit) as exit_:
+        refuse_local("--limit is not between 1 and 100", 0)
+
+    assert exit_.value.exit_code == 2
+    assert json.loads(capsys.readouterr().out)["detail"] == ("--limit is not between 1 and 100: 0")
+
+
+def test_refuse_local_escapes_a_value_that_carries_rich_markup(capsys):
+    """The human shape prints foreign text, so markup in it must not render."""
+    import typer
+
+    from ac_cli.commands._helpers import refuse_local, set_json_mode
+
+    set_json_mode(False)
+    with pytest.raises(typer.Exit):
+        refuse_local("--since is not ISO 8601", "[red]nope[/red]")
+
+    assert "[red]nope[/red]" in capsys.readouterr().out
