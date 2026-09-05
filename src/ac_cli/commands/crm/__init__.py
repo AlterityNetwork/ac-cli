@@ -10,7 +10,7 @@ from ac_cli.commands._helpers import (  # noqa: F401
     _handle_error,
     set_json_mode,
 )
-from ac_cli.formatting import print_json, print_table
+from ac_cli.formatting import as_text, print_json, print_table, styled
 
 app = typer.Typer(help="CRM commands")
 
@@ -96,30 +96,34 @@ def dashboard(
     leads = data.get("leads", {})
     messages = data.get("messages_sent", {})
 
-    rprint(f"\n[bold]CRM Dashboard[/bold] (last {data.get('period_days', period)} days)\n")
+    rprint(styled("\n[bold]CRM Dashboard[/bold] (last {} days)\n", data.get("period_days", period)))
 
     rprint("[bold]Pipeline[/bold]")
-    rprint(f"  Total deals: {pipeline.get('total_deals', 0)}")
-    rprint(f"  Total value: ${pipeline.get('total_value', 0):,.2f}")
+    rprint(as_text(f"  Total deals: {pipeline.get('total_deals', 0)}"))
+    rprint(as_text(f"  Total value: ${pipeline.get('total_value', 0):,.2f}"))
     stages = pipeline.get("deals_by_stage", {})
     for stage_name, stats in stages.items():
-        rprint(f"    {stage_name}: {stats.get('count', 0)} deals (${stats.get('value', 0):,.2f})")
+        rprint(
+            as_text(
+                f"    {stage_name}: {stats.get('count', 0)} deals (${stats.get('value', 0):,.2f})"
+            )
+        )
 
     rprint("\n[bold]Active Pipeline[/bold]")
-    rprint(f"  Active deals: {active.get('active_deals_count', 0)}")
-    rprint(f"  Total value: ${active.get('total_value', 0):,.2f}")
-    rprint(f"  Adjusted value: ${active.get('adjusted_value', 0):,.2f}")
+    rprint(as_text(f"  Active deals: {active.get('active_deals_count', 0)}"))
+    rprint(as_text(f"  Total value: ${active.get('total_value', 0):,.2f}"))
+    rprint(as_text(f"  Adjusted value: ${active.get('adjusted_value', 0):,.2f}"))
 
     rprint("\n[bold]Leads[/bold]")
-    rprint(f"  This period: {leads.get('current_period', 0)}")
-    rprint(f"  Previous: {leads.get('previous_period', 0)}")
-    rprint(f"  Change: {leads.get('change', 0):+d}")
-    rprint(f"  Total: {leads.get('total', 0)}")
+    rprint(as_text(f"  This period: {leads.get('current_period', 0)}"))
+    rprint(as_text(f"  Previous: {leads.get('previous_period', 0)}"))
+    rprint(as_text(f"  Change: {leads.get('change', 0):+d}"))
+    rprint(as_text(f"  Total: {leads.get('total', 0)}"))
 
     rprint("\n[bold]Messages Sent[/bold]")
-    rprint(f"  This period: {messages.get('current_period', 0)}")
-    rprint(f"  Previous: {messages.get('previous_period', 0)}")
-    rprint(f"  Change: {messages.get('change', 0):+d}")
+    rprint(as_text(f"  This period: {messages.get('current_period', 0)}"))
+    rprint(as_text(f"  Previous: {messages.get('previous_period', 0)}"))
+    rprint(as_text(f"  Change: {messages.get('change', 0):+d}"))
 
 
 # =============================================================================
@@ -143,26 +147,29 @@ def engagement_dashboard(
         return
 
     rprint(
-        f"\n[bold]Email Engagement Dashboard[/bold] (last {data.get('period_days', period)} days)\n"
+        styled(
+            "\n[bold]Email Engagement Dashboard[/bold] (last {} days)\n",
+            data.get("period_days", period),
+        )
     )
 
     emails = data.get("emails_sent", {})
     rprint("[bold]Emails Sent[/bold]")
-    rprint(f"  Current period: {emails.get('current_period', 0)}")
-    rprint(f"  Previous period: {emails.get('previous_period', 0)}")
-    rprint(f"  Change: {emails.get('change', 0):+d}")
+    rprint(as_text(f"  Current period: {emails.get('current_period', 0)}"))
+    rprint(as_text(f"  Previous period: {emails.get('previous_period', 0)}"))
+    rprint(as_text(f"  Change: {emails.get('change', 0):+d}"))
 
     rprint("\n[bold]Engagement Rates[/bold]")
-    rprint(f"  Open rate: {data.get('open_rate', 0):.1f}%")
-    rprint(f"  Click rate: {data.get('click_rate', 0):.1f}%")
-    rprint(f"  Reply rate: {data.get('reply_rate', 0):.1f}%")
-    rprint(f"  Bounce rate: {data.get('bounce_rate', 0):.1f}%")
+    rprint(as_text(f"  Open rate: {data.get('open_rate', 0):.1f}%"))
+    rprint(as_text(f"  Click rate: {data.get('click_rate', 0):.1f}%"))
+    rprint(as_text(f"  Reply rate: {data.get('reply_rate', 0):.1f}%"))
+    rprint(as_text(f"  Bounce rate: {data.get('bounce_rate', 0):.1f}%"))
 
     health = data.get("email_health", {})
     if health:
         rprint("\n[bold]Email Health[/bold]")
-        rprint(f"  Score: {health.get('score', 'N/A')}")
-        rprint(f"  Status: {health.get('status', 'N/A')}")
+        rprint(as_text(f"  Score: {health.get('score', 'N/A')}"))
+        rprint(as_text(f"  Status: {health.get('status', 'N/A')}"))
 
     top_links = data.get("top_clicked_links", [])
     if top_links:

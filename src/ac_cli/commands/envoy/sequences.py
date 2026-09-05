@@ -8,7 +8,7 @@ from rich import print as rprint
 from ac_cli.commands._helpers import JSON_OPTION, _get_org_id, set_json_mode, should_skip_confirm
 from ac_cli.commands.crm import _api_request, _build_body
 from ac_cli.commands.envoy import _ENVOY
-from ac_cli.formatting import print_detail, print_json, print_table
+from ac_cli.formatting import print_detail, print_json, print_table, styled
 
 sequences_app = typer.Typer(help="Sequence operations")
 
@@ -79,7 +79,7 @@ def sequences_get(
 
     steps = data.get("steps", [])
     if steps:
-        rprint(f"\n[bold]Steps ({len(steps)})[/bold]")
+        rprint(styled("\n[bold]Steps ({})[/bold]", len(steps)))
         print_table(
             steps,
             [
@@ -128,7 +128,7 @@ def sequences_create(
     if json_output:
         print_json(data)
     else:
-        rprint(f"[green]Created sequence:[/green] {data['name']} ({data['id']})")
+        rprint(styled("[green]Created sequence:[/green] {} ({})", data["name"], data["id"]))
 
 
 @sequences_app.command("update")
@@ -172,7 +172,7 @@ def sequences_update(
     if json_output:
         print_json(data)
     else:
-        rprint(f"[green]Updated sequence:[/green] {data['name']} ({data['id']})")
+        rprint(styled("[green]Updated sequence:[/green] {} ({})", data["name"], data["id"]))
 
 
 @sequences_app.command("delete")
@@ -186,7 +186,7 @@ def sequences_delete(
 
     _api_request("delete", f"{_ENVOY}/sequences/{sequence_id}")
 
-    rprint(f"[green]Deleted sequence {sequence_id}[/green]")
+    rprint(styled("[green]Deleted sequence {}[/green]", sequence_id))
 
 
 @sequences_app.command("launch")
@@ -206,7 +206,7 @@ def sequences_launch(
     if json_output:
         print_json(data)
     else:
-        rprint(f"[green]Launched sequence {sequence_id}[/green]")
+        rprint(styled("[green]Launched sequence {}[/green]", sequence_id))
 
 
 @sequences_app.command("pause")
@@ -223,7 +223,7 @@ def sequences_pause(
     if json_output:
         print_json(data)
     else:
-        rprint(f"[green]Paused sequence {sequence_id}[/green]")
+        rprint(styled("[green]Paused sequence {}[/green]", sequence_id))
 
 
 @sequences_app.command("resume")
@@ -243,7 +243,7 @@ def sequences_resume(
     if json_output:
         print_json(data)
     else:
-        rprint(f"[green]Resumed sequence {sequence_id}[/green]")
+        rprint(styled("[green]Resumed sequence {}[/green]", sequence_id))
 
 
 @sequences_app.command("duplicate")
@@ -259,7 +259,11 @@ def sequences_duplicate(
     if json_output:
         print_json(data)
     else:
-        rprint(f"[green]Duplicated sequence:[/green] {data.get('name', '?')} ({data.get('id')})")
+        rprint(
+            styled(
+                "[green]Duplicated sequence:[/green] {} ({})", data.get("name", "?"), data.get("id")
+            )
+        )
 
 
 @sequences_app.command("archive")
@@ -275,7 +279,7 @@ def sequences_archive(
     if json_output:
         print_json(data)
     else:
-        rprint(f"[green]Archived sequence {sequence_id}[/green]")
+        rprint(styled("[green]Archived sequence {}[/green]", sequence_id))
 
 
 @sequences_app.command("restore")
@@ -291,7 +295,7 @@ def sequences_restore(
     if json_output:
         print_json(data)
     else:
-        rprint(f"[green]Restored sequence {sequence_id}[/green]")
+        rprint(styled("[green]Restored sequence {}[/green]", sequence_id))
 
 
 @sequences_app.command("impact-preview")
@@ -315,9 +319,11 @@ def sequences_impact_preview(
         print_json(data)
     else:
         rprint(
-            f"[bold]Impact preview:[/bold] "
-            f"affected_recipients={data.get('affected_recipients', '?')}, "
-            f"pending_drafts={data.get('pending_drafts', '?')}"
+            styled(
+                "[bold]Impact preview:[/bold] affected_recipients={}, pending_drafts={}",
+                data.get("affected_recipients", "?"),
+                data.get("pending_drafts", "?"),
+            )
         )
 
 
@@ -339,7 +345,13 @@ def sequences_bulk_remove_recipients(
     if json_output:
         print_json(data)
     else:
-        rprint(f"[green]Removed {data.get('removed', '?')} recipients from {sequence_id}[/green]")
+        rprint(
+            styled(
+                "[green]Removed {} recipients from {}[/green]",
+                data.get("removed", "?"),
+                sequence_id,
+            )
+        )
 
 
 @sequences_app.command("classify-step-subtype")
@@ -359,7 +371,7 @@ def sequences_classify_step_subtype(
     if json_output:
         print_json(data)
     else:
-        rprint(f"[bold]Subtype:[/bold] {data.get('subtype', '?')}")
+        rprint(styled("[bold]Subtype:[/bold] {}", data.get("subtype", "?")))
 
 
 @sequences_app.command("outputs")
@@ -442,6 +454,9 @@ def sequences_generate_drafts(
         print_json(data)
     else:
         rprint(
-            f"[green]Queued draft generation:[/green] "
-            f"run={data.get('run_id', '?')} status={data.get('status', '?')}"
+            styled(
+                "[green]Queued draft generation:[/green] run={} status={}",
+                data.get("run_id", "?"),
+                data.get("status", "?"),
+            )
         )

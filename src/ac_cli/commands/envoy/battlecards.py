@@ -13,7 +13,7 @@ from ac_cli.commands._helpers import (
     set_json_mode,
     should_skip_confirm,
 )
-from ac_cli.formatting import print_detail, print_json, print_table
+from ac_cli.formatting import print_detail, print_json, print_table, styled
 
 # Battlecards moved out of /envoy to top-level /api/v1/battlecards (ENG-592).
 _BATTLECARDS = "/api/v1/battlecards"
@@ -116,7 +116,7 @@ def battlecards_create(
     if json_output:
         print_json(data)
     else:
-        rprint(f"[green]Created battlecard:[/green] {data['name']} ({data['id']})")
+        rprint(styled("[green]Created battlecard:[/green] {} ({})", data["name"], data["id"]))
 
 
 @battlecards_app.command("update")
@@ -148,7 +148,7 @@ def battlecards_update(
     if json_output:
         print_json(data)
     else:
-        rprint(f"[green]Updated battlecard:[/green] {data['name']} ({data['id']})")
+        rprint(styled("[green]Updated battlecard:[/green] {} ({})", data["name"], data["id"]))
 
 
 @battlecards_app.command("delete")
@@ -162,7 +162,7 @@ def battlecards_delete(
 
     _api_request("delete", f"{_BATTLECARDS}/{battlecard_id}")
 
-    rprint(f"[green]Deleted battlecard {battlecard_id}[/green]")
+    rprint(styled("[green]Deleted battlecard {}[/green]", battlecard_id))
 
 
 @battlecards_app.command("duplicate")
@@ -179,4 +179,4 @@ def battlecards_duplicate(
     if json_output:
         print_json(data)
     else:
-        rprint(f"[green]Duplicated battlecard:[/green] {data['name']} ({data['id']})")
+        rprint(styled("[green]Duplicated battlecard:[/green] {} ({})", data["name"], data["id"]))

@@ -14,7 +14,7 @@ from ac_cli.commands._helpers import (
     should_skip_confirm,
 )
 from ac_cli.commands.envoy import _ENVOY
-from ac_cli.formatting import print_detail, print_json, print_table
+from ac_cli.formatting import print_detail, print_json, print_table, styled
 
 campaigns_app = typer.Typer(help="Campaign operations")
 
@@ -118,7 +118,7 @@ def campaigns_create(
     if json_output:
         print_json(data)
     else:
-        rprint(f"[green]Created campaign:[/green] {data['name']} ({data['id']})")
+        rprint(styled("[green]Created campaign:[/green] {} ({})", data["name"], data["id"]))
 
 
 @campaigns_app.command("update")
@@ -152,7 +152,7 @@ def campaigns_update(
     if json_output:
         print_json(data)
     else:
-        rprint(f"[green]Updated campaign:[/green] {data['name']} ({data['id']})")
+        rprint(styled("[green]Updated campaign:[/green] {} ({})", data["name"], data["id"]))
 
 
 @campaigns_app.command("delete")
@@ -164,7 +164,7 @@ def campaigns_delete(
     if not should_skip_confirm(yes):
         typer.confirm(f"Delete campaign {campaign_id}?", abort=True)
     _api_request("delete", f"{_ENVOY}/campaigns/{campaign_id}")
-    rprint(f"[green]Deleted campaign {campaign_id}[/green]")
+    rprint(styled("[green]Deleted campaign {}[/green]", campaign_id))
 
 
 @campaigns_app.command("archive")
@@ -180,7 +180,7 @@ def campaigns_archive(
     if json_output:
         print_json(data)
     else:
-        rprint(f"[green]Archived campaign {campaign_id}[/green]")
+        rprint(styled("[green]Archived campaign {}[/green]", campaign_id))
 
 
 @campaigns_app.command("unarchive")
@@ -196,4 +196,4 @@ def campaigns_unarchive(
     if json_output:
         print_json(data)
     else:
-        rprint(f"[green]Unarchived campaign {campaign_id}[/green]")
+        rprint(styled("[green]Unarchived campaign {}[/green]", campaign_id))

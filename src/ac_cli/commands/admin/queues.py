@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import typer
 from rich import print as rprint
+from rich.pretty import Pretty
 
 from ac_cli.commands._helpers import JSON_OPTION, _api_request, set_json_mode
 from ac_cli.commands.admin import _ADMIN
@@ -25,7 +26,7 @@ def queues_health(
     if json_output:
         print_json(data)
     else:
-        rprint(data)
+        rprint(Pretty(data))
 
 
 @queues_app.command("stats")
@@ -41,7 +42,7 @@ def queues_stats(
     if json_output:
         print_json(data)
     else:
-        rprint(data)
+        rprint(Pretty(data))
 
 
 @queues_app.command("queue-stats")
@@ -58,7 +59,7 @@ def queues_queue_stats(
     if json_output:
         print_json(data)
     else:
-        rprint(data)
+        rprint(Pretty(data))
 
 
 @queues_app.command("metrics")
@@ -74,7 +75,7 @@ def queues_metrics(
     if json_output:
         print_json(data)
     else:
-        rprint(data)
+        rprint(Pretty(data))
 
 
 @queues_app.command("send-to-sentry")
@@ -99,4 +100,4 @@ def queues_job_performance(
     if json_output:
         print_json(data)
     else:
-        rprint(data)
+        rprint(Pretty(data))

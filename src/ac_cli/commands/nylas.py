@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import typer
 from rich import print as rprint
+from rich.pretty import Pretty
 
 from ac_cli.commands._helpers import (
     JSON_OPTION,
@@ -12,7 +13,7 @@ from ac_cli.commands._helpers import (
     set_json_mode,
     should_skip_confirm,
 )
-from ac_cli.formatting import print_detail, print_json, print_table
+from ac_cli.formatting import as_text, print_detail, print_json, print_table, styled
 
 app = typer.Typer(help="Nylas email integration")
 
@@ -45,7 +46,7 @@ def oauth_start(
     if json_output:
         print_json(data)
     else:
-        rprint(data.get("url", data))
+        rprint(as_text(data.get("url", data)))
 
 
 @app.command("account")
@@ -171,7 +172,7 @@ def validate_signature(
     if json_output:
         print_json(data)
     else:
-        rprint(data)
+        rprint(Pretty(data))
 
 
 @app.command("sync-thread")
@@ -188,7 +189,7 @@ def sync_thread(
     if json_output:
         print_json(data)
     else:
-        rprint(f"[green]Synced thread {thread_id}[/green]")
+        rprint(styled("[green]Synced thread {}[/green]", thread_id))
 
 
 @app.command("download-attachment")
@@ -216,6 +217,6 @@ def download_attachment(
     if output:
         with open(output, "wb") as f:
             f.write(resp.content)
-        rprint(f"[green]Saved to {output}[/green]")
+        rprint(styled("[green]Saved to {}[/green]", output))
     else:
-        rprint(f"[green]Downloaded {len(resp.content)} bytes[/green]")
+        rprint(styled("[green]Downloaded {} bytes[/green]", len(resp.content)))

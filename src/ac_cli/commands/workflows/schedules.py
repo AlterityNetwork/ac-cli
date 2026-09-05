@@ -15,7 +15,7 @@ from ac_cli.commands._helpers import (
     should_skip_confirm,
 )
 from ac_cli.commands.workflows import _WORKFLOWS
-from ac_cli.formatting import print_detail, print_json, print_table
+from ac_cli.formatting import as_text, print_detail, print_json, print_table, styled
 
 schedules_app = typer.Typer(help="Workflow schedule operations")
 
@@ -101,7 +101,7 @@ def schedules_create(
     if json_output:
         print_json(data)
     else:
-        rprint(f"[green]Schedule created:[/green] {data['id']}")
+        rprint(styled("[green]Schedule created:[/green] {}", data["id"]))
 
 
 @schedules_app.command("update")
@@ -134,7 +134,7 @@ def schedules_update(
     if json_output:
         print_json(data)
     else:
-        rprint(f"[green]Updated schedule {schedule_id}[/green]")
+        rprint(styled("[green]Updated schedule {}[/green]", schedule_id))
 
 
 @schedules_app.command("delete")
@@ -149,7 +149,7 @@ def schedules_delete(
 
     _api_request("delete", f"{_WORKFLOWS}/{workflow_id}/schedules/{schedule_id}")
 
-    rprint(f"[green]Deleted schedule {schedule_id}[/green]")
+    rprint(styled("[green]Deleted schedule {}[/green]", schedule_id))
 
 
 @schedules_app.command("preview")
@@ -172,9 +172,9 @@ def schedules_preview(
         return
 
     next_runs = data.get("next_runs", [])
-    rprint(f"[bold]Next {len(next_runs)} runs:[/bold]")
+    rprint(styled("[bold]Next {} runs:[/bold]", len(next_runs)))
     for run_time in next_runs:
-        rprint(f"  {run_time}")
+        rprint(as_text(f"  {run_time}"))
 
 
 @schedules_app.command("toggle")
@@ -198,4 +198,4 @@ def schedules_toggle(
         print_json(data)
     else:
         state = "enabled" if enabled else "disabled"
-        rprint(f"[green]Schedule {schedule_id} {state}[/green]")
+        rprint(styled("[green]Schedule {} {}[/green]", schedule_id, state))

@@ -7,10 +7,9 @@ from typing import NoReturn
 import httpx
 import typer
 from rich import print as rprint
-from rich.text import Text
 
 from ac_cli.client import get_api_client
-from ac_cli.formatting import as_text, print_json
+from ac_cli.formatting import as_text, print_json, styled
 
 _json_output: contextvars.ContextVar[bool] = contextvars.ContextVar("json_output", default=False)
 
@@ -48,8 +47,29 @@ def _handle_error(exc: httpx.HTTPStatusError) -> None:
     if _json_output.get():
         print_json({"error": True, "status_code": exc.response.status_code, "detail": detail})
     else:
-        rprint(f"[red]Error {exc.response.status_code}:[/red]", as_text(detail))
+        rprint(styled("[red]Error {}:[/red]", exc.response.status_code), as_text(detail))
     raise typer.Exit(code=exit_code)
+
+
+def _handle_connection_error(exc: httpx.HTTPError) -> None:
+    """Reports a request that never reached the API, then exits 1.
+
+    A command that uploads a file or reads a stream builds its own request, so
+    it does not take _api_request. Each one copied this branch. The escape then
+    had to hold in six places, and ENG-2147 found five that had lost it. One
+    function keeps them together.
+
+    Args:
+        exc: The error httpx raised. The text is the address and the reason.
+
+    Raises:
+        typer.Exit: Always, with code 1.
+    """
+    if _json_output.get():
+        print_json({"error": True, "status_code": None, "detail": str(exc)})
+    else:
+        rprint("[red]Connection error:[/red]", as_text(exc))
+    raise typer.Exit(code=1)
 
 
 def _api_request(method: str, path: str, **kwargs: object) -> httpx.Response:
@@ -61,11 +81,7 @@ def _api_request(method: str, path: str, **kwargs: object) -> httpx.Response:
         except httpx.HTTPStatusError as exc:
             _handle_error(exc)
         except httpx.HTTPError as exc:
-            if _json_output.get():
-                print_json({"error": True, "status_code": None, "detail": str(exc)})
-            else:
-                rprint("[red]Connection error:[/red]", as_text(exc))
-            raise typer.Exit(code=1)
+            _handle_connection_error(exc)
     return resp
 
 
@@ -96,7 +112,7 @@ def _resolve_entity(
         if _json_output.get():
             print_json({"error": True, "detail": f"No {label} found matching '{entity_name}'"})
         else:
-            rprint(Text(f"No {label} found matching '{entity_name}'", style="red"))
+            rprint(styled("[red]No {} found matching '{}'[/red]", label, entity_name))
         raise typer.Exit(code=3)
 
     if len(items) > 1:
@@ -114,7 +130,7 @@ def _resolve_entity(
                 }
             )
         else:
-            rprint(Text(f"Multiple {label}s match '{entity_name}':", style="yellow"))
+            rprint(styled("[yellow]Multiple {}s match '{}':[/yellow]", label, entity_name))
             for item in items:
                 rprint(as_text(f"  - {item.get(name_field) or '?'} ({item['id']})"))
         raise typer.Exit(code=2)
@@ -134,7 +150,7 @@ def _require_id(
     if _json_output.get():
         print_json({"error": True, "detail": f"Provide a {id_label} or use {name_flag}"})
     else:
-        rprint(f"[red]Provide a {id_label} or use {name_flag}[/red]")
+        rprint(styled("[red]Provide a {} or use {}[/red]", id_label, name_flag))
     raise typer.Exit(code=2)
 
 

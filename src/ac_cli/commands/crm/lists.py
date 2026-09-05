@@ -7,7 +7,7 @@ from rich import print as rprint
 
 from ac_cli.commands._helpers import JSON_OPTION, _get_org_id, set_json_mode, should_skip_confirm
 from ac_cli.commands.crm import _CRM, _api_request, _build_body
-from ac_cli.formatting import print_detail, print_json, print_table
+from ac_cli.formatting import print_detail, print_json, print_table, styled
 
 lists_app = typer.Typer(help="List management operations")
 
@@ -97,7 +97,7 @@ def lists_create(
     if json_output:
         print_json(data)
     else:
-        rprint(f"[green]Created list:[/green] {data['name']} ({data['id']})")
+        rprint(styled("[green]Created list:[/green] {} ({})", data["name"], data["id"]))
 
 
 @lists_app.command("update")
@@ -129,7 +129,7 @@ def lists_update(
     if json_output:
         print_json(data)
     else:
-        rprint(f"[green]Updated list:[/green] {data['name']} ({data['id']})")
+        rprint(styled("[green]Updated list:[/green] {} ({})", data["name"], data["id"]))
 
 
 @lists_app.command("members")
@@ -223,7 +223,7 @@ def lists_add_member(
         print_json(data)
     else:
         member_label = person_id or company_id
-        rprint(f"[green]Added {member_label} to list {list_id}[/green]")
+        rprint(styled("[green]Added {} to list {}[/green]", member_label, list_id))
 
 
 @lists_app.command("remove-member")
@@ -258,7 +258,7 @@ def lists_remove_member(
             }
         )
     else:
-        rprint(f"[green]Removed {member_type} {member_id} from list {list_id}[/green]")
+        rprint(styled("[green]Removed {} {} from list {}[/green]", member_type, member_id, list_id))
 
 
 @lists_app.command("add-members")
@@ -304,11 +304,16 @@ def lists_add_members(
 
     if duplicates:
         rprint(
-            f"[green]Added {added} {member_type}(s) to list {list_id}[/green] "
-            f"[dim]({duplicates} already on the list)[/dim]"
+            styled(
+                "[green]Added {} {}(s) to list {}[/green] [dim]({} already on the list)[/dim]",
+                added,
+                member_type,
+                list_id,
+                duplicates,
+            )
         )
     else:
-        rprint(f"[green]Added {added} {member_type}(s) to list {list_id}[/green]")
+        rprint(styled("[green]Added {} {}(s) to list {}[/green]", added, member_type, list_id))
 
 
 @lists_app.command("bulk-remove-members")
@@ -351,7 +356,11 @@ def lists_bulk_remove_members(
             }
         )
     else:
-        rprint(f"[green]Removed {len(id_list)} {member_type}(s) from list {list_id}[/green]")
+        rprint(
+            styled(
+                "[green]Removed {} {}(s) from list {}[/green]", len(id_list), member_type, list_id
+            )
+        )
 
 
 @lists_app.command("bulk-move-members")
@@ -415,14 +424,24 @@ def lists_bulk_move_members(
 
     if duplicates:
         rprint(
-            f"[green]Moved {moved} {member_type}(s) from list {list_id} "
-            f"to list {target_list_id}[/green] "
-            f"[dim]({duplicates} already on the target, removed from source)[/dim]"
+            styled(
+                "[green]Moved {} {}(s) from list {} to list {}[/green] [dim]({} already on the target, removed from source)[/dim]",
+                moved,
+                member_type,
+                list_id,
+                target_list_id,
+                duplicates,
+            )
         )
     else:
         rprint(
-            f"[green]Moved {moved} {member_type}(s) from list {list_id} "
-            f"to list {target_list_id}[/green]"
+            styled(
+                "[green]Moved {} {}(s) from list {} to list {}[/green]",
+                moved,
+                member_type,
+                list_id,
+                target_list_id,
+            )
         )
 
 
@@ -442,4 +461,4 @@ def lists_delete(
     if json_output:
         print_json({"ok": True, "id": list_id, "action": "delete"})
     else:
-        rprint(f"[green]Deleted list {list_id}[/green]")
+        rprint(styled("[green]Deleted list {}[/green]", list_id))

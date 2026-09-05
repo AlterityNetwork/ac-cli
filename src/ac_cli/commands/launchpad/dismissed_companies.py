@@ -18,7 +18,7 @@ from ac_cli.commands._helpers import (
     should_skip_confirm,
 )
 from ac_cli.commands.launchpad import _LAUNCHPAD
-from ac_cli.formatting import print_json
+from ac_cli.formatting import print_json, styled
 
 dismissed_companies_app = typer.Typer(help="Companies cleared from the Launchpad signal feed")
 
@@ -42,7 +42,7 @@ def _fail(detail: str, json_output: bool) -> None:
     if json_output:
         print_json({"error": True, "status_code": 1, "detail": detail})
     else:
-        rprint(f"[red]{detail}[/red]")
+        rprint(styled("[red]{}[/red]", detail))
     raise typer.Exit(code=1)
 
 
@@ -86,7 +86,7 @@ def dismissed_companies_clear(
         print_json(data)
         return
 
-    rprint(f"[green]Cleared {data.get('dismissed_count', 0)} company(ies)[/green]")
+    rprint(styled("[green]Cleared {} company(ies)[/green]", data.get("dismissed_count", 0)))
 
 
 @dismissed_companies_app.command("restore")
@@ -107,4 +107,4 @@ def dismissed_companies_restore(
         print_json(data)
         return
 
-    rprint(f"[green]Restored {data.get('restored_count', 0)} company(ies)[/green]")
+    rprint(styled("[green]Restored {} company(ies)[/green]", data.get("restored_count", 0)))

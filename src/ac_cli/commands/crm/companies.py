@@ -17,7 +17,7 @@ from ac_cli.commands._helpers import (
 )
 from ac_cli.commands.crm import _CRM, _api_request, _build_body
 from ac_cli.commands.crm.merge import merge_app
-from ac_cli.formatting import print_detail, print_json, print_table
+from ac_cli.formatting import print_detail, print_json, print_table, styled
 
 
 class CompaniesListView(str, Enum):
@@ -246,7 +246,7 @@ def companies_create(
     if json_output:
         print_json(data)
     else:
-        rprint(f"[green]Created company:[/green] {data['name']} ({data['id']})")
+        rprint(styled("[green]Created company:[/green] {} ({})", data["name"], data["id"]))
 
 
 @companies_app.command("update")
@@ -333,7 +333,7 @@ def companies_update(
     if json_output:
         print_json(data)
     else:
-        rprint(f"[green]Updated company:[/green] {data['name']} ({data['id']})")
+        rprint(styled("[green]Updated company:[/green] {} ({})", data["name"], data["id"]))
 
 
 @companies_app.command("delete")
@@ -372,7 +372,7 @@ def companies_delete(
             payload["delete_people"] = True
         print_json(payload)
     else:
-        rprint(f"[green]Deleted company {resolved}[/green]")
+        rprint(styled("[green]Deleted company {}[/green]", resolved))
 
 
 @companies_app.command("bulk-delete")
@@ -426,7 +426,7 @@ def companies_bulk_delete(
         message = f"Deleted {len(id_list)} companies"
         if delete_people:
             message += f" and {deleted_people_count} attached people"
-        rprint(f"[green]{message}[/green]")
+        rprint(styled("[green]{}[/green]", message))
 
 
 @companies_app.command("by-ids")
@@ -459,7 +459,7 @@ def companies_by_ids(
     if json_output:
         print_json(data)
     else:
-        rprint(f"[green]Fetched {data.get('total', 0)} companies[/green]")
+        rprint(styled("[green]Fetched {} companies[/green]", data.get("total", 0)))
 
 
 def _split_ids(ids: str) -> list[str]:
@@ -485,7 +485,7 @@ def companies_approve(
     if json_output:
         print_json(data)
     else:
-        rprint(f"[green]Approved {data.get('updated_count', 0)} companies[/green]")
+        rprint(styled("[green]Approved {} companies[/green]", data.get("updated_count", 0)))
 
 
 @companies_app.command("unapprove")
@@ -503,7 +503,7 @@ def companies_unapprove(
     if json_output:
         print_json(data)
     else:
-        rprint(f"[yellow]Unapproved {data.get('updated_count', 0)} companies[/yellow]")
+        rprint(styled("[yellow]Unapproved {} companies[/yellow]", data.get("updated_count", 0)))
 
 
 @companies_app.command("mark-actioned")
@@ -533,7 +533,7 @@ def companies_mark_actioned(
     if json_output:
         print_json(data)
     else:
-        rprint(f"[green]Marked {data.get('updated_count', 0)} companies actioned[/green]")
+        rprint(styled("[green]Marked {} companies actioned[/green]", data.get("updated_count", 0)))
 
 
 @companies_app.command("enrich")
@@ -563,7 +563,7 @@ def companies_enrich(
     else:
         source = data.get("source", "unknown")
         record = data.get("data") or {}
-        rprint(f"[green]Enriched via {source}[/green]")
+        rprint(styled("[green]Enriched via {}[/green]", source))
         print_detail(
             record,
             [

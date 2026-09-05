@@ -16,6 +16,39 @@ console = Console()
 # above at others. It owns a highlighter so the two agree.
 _highlighter = ReprHighlighter()
 
+# Every C0 and C1 control character except the tab, the newline and the
+# carriage return. The tab and the newline carry text, and _visible reads the
+# carriage return as a line ending. The rest carry commands: `\x1b` opens an
+# ANSI sequence, and `\u009b` opens one on its own.
+_CONTROL_CHARS = set(range(0x00, 0x20)) - {0x09, 0x0A, 0x0D} | {0x7F} | set(range(0x80, 0xA0))
+_CONTROL_TABLE = {code: f"\\x{code:02x}" for code in _CONTROL_CHARS}
+
+
+def _visible(value: object) -> str:
+    r"""Answers the value as text that the terminal reads as text.
+
+    A markup escape does not stop a control byte. A value that holds
+    `\x1b[41m` repaints the terminal under a str, under `rich.markup.escape`
+    and under a bare Text. An API value must not repaint the terminal, so each
+    control byte renders as its own escape. The reader sees what the value
+    holds, and the terminal does not act on it.
+
+    The tab and the newline stay, because both carry text.
+
+    A mail body ends each line with CRLF, so the carriage return is a line
+    ending and not a cursor move. It becomes a newline. Rich removes it too
+    (`rich.control.STRIP_CONTROL_CODES`), so this keeps what a reader saw
+    before and does not depend on that list.
+
+    Args:
+        value: What the record holds, of any type.
+
+    Returns:
+        The value as text, with each control byte replaced by its escape.
+    """
+    text = str(value).replace("\r\n", "\n").replace("\r", "\n")
+    return text.translate(_CONTROL_TABLE)
+
 
 def as_text(value: object) -> Text:
     """Wrap a value the CLI did not write, for a print that reads markup.
@@ -31,8 +64,72 @@ def as_text(value: object) -> Text:
     A Text also stops the emoji substitution. A value that holds `:rocket:`
     prints those eight characters. That is the same rule as the brackets:
     print what the value holds.
+
+    A control byte renders as its escape. See _visible.
     """
-    return _highlighter(Text(str(value)))
+    return _highlighter(Text(_visible(value)))
+
+
+# The character that holds the place of a value while the template parses. The
+# template is text the CLI wrote, and no call site writes a null byte.
+_SLOT = "\x00"
+
+
+def styled(template: str, *values: object) -> Text:
+    """Render a markup template whose values are not markup.
+
+    The call site writes the template, so the template keeps its tags. The API
+    writes the values, so each value prints as it is. `{}` marks each place a
+    value takes.
+
+    This replaces an f-string that mixed the two. `f"[green]Created:[/green]
+    {name}"` gave the markup parser a name the CLI did not write, so a name
+    that holds `[/beta]` raised MarkupError and the command exited 1 with no
+    output.
+
+    The template is not a format string. A lone `{` or `}` is that character,
+    and only `{}` marks a place.
+
+    A value keeps the style of the place it takes, so `[bold]{}[/bold]` prints
+    a bold value as the f-string did.
+
+    Args:
+        template: The markup the call site wrote, with `{}` for each value.
+        *values: One value for each `{}`, in order.
+
+    Returns:
+        A Text the console prints as it is.
+
+    Raises:
+        ValueError: The count of values is not the count of places. A wrong
+          count drops a value in silence, and the reader cannot see the loss.
+    """
+    text = Text.from_markup(template.replace("{}", _SLOT))
+    plain = text.plain
+    offsets: list[int] = []
+    start = plain.find(_SLOT)
+    while start != -1:
+        offsets += [start, start + 1]
+        start = plain.find(_SLOT, start + 1)
+
+    places = len(offsets) // 2
+    if places != len(values):
+        raise ValueError(f"styled() got {len(values)} values for {places} places")
+
+    # divide answers one piece for each offset boundary, so the pieces read
+    # literal, place, literal, place, ... literal. Each place is one character
+    # wide, and it carries the styles of the tags that hold it.
+    pieces = list(text.divide(offsets))
+    out = Text()
+    for index, piece in enumerate(pieces):
+        if index % 2 == 0:
+            out.append_text(piece)
+            continue
+        value = as_text(values[index // 2])
+        for span in piece.spans:
+            value.stylize(span.style)
+        out.append_text(value)
+    return out
 
 
 def _blank_if_null(value: object) -> object:
@@ -59,7 +156,7 @@ def _cell(value: object) -> Text:
     Returns:
         A Text the console prints literally. See print_table.
     """
-    return Text(str(_blank_if_null(value)))
+    return Text(_visible(_blank_if_null(value)))
 
 
 def print_table(
@@ -125,15 +222,16 @@ def print_detail(data: dict, fields: list[tuple[str, str]]) -> None:
 
     fields: list of (key, label) tuples.
 
-    The label is a literal, so it keeps its markup. The value is not, so it
-    goes through as_text. See print_table.
+    Neither the label nor the value reaches the markup parser. The label is a
+    literal at every call site, and one rule for the whole line is one rule to
+    read. See print_table.
 
     A null prints blank here for the same reason it does in a table. One record
     read two ways is one record, so `runs get` and `runs list` must not answer
     `None` and blank for the same null.
     """
     for key, label in fields:
-        console.print(f"[bold]{label}:[/bold]", as_text(_blank_if_null(data.get(key))))
+        console.print(styled("[bold]{}:[/bold]", label), as_text(_blank_if_null(data.get(key))))
 
 
 def print_json(data: object) -> None:

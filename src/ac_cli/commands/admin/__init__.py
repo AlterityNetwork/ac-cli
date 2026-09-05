@@ -10,7 +10,7 @@ from ac_cli.commands._helpers import (
     _handle_error,  # noqa: F401
     set_json_mode,
 )
-from ac_cli.formatting import print_json
+from ac_cli.formatting import as_text, print_json
 
 app = typer.Typer(help="Admin commands (super admin only)")
 
@@ -52,28 +52,28 @@ def analytics_overview(
 
     rprint("\n[bold]Analytics Overview[/bold]\n")
     rprint("[bold]Daily Averages[/bold]")
-    rprint(f"  AI requests/day: {data.get('ai_requests_per_day', 0):.1f}")
-    rprint(f"  App runs/day: {data.get('app_runs_per_day', 0):.1f}")
-    rprint(f"  Platform events/day: {data.get('platform_events_per_day', 0):.1f}")
+    rprint(as_text(f"  AI requests/day: {data.get('ai_requests_per_day', 0):.1f}"))
+    rprint(as_text(f"  App runs/day: {data.get('app_runs_per_day', 0):.1f}"))
+    rprint(as_text(f"  Platform events/day: {data.get('platform_events_per_day', 0):.1f}"))
     rprint("\n[bold]Active Users[/bold]")
-    rprint(f"  Active user rate: {data.get('active_user_rate', 0):.1f}%")
-    rprint(f"  Total active: {data.get('total_active_users', 0)}")
-    rprint(f"  Total org members: {data.get('total_org_members', 0)}")
+    rprint(as_text(f"  Active user rate: {data.get('active_user_rate', 0):.1f}%"))
+    rprint(as_text(f"  Total active: {data.get('total_active_users', 0)}"))
+    rprint(as_text(f"  Total org members: {data.get('total_org_members', 0)}"))
     rprint("\n[bold]AI Usage[/bold]")
-    rprint(f"  Total cost: ${data.get('ai_total_cost', 0):.2f}")
+    rprint(as_text(f"  Total cost: ${data.get('ai_total_cost', 0):.2f}"))
     change_cost = data.get("ai_change_cost")
     if change_cost is not None:
-        rprint(f"  Cost change: {change_cost:+.1f}%")
+        rprint(as_text(f"  Cost change: {change_cost:+.1f}%"))
     rprint("\n[bold]App Usage[/bold]")
-    rprint(f"  Total runs: {data.get('app_total_runs', 0)}")
+    rprint(as_text(f"  Total runs: {data.get('app_total_runs', 0)}"))
     change_runs = data.get("app_change_runs")
     if change_runs is not None:
-        rprint(f"  Runs change: {change_runs:+.1f}%")
+        rprint(as_text(f"  Runs change: {change_runs:+.1f}%"))
     rprint("\n[bold]Platform Activity[/bold]")
-    rprint(f"  Total events: {data.get('platform_total_events', 0)}")
+    rprint(as_text(f"  Total events: {data.get('platform_total_events', 0)}"))
     change_events = data.get("platform_change_events")
     if change_events is not None:
-        rprint(f"  Events change: {change_events:+.1f}%")
+        rprint(as_text(f"  Events change: {change_events:+.1f}%"))
 
 
 @app.command("cache-stats")
@@ -92,7 +92,7 @@ def cache_stats(
 
     rprint("\n[bold]Cache Statistics[/bold]\n")
     for key, value in data.items():
-        rprint(f"  {key}: {value}")
+        rprint(as_text(f"  {key}: {value}"))
 
 
 # -- Register sub-command groups from submodules ------------------------------

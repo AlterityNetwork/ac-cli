@@ -12,7 +12,7 @@ from ac_cli.commands._helpers import (
     set_json_mode,
     should_skip_confirm,
 )
-from ac_cli.formatting import print_detail, print_json, print_table
+from ac_cli.formatting import print_detail, print_json, print_table, styled
 
 app = typer.Typer(help="Network features")
 
@@ -112,7 +112,7 @@ def referrals_create(
     if json_output:
         print_json(data)
     else:
-        rprint(f"[green]Created referral:[/green] {data.get('id', data)}")
+        rprint(styled("[green]Created referral:[/green] {}", data.get("id", data)))
 
 
 @referrals_app.command("update")
@@ -136,7 +136,7 @@ def referrals_update(
     if json_output:
         print_json(data)
     else:
-        rprint(f"[green]Updated referral {referral_id}[/green]")
+        rprint(styled("[green]Updated referral {}[/green]", referral_id))
 
 
 @referrals_app.command("delete")
@@ -150,7 +150,7 @@ def referrals_delete(
 
     _api_request("delete", f"{_NET}/referrals/{referral_id}")
 
-    rprint(f"[green]Deleted referral {referral_id}[/green]")
+    rprint(styled("[green]Deleted referral {}[/green]", referral_id))
 
 
 @referrals_app.command("view")
@@ -167,7 +167,7 @@ def referrals_view(
     if json_output:
         print_json(data)
     else:
-        rprint(f"[green]Viewed referral {referral_id}[/green]")
+        rprint(styled("[green]Viewed referral {}[/green]", referral_id))
 
 
 @referrals_app.command("claim")
@@ -184,7 +184,7 @@ def referrals_claim(
     if json_output:
         print_json(data)
     else:
-        rprint(f"[green]Claimed referral {referral_id}[/green]")
+        rprint(styled("[green]Claimed referral {}[/green]", referral_id))
 
 
 # -- News ----------------------------------------------------------------------
@@ -231,7 +231,7 @@ def news_create(
     if json_output:
         print_json(data)
     else:
-        rprint(f"[green]Created news:[/green] {data.get('id', data)}")
+        rprint(styled("[green]Created news:[/green] {}", data.get("id", data)))
 
 
 @news_app.command("update")
@@ -255,7 +255,7 @@ def news_update(
     if json_output:
         print_json(data)
     else:
-        rprint(f"[green]Updated news {news_id}[/green]")
+        rprint(styled("[green]Updated news {}[/green]", news_id))
 
 
 @news_app.command("delete")
@@ -269,7 +269,7 @@ def news_delete(
 
     _api_request("delete", f"{_NET}/news/{news_id}")
 
-    rprint(f"[green]Deleted news {news_id}[/green]")
+    rprint(styled("[green]Deleted news {}[/green]", news_id))
 
 
 # -- Slack Invites -------------------------------------------------------------

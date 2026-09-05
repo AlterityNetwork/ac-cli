@@ -76,6 +76,24 @@ paths:
 
 ## Output
 - Rich output by default via `formatting.py` helpers (`print_table`, `print_detail`)
+- **A print never gives the markup parser text the CLI did not write.** `rprint`
+  and `console.print` read rich markup in a str. A CRM name, a mail body or a
+  tool description that holds `[/beta]` raises `MarkupError`, so the command
+  exits 1 with no output. One that holds `[urgent]` exits 0 without the
+  bracketed word, so the reader reads a value the record does not hold. Use:
+  ```python
+  from ac_cli.formatting import as_text, styled
+
+  rprint(as_text(f"  Total deals: {count}"))                  # no markup
+  rprint(styled("[green]Created:[/green] {}", data["name"]))  # markup
+  ```
+  `styled` parses the template and prints each value as it is. `as_text` wraps
+  one value, and a line that holds no tag. Never `rich.markup.escape`: it is
+  not idempotent, and it appends a second backslash to a value that ends in
+  one. `as_text` also replaces each control byte with its escape, so an API
+  value cannot repaint the terminal.
+  `scripts/check_markup.py` walks the AST and fails on a new unwrapped value.
+  `scripts/lint.sh` runs it.
 - `--json` flag outputs raw JSON to stdout for piping/scripting
 - `--json` is a **subcommand-level option** on every command (not on the group callback). Use `JSON_OPTION` from `_helpers.py`:
   ```python

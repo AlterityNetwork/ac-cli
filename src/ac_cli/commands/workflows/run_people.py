@@ -10,12 +10,13 @@ from ac_cli.client import get_api_client
 from ac_cli.commands._helpers import (
     JSON_OPTION,
     _api_request,
+    _handle_connection_error,
     _handle_error,
     set_json_mode,
     should_skip_confirm,
 )
 from ac_cli.commands.workflows import _WORKFLOWS
-from ac_cli.formatting import print_json, print_table
+from ac_cli.formatting import as_text, print_json, print_table, styled
 
 run_people_app = typer.Typer(help="Workflow-discovered people operations")
 
@@ -70,10 +71,12 @@ def run_people_list(
     filter_options = data.get("filter_options") or {}
     if filter_options:
         rprint(
-            "Filter options: "
-            f"{len(filter_options.get('titles', []))} titles, "
-            f"{len(filter_options.get('countries', []))} countries, "
-            f"{len(filter_options.get('sources', []))} sources"
+            as_text(
+                "Filter options: "
+                f"{len(filter_options.get('titles', []))} titles, "
+                f"{len(filter_options.get('countries', []))} countries, "
+                f"{len(filter_options.get('sources', []))} sources"
+            )
         )
 
 
@@ -141,7 +144,7 @@ def run_people_company_match_preview(
     )
     no_company = data.get("no_company_person_ids", [])
     if no_company:
-        rprint(f"\n[yellow]{len(no_company)} people have no company info[/yellow]")
+        rprint(styled("\n[yellow]{} people have no company info[/yellow]", len(no_company)))
 
 
 @run_people_app.command("company-search")
@@ -195,7 +198,7 @@ def run_people_add_to_crm(
     if overrides_file:
         path = Path(overrides_file)
         if not path.exists():
-            rprint(f"[red]File not found:[/red] {overrides_file}")
+            rprint(styled("[red]File not found:[/red] {}", overrides_file))
             raise typer.Exit(code=1)
         try:
             body["company_overrides"] = json_mod.loads(path.read_text())
@@ -214,9 +217,12 @@ def run_people_add_to_crm(
         print_json(data)
     else:
         rprint(
-            f"[green]Synced {data.get('synced_count', 0)} people to CRM[/green]"
-            f" (new: {data.get('added_count', 0)},"
-            f" linked: {data.get('skipped_count', 0)})"
+            styled(
+                "[green]Synced {} people to CRM[/green] (new: {}, linked: {})",
+                data.get("synced_count", 0),
+                data.get("added_count", 0),
+                data.get("skipped_count", 0),
+            )
         )
 
 
@@ -242,10 +248,13 @@ def run_people_add_to_list(
         print_json(data)
     else:
         rprint(
-            f"[green]Added {data.get('added_count', 0)} people to list[/green]"
-            f" (synced: {data.get('synced_count', 0)},"
-            f" already in list: {data.get('already_member_count', 0)},"
-            f" skipped removed: {len(data.get('skipped_deleted_ids', []))})"
+            styled(
+                "[green]Added {} people to list[/green] (synced: {}, already in list: {}, skipped removed: {})",
+                data.get("added_count", 0),
+                data.get("synced_count", 0),
+                data.get("already_member_count", 0),
+                len(data.get("skipped_deleted_ids", [])),
+            )
         )
 
 
@@ -271,11 +280,14 @@ def run_people_add_to_sequence(
         print_json(data)
     else:
         rprint(
-            f"[green]Enrolled {data.get('added_count', 0)} people in sequence[/green]"
-            f" (synced: {data.get('synced_count', 0)},"
-            f" already active: {data.get('already_active_count', 0)},"
-            f" needs confirmation: {data.get('requires_confirmation_count', 0)},"
-            f" skipped removed: {len(data.get('skipped_deleted_ids', []))})"
+            styled(
+                "[green]Enrolled {} people in sequence[/green] (synced: {}, already active: {}, needs confirmation: {}, skipped removed: {})",
+                data.get("added_count", 0),
+                data.get("synced_count", 0),
+                data.get("already_active_count", 0),
+                data.get("requires_confirmation_count", 0),
+                len(data.get("skipped_deleted_ids", [])),
+            )
         )
 
 
@@ -293,7 +305,7 @@ def run_people_crm_count(
     if json_output:
         print_json(data)
     else:
-        rprint(f"People added to CRM: [bold]{data.get('count', 0)}[/bold]")
+        rprint(styled("People added to CRM: [bold]{}[/bold]", data.get("count", 0)))
 
 
 @run_people_app.command("delete")
@@ -322,11 +334,10 @@ def run_people_delete(
         except httpx.HTTPStatusError as exc:
             _handle_error(exc)
         except httpx.HTTPError as exc:
-            rprint(f"[red]Connection error:[/red] {exc}")
-            raise typer.Exit(code=1)
+            _handle_connection_error(exc)
 
     data = resp.json()
     if json_output:
         print_json(data)
     else:
-        rprint(f"[green]Deleted {data.get('deleted_count', 0)} workflow people[/green]")
+        rprint(styled("[green]Deleted {} workflow people[/green]", data.get("deleted_count", 0)))

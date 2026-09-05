@@ -6,7 +6,7 @@ import typer
 from rich import print as rprint
 
 from ac_cli.commands._helpers import JSON_OPTION, _api_request, set_json_mode
-from ac_cli.formatting import print_detail, print_json
+from ac_cli.formatting import as_text, print_detail, print_json
 
 app = typer.Typer(help="Terms of service")
 
@@ -58,9 +58,9 @@ def tos_status(
 
     accepted = data.get("accepted", False)
     status = "[green]Accepted[/green]" if accepted else "[yellow]Not accepted[/yellow]"
-    rprint(f"TOS Status: {status}")
+    rprint("TOS Status:", status)
     if data.get("version"):
-        rprint(f"  Version: {data['version']}")
+        rprint(as_text(f"  Version: {data['version']}"))
 
 
 @app.command("accept")

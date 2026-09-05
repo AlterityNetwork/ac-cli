@@ -10,12 +10,13 @@ from ac_cli.client import get_api_client
 from ac_cli.commands._helpers import (
     JSON_OPTION,
     _api_request,
+    _handle_connection_error,
     _handle_error,
     set_json_mode,
     should_skip_confirm,
 )
 from ac_cli.commands.workflows import _WORKFLOWS
-from ac_cli.formatting import print_json, print_table
+from ac_cli.formatting import print_json, print_table, styled
 
 run_companies_app = typer.Typer(help="Workflow-discovered company operations")
 
@@ -151,10 +152,13 @@ def run_companies_add_to_crm(
         print_json(data)
     else:
         rprint(
-            f"[green]Synced {data.get('synced_count', 0)} companies to CRM[/green]"
-            f" (new: {data.get('added_count', 0)},"
-            f" updated: {data.get('updated_count', 0)},"
-            f" skipped: {data.get('skipped_count', 0)})"
+            styled(
+                "[green]Synced {} companies to CRM[/green] (new: {}, updated: {}, skipped: {})",
+                data.get("synced_count", 0),
+                data.get("added_count", 0),
+                data.get("updated_count", 0),
+                data.get("skipped_count", 0),
+            )
         )
 
 
@@ -182,10 +186,13 @@ def run_companies_add_to_list(
         print_json(data)
     else:
         rprint(
-            f"[green]Added {data.get('added_count', 0)} companies to list[/green]"
-            f" (synced: {data.get('synced_count', 0)},"
-            f" already in list: {data.get('already_member_count', 0)},"
-            f" skipped removed: {len(data.get('skipped_deleted_ids', []))})"
+            styled(
+                "[green]Added {} companies to list[/green] (synced: {}, already in list: {}, skipped removed: {})",
+                data.get("added_count", 0),
+                data.get("synced_count", 0),
+                data.get("already_member_count", 0),
+                len(data.get("skipped_deleted_ids", [])),
+            )
         )
 
 
@@ -203,7 +210,7 @@ def run_companies_crm_count(
     if json_output:
         print_json(data)
     else:
-        rprint(f"Companies added to CRM: [bold]{data.get('count', 0)}[/bold]")
+        rprint(styled("Companies added to CRM: [bold]{}[/bold]", data.get("count", 0)))
 
 
 @run_companies_app.command("delete")
@@ -234,11 +241,10 @@ def run_companies_delete(
         except httpx.HTTPStatusError as exc:
             _handle_error(exc)
         except httpx.HTTPError as exc:
-            rprint(f"[red]Connection error:[/red] {exc}")
-            raise typer.Exit(code=1)
+            _handle_connection_error(exc)
 
     data = resp.json()
     if json_output:
         print_json(data)
     else:
-        rprint(f"[green]Deleted {data.get('deleted_count', 0)} workflow companies[/green]")
+        rprint(styled("[green]Deleted {} workflow companies[/green]", data.get("deleted_count", 0)))

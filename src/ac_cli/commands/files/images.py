@@ -11,7 +11,7 @@ from rich import print as rprint
 
 from ac_cli.commands._helpers import JSON_OPTION, _api_request, set_json_mode, should_skip_confirm
 from ac_cli.commands.files import _FILES
-from ac_cli.formatting import print_detail, print_json
+from ac_cli.formatting import print_detail, print_json, styled
 
 images_app = typer.Typer(help="Image file operations")
 
@@ -37,17 +37,17 @@ def images_upload(
     """Upload an image file."""
     set_json_mode(json_output)
     if not file_path.exists():
-        rprint(f"[red]Error:[/red] File not found: {file_path}")
+        rprint(styled("[red]Error:[/red] File not found: {}", file_path))
         raise typer.Exit(code=1)
 
     suffix = file_path.suffix.lower()
     if suffix not in ALLOWED_EXTENSIONS:
-        rprint(f"[red]Error:[/red] Unsupported file type: {suffix}")
+        rprint(styled("[red]Error:[/red] Unsupported file type: {}", suffix))
         raise typer.Exit(code=1)
 
     size = file_path.stat().st_size
     if size > MAX_SIZE_BYTES:
-        rprint(f"[red]Error:[/red] File too large ({size} bytes, max {MAX_SIZE_BYTES})")
+        rprint(styled("[red]Error:[/red] File too large ({} bytes, max {})", size, MAX_SIZE_BYTES))
         raise typer.Exit(code=1)
 
     content_type = mimetypes.guess_type(str(file_path))[0] or "application/octet-stream"
@@ -95,4 +95,4 @@ def images_delete(
     if json_output:
         print_json(data)
     else:
-        rprint(f"[green]Deleted image:[/green] {key}")
+        rprint(styled("[green]Deleted image:[/green] {}", key))

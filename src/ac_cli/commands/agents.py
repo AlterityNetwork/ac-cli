@@ -19,7 +19,7 @@ from ac_cli.commands._helpers import (
     set_json_mode,
     should_skip_confirm,
 )
-from ac_cli.formatting import print_detail, print_json, print_table
+from ac_cli.formatting import print_detail, print_json, print_table, styled
 
 app = typer.Typer(help="Managed agents")
 
@@ -87,12 +87,12 @@ def _render_watch_frame(frame: dict[str, Any], *, json_output: bool) -> int | No
             sys.stdout.flush()
     elif event_type == "run" and status in _TERMINAL_STATUSES:
         if status == "completed":
-            rprint(f"\n[green]Run completed[/green] ({status})")
+            rprint(styled("\n[green]Run completed[/green] ({})", status))
         else:
             detail = data.get("error") or status
-            rprint(f"\n[red]Run finished with {status}:[/red] {detail}")
+            rprint(styled("\n[red]Run finished with {}:[/red] {}", status, detail))
     elif event_type:
-        rprint(f"[dim]{event_type}[/dim] status={status or '-'}")
+        rprint(styled("[dim]{}[/dim] status={}", event_type, status or "-"))
 
     if event_type == "run" and status in _TERMINAL_STATUSES:
         return 0 if status == "completed" else 1
@@ -121,8 +121,10 @@ def _watch_run(run_id: str, *, json_output: bool) -> None:
                             _print_json_line(detail)
                         else:
                             rprint(
-                                f"[yellow]Skipping malformed SSE frame[/yellow]"
-                                f" event_id={event_id or '-'}"
+                                styled(
+                                    "[yellow]Skipping malformed SSE frame[/yellow] event_id={}",
+                                    event_id or "-",
+                                )
                             )
                         continue
                     if not isinstance(frame, dict):
@@ -133,10 +135,12 @@ def _watch_run(run_id: str, *, json_output: bool) -> None:
         except httpx.HTTPStatusError as exc:
             _handle_error(exc)
         except httpx.HTTPError as exc:
+            # Not _handle_connection_error. This command streams NDJSON, so a
+            # frame is one line. print_json indents, which breaks that line.
             if json_output:
                 _print_json_line({"error": True, "status_code": None, "detail": str(exc)})
             else:
-                rprint(f"[red]Connection error:[/red] {exc}")
+                rprint(styled("[red]Connection error:[/red] {}", exc))
             raise typer.Exit(code=1)
 
 
@@ -168,8 +172,12 @@ def runs_create(
             print_json(data)
     else:
         rprint(
-            f"[green]Run created:[/green] {data['run_id']} "
-            f"({data['agent']}, status: {data['status']})"
+            styled(
+                "[green]Run created:[/green] {} ({}, status: {})",
+                data["run_id"],
+                data["agent"],
+                data["status"],
+            )
         )
     if watch:
         _watch_run(str(data["run_id"]), json_output=json_output)
@@ -222,7 +230,7 @@ def runs_cancel(
     if json_output:
         print_json(data)
         return
-    rprint(f"[green]Run cancelled:[/green] {data['run_id']} (status: {data['status']})")
+    rprint(styled("[green]Run cancelled:[/green] {} (status: {})", data["run_id"], data["status"]))
 
 
 @runs_app.command("watch")

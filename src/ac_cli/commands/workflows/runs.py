@@ -15,7 +15,7 @@ from ac_cli.commands._helpers import (
     should_skip_confirm,
 )
 from ac_cli.commands.workflows import _WORKFLOWS
-from ac_cli.formatting import print_detail, print_json, print_table
+from ac_cli.formatting import print_detail, print_json, print_table, styled
 
 runs_app = typer.Typer(help="Workflow run operations")
 
@@ -50,7 +50,13 @@ def runs_create(
     if json_output:
         print_json(data)
     else:
-        rprint(f"[green]Run created:[/green] {data['workflow_run_id']} (status: {data['status']})")
+        rprint(
+            styled(
+                "[green]Run created:[/green] {} (status: {})",
+                data["workflow_run_id"],
+                data["status"],
+            )
+        )
 
 
 @runs_app.command("list")
@@ -112,7 +118,7 @@ def runs_archive(
         return
 
     count = data.get("archived_count", 0)
-    rprint(f"[green]Archived {count} {'run' if count == 1 else 'runs'}[/green]")
+    rprint(styled("[green]Archived {} {}[/green]", count, "run" if count == 1 else "runs"))
 
 
 @runs_app.command("restore")
@@ -139,7 +145,7 @@ def runs_restore(
         return
 
     count = data.get("restored_count", 0)
-    rprint(f"[green]Restored {count} {'run' if count == 1 else 'runs'}[/green]")
+    rprint(styled("[green]Restored {} {}[/green]", count, "run" if count == 1 else "runs"))
 
 
 @runs_app.command("get")

@@ -17,7 +17,7 @@ from ac_cli.commands._helpers import (
     should_skip_confirm,
 )
 from ac_cli.commands.crm import _CRM, _api_request, _build_body
-from ac_cli.formatting import print_json, print_table
+from ac_cli.formatting import as_text, print_json, print_table, styled
 
 merge_app = typer.Typer(help="Find and merge duplicate companies")
 
@@ -40,7 +40,7 @@ def _parse_selections(pairs: list[str] | None) -> dict[str, str]:
     for pair in pairs or []:
         field, sep, source = pair.partition("=")
         if not sep or not field.strip() or not source.strip():
-            rprint(f"[red]Invalid --set {pair!r}; expected field=company_id[/red]")
+            rprint(styled("[red]Invalid --set {}; expected field=company_id[/red]", f"{pair!r}"))
             raise typer.Exit(code=2)
         selections[field.strip()] = source.strip()
     return selections
@@ -79,7 +79,7 @@ def merge_candidates(
 
     for index, group in enumerate(groups, start=offset + 1):
         reasons = ", ".join(group.get("match_reasons", [])) or "none"
-        rprint(f"\n[bold]Group {index}[/bold]  (matched on: {reasons})")
+        rprint(styled("\n[bold]Group {}[/bold]  (matched on: {})", index, reasons))
         print_table(
             [
                 {
@@ -100,7 +100,7 @@ def merge_candidates(
             ],
         )
 
-    rprint(f"\n[dim]{len(groups)} of {data.get('total', 0)} group(s).[/dim]")
+    rprint(styled("\n[dim]{} of {} group(s).[/dim]", len(groups), data.get("total", 0)))
 
 
 @merge_app.command("preview")
@@ -158,7 +158,7 @@ def merge_preview(
         )
 
     if data.get("already_merged"):
-        rprint(f"[dim]Already merged: {', '.join(data['already_merged'])}[/dim]")
+        rprint(styled("[dim]Already merged: {}[/dim]", ", ".join(data["already_merged"])))
 
 
 @merge_app.command("apply")
@@ -202,10 +202,16 @@ def merge_apply(
         return
 
     merged = data.get("merged", [])
-    rprint(f"[green]Merged {len(merged)} company(ies) into {data['survivor_id']}[/green]")
+    rprint(
+        styled("[green]Merged {} company(ies) into {}[/green]", len(merged), data["survivor_id"])
+    )
     for company_id in merged:
-        rprint(f"  - {company_id}")
+        rprint(as_text(f"  - {company_id}"))
     if data.get("already_merged"):
-        rprint(f"[dim]Skipped (already merged): {', '.join(data['already_merged'])}[/dim]")
+        rprint(styled("[dim]Skipped (already merged): {}[/dim]", ", ".join(data["already_merged"])))
     for field, change in (data.get("field_updates") or {}).items():
-        rprint(f"[dim]{field}: {change.get('from')!r} -> {change.get('to')!r}[/dim]")
+        rprint(
+            styled(
+                "[dim]{}: {} -> {}[/dim]", field, f"{change.get('from')!r}", f"{change.get('to')!r}"
+            )
+        )
