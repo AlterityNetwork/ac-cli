@@ -272,3 +272,66 @@ def test_header_safe_key_refuses_an_unsendable_key():
 
     for key in ("", " ", "x" * 201, "line\nbreak", "tab\there", "del\x7f", "é"):
         assert not header_safe_key(key), key
+
+
+# -- checked_header_key --------------------------------------------------------
+
+
+def test_checked_header_key_returns_a_sendable_key():
+    """A key the header accepts passes through unchanged."""
+    from ac_cli.commands._helpers import checked_header_key
+
+    assert checked_header_key("delivery-42") == "delivery-42"
+
+
+def test_checked_header_key_refuses_with_code_two(capsys):
+    """A key the header refuses exits 2 and never reaches an HTTP call."""
+    import typer
+
+    from ac_cli.commands._helpers import checked_header_key, set_json_mode
+
+    set_json_mode(False)
+    for key in ("", " ", "x" * 201, "line\nbreak", "é", "tab\there"):
+        try:
+            checked_header_key(key)
+        except typer.Exit as exit_:
+            assert exit_.exit_code == 2, key
+        else:
+            raise AssertionError(f"{key!r} was not refused")
+
+
+def test_checked_header_key_answers_the_json_envelope(capsys):
+    """The refusal answers the shape a --json caller parses."""
+    import typer
+
+    from ac_cli.commands._helpers import checked_header_key, set_json_mode
+
+    set_json_mode(True)
+    try:
+        checked_header_key("line\nbreak")
+    except typer.Exit:
+        pass
+    finally:
+        set_json_mode(False)
+
+    body = json.loads(capsys.readouterr().out)
+    assert body == {
+        "error": True,
+        "status_code": None,
+        "detail": "--idempotency-key must contain 1–200 header-safe ASCII characters",
+    }
+
+
+def test_checked_header_key_never_echoes_the_value(capsys):
+    """The refusal names the rule, and never the control characters typed."""
+    import typer
+
+    from ac_cli.commands._helpers import checked_header_key, set_json_mode
+
+    set_json_mode(False)
+    try:
+        checked_header_key("a\rb\x00c")
+    except typer.Exit:
+        pass
+
+    assert "\x00" not in capsys.readouterr().out

@@ -2,6 +2,7 @@
 
 import contextvars
 import os
+from typing import NoReturn
 
 import httpx
 import typer
@@ -16,6 +17,8 @@ _json_output: contextvars.ContextVar[bool] = contextvars.ContextVar("json_output
 JSON_OPTION = typer.Option(False, "--json", help="Output raw JSON")
 
 _EXIT_CODES = {401: 4, 403: 4, 404: 3, 409: 5, 422: 2}
+
+_KEY_FLAG = "--idempotency-key"
 
 
 def set_json_mode(enabled: bool) -> None:
@@ -201,9 +204,12 @@ def _build_body(**fields: object) -> dict:
 def header_safe_key(key: str) -> bool:
     """Reports whether one idempotency key can travel in a request header.
 
-    An HTTP header strips the outer whitespace of a value, so a padded key
-    reaches the server as a different key than the person typed. Refuse it
-    here, so the CLI and the server always name the same key.
+    h11 refuses a value that holds an outer space or a control character, and
+    httpx refuses a non-ASCII value. Both raise deep in the transport, so read
+    the key here and name the flag that is wrong.
+
+    The bound is 200 characters. The agentic run and conversation routes cap
+    the header at 255, so this bound is the stricter of the two.
 
     Args:
         key: The key the caller supplied.
@@ -218,3 +224,51 @@ def header_safe_key(key: str) -> bool:
         and len(key) <= 200
         and all(32 <= ord(char) < 127 for char in key)
     )
+
+
+def refuse_local(detail: str) -> NoReturn:
+    """Reports one local input error, and exits before any HTTP call.
+
+    A poll drives these commands with `--json`, so the refusal answers the
+    shape that caller parses. See _handle_error, which answers the same shape
+    for a refusal the API wrote.
+
+    Args:
+        detail: What the caller must change.
+
+    Raises:
+        typer.Exit: Always, with the validation code.
+    """
+    if _json_output.get():
+        print_json({"error": True, "status_code": None, "detail": detail})
+    else:
+        rprint("[red]Invalid option:[/red]", as_text(detail))
+    raise typer.Exit(code=2)
+
+
+def checked_header_key(key: str) -> str:
+    """Returns one idempotency key, or refuses it before any HTTP call.
+
+    Every command that starts work sends the key in a request header. httpx
+    raises UnicodeEncodeError for a non-ASCII key, and h11 raises
+    LocalProtocolError for a control character or an outer space. The second
+    one is an httpx.HTTPError, so _api_request catches it and names a
+    connection error for a typing error. Refuse the key here, so all five
+    senders answer one message and one exit code.
+
+    The refusal never echoes the value. A refused key holds control
+    characters, and those characters move the cursor of the terminal that
+    prints them.
+
+    Args:
+        key: The key the caller supplied.
+
+    Returns:
+        The key, when the header accepts it.
+
+    Raises:
+        typer.Exit: Code 2, when the header refuses the key.
+    """
+    if header_safe_key(key):
+        return key
+    refuse_local(f"{_KEY_FLAG} must contain 1–200 header-safe ASCII characters")
