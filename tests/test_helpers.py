@@ -253,11 +253,21 @@ def test_handle_connection_error_renders_a_close_tag(invoke, mock_api):
 
 
 def test_header_safe_key_accepts_a_plain_key():
-    """One printable ASCII key of 1 to 200 characters travels in a header."""
-    from ac_cli.commands._helpers import header_safe_key
+    """One printable ASCII key up to the bound travels in a header."""
+    from ac_cli.commands._helpers import HEADER_KEY_MAX_LENGTH, header_safe_key
 
     assert header_safe_key("delivery-42")
-    assert header_safe_key("x" * 200)
+    assert header_safe_key("x" * HEADER_KEY_MAX_LENGTH)
+
+
+def test_the_bound_is_the_number_ac_python_api_names():
+    """`src/shared/idempotency.py` names the same number, and its own test
+    pins it. The two numbers are written in two repositories, so one test
+    names it in each. A change on one side alone returns the drift ENG-2347
+    closed."""
+    from ac_cli.commands._helpers import HEADER_KEY_MAX_LENGTH
+
+    assert HEADER_KEY_MAX_LENGTH == 255
 
 
 def test_header_safe_key_refuses_a_padded_key():
@@ -270,9 +280,10 @@ def test_header_safe_key_refuses_a_padded_key():
 
 def test_header_safe_key_refuses_an_unsendable_key():
     """Empty, oversize, control and non-ASCII keys cannot travel."""
-    from ac_cli.commands._helpers import header_safe_key
+    from ac_cli.commands._helpers import HEADER_KEY_MAX_LENGTH, header_safe_key
 
-    for key in ("", " ", "x" * 201, "line\nbreak", "tab\there", "del\x7f", "é"):
+    over = "x" * (HEADER_KEY_MAX_LENGTH + 1)
+    for key in ("", " ", over, "line\nbreak", "tab\there", "del\x7f", "é"):
         assert not header_safe_key(key), key
 
 
@@ -290,10 +301,15 @@ def test_checked_header_key_refuses_with_code_two(capsys):
     """A key the header refuses exits 2 and never reaches an HTTP call."""
     import typer
 
-    from ac_cli.commands._helpers import checked_header_key, set_json_mode
+    from ac_cli.commands._helpers import (
+        HEADER_KEY_MAX_LENGTH,
+        checked_header_key,
+        set_json_mode,
+    )
 
     set_json_mode(False)
-    for key in ("", " ", "x" * 201, "line\nbreak", "é", "tab\there"):
+    over = "x" * (HEADER_KEY_MAX_LENGTH + 1)
+    for key in ("", " ", over, "line\nbreak", "é", "tab\there"):
         try:
             checked_header_key(key)
         except typer.Exit as exit_:
@@ -320,7 +336,7 @@ def test_checked_header_key_answers_the_json_envelope(capsys):
     assert body == {
         "error": True,
         "status_code": None,
-        "detail": "--idempotency-key must contain 1–200 header-safe ASCII characters",
+        "detail": "--idempotency-key must contain 1–255 header-safe ASCII characters",
     }
 
 

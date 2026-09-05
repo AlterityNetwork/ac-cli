@@ -26,7 +26,7 @@ UNSENDABLE_KEYS = [
     " ",
     " delivery-42",
     "delivery-42 ",
-    "x" * 201,
+    "x" * 256,
     "line\nbreak",
     "carriage\rreturn",
     "nul\x00byte",
