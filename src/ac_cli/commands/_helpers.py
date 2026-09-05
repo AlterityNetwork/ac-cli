@@ -204,9 +204,13 @@ def _build_body(**fields: object) -> dict:
 def header_safe_key(key: str) -> bool:
     """Reports whether one idempotency key can travel in a request header.
 
-    h11 refuses a value that holds an outer space or a control character, and
-    httpx refuses a non-ASCII value. Both raise deep in the transport, so read
-    the key here and name the flag that is wrong.
+    h11 raises LocalProtocolError for a newline, a carriage return, a null
+    byte or outer whitespace. httpx raises UnicodeEncodeError for a non-ASCII
+    value. Both raise deep in the transport, so read the key here and name the
+    flag that is wrong.
+
+    A tab and DEL travel with no error. This function refuses them too. An
+    invisible character makes two keys that look equal name two deliveries.
 
     The bound is 200 characters. The agentic run and conversation routes cap
     the header at 255, so this bound is the stricter of the two.
@@ -249,12 +253,13 @@ def refuse_local(detail: str) -> NoReturn:
 def checked_header_key(key: str) -> str:
     """Returns one idempotency key, or refuses it before any HTTP call.
 
-    Every command that starts work sends the key in a request header. httpx
-    raises UnicodeEncodeError for a non-ASCII key, and h11 raises
-    LocalProtocolError for a control character or an outer space. The second
-    one is an httpx.HTTPError, so _api_request catches it and names a
+    Every command that starts work sends the key in a request header. A key
+    the header refuses fails deep in the transport. LocalProtocolError is an
+    httpx.HTTPError. _api_request catches it, and the caller then reads a
     connection error for a typing error. Refuse the key here, so all five
     senders answer one message and one exit code.
+
+    See header_safe_key for the rule and for what each layer refuses.
 
     The refusal never echoes the value. A refused key holds control
     characters, and those characters move the cursor of the terminal that
