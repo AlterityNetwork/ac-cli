@@ -38,8 +38,8 @@ def runs_create(
             rprint("[red]Invalid JSON for --input[/red]")
             raise typer.Exit(code=1)
 
-    # Read the flag with `is not None`. An empty flag is a typing error, and
-    # truthiness would send an unkeyed start with no duplicate guard.
+    # Read the flag with `is not None`. An empty flag is a typing error.
+    # Truthiness would send an unkeyed start with no duplicate guard.
     kwargs: dict = {"json": body}
     if idempotency_key is not None:
         kwargs["headers"] = {"Idempotency-Key": checked_header_key(idempotency_key)}

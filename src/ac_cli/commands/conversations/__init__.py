@@ -200,8 +200,8 @@ def conversations_send(
     # delivery, so a value derived from the text would make tomorrow's message
     # a duplicate of today's and it would never be answered.
     #
-    # Read the flag with `is not None`. An empty flag is a typing error, and
-    # truthiness would mint a key for it and disable the duplicate guard.
+    # Read the flag with `is not None`. An empty flag is a typing error.
+    # Truthiness would mint a key for it and disable the duplicate guard.
     key = checked_header_key(idempotency_key) if idempotency_key is not None else str(uuid.uuid4())
     response = _api_request(
         "post",

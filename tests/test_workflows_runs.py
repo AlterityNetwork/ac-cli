@@ -210,7 +210,10 @@ def test_runs_create_refuses_a_key_the_header_refuses(invoke, mock_api, key):
     result = invoke(["workflows", "runs", "create", "wf-1", "--idempotency-key", key, "--json"])
 
     assert result.exit_code == 2, result.output
-    assert json.loads(result.output)["error"] is True
+    body = json.loads(result.output)
+    assert body["error"] is True
+    assert body["status_code"] is None
+    assert "--idempotency-key" in body["detail"]
     assert not mock_api.calls
 
 

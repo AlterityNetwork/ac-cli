@@ -247,7 +247,10 @@ def test_send_refuses_a_key_the_header_refuses(invoke, mock_api, key):
     )
 
     assert result.exit_code == 2, result.output
-    assert json.loads(result.output)["error"] is True
+    body = json.loads(result.output)
+    assert body["error"] is True
+    assert body["status_code"] is None
+    assert "--idempotency-key" in body["detail"]
     assert not mock_api.calls
 
 

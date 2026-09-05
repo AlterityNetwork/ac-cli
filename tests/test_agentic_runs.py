@@ -1051,7 +1051,10 @@ def test_runs_start_refuses_a_key_the_header_refuses(invoke, mock_api, key):
     )
 
     assert result.exit_code == 2, result.output
-    assert json.loads(result.output)["error"] is True
+    body = json.loads(result.output)
+    assert body["error"] is True
+    assert body["status_code"] is None
+    assert "--idempotency-key" in body["detail"]
     assert not mock_api.calls
 
 
@@ -1073,3 +1076,24 @@ def test_runs_start_never_mints_a_key_for_an_empty_flag(invoke, mock_api):
 
     assert result.exit_code == 2
     assert not mock_api.calls
+
+
+def test_runs_start_sends_a_key_at_the_length_bound(invoke, mock_api):
+    """200 characters is the last length the header check accepts."""
+    route = mock_api.post("/api/v1/agentic/runs").respond(200, json=SAMPLE_RUN)
+    key = "x" * 200
+
+    result = invoke(
+        [
+            "agentic",
+            "runs",
+            "start",
+            "--definition",
+            SAMPLE_RUN["definition_id"],
+            "--idempotency-key",
+            key,
+        ]
+    )
+
+    assert result.exit_code == 0, result.output
+    assert route.calls[0].request.headers["Idempotency-Key"] == key
