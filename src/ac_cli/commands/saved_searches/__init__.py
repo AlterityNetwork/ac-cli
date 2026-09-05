@@ -11,7 +11,7 @@ from rich import print as rprint
 from ac_cli.commands._helpers import (
     JSON_OPTION,
     _api_request,
-    header_safe_key,
+    checked_header_key,
     set_json_mode,
     should_skip_confirm,
 )
@@ -85,16 +85,6 @@ def _checked_contract_version(version: int, *, json_output: bool) -> int:
     if version >= 1:
         return version
     _refuse("--contract-version must be positive", json_output=json_output)
-
-
-def _checked_key(key: str, *, json_output: bool) -> str:
-    """Refuse a key that cannot travel in the request header."""
-    if header_safe_key(key):
-        return key
-    _refuse(
-        "--idempotency-key must contain 1–200 header-safe ASCII characters",
-        json_output=json_output,
-    )
 
 
 def _page_params(limit: int, cursor: str | None, *, json_output: bool) -> dict[str, object]:
@@ -250,7 +240,7 @@ def saved_searches_start(
     """Start one Run with the stored brief and current baseline."""
     set_json_mode(json_output)
     version = _checked_contract_version(contract_version, json_output=json_output)
-    key = _checked_key(idempotency_key, json_output=json_output)
+    key = checked_header_key(idempotency_key)
     data = _api_request(
         "post",
         f"{_SAVED_SEARCHES}/{search_id}/runs",

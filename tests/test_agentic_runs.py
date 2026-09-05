@@ -7,6 +7,10 @@ stacks are branch isolated until the cutover, so the alias swap is Phase 7.
 import json
 import uuid
 
+import pytest
+
+from tests.conftest import UNSENDABLE_KEYS
+
 SAMPLE_RUN = {
     "id": "11111111-1111-4111-8111-111111111111",
     "kind": "agent",
@@ -1011,3 +1015,73 @@ def test_run_list_json_keeps_identity(invoke, mock_api):
     item = json.loads(result.output)["items"][0]
     assert item["capability_id"] == "signals.search"
     assert item["contract_version"] == 4
+
+
+# -- the idempotency key the caller names --------------------------------------
+
+
+@pytest.mark.parametrize("key", UNSENDABLE_KEYS)
+def test_runs_start_refuses_a_key_the_header_refuses(invoke, mock_api, key):
+    """A key that cannot travel is refused before any HTTP call."""
+    mock_api.post("/api/v1/agentic/runs").respond(200, json=SAMPLE_RUN)
+
+    result = invoke(
+        [
+            "agentic",
+            "runs",
+            "start",
+            "--definition",
+            SAMPLE_RUN["definition_id"],
+            "--idempotency-key",
+            key,
+            "--json",
+        ]
+    )
+
+    assert result.exit_code == 2, result.output
+    body = json.loads(result.output)
+    assert body["error"] is True
+    assert body["status_code"] is None
+    assert "--idempotency-key" in body["detail"]
+    assert not mock_api.calls
+
+
+def test_runs_start_never_mints_a_key_for_an_empty_flag(invoke, mock_api):
+    """An unset shell variable must not silently disable the duplicate guard."""
+    mock_api.post("/api/v1/agentic/runs").respond(200, json=SAMPLE_RUN)
+
+    result = invoke(
+        [
+            "agentic",
+            "runs",
+            "start",
+            "--definition",
+            SAMPLE_RUN["definition_id"],
+            "--idempotency-key",
+            "",
+        ]
+    )
+
+    assert result.exit_code == 2
+    assert not mock_api.calls
+
+
+def test_runs_start_sends_a_key_at_the_length_bound(invoke, mock_api):
+    """200 characters is the last length the header check accepts."""
+    route = mock_api.post("/api/v1/agentic/runs").respond(200, json=SAMPLE_RUN)
+    key = "x" * 200
+
+    result = invoke(
+        [
+            "agentic",
+            "runs",
+            "start",
+            "--definition",
+            SAMPLE_RUN["definition_id"],
+            "--idempotency-key",
+            key,
+        ]
+    )
+
+    assert result.exit_code == 0, result.output
+    assert route.calls[0].request.headers["Idempotency-Key"] == key

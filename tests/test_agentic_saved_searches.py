@@ -2,6 +2,10 @@
 
 import json
 
+import pytest
+
+from tests.conftest import UNSENDABLE_KEYS
+
 BASE = "/api/v1/agentic/saved-searches"
 SEARCH_ID = "11111111-1111-4111-8111-111111111111"
 RUN_ID = "22222222-2222-4222-8222-222222222222"
@@ -351,33 +355,26 @@ def test_start_requires_version_and_key(invoke, mock_api):
     assert not route.called
 
 
-def test_start_refuses_invalid_version_and_key_before_request(invoke, mock_api):
+def test_start_refuses_an_invalid_version_before_request(invoke, mock_api):
+    """A version the contract refuses never reaches the API."""
     route = mock_api.post(f"{BASE}/{SEARCH_ID}/runs").respond(200, json=RUN)
-    base = [
-        "agentic",
-        "saved-searches",
-        "start",
-        SEARCH_ID,
-        "--contract-version",
-        "1",
-        "--idempotency-key",
-        "delivery-1",
-        "--json",
-    ]
 
-    for flag, value in (
-        ("--contract-version", "0"),
-        ("--idempotency-key", " "),
-        ("--idempotency-key", " delivery-1"),
-        ("--idempotency-key", "delivery-1 "),
-        ("--idempotency-key", "x" * 201),
-        ("--idempotency-key", "é"),
-    ):
-        args = base.copy()
-        args[args.index(flag) + 1] = value
-        result = invoke(args)
-        assert result.exit_code == 2
-        assert json.loads(result.output)["error"] is True
+    result = invoke(
+        [
+            "agentic",
+            "saved-searches",
+            "start",
+            SEARCH_ID,
+            "--contract-version",
+            "0",
+            "--idempotency-key",
+            "delivery-1",
+            "--json",
+        ]
+    )
+
+    assert result.exit_code == 2
+    assert json.loads(result.output)["error"] is True
     assert not route.called
 
 
@@ -498,3 +495,30 @@ def test_diff_maps_changed_snapshot_to_conflict_exit(invoke, mock_api):
     result = invoke(["agentic", "saved-searches", "diff", SEARCH_ID])
 
     assert result.exit_code == 5
+
+
+@pytest.mark.parametrize("key", UNSENDABLE_KEYS)
+def test_start_refuses_a_key_the_header_refuses(invoke, mock_api, key):
+    """A key that cannot travel is refused before any HTTP call."""
+    route = mock_api.post(f"{BASE}/{SEARCH_ID}/runs").respond(200, json=RUN)
+
+    result = invoke(
+        [
+            "agentic",
+            "saved-searches",
+            "start",
+            SEARCH_ID,
+            "--contract-version",
+            "1",
+            "--idempotency-key",
+            key,
+            "--json",
+        ]
+    )
+
+    assert result.exit_code == 2, result.output
+    body = json.loads(result.output)
+    assert body["error"] is True
+    assert body["status_code"] is None
+    assert "--idempotency-key" in body["detail"]
+    assert not route.called
