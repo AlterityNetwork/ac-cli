@@ -2,6 +2,10 @@
 
 import json
 
+import pytest
+
+from tests.test_agentic_runs import UNSENDABLE_KEYS
+
 SAMPLE_RUN = {
     "id": "run-1",
     "workflow_id": "wf-1",
@@ -191,3 +195,32 @@ def test_runs_logs_json(invoke, mock_api):
     assert result.exit_code == 0
     parsed = json.loads(result.output)
     assert parsed[0]["level"] == "info"
+
+
+# -- the idempotency key the caller names --------------------------------------
+
+
+@pytest.mark.parametrize("key", UNSENDABLE_KEYS)
+def test_runs_create_refuses_a_key_the_header_refuses(invoke, mock_api, key):
+    """A key that cannot travel is refused before any HTTP call."""
+    mock_api.post("/api/v1/workflows/wf-1/runs").respond(
+        202, json={"workflow_run_id": "run-1", "status": "queued"}
+    )
+
+    result = invoke(["workflows", "runs", "create", "wf-1", "--idempotency-key", key, "--json"])
+
+    assert result.exit_code == 2, result.output
+    assert json.loads(result.output)["error"] is True
+    assert not mock_api.calls
+
+
+def test_runs_create_never_drops_the_header_for_an_empty_flag(invoke, mock_api):
+    """An empty flag is a typing error, and it must not send an unkeyed start."""
+    mock_api.post("/api/v1/workflows/wf-1/runs").respond(
+        202, json={"workflow_run_id": "run-1", "status": "queued"}
+    )
+
+    result = invoke(["workflows", "runs", "create", "wf-1", "--idempotency-key", ""])
+
+    assert result.exit_code == 2
+    assert not mock_api.calls

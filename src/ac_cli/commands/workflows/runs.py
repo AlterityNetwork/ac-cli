@@ -10,6 +10,7 @@ from rich import print as rprint
 from ac_cli.commands._helpers import (
     JSON_OPTION,
     _api_request,
+    checked_header_key,
     set_json_mode,
     should_skip_confirm,
 )
@@ -37,13 +38,11 @@ def runs_create(
             rprint("[red]Invalid JSON for --input[/red]")
             raise typer.Exit(code=1)
 
-    headers: dict = {}
-    if idempotency_key:
-        headers["Idempotency-Key"] = idempotency_key
-
+    # Read the flag with `is not None`. An empty flag is a typing error, and
+    # truthiness would send an unkeyed start with no duplicate guard.
     kwargs: dict = {"json": body}
-    if headers:
-        kwargs["headers"] = headers
+    if idempotency_key is not None:
+        kwargs["headers"] = {"Idempotency-Key": checked_header_key(idempotency_key)}
 
     resp = _api_request("post", f"{_WORKFLOWS}/{workflow_id}/runs", **kwargs)
 
