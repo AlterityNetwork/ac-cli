@@ -238,13 +238,15 @@ def refuse_local(detail: str, value: object | None = None) -> NoReturn:
     for a refusal the API wrote.
 
     ⚠️ **Click renders its own refusal as a usage box, never as JSON.** A range
-    or a choice on a typer.Option therefore breaks the `--json` contract, so a
-    command checks the bounds of a flag itself and calls this function.
+    on a typer.Option therefore breaks the `--json` contract, so a command
+    checks the bounds of a flag itself and calls this function. See
+    _checked_limit in agentic.py.
 
     Args:
         detail: What the caller must change.
         value: What the caller typed, when the message must echo it. The
-          message appends it after a colon. Leave it None to name no value.
+          message appends it after a colon and a space. Leave it None to name
+          no value.
 
     Raises:
         typer.Exit: Always, with the validation code.
