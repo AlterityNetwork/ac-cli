@@ -162,6 +162,21 @@ def test_the_gate_fails_a_styled_place_inside_a_tag(tmp_path):
     assert check_markup.check(module) != []
 
 
+def test_the_gate_reports_a_template_the_parser_refuses(tmp_path):
+    """A template is markup the call site wrote, so it can be wrong.
+
+    The gate ended with a MarkupError traceback and read no later file. It
+    reports the fault and keeps going now.
+    """
+    module = tmp_path / "sample.py"
+    module.write_text('rprint(styled("[/beta] {}", x))\nrprint(styled("[b]{}[/b]", a, b))\n')
+
+    messages = check_markup.check(module)
+
+    assert len(messages) == 2
+    assert "not valid markup" in messages[0]
+
+
 def test_styled_raises_for_a_place_inside_a_tag():
     """The gate and the helper must agree on what the template holds."""
     import pytest

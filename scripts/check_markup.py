@@ -37,6 +37,7 @@ import ast
 import pathlib
 import sys
 
+from rich.errors import MarkupError
 from rich.text import Text
 
 # `rprint` is `rich.print`, and the CLI imports it under that name in every
@@ -234,6 +235,9 @@ class _Checker:
         A wrong count raises ValueError at run time, and the command then
         exits 1 with no output. That is the fault this file exists to stop.
 
+        A template the parser refuses is the third fault. It raises at run
+        time too, so name it here rather than end the check with a traceback.
+
         The count is read the way styled reads it, and not by counting `{}`.
         The two disagree for a `{}` inside a tag: `[link={}]{}[/link]` holds
         two of them, and the parser eats the first into the tag. That call
@@ -244,7 +248,14 @@ class _Checker:
             template: The literal template.
             lineno: The line of the print call, which is what a reader fixes.
         """
-        places = Text.from_markup(template.replace("{}", "\x00")).plain.count("\x00")
+        try:
+            parsed = Text.from_markup(template.replace("{}", "\x00"))
+        except MarkupError as exc:
+            # The template is the markup the call site wrote, so it can be
+            # wrong. Report it as a fault, and read the rest of the files.
+            self._fail(lineno, node, f"styled() template is not valid markup: {exc}")
+            return
+        places = parsed.plain.count("\x00")
         if places != template.count("{}"):
             self._fail(lineno, node, "styled() has a {} inside a tag, which is not a place")
             return
