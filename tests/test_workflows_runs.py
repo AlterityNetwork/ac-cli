@@ -69,8 +69,42 @@ def test_runs_create_with_idempotency_key(invoke, mock_api):
 
 
 def test_runs_create_invalid_input_json(invoke, mock_api):
+    """A typing error in --input answers the validation code, never code 1.
+
+    Code 1 is the connection error of _api_request. A script that reads code 1
+    from this command cannot tell a typing error from an unreachable API.
+    """
+    route = mock_api.post("/api/v1/workflows/wf-1/runs").respond(
+        202, json={"workflow_run_id": "run-1", "status": "queued"}
+    )
+
     result = invoke(["workflows", "runs", "create", "wf-1", "--input", "not-json"])
-    assert result.exit_code == 1
+
+    assert result.exit_code == 2
+    assert "--input is not valid JSON" in result.output
+    assert not route.called
+
+
+def test_runs_create_refuses_an_invalid_input_as_json(invoke, mock_api):
+    """`--json` parses the refusal, and no rich text reaches stdout.
+
+    refuse_local reads a contextvar, so the command must call set_json_mode
+    before it refuses. This assertion is what catches an order that is wrong.
+    """
+    route = mock_api.post("/api/v1/workflows/wf-1/runs").respond(
+        202, json={"workflow_run_id": "run-1", "status": "queued"}
+    )
+
+    result = invoke(["workflows", "runs", "create", "wf-1", "--input", "not-json", "--json"])
+
+    assert result.exit_code == 2
+    body = json.loads(result.output)
+    assert body == {
+        "error": True,
+        "status_code": None,
+        "detail": "--input is not valid JSON",
+    }
+    assert not route.called
 
 
 def test_runs_list(invoke, mock_api):
