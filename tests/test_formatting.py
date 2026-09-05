@@ -411,3 +411,22 @@ def test_styled_with_no_value_renders_the_template(monkeypatch):
     import ac_cli.formatting as fmt
 
     assert fmt.styled("[blue]-> [/blue]").plain == "-> "
+
+
+def test_no_docstring_in_the_module_holds_a_control_byte():
+    """A `\\x1b` in a plain docstring is the escape byte, not four characters.
+
+    The module that strips control bytes must not carry one. `python -c
+    "help(...)"` prints every docstring, and an ESC there repaints the
+    terminal. Mark a docstring that names an escape as a raw string.
+    """
+    import inspect
+
+    import ac_cli.formatting as fmt
+
+    for name, member in vars(fmt).items():
+        doc = inspect.getdoc(member) if callable(member) else None
+        if not doc:
+            continue
+        found = [hex(ord(c)) for c in doc if ord(c) < 0x20 and c not in "\n\t"]
+        assert found == [], f"{name} docstring holds {found}"

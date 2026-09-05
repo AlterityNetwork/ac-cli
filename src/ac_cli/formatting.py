@@ -25,7 +25,7 @@ _CONTROL_TABLE = {code: f"\\x{code:02x}" for code in _CONTROL_CHARS}
 
 
 def _visible(value: object) -> str:
-    """Answers the value as text that the terminal reads as text.
+    r"""Answers the value as text that the terminal reads as text.
 
     A markup escape does not stop a control byte. A value that holds
     `\x1b[41m` repaints the terminal under a str, under `rich.markup.escape`
