@@ -4,7 +4,7 @@ import json
 
 import pytest
 
-from tests.test_agentic_runs import UNSENDABLE_KEYS
+from tests.conftest import UNSENDABLE_KEYS
 
 SAMPLE_RUN = {
     "id": "run-1",

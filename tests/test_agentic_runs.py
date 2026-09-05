@@ -9,6 +9,8 @@ import uuid
 
 import pytest
 
+from tests.conftest import UNSENDABLE_KEYS
+
 SAMPLE_RUN = {
     "id": "11111111-1111-4111-8111-111111111111",
     "kind": "agent",
@@ -1016,20 +1018,6 @@ def test_run_list_json_keeps_identity(invoke, mock_api):
 
 
 # -- the idempotency key the caller names --------------------------------------
-
-UNSENDABLE_KEYS = [
-    "",
-    " ",
-    " delivery-42",
-    "delivery-42 ",
-    "x" * 201,
-    "line\nbreak",
-    "carriage\rreturn",
-    "nul\x00byte",
-    "tab\there",
-    "del\x7f",
-    "é",
-]
 
 
 @pytest.mark.parametrize("key", UNSENDABLE_KEYS)

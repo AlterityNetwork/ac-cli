@@ -4,7 +4,7 @@ import json
 
 import pytest
 
-from tests.test_agentic_runs import UNSENDABLE_KEYS
+from tests.conftest import UNSENDABLE_KEYS
 
 BASE = "/api/v1/agentic/conversations"
 CONVERSATION_ID = "11111111-1111-4111-8111-111111111111"

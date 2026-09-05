@@ -18,6 +18,23 @@ MOCK_CONFIG = {
     "supabase_anon_key": "test-anon-key",
 }
 
+# Every key one command must refuse before it builds a request header. The list
+# covers each branch of header_safe_key: empty, outer whitespace, over the
+# length bound, a control character and a non-ASCII character.
+UNSENDABLE_KEYS = [
+    "",
+    " ",
+    " delivery-42",
+    "delivery-42 ",
+    "x" * 201,
+    "line\nbreak",
+    "carriage\rreturn",
+    "nul\x00byte",
+    "tab\there",
+    "del\x7f",
+    "é",
+]
+
 WHOAMI_RESPONSE = {
     "user_id": "user-123",
     "organization_id": "org-456",
