@@ -824,6 +824,26 @@ def test_runs_spans_refuses_a_since_that_is_not_a_stamp(invoke, mock_api):
     assert "ISO 8601" in result.output
 
 
+def test_runs_list_refuses_a_page_size_as_json(invoke, mock_api):
+    """`runs list` shares _checked_limit with `runs spans`, and answers JSON too.
+
+    Every plain list command refuses through refuse_local, which reads a
+    contextvar rather than a parameter. The command must call set_json_mode
+    before it refuses. This assertion is what catches an order that is wrong.
+    """
+    route = mock_api.get("/api/v1/agentic/runs").respond(
+        200, json={"items": [], "next_cursor": None}
+    )
+
+    result = invoke(["agentic", "runs", "list", "--limit", "0", "--json"])
+
+    assert result.exit_code == 2
+    body = json.loads(result.output)
+    assert body["error"] is True
+    assert body["detail"] == "--limit is not between 1 and 100: 0"
+    assert not route.called
+
+
 def test_runs_list_hint_repeats_a_page_size_the_caller_chose(invoke, mock_api):
     """Every cursor hint of this file repeats the size, not the spans one alone.
 

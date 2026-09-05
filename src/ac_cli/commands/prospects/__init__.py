@@ -8,6 +8,7 @@ from rich import print as rprint
 from ac_cli.commands._helpers import (
     JSON_OPTION,
     _api_request,
+    refuse_local,
     set_json_mode,
     should_skip_confirm,
 )
@@ -81,21 +82,16 @@ _SIGNAL_FIELDS = [
 ]
 
 
-def _checked_limit(limit: int, *, json_output: bool) -> int:
+def _checked_limit(limit: int) -> int:
     """Refuses a page size that the API refuses."""
     if _PAGE_MIN <= limit <= _PAGE_MAX:
         return limit
-    detail = f"--limit is not between {_PAGE_MIN} and {_PAGE_MAX}: {limit}"
-    if json_output:
-        print_json({"error": True, "status_code": None, "detail": detail})
-    else:
-        rprint("[red]Invalid page size:[/red]", as_text(limit))
-    raise typer.Exit(code=2)
+    refuse_local(f"--limit is not between {_PAGE_MIN} and {_PAGE_MAX}", limit)
 
 
-def _page_params(limit: int, cursor: str | None, *, json_output: bool) -> dict[str, object]:
+def _page_params(limit: int, cursor: str | None) -> dict[str, object]:
     """Builds the common page query."""
-    params: dict[str, object] = {"limit": _checked_limit(limit, json_output=json_output)}
+    params: dict[str, object] = {"limit": _checked_limit(limit)}
     if cursor is not None:
         params["cursor"] = cursor
     return params
@@ -136,7 +132,7 @@ def prospects_list(
 ) -> None:
     """List prospects in one review state, newest first."""
     set_json_mode(json_output)
-    params = _page_params(limit, cursor, json_output=json_output)
+    params = _page_params(limit, cursor)
     params["review_state"] = review_state
     data = _api_request("get", _PROSPECTS, params=params).json()
     if json_output:
@@ -174,7 +170,7 @@ def prospects_people(
     data = _api_request(
         "get",
         f"{_PROSPECTS}/{prospect_id}/people",
-        params=_page_params(limit, cursor, json_output=json_output),
+        params=_page_params(limit, cursor),
     ).json()
     if json_output:
         print_json(data)
@@ -206,7 +202,7 @@ def prospects_signals(
     data = _api_request(
         "get",
         f"{_PROSPECTS}/{prospect_id}/signals",
-        params=_page_params(limit, cursor, json_output=json_output),
+        params=_page_params(limit, cursor),
     ).json()
     if json_output:
         print_json(data)

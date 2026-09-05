@@ -29,7 +29,6 @@ import json
 import shlex
 import uuid
 from datetime import datetime
-from typing import NoReturn
 from urllib.parse import quote
 
 import typer
@@ -39,8 +38,8 @@ from rich.text import Text
 from ac_cli.commands._helpers import (
     JSON_OPTION,
     _api_request,
-    _json_output,
     checked_header_key,
+    refuse_local,
     set_json_mode,
     should_skip_confirm,
 )
@@ -160,7 +159,7 @@ def capabilities_start(
     """Start a capability with an explicit contract version and delivery key."""
     set_json_mode(json_output)
     if contract_version < 1:
-        _refuse_option("--contract-version", "must be positive", contract_version)
+        refuse_local("--contract-version must be positive", contract_version)
     idempotency_key = checked_header_key(idempotency_key)
     try:
         value = json.loads(input_json)
@@ -168,7 +167,8 @@ def capabilities_start(
             raise ValueError("input is not an object")
         json.dumps(value, allow_nan=False, ensure_ascii=False).encode("utf-8")
     except (ValueError, RecursionError):
-        _refuse_option("--input", "must be a UTF-8 JSON object with finite numbers", "")
+        # Name no value. A refused input is the whole flag, and it can be long.
+        refuse_local("--input must be a UTF-8 JSON object with finite numbers")
     capability_id = quote(capability_id, safe="")
     resp = _api_request(
         "post",
@@ -342,36 +342,10 @@ def _checked_since(since: str | None) -> str | None:
     try:
         parsed = datetime.fromisoformat(normalized)
     except ValueError:
-        _refuse_option("--since", "is not ISO 8601", since)
+        refuse_local("--since is not ISO 8601", since)
     if parsed.tzinfo is None:
-        _refuse_option("--since", "carries no time zone, so it names no instant", since)
+        refuse_local("--since carries no time zone, so it names no instant", since)
     return normalized
-
-
-def _refuse_option(flag: str, reason: str, value: object) -> NoReturn:
-    """Reports an option this command will not send, and exits.
-
-    A poll drives these commands with `--json`, so the refusal answers the
-    shape that caller parses. See _handle_error, which answers the same shape
-    for a refusal the API wrote.
-
-    ⚠️ **Click renders its own refusal as a usage box, never as JSON.** A range
-    on a typer.Option therefore breaks the `--json` contract, so the bounds of
-    a flag are checked here instead. See _checked_limit.
-
-    Args:
-        flag: The option that is wrong, written as the caller writes it.
-        reason: What is wrong with the value.
-        value: What the caller typed.
-
-    Raises:
-        typer.Exit: Always, with the validation code.
-    """
-    if _json_output.get():
-        print_json({"error": True, "status_code": None, "detail": f"{flag} {reason}: {value}"})
-    else:
-        rprint(f"[red]{flag} {reason}:[/red]", as_text(value))
-    raise typer.Exit(code=2)
 
 
 def _checked_limit(limit: int) -> int:
@@ -391,7 +365,7 @@ def _checked_limit(limit: int) -> int:
         typer.Exit: The value is outside the bounds the API serves.
     """
     if not _PAGE_MIN <= limit <= _PAGE_MAX:
-        _refuse_option("--limit", f"is not between {_PAGE_MIN} and {_PAGE_MAX}", limit)
+        refuse_local(f"--limit is not between {_PAGE_MIN} and {_PAGE_MAX}", limit)
     return limit
 
 
