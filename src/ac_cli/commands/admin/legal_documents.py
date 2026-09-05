@@ -13,7 +13,7 @@ from ac_cli.commands._helpers import (
     should_skip_confirm,
 )
 from ac_cli.commands.admin import _ADMIN
-from ac_cli.formatting import print_detail, print_json, print_table
+from ac_cli.formatting import print_detail, print_json, print_table, styled
 
 legal_docs_app = typer.Typer(help="Legal document management")
 
@@ -109,7 +109,7 @@ def legal_docs_create(
     if json_output:
         print_json(data)
     else:
-        rprint(f"[green]Created legal document:[/green] {data['title']} ({data['id']})")
+        rprint(styled("[green]Created legal document:[/green] {} ({})", data["title"], data["id"]))
 
 
 @legal_docs_app.command("update")
@@ -137,7 +137,7 @@ def legal_docs_update(
     if json_output:
         print_json(data)
     else:
-        rprint(f"[green]Updated legal document:[/green] {data['title']} ({data['id']})")
+        rprint(styled("[green]Updated legal document:[/green] {} ({})", data["title"], data["id"]))
 
 
 @legal_docs_app.command("delete")
@@ -154,7 +154,7 @@ def legal_docs_delete(
 
     _api_request("delete", f"{_ADMIN}/legal-documents/{document_id}")
 
-    rprint(f"[green]Deleted legal document {document_id}[/green]")
+    rprint(styled("[green]Deleted legal document {}[/green]", document_id))
 
 
 @legal_docs_app.command("set-current")

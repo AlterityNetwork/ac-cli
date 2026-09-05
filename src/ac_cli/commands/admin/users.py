@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import typer
 from rich import print as rprint
+from rich.pretty import Pretty
 
 from ac_cli.commands._helpers import (
     JSON_OPTION,
@@ -13,7 +14,7 @@ from ac_cli.commands._helpers import (
     should_skip_confirm,
 )
 from ac_cli.commands.admin import _ADMIN
-from ac_cli.formatting import print_detail, print_json, print_table
+from ac_cli.formatting import print_detail, print_json, print_table, styled
 
 _IMPERSONATION = "/api/v1/impersonation"
 
@@ -109,7 +110,7 @@ def users_create(
     if json_output:
         print_json(data)
     else:
-        rprint(f"[green]Created user:[/green] {data['id']}")
+        rprint(styled("[green]Created user:[/green] {}", data["id"]))
 
 
 @users_app.command("update")
@@ -140,7 +141,7 @@ def users_update(
     if json_output:
         print_json(data)
     else:
-        rprint(f"[green]Updated user:[/green] {data['id']}")
+        rprint(styled("[green]Updated user:[/green] {}", data["id"]))
 
 
 @users_app.command("delete")
@@ -154,7 +155,7 @@ def users_delete(
 
     _api_request("delete", f"{_ADMIN}/users/{user_id}")
 
-    rprint(f"[green]Deleted user {user_id}[/green]")
+    rprint(styled("[green]Deleted user {}[/green]", user_id))
 
 
 @users_app.command("auth-search")
@@ -197,7 +198,7 @@ def users_search(
     if json_output:
         print_json(data)
     else:
-        rprint(data)
+        rprint(Pretty(data))
 
 
 @users_app.command("reset-password")
@@ -211,7 +212,7 @@ def users_reset_password(
 
     _api_request("post", f"{_ADMIN}/users/{user_id}/reset-password")
 
-    rprint(f"[green]Password reset for user {user_id}[/green]")
+    rprint(styled("[green]Password reset for user {}[/green]", user_id))
 
 
 @users_app.command("require-tos-resign")
@@ -232,7 +233,7 @@ def users_require_tos_resign(
     if json_output:
         print_json(data)
     else:
-        rprint(f"[green]ToS re-sign required for user {data['id']}[/green]")
+        rprint(styled("[green]ToS re-sign required for user {}[/green]", data["id"]))
 
 
 @users_app.command("impersonate")
@@ -242,7 +243,7 @@ def users_impersonate(
     """Impersonate a user."""
     _api_request("post", f"{_ADMIN}/users/{user_id}/impersonate")
 
-    rprint(f"[green]Impersonating user {user_id}[/green]")
+    rprint(styled("[green]Impersonating user {}[/green]", user_id))
 
 
 @users_app.command("exit-impersonation")
@@ -294,7 +295,7 @@ def users_impersonation_end(
     if json_output:
         print_json(data)
     else:
-        rprint(f"[green]Ended impersonation session {session_id}[/green]")
+        rprint(styled("[green]Ended impersonation session {}[/green]", session_id))
 
 
 @users_app.command("generate-link")
@@ -310,7 +311,7 @@ def users_generate_link(
     )
 
     data = resp.json()
-    rprint(f"[green]Impersonation link:[/green] {data.get('link', data)}")
+    rprint(styled("[green]Impersonation link:[/green] {}", data.get("link", data)))
 
 
 @users_app.command("suspension-messages")
@@ -352,7 +353,7 @@ def users_suspend(
     if json_output:
         print_json(data)
     else:
-        rprint(f"[green]Suspended user {user_id}[/green]")
+        rprint(styled("[green]Suspended user {}[/green]", user_id))
 
 
 @users_app.command("activate")
@@ -369,4 +370,4 @@ def users_activate(
     if json_output:
         print_json(data)
     else:
-        rprint(f"[green]Activated user {user_id}[/green]")
+        rprint(styled("[green]Activated user {}[/green]", user_id))

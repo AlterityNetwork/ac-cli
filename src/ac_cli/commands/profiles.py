@@ -6,7 +6,7 @@ import typer
 from rich import print as rprint
 
 from ac_cli.commands._helpers import JSON_OPTION, _api_request, _build_body, set_json_mode
-from ac_cli.formatting import print_detail, print_json, print_table
+from ac_cli.formatting import print_detail, print_json, print_table, styled
 
 app = typer.Typer(help="User profile management")
 
@@ -98,7 +98,7 @@ def profiles_set_organization(
     if json_output:
         print_json({"ok": True})
     else:
-        rprint(f"[green]Selected organization {organization_id}[/green]")
+        rprint(styled("[green]Selected organization {}[/green]", organization_id))
 
 
 @app.command("set-password")

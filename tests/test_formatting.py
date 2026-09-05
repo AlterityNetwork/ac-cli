@@ -265,3 +265,176 @@ def test_print_table_rules_off_each_row(monkeypatch, capsys, table_column):
     output = capsys.readouterr().out
     assert "├" in output
     assert table_column(output, 0) == first + second
+
+
+# -- control bytes in text the CLI did not write --------------------------------
+#
+# A markup escape does not stop a control byte. A value that holds `\x1b[41m`
+# reaches the terminal unchanged under a str, under an escape and under a bare
+# Text. The terminal then repaints from an API value, and a `\r` rewrites the
+# line the CLI already wrote. Print what the value holds instead: each control
+# byte renders as its own escape, so the reader sees it and the terminal does
+# not act on it.
+
+
+def test_as_text_shows_an_escape_byte(monkeypatch):
+    import ac_cli.formatting as fmt
+
+    text = fmt.as_text("red \x1b[41m now")
+    assert "\x1b" not in text.plain
+    assert "\\x1b" in text.plain
+
+
+def test_as_text_reads_a_carriage_return_as_a_line_ending(monkeypatch):
+    """A mail body ends each line with CRLF, and RFC 5322 makes that a line.
+
+    Escaping it printed `\\x0d` at the end of every line of every inbound mail.
+    Rich removed the byte before this change, so a reader saw a clean line.
+    """
+    import ac_cli.formatting as fmt
+
+    assert fmt.as_text("first\r\nsecond\rthird").plain == "first\nsecond\nthird"
+
+
+def test_a_crlf_mail_body_renders_no_escape(capsys):
+    """The reported command prints an inbound body. See communications thread."""
+    print_detail({"body": "Hi Jane,\r\n\r\nSee the page.\r\nBob"}, [("body", "Body")])
+    assert "x0d" not in capsys.readouterr().out
+
+
+def test_as_text_keeps_a_newline_and_a_tab(monkeypatch):
+    """A mail body holds both, and neither repaints the terminal."""
+    import ac_cli.formatting as fmt
+
+    assert fmt.as_text("a\nb\tc").plain == "a\nb\tc"
+
+
+def test_as_text_shows_a_c1_byte(monkeypatch):
+    """U+009B is the one-character CSI, so it opens a sequence on its own."""
+    import ac_cli.formatting as fmt
+
+    text = fmt.as_text("x\u009b41m")
+    assert "\u009b" not in text.plain
+    assert "\\x9b" in text.plain
+
+
+def test_print_table_shows_an_escape_byte_in_a_cell(capsys):
+    print_table([{"name": "Acme \x1b[41m Ltd"}], [("name", "Name")])
+    output = capsys.readouterr().out
+    assert "\x1b[41m" not in output
+    assert "\\x1b" in output
+
+
+def test_print_detail_shows_an_escape_byte_in_a_value(capsys):
+    print_detail({"name": "Acme \x1b[41m Ltd"}, [("name", "Name")])
+    output = capsys.readouterr().out
+    assert "\x1b[41m" not in output
+    assert "\\x1b" in output
+
+
+# -- styled: one markup template, and values that are not markup ----------------
+#
+# A call site writes the markup and the API writes the values. `styled` keeps
+# that boundary: the template parses, and each value prints as it is.
+
+
+def test_styled_keeps_the_template_markup(monkeypatch):
+    import ac_cli.formatting as fmt
+
+    text = fmt.styled("[green]Created:[/green] {}", "Acme")
+    assert text.plain == "Created: Acme"
+    assert "green" in [span.style for span in text.spans]
+
+
+def test_styled_renders_a_close_tag_in_a_value(monkeypatch):
+    """This is the reported fault: `create` exited 1 and printed nothing."""
+    import ac_cli.formatting as fmt
+
+    assert fmt.styled("[green]Created:[/green] {}", "Acme [/beta] Ltd").plain == (
+        "Created: Acme [/beta] Ltd"
+    )
+
+
+def test_styled_keeps_a_bracketed_word_in_a_value(monkeypatch):
+    import ac_cli.formatting as fmt
+
+    assert fmt.styled("{}", "see the [urgent] note").plain == "see the [urgent] note"
+
+
+def test_styled_keeps_a_trailing_backslash(monkeypatch):
+    import ac_cli.formatting as fmt
+
+    assert fmt.styled("{}", "C:\\share\\").plain == "C:\\share\\"
+
+
+def test_styled_styles_the_value_the_template_wraps(monkeypatch):
+    """A value inside a tag keeps that tag. The old f-string styled it too."""
+    import ac_cli.formatting as fmt
+
+    text = fmt.styled("[bold]{}[/bold] after", "Acme")
+    bold = [span for span in text.spans if span.style == "bold"]
+    assert len(bold) == 1
+    assert text.plain[bold[0].start : bold[0].end] == "Acme"
+
+
+def test_styled_places_each_value_in_order(monkeypatch):
+    import ac_cli.formatting as fmt
+
+    assert fmt.styled("{} and {} and {}", 1, 2, 3).plain == "1 and 2 and 3"
+
+
+def test_styled_highlights_a_value(monkeypatch):
+    """A value keeps the colour the console gave it before this change."""
+    import ac_cli.formatting as fmt
+
+    text = fmt.styled("id {}", "https://acme.com")
+    assert "repr.url" in [span.style for span in text.spans]
+
+
+def test_styled_shows_a_control_byte_in_a_value(monkeypatch):
+    import ac_cli.formatting as fmt
+
+    assert "\x1b" not in fmt.styled("{}", "red \x1b[41m").plain
+
+
+def test_styled_keeps_a_brace_in_the_template(monkeypatch):
+    """The template is not a format string, so a lone brace is a brace."""
+    import ac_cli.formatting as fmt
+
+    assert fmt.styled("{ {} }", "x").plain == "{ x }"
+
+
+def test_styled_refuses_a_value_count_that_does_not_match(monkeypatch):
+    """A wrong count drops a value in silence, so raise instead."""
+    import pytest
+
+    import ac_cli.formatting as fmt
+
+    with pytest.raises(ValueError):
+        fmt.styled("{} and {}", "one")
+
+
+def test_styled_with_no_value_renders_the_template(monkeypatch):
+    """A call site holds markup in a variable. `styled` renders it."""
+    import ac_cli.formatting as fmt
+
+    assert fmt.styled("[blue]-> [/blue]").plain == "-> "
+
+
+def test_no_docstring_in_the_module_holds_a_control_byte():
+    """A `\\x1b` in a plain docstring is the escape byte, not four characters.
+
+    The module that strips control bytes must not carry one. `python -c
+    "help(...)"` prints every docstring, and an ESC there repaints the
+    terminal. Mark a docstring that names an escape as a raw string.
+    """
+    import inspect
+
+    import ac_cli.formatting as fmt
+
+    for name, member in vars(fmt).items():
+        doc = inspect.getdoc(member) if callable(member) else None
+        if not doc:
+            continue
+        found = [hex(ord(c)) for c in doc if ord(c) < 0x20 and c not in "\n\t"]
+        assert found == [], f"{name} docstring holds {found}"

@@ -7,7 +7,7 @@ from rich import print as rprint
 
 from ac_cli.commands._helpers import JSON_OPTION, set_json_mode, should_skip_confirm
 from ac_cli.commands.crm import _CRM, _api_request, _build_body
-from ac_cli.formatting import print_detail, print_json, print_table
+from ac_cli.formatting import print_detail, print_json, print_table, styled
 
 signals_app = typer.Typer(help="Signal operations (buying signals attached to companies/people)")
 
@@ -155,7 +155,11 @@ def signals_create(
     if json_output:
         print_json(data)
     else:
-        rprint(f"[green]Created signal:[/green] {data.get('description', '')} ({data['id']})")
+        rprint(
+            styled(
+                "[green]Created signal:[/green] {} ({})", data.get("description", ""), data["id"]
+            )
+        )
 
 
 @signals_app.command("attach")
@@ -189,7 +193,14 @@ def signals_attach(
         )
     else:
         subj = attach_to["subject_type"]
-        rprint(f"[green]Attached signal {signal_id} to {subj} {attach_to['subject_id']}[/green]")
+        rprint(
+            styled(
+                "[green]Attached signal {} to {} {}[/green]",
+                signal_id,
+                subj,
+                attach_to["subject_id"],
+            )
+        )
 
 
 @signals_app.command("delete")
@@ -208,4 +219,4 @@ def signals_delete(
     if json_output:
         print_json({"ok": True, "id": signal_id, "action": "delete"})
     else:
-        rprint(f"[green]Deleted signal {signal_id}[/green]")
+        rprint(styled("[green]Deleted signal {}[/green]", signal_id))

@@ -14,7 +14,7 @@ from ac_cli.commands._helpers import (
     set_json_mode,
     should_skip_confirm,
 )
-from ac_cli.formatting import print_detail, print_json, print_table
+from ac_cli.formatting import print_detail, print_json, print_table, styled
 
 app = typer.Typer(help="Knowledge base resources")
 
@@ -74,17 +74,17 @@ def resources_upload(
     """Upload a knowledge base resource file."""
     set_json_mode(json_output)
     if not file_path.exists():
-        rprint(f"[red]Error:[/red] File not found: {file_path}")
+        rprint(styled("[red]Error:[/red] File not found: {}", file_path))
         raise typer.Exit(code=1)
 
     suffix = file_path.suffix.lower()
     if suffix not in ALLOWED_EXTENSIONS:
-        rprint(f"[red]Error:[/red] Unsupported file type: {suffix}")
+        rprint(styled("[red]Error:[/red] Unsupported file type: {}", suffix))
         raise typer.Exit(code=1)
 
     size = file_path.stat().st_size
     if size > MAX_SIZE_BYTES:
-        rprint(f"[red]Error:[/red] File too large ({size} bytes, max {MAX_SIZE_BYTES})")
+        rprint(styled("[red]Error:[/red] File too large ({} bytes, max {})", size, MAX_SIZE_BYTES))
         raise typer.Exit(code=1)
 
     content_type = mimetypes.guess_type(str(file_path))[0] or "application/octet-stream"
@@ -108,7 +108,11 @@ def resources_upload(
         print_json(data)
     else:
         rprint(
-            f"[green]Uploaded resource:[/green] {data.get('source_name', name)} ({data.get('id', '')})"
+            styled(
+                "[green]Uploaded resource:[/green] {} ({})",
+                data.get("source_name", name),
+                data.get("id", ""),
+            )
         )
 
 
@@ -129,7 +133,7 @@ def resources_delete(
     if json_output:
         print_json({"deleted": True, "id": resource_id})
     else:
-        rprint(f"[green]Deleted resource {resource_id}[/green]")
+        rprint(styled("[green]Deleted resource {}[/green]", resource_id))
 
 
 @app.command("status")

@@ -7,7 +7,7 @@ from rich import print as rprint
 
 from ac_cli.commands._helpers import JSON_OPTION, set_json_mode, should_skip_confirm
 from ac_cli.commands.crm import _CRM, _api_request, _build_body
-from ac_cli.formatting import print_detail, print_json, print_table
+from ac_cli.formatting import as_text, print_detail, print_json, print_table, styled
 
 communications_app = typer.Typer(help="Communications / email operations")
 
@@ -105,8 +105,8 @@ def communications_thread(
         rprint("[dim]No messages in this thread.[/dim]")
         return
 
-    rprint(f"\n[bold]Thread: {items[0].get('subject', thread_id)}[/bold]")
-    rprint(f"[dim]{'─' * 60}[/dim]")
+    rprint(styled("\n[bold]Thread: {}[/bold]", items[0].get("subject", thread_id)))
+    rprint(styled("[dim]{}[/dim]", "─" * 60))
 
     for msg in items:
         direction = msg.get("direction", "?")
@@ -114,12 +114,18 @@ def communications_thread(
         from_name = msg.get("from_name", msg.get("from_email", "?"))
         date = (msg.get("communication_date") or "")[:16].replace("T", " ")
         sentiment = msg.get("sentiment")
-        sentiment_tag = f" [dim]({sentiment})[/dim]" if sentiment else ""
 
-        rprint(f"\n{arrow} [bold]{from_name}[/bold]  {date}{sentiment_tag}")
-        rprint(f"[dim]  To: {', '.join(msg.get('to_emails', []))}[/dim]")
-        rprint(f"\n{msg.get('content', '')}")
-        rprint(f"[dim]{'─' * 60}[/dim]")
+        # The arrow is markup the CLI wrote, and the rest is not. Build the
+        # line so each half keeps its own rule.
+        header = styled("\n")
+        header.append_text(styled(arrow))
+        header.append_text(styled(" [bold]{}[/bold]  {}", from_name, date))
+        if sentiment:
+            header.append_text(styled(" [dim]({})[/dim]", sentiment))
+        rprint(header)
+        rprint(styled("[dim]  To: {}[/dim]", ", ".join(msg.get("to_emails", []))))
+        rprint(as_text(f"\n{msg.get('content', '')}"))
+        rprint(styled("[dim]{}[/dim]", "─" * 60))
 
 
 @communications_app.command("unread")
@@ -142,9 +148,9 @@ def communications_unread(
         return
 
     total = sum(counts.values())
-    rprint(f"\n[bold]Unread Messages ({total} total)[/bold]\n")
+    rprint(styled("\n[bold]Unread Messages ({} total)[/bold]\n", total))
     for thread_id, count in counts.items():
-        rprint(f"  {thread_id}: [yellow]{count}[/yellow] unread")
+        rprint(styled("  {}: [yellow]{}[/yellow] unread", thread_id, count))
 
 
 @communications_app.command("mark-read")
@@ -159,7 +165,7 @@ def communications_mark_read(
     if json_output:
         print_json({"ok": True, "thread_id": thread_id, "action": "mark-read"})
     else:
-        rprint(f"[green]Marked thread {thread_id} as read[/green]")
+        rprint(styled("[green]Marked thread {} as read[/green]", thread_id))
 
 
 @communications_app.command("delete")
@@ -178,7 +184,7 @@ def communications_delete(
     if json_output:
         print_json({"ok": True, "id": communication_id, "action": "delete"})
     else:
-        rprint(f"[green]Deleted communication {communication_id}[/green]")
+        rprint(styled("[green]Deleted communication {}[/green]", communication_id))
 
 
 @communications_app.command("delete-thread")
@@ -197,7 +203,7 @@ def communications_delete_thread(
     if json_output:
         print_json({"ok": True, "thread_id": thread_id, "action": "delete-thread"})
     else:
-        rprint(f"[green]Deleted thread {thread_id}[/green]")
+        rprint(styled("[green]Deleted thread {}[/green]", thread_id))
 
 
 @communications_app.command("update")
@@ -224,7 +230,7 @@ def communications_update(
     if json_output:
         print_json(data)
     else:
-        rprint(f"[green]Updated communication {communication_id}[/green]")
+        rprint(styled("[green]Updated communication {}[/green]", communication_id))
 
 
 @communications_app.command("archive")
@@ -248,7 +254,7 @@ def communications_archive(
         print_json(data)
     else:
         target = thread_id or comm_id
-        rprint(f"[green]Archived {target}[/green]")
+        rprint(styled("[green]Archived {}[/green]", target))
 
 
 @communications_app.command("unarchive")
@@ -272,7 +278,7 @@ def communications_unarchive(
         print_json(data)
     else:
         target = thread_id or comm_id
-        rprint(f"[green]Unarchived {target}[/green]")
+        rprint(styled("[green]Unarchived {}[/green]", target))
 
 
 @communications_app.command("contact-by-email")
@@ -321,7 +327,11 @@ def communications_resolve_contact(
         print_json(data)
     else:
         rprint(
-            f"[green]Resolved contact:[/green] {data.get('full_name', data.get('email', email))} ({data.get('id', '')})"
+            styled(
+                "[green]Resolved contact:[/green] {} ({})",
+                data.get("full_name", data.get("email", email)),
+                data.get("id", ""),
+            )
         )
 
 
@@ -358,7 +368,11 @@ def communications_draft_email(
     if json_output:
         print_json(data)
     else:
-        rprint(f"[green]Draft created:[/green] {data.get('subject', '')} ({data.get('id', '')})")
+        rprint(
+            styled(
+                "[green]Draft created:[/green] {} ({})", data.get("subject", ""), data.get("id", "")
+            )
+        )
 
 
 @communications_app.command("generate-draft")
@@ -408,8 +422,8 @@ def communications_generate_draft(
         print_json(data)
     else:
         rprint("[bold]Generated Draft[/bold]\n")
-        rprint(f"[bold]Subject:[/bold] {data.get('subject', '')}")
-        rprint(f"\n{data.get('body', data.get('content', ''))}")
+        rprint(styled("[bold]Subject:[/bold] {}", data.get("subject", "")))
+        rprint(as_text(f"\n{data.get('body', data.get('content', ''))}"))
 
 
 @communications_app.command("inbox-summary")
@@ -443,11 +457,13 @@ def communications_inbox_summary(
         return
 
     rprint(
-        "\n[bold]Inbox summary[/bold]\n"
-        f"  Unread messages:  [yellow]{data.get('unread_count', 0)}[/yellow]"
-        f"  across {data.get('unread_thread_count', 0)} threads\n"
-        f"  Open threads ({window_days}d):  "
-        f"[cyan]{data.get('open_thread_count', 0)}[/cyan]"
+        styled(
+            "\n[bold]Inbox summary[/bold]\n  Unread messages:  [yellow]{}[/yellow]  across {} threads\n  Open threads ({}d):  [cyan]{}[/cyan]",
+            data.get("unread_count", 0),
+            data.get("unread_thread_count", 0),
+            window_days,
+            data.get("open_thread_count", 0),
+        )
     )
 
     threads = data.get("recent_threads") or []
@@ -484,9 +500,9 @@ def communications_unread_thread_ids(
         rprint("[green]No unread threads![/green]")
         return
 
-    rprint(f"\n[bold]Unread Threads ({len(thread_ids)})[/bold]\n")
+    rprint(styled("\n[bold]Unread Threads ({})[/bold]\n", len(thread_ids)))
     for tid in thread_ids:
-        rprint(f"  {tid}")
+        rprint(as_text(f"  {tid}"))
 
 
 # -- Approvals (awaiting_approval workflow) ----------------------------------
@@ -542,7 +558,7 @@ def communications_approve(
     if json_output:
         print_json(data)
     else:
-        rprint(f"[green]Approved communication {communication_id}[/green]")
+        rprint(styled("[green]Approved communication {}[/green]", communication_id))
 
 
 @communications_app.command("reject")
@@ -565,7 +581,9 @@ def communications_reject(
     if json_output:
         print_json(data)
     else:
-        rprint(f"[green]Rejected communication {communication_id} (action={action})[/green]")
+        rprint(
+            styled("[green]Rejected communication {} (action={})[/green]", communication_id, action)
+        )
 
 
 @communications_app.command("regenerate")
@@ -581,4 +599,4 @@ def communications_regenerate(
     if json_output:
         print_json(data)
     else:
-        rprint(f"[green]Regenerated communication {communication_id}[/green]")
+        rprint(styled("[green]Regenerated communication {}[/green]", communication_id))

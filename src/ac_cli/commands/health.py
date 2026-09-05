@@ -8,7 +8,7 @@ from rich import print as rprint
 
 from ac_cli.commands._helpers import JSON_OPTION, set_json_mode
 from ac_cli.config import DEFAULT_API_URL, load_config
-from ac_cli.formatting import print_json
+from ac_cli.formatting import as_text, print_json, styled
 
 app = typer.Typer(help="Service health commands")
 
@@ -36,7 +36,7 @@ def check(
         if json_output:
             print_json({"error": True, "status_code": None, "detail": str(exc)})
         else:
-            rprint(f"[red]Health check failed:[/red] {exc}")
+            rprint(styled("[red]Health check failed:[/red] {}", exc))
         raise typer.Exit(code=1) from exc
 
     if json_output:
@@ -45,4 +45,4 @@ def check(
 
     rprint("[green]Service is healthy[/green]")
     for key, value in data.items():
-        rprint(f"  {key}: {value}")
+        rprint(as_text(f"  {key}: {value}"))

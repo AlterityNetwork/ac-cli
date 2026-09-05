@@ -13,7 +13,7 @@ from ac_cli.commands._helpers import (
     should_skip_confirm,
 )
 from ac_cli.commands.admin import _ADMIN
-from ac_cli.formatting import print_detail, print_json, print_table
+from ac_cli.formatting import print_detail, print_json, print_table, styled
 
 organizations_app = typer.Typer(help="Organization management")
 
@@ -106,7 +106,7 @@ def organizations_create(
     if json_output:
         print_json(data)
     else:
-        rprint(f"[green]Created org:[/green] {data['name']} ({data['id']})")
+        rprint(styled("[green]Created org:[/green] {} ({})", data["name"], data["id"]))
 
 
 @organizations_app.command("update")
@@ -133,7 +133,7 @@ def organizations_update(
     if json_output:
         print_json(data)
     else:
-        rprint(f"[green]Updated org:[/green] {data['name']} ({data['id']})")
+        rprint(styled("[green]Updated org:[/green] {} ({})", data["name"], data["id"]))
 
 
 @organizations_app.command("delete")
@@ -147,7 +147,7 @@ def organizations_delete(
 
     _api_request("delete", f"{_ADMIN}/organizations/{org_id}")
 
-    rprint(f"[green]Deleted organization {org_id}[/green]")
+    rprint(styled("[green]Deleted organization {}[/green]", org_id))
 
 
 @organizations_app.command("members")
@@ -200,7 +200,7 @@ def organizations_add_member(
     if json_output:
         print_json(data)
     else:
-        rprint(f"[green]Added user {user_id} to organization {org_id}[/green]")
+        rprint(styled("[green]Added user {} to organization {}[/green]", user_id, org_id))
 
 
 @organizations_app.command("update-member")
@@ -223,7 +223,7 @@ def organizations_update_member(
     if json_output:
         print_json(data)
     else:
-        rprint(f"[green]Updated member {user_id} role to {role}[/green]")
+        rprint(styled("[green]Updated member {} role to {}[/green]", user_id, role))
 
 
 @organizations_app.command("remove-member")
@@ -238,7 +238,7 @@ def organizations_remove_member(
 
     _api_request("delete", f"{_ADMIN}/organizations/{org_id}/members/{user_id}")
 
-    rprint(f"[green]Removed user {user_id} from organization {org_id}[/green]")
+    rprint(styled("[green]Removed user {} from organization {}[/green]", user_id, org_id))
 
 
 @organizations_app.command("transfer-ownership")
@@ -260,7 +260,11 @@ def organizations_transfer_ownership(
         json={"new_owner_id": new_owner_id},
     )
 
-    rprint(f"[green]Transferred ownership of organization {org_id} to {new_owner_id}[/green]")
+    rprint(
+        styled(
+            "[green]Transferred ownership of organization {} to {}[/green]", org_id, new_owner_id
+        )
+    )
 
 
 @organizations_app.command("suspend")
@@ -283,7 +287,7 @@ def organizations_suspend(
     if json_output:
         print_json(data)
     else:
-        rprint(f"[green]Suspended organization {org_id}[/green]")
+        rprint(styled("[green]Suspended organization {}[/green]", org_id))
 
 
 @organizations_app.command("unsuspend")
@@ -299,4 +303,4 @@ def organizations_unsuspend(
     if json_output:
         print_json(data)
     else:
-        rprint(f"[green]Unsuspended organization {org_id}[/green]")
+        rprint(styled("[green]Unsuspended organization {}[/green]", org_id))

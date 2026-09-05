@@ -13,7 +13,7 @@ from ac_cli.commands._helpers import (
     set_json_mode,
     should_skip_confirm,
 )
-from ac_cli.formatting import print_detail, print_json, print_table
+from ac_cli.formatting import print_detail, print_json, print_table, styled
 
 # Playbooks moved out of /envoy to top-level /api/v1/playbooks (ENG-592).
 _PLAYBOOKS = "/api/v1/playbooks"
@@ -113,7 +113,7 @@ def playbooks_create(
     if json_output:
         print_json(data)
     else:
-        rprint(f"[green]Created playbook:[/green] {data['name']} ({data['id']})")
+        rprint(styled("[green]Created playbook:[/green] {} ({})", data["name"], data["id"]))
 
 
 @playbooks_app.command("update")
@@ -145,7 +145,7 @@ def playbooks_update(
     if json_output:
         print_json(data)
     else:
-        rprint(f"[green]Updated playbook:[/green] {data['name']} ({data['id']})")
+        rprint(styled("[green]Updated playbook:[/green] {} ({})", data["name"], data["id"]))
 
 
 @playbooks_app.command("delete")
@@ -159,7 +159,7 @@ def playbooks_delete(
 
     _api_request("delete", f"{_PLAYBOOKS}/{playbook_id}")
 
-    rprint(f"[green]Deleted playbook {playbook_id}[/green]")
+    rprint(styled("[green]Deleted playbook {}[/green]", playbook_id))
 
 
 @playbooks_app.command("duplicate")
@@ -176,4 +176,4 @@ def playbooks_duplicate(
     if json_output:
         print_json(data)
     else:
-        rprint(f"[green]Duplicated playbook:[/green] {data['name']} ({data['id']})")
+        rprint(styled("[green]Duplicated playbook:[/green] {} ({})", data["name"], data["id"]))

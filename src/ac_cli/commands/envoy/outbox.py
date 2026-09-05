@@ -10,7 +10,7 @@ from rich import print as rprint
 from ac_cli.commands._helpers import JSON_OPTION, set_json_mode
 from ac_cli.commands.crm import _CRM, _api_request, _build_body
 from ac_cli.commands.envoy import _ENVOY
-from ac_cli.formatting import print_json, print_table
+from ac_cli.formatting import print_json, print_table, styled
 
 outbox_app = typer.Typer(help="Outbox / draft approval operations")
 
@@ -150,7 +150,7 @@ def outbox_update_draft(
     if json_output:
         print_json(data)
     else:
-        rprint(f"[green]Updated draft {draft_id}[/green]")
+        rprint(styled("[green]Updated draft {}[/green]", draft_id))
 
 
 @outbox_app.command("edit")
@@ -192,7 +192,7 @@ def outbox_edit(
     if json_output:
         print_json(data)
     else:
-        rprint(f"[green]Edited draft {draft_id}[/green]")
+        rprint(styled("[green]Edited draft {}[/green]", draft_id))
 
 
 @outbox_app.command("approve")
@@ -212,7 +212,7 @@ def outbox_approve(
     if json_output:
         print_json(data)
     else:
-        rprint(f"[green]Approved and sent draft {draft_id}[/green]")
+        rprint(styled("[green]Approved and sent draft {}[/green]", draft_id))
 
 
 @outbox_app.command("reject")
@@ -235,7 +235,7 @@ def outbox_reject(
     if json_output:
         print_json(data)
     else:
-        rprint(f"[green]Rejected draft {draft_id} (action: {action})[/green]")
+        rprint(styled("[green]Rejected draft {} (action: {})[/green]", draft_id, action))
 
 
 @outbox_app.command("regenerate")
@@ -254,4 +254,4 @@ def outbox_regenerate(
     if json_output:
         print_json(data)
     else:
-        rprint(f"[green]Regenerated draft {draft_id}[/green]")
+        rprint(styled("[green]Regenerated draft {}[/green]", draft_id))

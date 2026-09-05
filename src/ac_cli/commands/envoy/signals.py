@@ -17,7 +17,7 @@ from rich import print as rprint
 
 from ac_cli.commands._helpers import JSON_OPTION, _api_request, set_json_mode
 from ac_cli.commands.envoy import _ENVOY
-from ac_cli.formatting import print_json, print_table
+from ac_cli.formatting import print_json, print_table, styled
 
 signals_app = typer.Typer(help="Sales signals (per recipient or recent across org)")
 
@@ -86,7 +86,7 @@ def signals_recent(
 
     items = data if isinstance(data, list) else data.get("data", [])
     if not items:
-        rprint(f"[dim]No signals in the last {since_days} days.[/dim]")
+        rprint(styled("[dim]No signals in the last {} days.[/dim]", since_days))
         return
 
     # Flatten for the table — the response nests the underlying SalesSignal

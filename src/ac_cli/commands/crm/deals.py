@@ -16,7 +16,7 @@ from ac_cli.commands._helpers import (
     should_skip_confirm,
 )
 from ac_cli.commands.crm import _CRM, _api_request, _build_body
-from ac_cli.formatting import print_detail, print_json, print_table
+from ac_cli.formatting import print_detail, print_json, print_table, styled
 
 deals_app = typer.Typer(help="Deal operations")
 
@@ -246,7 +246,7 @@ def deals_create(
     if json_output:
         print_json(data)
     else:
-        rprint(f"[green]Created deal:[/green] {data['name']} ({data['id']})")
+        rprint(styled("[green]Created deal:[/green] {} ({})", data["name"], data["id"]))
 
 
 @deals_app.command("update")
@@ -305,7 +305,7 @@ def deals_update(
     if json_output:
         print_json(data)
     else:
-        rprint(f"[green]Updated deal:[/green] {data['name']} ({data['id']})")
+        rprint(styled("[green]Updated deal:[/green] {} ({})", data["name"], data["id"]))
 
 
 @deals_app.command("move")
@@ -331,7 +331,11 @@ def deals_move(
     if json_output:
         print_json(data)
     else:
-        rprint(f"[green]Moved deal to {data['stage']}:[/green] {data['name']} ({data['id']})")
+        rprint(
+            styled(
+                "[green]Moved deal to {}:[/green] {} ({})", data["stage"], data["name"], data["id"]
+            )
+        )
 
 
 @deals_app.command("order")
@@ -355,7 +359,7 @@ def deals_order(
     if json_output:
         print_json(data)
     else:
-        rprint(f"[green]Reordered {len(ids_list)} deals in stage '{stage}'[/green]")
+        rprint(styled("[green]Reordered {} deals in stage '{}'[/green]", len(ids_list), stage))
 
 
 @deals_app.command("delete")
@@ -382,4 +386,4 @@ def deals_delete(
     if json_output:
         print_json({"ok": True, "id": resolved, "action": "delete"})
     else:
-        rprint(f"[green]Deleted deal {resolved}[/green]")
+        rprint(styled("[green]Deleted deal {}[/green]", resolved))

@@ -15,7 +15,7 @@ from ac_cli.commands._helpers import (
     should_skip_confirm,
 )
 from ac_cli.commands.workflows import _WORKFLOWS
-from ac_cli.formatting import print_detail, print_json, print_table
+from ac_cli.formatting import print_detail, print_json, print_table, styled
 
 presets_app = typer.Typer(help="Workflow preset operations")
 
@@ -99,7 +99,7 @@ def presets_create(
     if json_output:
         print_json(data)
     else:
-        rprint(f"[green]Created preset:[/green] {data['name']} ({data['id']})")
+        rprint(styled("[green]Created preset:[/green] {} ({})", data["name"], data["id"]))
 
 
 @presets_app.command("update")
@@ -132,7 +132,7 @@ def presets_update(
     if json_output:
         print_json(data)
     else:
-        rprint(f"[green]Updated preset {preset_id}[/green]")
+        rprint(styled("[green]Updated preset {}[/green]", preset_id))
 
 
 @presets_app.command("delete")
@@ -147,4 +147,4 @@ def presets_delete(
 
     _api_request("delete", f"{_WORKFLOWS}/{workflow_id}/presets/{preset_id}")
 
-    rprint(f"[green]Deleted preset {preset_id}[/green]")
+    rprint(styled("[green]Deleted preset {}[/green]", preset_id))

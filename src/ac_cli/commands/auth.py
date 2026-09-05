@@ -2,7 +2,7 @@
 
 import typer
 from rich import print as rprint
-from rich.text import Text
+from rich.pretty import Pretty
 from supabase import create_client
 
 from ac_cli.config import (
@@ -14,7 +14,7 @@ from ac_cli.config import (
     load_full_config,
     save_full_config,
 )
-from ac_cli.formatting import as_text
+from ac_cli.formatting import as_text, styled
 
 app = typer.Typer(help="Authentication commands")
 
@@ -50,7 +50,7 @@ def login(
 
     if env not in ENV_NAMES:
         rprint("[red]Unknown environment:[/red]", as_text(env))
-        rprint(f"Available: {', '.join(ENV_NAMES)}")
+        rprint(as_text(f"Available: {', '.join(ENV_NAMES)}"))
         raise typer.Exit(code=1)
 
     defaults = ENVIRONMENTS[env]
@@ -58,7 +58,7 @@ def login(
     supabase_url = supabase_url or defaults["supabase_url"]
     supabase_anon_key = supabase_anon_key or defaults["supabase_anon_key"]
 
-    rprint(f"[dim]Logging in to {env} environment[/dim]")
+    rprint(styled("[dim]Logging in to {} environment[/dim]", env))
 
     if not email:
         email = typer.prompt("Email")
@@ -91,7 +91,7 @@ def login(
     full["active"] = env
     save_full_config(full)
 
-    rprint(Text(f"Logged in as {email} ({env})", style="green"))
+    rprint(styled("[green]Logged in as {} ({})[/green]", email, env))
 
 
 @app.command()
@@ -110,10 +110,10 @@ def logout(
     if env:
         if env not in ENV_NAMES:
             rprint("[red]Unknown environment:[/red]", as_text(env))
-            rprint(f"Available: {', '.join(ENV_NAMES)}")
+            rprint(as_text(f"Available: {', '.join(ENV_NAMES)}"))
             raise typer.Exit(code=1)
         clear_env_config(env)
-        rprint(f"[green]Logged out of {env}.[/green]")
+        rprint(styled("[green]Logged out of {}.[/green]", env))
     else:
         clear_config()
         rprint("[green]Logged out of all environments.[/green]")
@@ -135,4 +135,4 @@ def whoami(
     if json_output:
         print_json(data)
     else:
-        rprint(data)
+        rprint(Pretty(data))

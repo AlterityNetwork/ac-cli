@@ -33,7 +33,6 @@ from urllib.parse import quote
 
 import typer
 from rich import print as rprint
-from rich.text import Text
 
 from ac_cli.commands._helpers import (
     JSON_OPTION,
@@ -46,13 +45,7 @@ from ac_cli.commands._helpers import (
 from ac_cli.commands.conversations import app as conversations_app
 from ac_cli.commands.prospects import app as prospects_app
 from ac_cli.commands.saved_searches import app as saved_searches_app
-from ac_cli.formatting import (
-    as_text,
-    console,
-    print_detail,
-    print_json,
-    print_table,
-)
+from ac_cli.formatting import as_text, console, print_detail, print_json, print_table, styled
 
 app = typer.Typer(help="Agentic platform")
 
@@ -397,11 +390,11 @@ def _print_cursor_hint(
           value of None or False is one the caller did not set.
         label: The words before the options.
     """
-    parts: list[object] = [f"[dim]{label}[/dim]"]
+    parts: list[object] = [styled("[dim]{}[/dim]", label)]
     for flag, value in filters or []:
         if value is None or value is False:
             continue
-        parts.append(flag)
+        parts.append(as_text(flag))
         if value is not True:
             # shlex.quote, because the line is pasted into a shell. `crm.*`
             # unquoted dies in zsh as `no matches found`, and matches a file in
@@ -648,10 +641,10 @@ def _parse_object(raw: str | None, flag: str) -> dict:
     try:
         parsed = json.loads(raw)
     except json.JSONDecodeError:
-        rprint(f"[red]Invalid JSON for {flag}[/red]")
+        rprint(styled("[red]Invalid JSON for {}[/red]", flag))
         raise typer.Exit(code=1) from None
     if not isinstance(parsed, dict):
-        rprint(f"[red]{flag} must be a JSON object[/red]")
+        rprint(styled("[red]{} must be a JSON object[/red]", flag))
         raise typer.Exit(code=1)
     return parsed
 
@@ -673,10 +666,10 @@ def _report_validation(data: dict) -> None:
         return
     rprint("[yellow]Validation:[/yellow] the configuration cannot publish yet")
     for one in validation.get("issues", []):
-        # The path names a JSON key the author typed, so build the line as a
-        # Text. Every part then prints as it is, and the code keeps its dim.
-        line = Text("  ")
-        line.append(str(one["code"]), style="dim")
+        # The path names a JSON key the author typed, so build the line
+        # part by part. Every part then prints as it is, and the code keeps
+        # its dim.
+        line = styled("  [dim]{}[/dim]", one["code"])
         if one.get("path"):
             line.append(" at ")
             line.append_text(as_text(one["path"]))
@@ -1192,7 +1185,7 @@ def _report_decision(data: dict, asked: str) -> None:
     """
     status = data["status"]
     if status == asked:
-        rprint(f"[green]Approval {status}:[/green]", as_text(data["id"]))
+        rprint(styled("[green]Approval {}:[/green]", status), as_text(data["id"]))
         return
     rprint(
         "[yellow]Not written:[/yellow] this approval already reads",

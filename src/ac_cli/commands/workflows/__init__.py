@@ -13,10 +13,11 @@ from ac_cli.commands._helpers import (
     JSON_OPTION,
     _api_request,  # noqa: F401
     _build_body,  # noqa: F401
+    _handle_connection_error,
     _handle_error,
     set_json_mode,
 )
-from ac_cli.formatting import print_json, print_table
+from ac_cli.formatting import print_json, print_table, styled
 
 app = typer.Typer(help="Workflow commands")
 
@@ -41,7 +42,7 @@ def csv_parse(
     set_json_mode(json_output)
     path = Path(file)
     if not path.exists():
-        rprint(f"[red]File not found:[/red] {file}")
+        rprint(styled("[red]File not found:[/red] {}", file))
         raise typer.Exit(code=1)
 
     if not path.suffix.lower() == ".csv":
@@ -60,8 +61,7 @@ def csv_parse(
             except httpx.HTTPStatusError as exc:
                 _handle_error(exc)
             except httpx.HTTPError as exc:
-                rprint(f"[red]Connection error:[/red] {exc}")
-                raise typer.Exit(code=1)
+                _handle_connection_error(exc)
 
     data = resp.json()
     if json_output:
@@ -70,8 +70,11 @@ def csv_parse(
 
     companies = data.get("companies", [])
     rprint(
-        f"\n[bold]Parsed {data.get('total_rows', 0)} rows[/bold]"
-        f" (truncated: {data.get('truncated', False)})\n"
+        styled(
+            "\n[bold]Parsed {} rows[/bold] (truncated: {})\n",
+            data.get("total_rows", 0),
+            data.get("truncated", False),
+        )
     )
     print_table(
         companies,

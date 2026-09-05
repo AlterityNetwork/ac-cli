@@ -6,7 +6,7 @@ import typer
 from rich import print as rprint
 
 from ac_cli.commands._helpers import JSON_OPTION, _api_request, set_json_mode
-from ac_cli.formatting import print_detail, print_json
+from ac_cli.formatting import as_text, print_detail, print_json, styled
 
 app = typer.Typer(help="Legal documents")
 
@@ -64,11 +64,11 @@ def get_status(
 
     accepted = data.get("accepted", False)
     status = "[green]Accepted[/green]" if accepted else "[yellow]Not accepted[/yellow]"
-    rprint(f"Status: {status}")
+    rprint("Status:", status)
     if data.get("accepted_version"):
-        rprint(f"  Version: {data['accepted_version']}")
+        rprint(as_text(f"  Version: {data['accepted_version']}"))
     if data.get("accepted_at"):
-        rprint(f"  Accepted at: {data['accepted_at']}")
+        rprint(as_text(f"  Accepted at: {data['accepted_at']}"))
 
 
 @app.command("accept")
@@ -88,4 +88,4 @@ def accept(
     if json_output:
         print_json(data)
     else:
-        rprint(f"[green]Accepted {document_type} version {version}[/green]")
+        rprint(styled("[green]Accepted {} version {}[/green]", document_type, version))

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import typer
 from rich import print as rprint
+from rich.pretty import Pretty
 
 from ac_cli.commands._helpers import (
     JSON_OPTION,
@@ -13,7 +14,7 @@ from ac_cli.commands._helpers import (
     should_skip_confirm,
 )
 from ac_cli.commands.admin import _ADMIN
-from ac_cli.formatting import print_json, print_table
+from ac_cli.formatting import print_json, print_table, styled
 
 demo_app = typer.Typer(help="Demo account management")
 
@@ -32,7 +33,7 @@ def demo_scrape_website(
     if json_output:
         print_json(data)
     else:
-        rprint(data)
+        rprint(Pretty(data))
 
 
 @demo_app.command("generate-org")
@@ -52,7 +53,7 @@ def demo_generate_org(
     if json_output:
         print_json(data)
     else:
-        rprint(data)
+        rprint(Pretty(data))
 
 
 @demo_app.command("generate-profile")
@@ -71,7 +72,7 @@ def demo_generate_profile(
     if json_output:
         print_json(data)
     else:
-        rprint(data)
+        rprint(Pretty(data))
 
 
 @demo_app.command("prepare-account")
@@ -101,7 +102,7 @@ def demo_prepare_account(
     if json_output:
         print_json(data)
     else:
-        rprint(data)
+        rprint(Pretty(data))
 
 
 @demo_app.command("list-accounts")
@@ -154,7 +155,7 @@ def demo_get_account(
     if json_output:
         print_json(data)
     else:
-        rprint(data)
+        rprint(Pretty(data))
 
 
 @demo_app.command("update-account")
@@ -179,7 +180,7 @@ def demo_update_account(
     if json_output:
         print_json(data)
     else:
-        rprint(f"[green]Updated demo account {org_id}[/green]")
+        rprint(styled("[green]Updated demo account {}[/green]", org_id))
 
 
 @demo_app.command("delete-account")
@@ -193,7 +194,7 @@ def demo_delete_account(
 
     _api_request("delete", f"{_ADMIN}/demo/accounts/{org_id}")
 
-    rprint(f"[green]Deleted demo account {org_id}[/green]")
+    rprint(styled("[green]Deleted demo account {}[/green]", org_id))
 
 
 @demo_app.command("cleanup")
@@ -210,7 +211,7 @@ def demo_cleanup(
     resp = _api_request("post", f"{_ADMIN}/demo/cleanup", json=body)
 
     rprint("[green]Cleanup complete[/green]")
-    rprint(resp.json())
+    rprint(Pretty(resp.json()))
 
 
 @demo_app.command("stats")
@@ -226,4 +227,4 @@ def demo_stats(
     if json_output:
         print_json(data)
     else:
-        rprint(data)
+        rprint(Pretty(data))

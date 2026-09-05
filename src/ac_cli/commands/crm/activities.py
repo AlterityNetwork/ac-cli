@@ -17,7 +17,7 @@ from ac_cli.commands._helpers import (
     should_skip_confirm,
 )
 from ac_cli.commands.crm import _CRM, _api_request, _build_body
-from ac_cli.formatting import print_detail, print_json, print_table
+from ac_cli.formatting import print_detail, print_json, print_table, styled
 
 activities_app = typer.Typer(help="Activity operations")
 
@@ -216,7 +216,7 @@ def activities_create(
     if json_output:
         print_json(data)
     else:
-        rprint(f"[green]Created activity:[/green] {data['title']} ({data['id']})")
+        rprint(styled("[green]Created activity:[/green] {} ({})", data["title"], data["id"]))
 
 
 @activities_app.command("bulk-create")
@@ -290,7 +290,11 @@ def activities_bulk_create(
 
     created = int(data.get("created_count", 0))
     noun = activity_type if created == 1 else f"{activity_type}s"
-    rprint(f"[green]Created {created} {noun}[/green] for {len(id_list)} {member_type}(s)")
+    rprint(
+        styled(
+            "[green]Created {} {}[/green] for {} {}(s)", created, noun, len(id_list), member_type
+        )
+    )
 
 
 @activities_app.command("update")
@@ -357,7 +361,7 @@ def activities_update(
     if json_output:
         print_json(data)
     else:
-        rprint(f"[green]Updated activity:[/green] {data['title']} ({data['id']})")
+        rprint(styled("[green]Updated activity:[/green] {} ({})", data["title"], data["id"]))
 
 
 @activities_app.command("complete")
@@ -379,7 +383,7 @@ def activities_complete(
     if json_output:
         print_json(data)
     else:
-        rprint(f"[green]Completed activity:[/green] {data['title']} ({data['id']})")
+        rprint(styled("[green]Completed activity:[/green] {} ({})", data["title"], data["id"]))
 
 
 @activities_app.command("snooze")
@@ -403,7 +407,7 @@ def activities_snooze(
     if json_output:
         print_json(data)
     else:
-        rprint(f"[green]Snoozed activity:[/green] {data['title']} ({data['id']})")
+        rprint(styled("[green]Snoozed activity:[/green] {} ({})", data["title"], data["id"]))
 
 
 @activities_app.command("unsnooze")
@@ -420,7 +424,7 @@ def activities_unsnooze(
     if json_output:
         print_json(data)
     else:
-        rprint(f"[green]Unsnoozed activity:[/green] {data['title']} ({data['id']})")
+        rprint(styled("[green]Unsnoozed activity:[/green] {} ({})", data["title"], data["id"]))
 
 
 @activities_app.command("delete")
@@ -439,4 +443,4 @@ def activities_delete(
     if json_output:
         print_json({"ok": True, "id": activity_id, "action": "delete"})
     else:
-        rprint(f"[green]Deleted activity {activity_id}[/green]")
+        rprint(styled("[green]Deleted activity {}[/green]", activity_id))

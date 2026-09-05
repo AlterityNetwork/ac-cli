@@ -13,7 +13,7 @@ from ac_cli.commands._helpers import (
     set_json_mode,
     should_skip_confirm,
 )
-from ac_cli.formatting import print_detail, print_json, print_table
+from ac_cli.formatting import print_detail, print_json, print_table, styled
 
 app = typer.Typer(help="Organization app operations")
 
@@ -51,7 +51,7 @@ def apps_install(
     if json_output:
         print_json(data)
     else:
-        rprint(f"[green]Installed {app_slug}[/green]")
+        rprint(styled("[green]Installed {}[/green]", app_slug))
 
 
 @app.command("uninstall")
@@ -69,7 +69,7 @@ def apps_uninstall(
     oid = _resolve_org_id(org_id)
     _api_request("delete", f"{_APPS}/{oid}/apps/{app_slug}")
 
-    rprint(f"[green]Uninstalled {app_slug}[/green]")
+    rprint(styled("[green]Uninstalled {}[/green]", app_slug))
 
 
 @app.command("list")
@@ -138,7 +138,7 @@ def apps_usage_event(
     if json_output:
         print_json(data)
     else:
-        rprint(f"[green]Recorded usage event for {app_slug}[/green]")
+        rprint(styled("[green]Recorded usage event for {}[/green]", app_slug))
 
 
 @app.command("usage")
@@ -228,7 +228,7 @@ def apps_update_config(
     if json_output:
         print_json(data)
     else:
-        rprint(f"[green]Updated config {config_key} for {app_slug}[/green]")
+        rprint(styled("[green]Updated config {} for {}[/green]", config_key, app_slug))
 
 
 @app.command("delete-config")
@@ -247,4 +247,4 @@ def apps_delete_config(
     oid = _resolve_org_id(org_id)
     _api_request("delete", f"{_APPS}/{oid}/apps/{app_slug}/configs/{config_key}")
 
-    rprint(f"[green]Deleted config {config_key} for {app_slug}[/green]")
+    rprint(styled("[green]Deleted config {} for {}[/green]", config_key, app_slug))

@@ -12,7 +12,7 @@ from ac_cli.commands._helpers import (
     should_skip_confirm,
 )
 from ac_cli.commands.admin import _ADMIN
-from ac_cli.formatting import print_json
+from ac_cli.formatting import print_json, styled
 
 admin_crm_app = typer.Typer(help="Admin CRM operations (super admin only — bypasses soft-delete)")
 
@@ -36,7 +36,7 @@ def admin_crm_hard_delete_company(
     if json_output:
         print_json({"ok": True, "id": company_id, "action": "hard-delete-company"})
     else:
-        rprint(f"[green]Hard-deleted company {company_id}[/green]")
+        rprint(styled("[green]Hard-deleted company {}[/green]", company_id))
 
 
 @admin_crm_app.command("hard-delete-person")
@@ -58,4 +58,4 @@ def admin_crm_hard_delete_person(
     if json_output:
         print_json({"ok": True, "id": person_id, "action": "hard-delete-person"})
     else:
-        rprint(f"[green]Hard-deleted person {person_id}[/green]")
+        rprint(styled("[green]Hard-deleted person {}[/green]", person_id))
