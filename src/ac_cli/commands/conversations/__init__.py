@@ -19,7 +19,12 @@ from typing import NoReturn
 import typer
 from rich import print as rprint
 
-from ac_cli.commands._helpers import JSON_OPTION, _api_request, set_json_mode
+from ac_cli.commands._helpers import (
+    JSON_OPTION,
+    _api_request,
+    checked_header_key,
+    set_json_mode,
+)
 from ac_cli.formatting import as_text, print_detail, print_json, print_table
 
 app = typer.Typer(help="Read and write agentic web chat conversations")
@@ -194,7 +199,10 @@ def conversations_send(
     # A fresh key per invocation, and never a stable one. The key names the
     # delivery, so a value derived from the text would make tomorrow's message
     # a duplicate of today's and it would never be answered.
-    key = idempotency_key or str(uuid.uuid4())
+    #
+    # Read the flag with `is not None`. An empty flag is a typing error.
+    # Truthiness would mint a key for it and disable the duplicate guard.
+    key = checked_header_key(idempotency_key) if idempotency_key is not None else str(uuid.uuid4())
     response = _api_request(
         "post",
         f"{_CONVERSATIONS}/{conversation_id}/messages",

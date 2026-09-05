@@ -12,6 +12,7 @@ import json
 
 import pytest
 
+from tests.conftest import UNSENDABLE_KEYS
 from tests.test_agentic_runs import SAMPLE_RUN
 
 ARGS = [
@@ -91,12 +92,6 @@ def test_required_flags_cannot_default(invoke, mock_api, flag):
         ("--input", ""),
         ("--input", '{"limit":NaN}'),
         ("--input", '{"limit":Infinity}'),
-        ("--idempotency-key", " "),
-        ("--idempotency-key", " delivery-42"),
-        ("--idempotency-key", "delivery-42 "),
-        ("--idempotency-key", "x" * 201),
-        ("--idempotency-key", "line\nbreak"),
-        ("--idempotency-key", "é"),
     ],
 )
 def test_bad_local_input_is_a_json_error_without_http(invoke, mock_api, flag, value):
@@ -382,3 +377,20 @@ def test_capabilities_list_all_does_not_repeat_the_hint(invoke, mock_api):
 
     assert result.exit_code == 0
     assert "--all" not in result.output
+
+
+@pytest.mark.parametrize("key", UNSENDABLE_KEYS)
+def test_start_refuses_a_key_the_header_refuses(invoke, mock_api, key):
+    """A key that cannot travel is refused before any HTTP call."""
+    mock_api.post(PATH).respond(200, json=SAMPLE_RUN)
+    args = ARGS.copy()
+    args[args.index("--idempotency-key") + 1] = key
+
+    result = invoke([*args, "--json"])
+
+    assert result.exit_code == 2, result.output
+    body = json.loads(result.output)
+    assert body["error"] is True
+    assert body["status_code"] is None
+    assert "--idempotency-key" in body["detail"]
+    assert not mock_api.calls

@@ -40,7 +40,7 @@ from ac_cli.commands._helpers import (
     JSON_OPTION,
     _api_request,
     _json_output,
-    header_safe_key,
+    checked_header_key,
     set_json_mode,
     should_skip_confirm,
 )
@@ -161,10 +161,7 @@ def capabilities_start(
     set_json_mode(json_output)
     if contract_version < 1:
         _refuse_option("--contract-version", "must be positive", contract_version)
-    if not header_safe_key(idempotency_key):
-        _refuse_option(
-            "--idempotency-key", "must contain 1–200 header-safe ASCII characters", idempotency_key
-        )
+    idempotency_key = checked_header_key(idempotency_key)
     try:
         value = json.loads(input_json)
         if not isinstance(value, dict):
@@ -206,7 +203,10 @@ def runs_start(
     # A fresh key per invocation, and never a stable one. The key names the
     # delivery, so a value derived from the command would make tomorrow's run a
     # duplicate of today's and it would never execute.
-    key = idempotency_key or str(uuid.uuid4())
+    #
+    # Read the flag with `is not None`. An empty flag is a typing error.
+    # Truthiness would mint a key for it and disable the duplicate guard.
+    key = checked_header_key(idempotency_key) if idempotency_key is not None else str(uuid.uuid4())
 
     resp = _api_request("post", f"{_AGENTIC}/runs", json=body, headers={"Idempotency-Key": key})
 
