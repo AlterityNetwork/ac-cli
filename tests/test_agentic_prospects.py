@@ -125,6 +125,25 @@ def test_list_forwards_filter_cursor_and_limit(invoke, mock_api):
     assert "--review-state watching --limit 10 --cursor next" in result.output
 
 
+def test_list_filters_by_last_seen_run(invoke, mock_api):
+    run_id = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"
+    route = mock_api.get(BASE).respond(200, json={"items": [], "next_cursor": None})
+
+    result = invoke(
+        [
+            "agentic",
+            "prospects",
+            "list",
+            "--last-seen-run-id",
+            run_id,
+            "--json",
+        ]
+    )
+
+    assert result.exit_code == 0
+    assert route.calls[0].request.url.params["last_seen_run_id"] == run_id
+
+
 def test_list_json_keeps_the_page(invoke, mock_api):
     page = {"items": [SUMMARY], "next_cursor": "next"}
     mock_api.get(BASE).respond(200, json=page)
