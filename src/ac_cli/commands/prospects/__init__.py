@@ -102,6 +102,7 @@ def _print_next_page(
     limit: int,
     *,
     review_state: str | None = None,
+    last_seen_run_id: str | None = None,
 ) -> None:
     """Prints the options that continue the same page walk."""
     if not next_cursor:
@@ -109,6 +110,8 @@ def _print_next_page(
     parts: list[object] = ["[dim]Next page:[/dim]"]
     if review_state is not None:
         parts += ["--review-state", as_text(review_state)]
+    if last_seen_run_id is not None:
+        parts += ["--last-seen-run-id", as_text(last_seen_run_id)]
     if limit != _PAGE_DEFAULT:
         parts += ["--limit", as_text(limit)]
     parts += ["--cursor", as_text(next_cursor)]
@@ -126,6 +129,9 @@ def _print_prospect(data: dict) -> None:
 def prospects_list(
     ctx: typer.Context,
     review_state: str = typer.Option("new", "--review-state", help="Review state"),
+    last_seen_run_id: str | None = typer.Option(
+        None, "--last-seen-run-id", help="Only prospects last written by this Run"
+    ),
     cursor: str | None = typer.Option(None, "--cursor", help="Page to continue"),
     limit: int = typer.Option(_PAGE_DEFAULT, "--limit", help="Page size, 1 to 100"),
     json_output: bool = JSON_OPTION,
@@ -134,12 +140,19 @@ def prospects_list(
     set_json_mode(json_output)
     params = _page_params(limit, cursor)
     params["review_state"] = review_state
+    if last_seen_run_id is not None:
+        params["last_seen_run_id"] = last_seen_run_id
     data = _api_request("get", _PROSPECTS, params=params).json()
     if json_output:
         print_json(data)
         return
     print_table(data.get("items", []), _SUMMARY_FIELDS, title="Prospects")
-    _print_next_page(data.get("next_cursor"), limit, review_state=review_state)
+    _print_next_page(
+        data.get("next_cursor"),
+        limit,
+        review_state=review_state,
+        last_seen_run_id=last_seen_run_id,
+    )
 
 
 @app.command("get")
