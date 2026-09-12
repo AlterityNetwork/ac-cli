@@ -159,11 +159,41 @@ def conversations_messages(
     _print_next_page(data.get("next_cursor"), limit)
 
 
+def _entity_ref(value: str) -> dict[str, str]:
+    """Reads one `kind:id` flag, or refuses it before any HTTP call.
+
+    The split takes the first colon. A `ResourceRef` kind holds none, so the
+    tail is the id and `crm.company:<uuid>` reads correctly.
+
+    Args:
+        value: What the caller typed after --entity-ref.
+
+    Returns:
+        The body of one entity ref.
+
+    Raises:
+        typer.Exit: Code 2, when the value carries no kind or no id.
+    """
+    kind, separator, row_id = value.partition(":")
+    if not separator or not kind.strip() or not row_id.strip():
+        refuse_local(f"--entity-ref must read kind:id, and it read {value!r}")
+    return {"kind": kind.strip(), "id": row_id.strip()}
+
+
 @app.command("send")
 def conversations_send(
     ctx: typer.Context,
     conversation_id: str = typer.Argument(..., help="Conversation ID"),
     text: str = typer.Argument(..., help="What to say"),
+    entity_ref: list[str] = typer.Option(
+        [],
+        "--entity-ref",
+        help=(
+            "A row this message is about, as kind:id (crm.company:<uuid>). "
+            "Repeat for each row. It enters the conversation scope, so the "
+            "turn resolves 'this company'."
+        ),
+    ),
     idempotency_key: str | None = typer.Option(
         None,
         "--idempotency-key",
@@ -178,6 +208,7 @@ def conversations_send(
     read.
     """
     set_json_mode(json_output)
+    refs = [_entity_ref(one) for one in entity_ref]
     # A fresh key per invocation, and never a stable one. The key names the
     # delivery, so a value derived from the text would make tomorrow's message
     # a duplicate of today's and it would never be answered.
@@ -188,7 +219,7 @@ def conversations_send(
     response = _api_request(
         "post",
         f"{_CONVERSATIONS}/{conversation_id}/messages",
-        json={"text": text},
+        json={"text": text, "entity_refs": refs} if refs else {"text": text},
         headers={"Idempotency-Key": key},
     )
     data = response.json()

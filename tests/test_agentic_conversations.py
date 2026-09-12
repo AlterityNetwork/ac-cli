@@ -272,3 +272,85 @@ def test_send_never_mints_a_key_for_an_empty_flag(invoke, mock_api):
 
     assert result.exit_code == 2
     assert not mock_api.calls
+
+
+# --- entity refs -----------------------------------------------------------
+
+
+def test_send_names_the_rows_the_message_is_about(invoke, mock_api):
+    """The scope of that conversation then resolves "this company"."""
+    route = mock_api.post(MESSAGES).respond(202, json=MESSAGE)
+
+    result = invoke(
+        [
+            "agentic",
+            "conversations",
+            "send",
+            CONVERSATION_ID,
+            "enrich this company",
+            "--entity-ref",
+            f"crm.company:{USER_ID}",
+        ]
+    )
+
+    assert result.exit_code == 0
+    assert json.loads(route.calls[0].request.content) == {
+        "text": "enrich this company",
+        "entity_refs": [{"kind": "crm.company", "id": USER_ID}],
+    }
+
+
+def test_send_names_more_than_one_row(invoke, mock_api):
+    route = mock_api.post(MESSAGES).respond(202, json=MESSAGE)
+
+    invoke(
+        [
+            "agentic",
+            "conversations",
+            "send",
+            CONVERSATION_ID,
+            "compare these",
+            "--entity-ref",
+            f"crm.company:{USER_ID}",
+            "--entity-ref",
+            f"crm.company:{MESSAGE_ID}",
+        ]
+    )
+
+    assert json.loads(route.calls[0].request.content)["entity_refs"] == [
+        {"kind": "crm.company", "id": USER_ID},
+        {"kind": "crm.company", "id": MESSAGE_ID},
+    ]
+
+
+def test_send_omits_the_field_when_no_row_is_named(invoke, mock_api):
+    """The body stays the shape every earlier client sent."""
+    route = mock_api.post(MESSAGES).respond(202, json=MESSAGE)
+
+    invoke(["agentic", "conversations", "send", CONVERSATION_ID, "hello"])
+
+    assert json.loads(route.calls[0].request.content) == {"text": "hello"}
+
+
+@pytest.mark.parametrize(
+    "value",
+    ["crm.company", f"crm.company{USER_ID}", f":{USER_ID}", "crm.company:", " : "],
+)
+def test_send_refuses_a_row_that_is_no_kind_and_id(invoke, mock_api, value):
+    """A typing error must not reach the API as a silent drop."""
+    route = mock_api.post(MESSAGES).respond(202, json=MESSAGE)
+
+    result = invoke(
+        [
+            "agentic",
+            "conversations",
+            "send",
+            CONVERSATION_ID,
+            "hello",
+            "--entity-ref",
+            value,
+        ]
+    )
+
+    assert result.exit_code == 2
+    assert not route.called
