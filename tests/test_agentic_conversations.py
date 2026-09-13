@@ -303,7 +303,7 @@ def test_send_names_the_rows_the_message_is_about(invoke, mock_api):
 def test_send_names_more_than_one_row(invoke, mock_api):
     route = mock_api.post(MESSAGES).respond(202, json=MESSAGE)
 
-    invoke(
+    result = invoke(
         [
             "agentic",
             "conversations",
@@ -317,6 +317,7 @@ def test_send_names_more_than_one_row(invoke, mock_api):
         ]
     )
 
+    assert result.exit_code == 0, result.output
     assert json.loads(route.calls[0].request.content)["entity_refs"] == [
         {"kind": "crm.company", "id": USER_ID},
         {"kind": "crm.company", "id": MESSAGE_ID},
