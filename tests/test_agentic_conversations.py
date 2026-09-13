@@ -332,6 +332,32 @@ def test_send_omits_the_field_when_no_row_is_named(invoke, mock_api):
     assert json.loads(route.calls[0].request.content) == {"text": "hello"}
 
 
+def test_send_refuses_a_row_in_the_json_envelope(invoke, mock_api):
+    """The refusal runs after `set_json_mode`, so an agent reads an envelope
+    and not prose."""
+    route = mock_api.post(MESSAGES).respond(202, json=MESSAGE)
+
+    result = invoke(
+        [
+            "agentic",
+            "conversations",
+            "send",
+            CONVERSATION_ID,
+            "hello",
+            "--entity-ref",
+            "crm.company",
+            "--json",
+        ]
+    )
+
+    assert result.exit_code == 2, result.output
+    body = json.loads(result.output)
+    assert body["error"] is True
+    assert body["status_code"] is None
+    assert "--entity-ref" in body["detail"]
+    assert not route.called
+
+
 @pytest.mark.parametrize(
     "value",
     ["crm.company", f"crm.company{USER_ID}", f":{USER_ID}", "crm.company:", " : "],
