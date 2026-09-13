@@ -328,8 +328,9 @@ def test_send_omits_the_field_when_no_row_is_named(invoke, mock_api):
     """The body stays the shape every earlier client sent."""
     route = mock_api.post(MESSAGES).respond(202, json=MESSAGE)
 
-    invoke(["agentic", "conversations", "send", CONVERSATION_ID, "hello"])
+    result = invoke(["agentic", "conversations", "send", CONVERSATION_ID, "hello"])
 
+    assert result.exit_code == 0, result.output
     assert json.loads(route.calls[0].request.content) == {"text": "hello"}
 
 
