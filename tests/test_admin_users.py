@@ -95,6 +95,18 @@ def test_users_update(invoke, mock_api):
     assert "Updated user" in result.output
 
 
+def test_users_update_copilot_flag(invoke, mock_api):
+    """--copilot and --no-copilot reach the body as is_copilot."""
+    route = mock_api.patch("/api/v1/admin/users/u-1").respond(200, json={"id": "u-1"})
+    result = invoke(["admin", "users", "update", "u-1", "--copilot"])
+    assert result.exit_code == 0
+    assert json.loads(route.calls[0].request.content) == {"is_copilot": True}
+
+    result = invoke(["admin", "users", "update", "u-1", "--no-copilot"])
+    assert result.exit_code == 0
+    assert json.loads(route.calls[1].request.content) == {"is_copilot": False}
+
+
 def test_users_update_no_fields(invoke, mock_api):
     result = invoke(["admin", "users", "update", "u-1"])
     assert result.exit_code == 1

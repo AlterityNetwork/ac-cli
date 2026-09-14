@@ -119,6 +119,11 @@ def users_update(
     user_id: str = typer.Argument(..., help="User ID"),
     full_name: str | None = typer.Option(None, "--full-name", help="Full name"),
     is_superadmin: bool | None = typer.Option(None, "--is-superadmin", help="Superadmin status"),
+    is_copilot: bool | None = typer.Option(
+        None,
+        "--copilot/--no-copilot",
+        help="Mark or unmark the user as an AgencyCore copilot",
+    ),
     json_output: bool = JSON_OPTION,
 ) -> None:
     """Update an existing user."""
@@ -129,7 +134,12 @@ def users_update(
         parts = full_name.strip().split(" ", 1)
         first_name = parts[0]
         last_name = parts[1] if len(parts) > 1 else None
-    body = _build_body(first_name=first_name, last_name=last_name, is_superadmin=is_superadmin)
+    body = _build_body(
+        first_name=first_name,
+        last_name=last_name,
+        is_superadmin=is_superadmin,
+        is_copilot=is_copilot,
+    )
 
     if not body:
         rprint("[yellow]No fields to update.[/yellow]")
