@@ -2,6 +2,8 @@
 
 import json
 
+from ac_cli.commands.prospects import _SUMMARY_FIELDS
+
 BASE = "/api/v1/agentic/prospects"
 PROSPECT_ID = "11111111-1111-4111-8111-111111111111"
 
@@ -102,8 +104,9 @@ def test_list_defaults_to_new_and_prints_partial_rows(invoke, mock_api):
     assert route.calls[0].request.url.params["limit"] == "50"
 
 
-#: The `Signal` cell, in `_SUMMARY_FIELDS` order.
-SIGNAL_COLUMN = 5
+#: The `Signal` cell. `table_column` gives a wrong answer for a wrong index
+#: and does not raise, so read the index from the column list itself.
+SIGNAL_COLUMN = [key for key, _ in _SUMMARY_FIELDS].index("top_signal_type")
 
 
 def test_list_names_the_signal_that_made_the_prospect_relevant(invoke, mock_api, table_column):
