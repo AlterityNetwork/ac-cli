@@ -24,6 +24,10 @@ _SAVED_SEARCHES = "/api/v1/agentic/saved-searches"
 #: takes the rows it works on, so the API refuses a saved brief for one.
 _CAPABILITIES = ("signals.search", "people.search", "company.search")
 _CAPABILITY_HELP = f"Which product saves the brief: {', '.join(_CAPABILITIES)}"
+#: The row records the version the caller is serving, never a constant in the
+#: API. A tenant runs the binding its provisioning wrote. Read it from
+#: `ac agentic capabilities get <id>`.
+_VERSION_HELP = "The version the capability publishes to your organization now"
 _PAGE_DEFAULT = 50
 _PAGE_MIN = 1
 _PAGE_MAX = 100
@@ -121,6 +125,7 @@ def _print_saved_search(data: dict) -> None:
 def saved_searches_create(
     ctx: typer.Context,
     capability: str = typer.Option(..., "--capability", help=_CAPABILITY_HELP),
+    contract_version: int = typer.Option(..., "--contract-version", help=_VERSION_HELP),
     name: str = typer.Option(..., "--name", help="What to call the saved search"),
     brief: str = typer.Option(
         ...,
@@ -133,6 +138,7 @@ def saved_searches_create(
     set_json_mode(json_output)
     body = {
         "capability_id": _checked_capability(capability),
+        "contract_version": _checked_contract_version(contract_version),
         "name": name,
         "brief": _parse_object(brief, "--brief"),
     }
@@ -194,19 +200,28 @@ def saved_searches_patch(
     brief: str | None = typer.Option(
         None,
         "--brief",
-        help="Full replacement brief JSON; it also records the version published now",
+        help="Full replacement brief JSON; it needs --contract-version",
     ),
+    contract_version: int | None = typer.Option(None, "--contract-version", help=_VERSION_HELP),
     json_output: bool = JSON_OPTION,
 ) -> None:
-    """Replace the name, brief, or both under one write token."""
+    """Replace the name, brief, or both under one write token.
+
+    A replacement brief also records the version it was written under, which
+    is how a start stops refusing a stale one. A rename reads no schema, so it
+    names no version.
+    """
     set_json_mode(json_output)
     if name is None and brief is None:
         refuse_local("provide --name or --brief")
+    if (brief is None) != (contract_version is None):
+        refuse_local("pass --contract-version with --brief, and only with it")
     body: dict = {"expected_updated_at": expected_updated_at}
     if name is not None:
         body["name"] = name
     if brief is not None:
         body["brief"] = _parse_object(brief, "--brief")
+        body["contract_version"] = _checked_contract_version(contract_version or 0)
     data = _api_request("patch", f"{_SAVED_SEARCHES}/{search_id}", json=body).json()
     if json_output:
         print_json(data)
