@@ -333,6 +333,12 @@ def onboarding_update_settings(
         "--copilot-display-label",
         help="The label a customer sees for a copilot seat (default Copilot)",
     ),
+    copilot_account_limit: int | None = typer.Option(
+        None,
+        "--copilot-account-limit",
+        min=1,
+        help="The number of organizations one copilot is expected to hold (default 10)",
+    ),
     json_output: bool = JSON_OPTION,
 ) -> None:
     """Update global managed onboarding settings."""
@@ -342,6 +348,7 @@ def onboarding_update_settings(
         calendly_url=calendly_url,
         calendly_enabled=calendly_enabled,
         copilot_display_label=copilot_display_label,
+        copilot_account_limit=copilot_account_limit,
     )
 
     if not body:
