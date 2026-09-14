@@ -72,9 +72,14 @@ def copilots_list(
 def copilots_assign(
     user_id: str = typer.Argument(..., help="User ID of the copilot"),
     org_id: str = typer.Argument(..., help="Organization ID"),
+    json_output: bool = JSON_OPTION,
 ) -> None:
     """Give a user a copilot seat in an organization."""
+    set_json_mode(json_output)
     _api_request("post", f"{_COPILOTS}/{user_id}/organizations/{org_id}")
+    if json_output:
+        print_json({"ok": True, "user_id": user_id, "organization_id": org_id})
+        return
     rprint(styled("[green]Assigned copilot {} to organization {}[/green]", user_id, org_id))
 
 
@@ -83,8 +88,10 @@ def copilots_unassign(
     user_id: str = typer.Argument(..., help="User ID of the copilot"),
     org_id: str = typer.Argument(..., help="Organization ID"),
     yes: bool = typer.Option(False, "--yes", "-y", help="Skip confirmation"),
+    json_output: bool = JSON_OPTION,
 ) -> None:
     """Remove a copilot seat from an organization."""
+    set_json_mode(json_output)
     if not should_skip_confirm(yes):
         typer.confirm(
             f"Remove the copilot seat of user {user_id} in organization {org_id}?",
@@ -92,4 +99,7 @@ def copilots_unassign(
         )
 
     _api_request("delete", f"{_COPILOTS}/{user_id}/organizations/{org_id}")
+    if json_output:
+        print_json({"ok": True, "user_id": user_id, "organization_id": org_id})
+        return
     rprint(styled("[green]Unassigned copilot {} from organization {}[/green]", user_id, org_id))

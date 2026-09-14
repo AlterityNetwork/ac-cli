@@ -1,5 +1,7 @@
 """Tests for admin copilots commands."""
 
+import json
+
 SAMPLE_COPILOT = {
     "user_id": "u-1",
     "email": "copilot@agencycore.ai",
@@ -70,3 +72,19 @@ def test_copilots_unassign_aborted(invoke, mock_api):
     result = invoke(["admin", "copilots", "unassign", "u-1", "org-1"], input="n\n")
     assert result.exit_code == 1
     assert not route.called
+
+
+def test_copilots_assign_json(invoke, mock_api):
+    mock_api.post("/api/v1/admin/copilots/u-1/organizations/org-1").respond(200, json={"ok": True})
+    result = invoke(["admin", "copilots", "assign", "u-1", "org-1", "--json"])
+    assert result.exit_code == 0
+    assert json.loads(result.output) == {"ok": True, "user_id": "u-1", "organization_id": "org-1"}
+
+
+def test_copilots_unassign_json(invoke, mock_api):
+    mock_api.delete("/api/v1/admin/copilots/u-1/organizations/org-1").respond(
+        200, json={"ok": True}
+    )
+    result = invoke(["admin", "copilots", "unassign", "u-1", "org-1", "--yes", "--json"])
+    assert result.exit_code == 0
+    assert json.loads(result.output) == {"ok": True, "user_id": "u-1", "organization_id": "org-1"}
