@@ -20,10 +20,16 @@ from ac_cli.formatting import as_text, console, print_detail, print_json, print_
 app = typer.Typer(help="Manage repeatable agentic saved searches")
 
 _SAVED_SEARCHES = "/api/v1/agentic/saved-searches"
+#: The three search capabilities that hold a saved brief. An enrich capability
+#: takes the rows it works on, so the API refuses a saved brief for one.
+_CAPABILITIES = ("signals.search", "people.search", "company.search")
+_CAPABILITY_HELP = f"Which product saves the brief: {', '.join(_CAPABILITIES)}"
 _PAGE_DEFAULT = 50
 _PAGE_MIN = 1
 _PAGE_MAX = 100
 
+# The caller names one capability to list, so a column repeating it on every
+# row carries nothing and costs the width the other five columns need.
 _SUMMARY_FIELDS = [
     ("id", "Saved search ID"),
     ("name", "Name"),
@@ -33,6 +39,8 @@ _SUMMARY_FIELDS = [
 ]
 _DETAIL_FIELDS = [
     ("id", "Saved search ID"),
+    ("capability_id", "Capability"),
+    ("contract_version", "Contract version"),
     ("name", "Name"),
     ("last_run_id", "Last run"),
     ("last_run_at", "Last run at"),
@@ -68,6 +76,13 @@ def _checked_limit(limit: int) -> int:
     refuse_local(f"--limit is not between {_PAGE_MIN} and {_PAGE_MAX}", limit)
 
 
+def _checked_capability(capability: str) -> str:
+    """Refuse a capability that holds no saved search."""
+    if capability in _CAPABILITIES:
+        return capability
+    refuse_local(f"--capability must be one of: {', '.join(_CAPABILITIES)}", capability)
+
+
 def _checked_contract_version(version: int) -> int:
     """Refuse a version that the stable capability contract refuses."""
     if version >= 1:
@@ -83,11 +98,13 @@ def _page_params(limit: int, cursor: str | None) -> dict[str, object]:
     return params
 
 
-def _print_next_page(next_cursor: str | None, limit: int) -> None:
+def _print_next_page(next_cursor: str | None, limit: int, capability: str | None = None) -> None:
     """Print the options that continue the same page walk."""
     if not next_cursor:
         return
     parts: list[object] = ["[dim]Next page:[/dim]"]
+    if capability is not None:
+        parts += ["--capability", as_text(capability)]
     if limit != _PAGE_DEFAULT:
         parts += ["--limit", as_text(limit)]
     parts += ["--cursor", as_text(next_cursor)]
@@ -103,17 +120,19 @@ def _print_saved_search(data: dict) -> None:
 @app.command("create")
 def saved_searches_create(
     ctx: typer.Context,
+    capability: str = typer.Option(..., "--capability", help=_CAPABILITY_HELP),
     name: str = typer.Option(..., "--name", help="What to call the saved search"),
     brief: str = typer.Option(
         ...,
         "--brief",
-        help="Brief JSON with persona lists: titles, departments, seniority, country_codes",
+        help="Brief JSON in the input shape the capability publishes",
     ),
     json_output: bool = JSON_OPTION,
 ) -> None:
-    """Create one repeatable Signals Search brief."""
+    """Create one repeatable search brief for one product."""
     set_json_mode(json_output)
     body = {
+        "capability_id": _checked_capability(capability),
         "name": name,
         "brief": _parse_object(brief, "--brief"),
     }
@@ -127,22 +146,24 @@ def saved_searches_create(
 @app.command("list")
 def saved_searches_list(
     ctx: typer.Context,
+    capability: str = typer.Option(..., "--capability", help=_CAPABILITY_HELP),
     cursor: str | None = typer.Option(None, "--cursor", help="Page to continue"),
     limit: int = typer.Option(_PAGE_DEFAULT, "--limit", help="Page size, 1 to 100"),
     json_output: bool = JSON_OPTION,
 ) -> None:
-    """List saved-search summaries, newest first."""
+    """List one product's saved-search summaries, newest first."""
     set_json_mode(json_output)
+    checked = _checked_capability(capability)
     data = _api_request(
         "get",
         _SAVED_SEARCHES,
-        params=_page_params(limit, cursor),
+        params={"capability": checked, **_page_params(limit, cursor)},
     ).json()
     if json_output:
         print_json(data)
         return
     print_table(data.get("items", []), _SUMMARY_FIELDS, title="Saved searches")
-    _print_next_page(data.get("next_cursor"), limit)
+    _print_next_page(data.get("next_cursor"), limit, checked)
 
 
 @app.command("get")
@@ -173,7 +194,7 @@ def saved_searches_patch(
     brief: str | None = typer.Option(
         None,
         "--brief",
-        help="Full replacement brief JSON; preserve other fields and correct persona lists",
+        help="Full replacement brief JSON; it also records the version published now",
     ),
     json_output: bool = JSON_OPTION,
 ) -> None:
@@ -216,7 +237,9 @@ def saved_searches_start(
     ctx: typer.Context,
     search_id: str = typer.Argument(..., help="Saved search ID"),
     contract_version: int = typer.Option(
-        ..., "--contract-version", help="Published Signals Search contract version"
+        ...,
+        "--contract-version",
+        help="The version the capability publishes now",
     ),
     idempotency_key: str = typer.Option(
         ...,
@@ -225,7 +248,11 @@ def saved_searches_start(
     ),
     json_output: bool = JSON_OPTION,
 ) -> None:
-    """Start one Run with the stored brief and current baseline."""
+    """Start one Run with the stored brief.
+
+    The API refuses a brief whose stored contract version is no longer the
+    published one. Correct the brief with `patch --brief` to clear that.
+    """
     set_json_mode(json_output)
     version = _checked_contract_version(contract_version)
     key = checked_header_key(idempotency_key)
@@ -258,7 +285,11 @@ def saved_searches_diff(
     limit: int = typer.Option(_PAGE_DEFAULT, "--limit", help="Page size, 1 to 100"),
     json_output: bool = JSON_OPTION,
 ) -> None:
-    """Read material changes from the latest published successful Run."""
+    """Read material changes from the latest published successful Run.
+
+    The diff reads the Smart Feed, which only signals.search publishes. A
+    saved search of another product answers 409.
+    """
     set_json_mode(json_output)
     data = _api_request(
         "get",
