@@ -8,7 +8,7 @@ and starts one of them,
 `ac agentic approvals` answers a run that stopped for a person,
 `ac agentic conversations` reads and writes web chat conversations,
 `ac agentic prospects` reviews discovered companies,
-`ac agentic saved-searches` manages repeatable Signals Search briefs,
+`ac agentic saved-searches` manages repeatable search briefs,
 `ac agentic policies` writes the rules an organization governs its agents with,
 and `ac agentic limits` reads and writes what it may spend in a day. All ten
 sit beside the live `ac agents runs` and replace none of it: the two stacks are
