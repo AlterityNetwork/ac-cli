@@ -36,6 +36,7 @@ paths:
   - `_BASE = f"{_ADMIN}/searches"` in `admin/searches.py`
   - `_BATTLECARDS = "/api/v1/battlecards"` in `envoy/battlecards.py` (top-level since ENG-592)
   - `_CONVERSATIONS = "/api/v1/agentic/conversations"` in `conversations/__init__.py`
+  - `_COPILOTS = f"{_ADMIN}/copilots"` in `admin/copilots.py`
   - `_CRM = "/api/v1/crm"` in `crm/__init__.py`
   - `_ENVOY = "/api/v1/envoy"` in `envoy/__init__.py`
   - `_FILES = "/api/v1/files"` in `files/__init__.py`

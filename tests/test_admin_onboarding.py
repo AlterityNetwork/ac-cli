@@ -274,6 +274,26 @@ def test_onboarding_get_settings_json(invoke, mock_api):
     assert parsed["calendly_enabled"] is True
 
 
+def test_onboarding_update_settings_copilot_display_label(invoke, mock_api):
+    """The copilot display label reaches the settings body."""
+    route = mock_api.put(f"{_BASE}/settings").respond(200, json=SAMPLE_SETTINGS)
+    result = invoke(
+        [
+            "admin",
+            "onboarding",
+            "update-settings",
+            "--copilot-display-label",
+            "Growth partner",
+        ]
+    )
+    assert result.exit_code == 0
+    body = route.calls.last.request.content
+    assert (
+        b'"copilot_display_label": "Growth partner"' in body
+        or b'"copilot_display_label":"Growth partner"' in body
+    )
+
+
 def test_onboarding_update_settings(invoke, mock_api):
     mock_api.put(f"{_BASE}/settings").respond(200, json=SAMPLE_SETTINGS)
     result = invoke(

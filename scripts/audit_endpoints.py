@@ -38,6 +38,7 @@ PATH_CONSTANTS: dict[str, str] = {
     "_AGENTIC": "/api/v1/agentic",
     "_AGENTS": "/api/v1/agents",
     "_ANALYTICS": "/api/v1/analytics",
+    "_COPILOTS": "/api/v1/admin/copilots",
     "_APPS": "/api/v1/orgs",
     "_CONVERSATIONS": "/api/v1/agentic/conversations",
     "_CRM": "/api/v1/crm",
