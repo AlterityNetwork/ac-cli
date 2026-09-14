@@ -27,7 +27,7 @@ _SUMMARY_FIELDS = [
     ("company_domain", "Domain"),
     ("review_state", "State"),
     ("opportunity_score", "Score"),
-    ("top_signal_type", "Signal"),
+    ("latest_signal_type", "Signal"),
     ("people_state", "People"),
     ("created_at", "Created"),
 ]
@@ -39,8 +39,8 @@ _DETAIL_FIELDS = [
     ("opportunity_score", "Score"),
     ("opportunity_reason", "Score reason"),
     ("recommended_action", "Recommended action"),
-    ("top_signal_type", "Signal"),
-    ("top_signal_observed_at", "Signal observed"),
+    ("latest_signal_type", "Signal"),
+    ("latest_signal_observed_at", "Signal observed"),
     ("people_state", "People"),
     ("people_state_reason", "People reason"),
     ("crm_company_id", "CRM company ID"),
@@ -121,10 +121,10 @@ def _print_next_page(
     console.print(*parts, soft_wrap=True)
 
 
-def _flat_top_signal(item: dict) -> dict:
+def _flat_latest_signal(item: dict) -> dict:
     """Flattens the one signal a prospect row names.
 
-    A table cell and a detail row each read one flat key. `top_signal` is
+    A table cell and a detail row each read one flat key. `latest_signal` is
     `null` when the prospect has no signal, and both keys stay absent.
 
     Args:
@@ -133,17 +133,17 @@ def _flat_top_signal(item: dict) -> dict:
     Returns:
         The same object plus the two flat signal keys.
     """
-    signal = item.get("top_signal") or {}
+    signal = item.get("latest_signal") or {}
     return {
         **item,
-        "top_signal_type": signal.get("signal_type"),
-        "top_signal_observed_at": signal.get("observed_at"),
+        "latest_signal_type": signal.get("signal_type"),
+        "latest_signal_observed_at": signal.get("observed_at"),
     }
 
 
 def _print_prospect(data: dict) -> None:
     """Prints one prospect and its bounded company facts."""
-    print_detail(_flat_top_signal(data), _DETAIL_FIELDS)
+    print_detail(_flat_latest_signal(data), _DETAIL_FIELDS)
     rprint("[bold]Company[/bold]")
     print_detail(data["company"], _COMPANY_FIELDS)
 
@@ -169,7 +169,7 @@ def prospects_list(
     if json_output:
         print_json(data)
         return
-    rows = [_flat_top_signal(item) for item in data.get("items", [])]
+    rows = [_flat_latest_signal(item) for item in data.get("items", [])]
     print_table(rows, _SUMMARY_FIELDS, title="Prospects")
     _print_next_page(
         data.get("next_cursor"),

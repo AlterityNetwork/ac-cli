@@ -18,7 +18,7 @@ SUMMARY = {
     "people_state": "pending",
     "people_state_reason": None,
     "crm_company_id": None,
-    "top_signal": None,
+    "latest_signal": None,
     "first_seen_at": "2026-08-28T10:00:00Z",
     "last_seen_at": "2026-08-28T10:00:00Z",
     "created_at": "2026-08-28T10:00:00Z",
@@ -106,13 +106,13 @@ def test_list_defaults_to_new_and_prints_partial_rows(invoke, mock_api):
 
 #: The `Signal` cell. `table_column` gives a wrong answer for a wrong index
 #: and does not raise, so read the index from the column list itself.
-SIGNAL_COLUMN = [key for key, _ in _SUMMARY_FIELDS].index("top_signal_type")
+SIGNAL_COLUMN = [key for key, _ in _SUMMARY_FIELDS].index("latest_signal_type")
 
 
 def test_list_names_the_signal_that_made_the_prospect_relevant(invoke, mock_api, table_column):
     row = {
         **SUMMARY,
-        "top_signal": {
+        "latest_signal": {
             "signal_type": "funding_round",
             "observed_at": "2026-08-28T10:00:00Z",
         },
@@ -138,7 +138,7 @@ def test_list_prints_a_blank_signal_cell_when_a_prospect_has_none(invoke, mock_a
 def test_get_prints_the_signal_that_made_the_prospect_relevant(invoke, mock_api):
     detail = {
         **DETAIL,
-        "top_signal": {"signal_type": "funding_round", "observed_at": "2026-08-28T10:00:00Z"},
+        "latest_signal": {"signal_type": "funding_round", "observed_at": "2026-08-28T10:00:00Z"},
     }
     mock_api.get(f"{BASE}/{PROSPECT_ID}").respond(200, json=detail)
 
