@@ -190,6 +190,27 @@ def test_profiles_usage_json(invoke, mock_api):
     assert parsed["actions"][0]["action_key"] == "company.search"
 
 
+def test_profiles_usage_prints_an_action_key_literally(invoke, mock_api):
+    """print_table wraps each cell in Text, so a key holding markup prints as is."""
+    mock_api.get("/api/v1/subscriptions/me/usage").respond(
+        200,
+        json={
+            **SAMPLE_USAGE,
+            "actions": [
+                {
+                    "action_key": "[bold]x",
+                    "calls": 1,
+                    "total_tokens": 0,
+                    "cost_cents": 0,
+                }
+            ],
+        },
+    )
+    result = invoke(["profiles", "usage"])
+    assert result.exit_code == 0
+    assert "[bold]" in result.output
+
+
 def test_profiles_usage_error(invoke, mock_api):
     mock_api.get("/api/v1/subscriptions/me/usage").respond(500, json={"detail": "boom"})
     result = invoke(["profiles", "usage"])
