@@ -124,6 +124,31 @@ def people_get(
     )
 
 
+@people_app.command("by-ids")
+def people_by_ids(
+    ids: str = typer.Option(..., "--ids", help="Comma-separated person IDs (max 200)"),
+    include_deleted: bool = typer.Option(
+        False,
+        "--include-deleted",
+        help="Include soft-deleted people when resolving an existing reference",
+    ),
+    json_output: bool = JSON_OPTION,
+) -> None:
+    """Batch-fetch people by ID list in a single request."""
+    set_json_mode(json_output)
+    id_list = _split_ids(ids)
+    resp = _api_request(
+        "post",
+        f"{_CRM}/people/by-ids",
+        json={"ids": id_list, "include_deleted": include_deleted},
+    )
+    data = resp.json()
+    if json_output:
+        print_json(data)
+    else:
+        rprint(styled("[green]Fetched {} people[/green]", data.get("total", 0)))
+
+
 @people_app.command("create")
 def people_create(
     ctx: typer.Context,
