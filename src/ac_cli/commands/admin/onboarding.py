@@ -11,6 +11,7 @@ from ac_cli.commands._helpers import (
     JSON_OPTION,
     _api_request,
     _build_body,
+    refuse_local,
     set_json_mode,
     should_skip_confirm,
 )
@@ -344,23 +345,24 @@ def onboarding_update_settings(
         None,
         "--framework-template-file",
         help="Markdown file with the approval framework template a new organization receives",
-        exists=True,
-        dir_okay=False,
-        readable=True,
     ),
     json_output: bool = JSON_OPTION,
 ) -> None:
     """Update global managed onboarding settings."""
     set_json_mode(json_output)
+    framework_template_md = None
+    if framework_template_file is not None:
+        try:
+            framework_template_md = framework_template_file.read_text(encoding="utf-8")
+        except (OSError, UnicodeError):
+            refuse_local("--framework-template-file must be a readable UTF-8 file")
     body = _build_body(
         terms_html=terms_html,
         calendly_url=calendly_url,
         calendly_enabled=calendly_enabled,
         copilot_display_label=copilot_display_label,
         copilot_account_limit=copilot_account_limit,
-        framework_template_md=(
-            framework_template_file.read_text() if framework_template_file else None
-        ),
+        framework_template_md=framework_template_md,
     )
 
     if not body:
