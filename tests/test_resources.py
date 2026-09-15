@@ -30,6 +30,7 @@ SAMPLE_STATUS = {
     "status": "completed",
     "chunk_count": 42,
     "error_message": None,
+    "source_description": "A summary of the document.",
 }
 
 
@@ -82,6 +83,7 @@ def test_resources_status(invoke, mock_api):
     assert result.exit_code == 0
     assert "completed" in result.output
     assert "42" in result.output
+    assert "A summary of the document." in result.output
 
 
 def test_resources_status_json(invoke, mock_api):
