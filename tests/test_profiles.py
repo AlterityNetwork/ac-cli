@@ -194,6 +194,18 @@ def test_profiles_usage_with_no_rows(invoke, mock_api):
     assert "No usage" in result.output
 
 
+def test_profiles_usage_with_null_period_and_total(invoke, mock_api):
+    """A null from the API prints as blank, never as the word None."""
+    mock_api.get("/api/v1/subscriptions/me/usage").respond(
+        200,
+        json={**SAMPLE_USAGE, "period_start": None, "period_end": None, "total_calls": None},
+    )
+    result = invoke(["profiles", "usage"])
+    assert result.exit_code == 0
+    assert "None" not in result.output
+    assert "Total: 0 calls" in result.output
+
+
 def test_profiles_usage_json(invoke, mock_api):
     mock_api.get("/api/v1/subscriptions/me/usage").respond(200, json=SAMPLE_USAGE)
     result = invoke(["profiles", "usage", "--json"])

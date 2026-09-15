@@ -156,8 +156,8 @@ def profiles_usage(
     rprint(
         styled(
             "Period: {} to {}",
-            str(data.get("period_start", ""))[:10],
-            str(data.get("period_end", ""))[:10],
+            str(data.get("period_start") or "")[:10],
+            str(data.get("period_end") or "")[:10],
         )
     )
     actions = data.get("actions", [])
@@ -173,7 +173,7 @@ def profiles_usage(
         ],
         title="Usage by action",
     )
-    rprint(styled("Total: {} calls", str(data.get("total_calls", 0))))
+    rprint(styled("Total: {} calls", str(data.get("total_calls") or 0)))
 
 
 @app.command("members")
