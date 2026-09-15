@@ -19,11 +19,20 @@ from ac_cli.commands._helpers import (
     _api_request,
     _build_body,
     _get_org_id,
+    refuse_local,
     set_json_mode,
 )
 from ac_cli.formatting import print_json
 
 app = typer.Typer(help="Organization settings")
+
+
+@app.callback()
+def settings_callback(ctx: typer.Context) -> None:
+    """Initialize context shared by the settings subcommands."""
+    ctx.ensure_object(dict)
+
+
 framework_app = typer.Typer(help="The copilot approval framework of the active organization")
 app.add_typer(framework_app, name="framework")
 
@@ -36,18 +45,18 @@ CONTENT_FILE_OPTION = typer.Option(
     None,
     "--content-file",
     help="Path to a Markdown file whose contents become the text",
-    exists=True,
-    dir_okay=False,
-    readable=True,
 )
 
 
 def _read_content(content: str | None, content_file: Path | None) -> str | None:
     """Returns the text from one of the two sources, or None when both are absent."""
     if content is not None and content_file is not None:
-        raise typer.BadParameter("--content and --content-file are mutually exclusive")
+        refuse_local("--content and --content-file are mutually exclusive")
     if content_file is not None:
-        return content_file.read_text()
+        try:
+            return content_file.read_text(encoding="utf-8")
+        except (OSError, UnicodeError):
+            refuse_local("--content-file must be a readable UTF-8 file")
     return content
 
 
@@ -92,7 +101,7 @@ def framework_set(
     set_json_mode(json_output)
     text = _read_content(content, content_file)
     if text is None:
-        raise typer.BadParameter("Provide --content or --content-file")
+        refuse_local("Provide --content or --content-file")
     resp = _api_request("put", f"{_SETTINGS}/framework", json={"content_md": text})
     data = resp.json()
     if json_output:
@@ -130,9 +139,6 @@ def targeting_set(
     profiles_file: Path = typer.Option(
         ...,
         "--profiles-file",
-        exists=True,
-        dir_okay=False,
-        readable=True,
         help="JSON array of customer profiles; [] clears targeting",
     ),
     json_output: bool = JSON_OPTION,
@@ -141,10 +147,10 @@ def targeting_set(
     set_json_mode(json_output)
     try:
         profiles = json.loads(profiles_file.read_text())
-    except (OSError, ValueError) as error:
-        raise typer.BadParameter("--profiles-file must contain a JSON array") from error
+    except (OSError, ValueError):
+        refuse_local("--profiles-file must contain a JSON array")
     if not isinstance(profiles, list):
-        raise typer.BadParameter("--profiles-file must contain a JSON array")
+        refuse_local("--profiles-file must contain a JSON array")
     org_id = _get_org_id()
     response = _api_request(
         "patch",

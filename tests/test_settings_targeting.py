@@ -43,3 +43,17 @@ def test_targeting_permission_error(invoke, mock_api, tmp_path):
     result = invoke(["settings", "targeting", "set", "--profiles-file", str(path), "--json"])
     assert result.exit_code == 4
     assert json.loads(result.output)["status_code"] == 403
+
+
+@pytest.mark.parametrize("value", ["not json", "{}", None])
+def test_targeting_invalid_file_is_json_error(invoke, tmp_path, value):
+    path = tmp_path / "icps.json"
+    if value is not None:
+        path.write_text(value)
+    result = invoke(["settings", "targeting", "set", "--profiles-file", str(path), "--json"])
+    assert result.exit_code == 2
+    assert json.loads(result.output) == {
+        "error": True,
+        "status_code": None,
+        "detail": "--profiles-file must contain a JSON array",
+    }

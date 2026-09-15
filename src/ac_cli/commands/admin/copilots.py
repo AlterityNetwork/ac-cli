@@ -29,7 +29,10 @@ def copilots_list(
     ctx: typer.Context,
     json_output: bool = JSON_OPTION,
 ) -> None:
-    """List copilots and the organizations each one holds a seat in."""
+    """List copilots and every organization they hold a seat in.
+
+    The API returns the full roster and accepts no pagination parameters.
+    """
     set_json_mode(json_output)
     resp = _api_request("get", _COPILOTS)
 

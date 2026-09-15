@@ -113,3 +113,42 @@ def test_framework_preserves_markup_in_names(invoke, mock_api):
     result = invoke(["settings", "framework", "get"])
     assert result.exit_code == 0, result.output
     assert "Cora [/unexpected]" in result.output
+
+
+def test_framework_missing_content_is_json_error(invoke):
+    result = invoke(["settings", "framework", "set", "--json"])
+    assert result.exit_code == 2
+    assert json.loads(result.output) == {
+        "error": True,
+        "status_code": None,
+        "detail": "Provide --content or --content-file",
+    }
+
+
+def test_framework_conflicting_content_is_json_error(invoke, tmp_path):
+    path = tmp_path / "framework.md"
+    path.write_text("rules")
+    result = invoke(
+        [
+            "settings",
+            "framework",
+            "publish",
+            "--content",
+            "rules",
+            "--content-file",
+            str(path),
+            "--json",
+        ]
+    )
+    assert result.exit_code == 2
+    assert (
+        json.loads(result.output)["detail"] == "--content and --content-file are mutually exclusive"
+    )
+
+
+def test_framework_missing_file_is_json_error(invoke, tmp_path):
+    result = invoke(
+        ["settings", "framework", "set", "--content-file", str(tmp_path / "absent"), "--json"]
+    )
+    assert result.exit_code == 2
+    assert json.loads(result.output)["status_code"] is None
