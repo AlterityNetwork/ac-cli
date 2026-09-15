@@ -1,6 +1,7 @@
 """The targeting command uses the copilot-safe endpoint."""
 
 import json
+from pathlib import Path
 
 import pytest
 
@@ -57,3 +58,29 @@ def test_targeting_invalid_file_is_json_error(invoke, tmp_path, value):
         "status_code": None,
         "detail": "--profiles-file must contain a JSON array",
     }
+
+
+@pytest.mark.parametrize("admin", [False, True])
+def test_targeting_preserves_utf8_on_non_utf8_locale(
+    invoke, mock_api, tmp_path, monkeypatch, admin
+):
+    profiles = [{"name": "Agences françaises", "description": "Équipes à Paris"}]
+    path = tmp_path / "icps.json"
+    path.write_text(json.dumps(profiles, ensure_ascii=False), encoding="utf-8")
+    read_text = Path.read_text
+
+    def locale_read_text(self, encoding=None, errors=None):
+        return read_text(self, encoding=encoding or "cp1252", errors=errors)
+
+    monkeypatch.setattr(Path, "read_text", locale_read_text)
+    if admin:
+        endpoint = "/api/v1/admin/organizations/org-456"
+        command = ["admin", "orgs", "update", "org-456", "--icps-file", str(path)]
+    else:
+        mock_api.get("/whoami").respond(200, json={"organization_id": "org-456"})
+        endpoint = "/api/v1/organizations/org-456/targeting"
+        command = ["settings", "targeting", "set", "--profiles-file", str(path)]
+    route = mock_api.patch(endpoint).respond(200, json={"ideal_customer_profiles": profiles})
+    result = invoke(command + ["--json"])
+    assert result.exit_code == 0, result.output
+    assert json.loads(route.calls.last.request.content)["ideal_customer_profiles"] == profiles

@@ -146,7 +146,7 @@ def targeting_set(
     """Replace targeting as an owner, admin or assigned copilot."""
     set_json_mode(json_output)
     try:
-        profiles = json.loads(profiles_file.read_text())
+        profiles = json.loads(profiles_file.read_text(encoding="utf-8"))
     except (OSError, ValueError):
         refuse_local("--profiles-file must contain a JSON array")
     if not isinstance(profiles, list):

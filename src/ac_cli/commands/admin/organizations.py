@@ -25,7 +25,7 @@ organizations_app = typer.Typer(help="Organization management")
 def _read_icps(path: Path) -> list[dict]:
     """Reads a JSON list of ICPs before the request is sent."""
     try:
-        data = json.loads(path.read_text())
+        data = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, UnicodeError, json.JSONDecodeError):
         refuse_local("--icps-file must contain valid JSON")
     if not isinstance(data, list) or any(not isinstance(item, dict) for item in data):
