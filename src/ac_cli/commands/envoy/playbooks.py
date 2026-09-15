@@ -94,6 +94,9 @@ def playbooks_create(
     description: str | None = typer.Option(None, help="Description"),
     status: str | None = typer.Option(None, help="Status"),
     competitor_name: str | None = typer.Option(None, "--competitor-name", help="Competitor name"),
+    icp_ids: list[str] | None = typer.Option(
+        None, "--icp-id", help="Ideal customer profile id. Repeat for several."
+    ),
     json_output: bool = JSON_OPTION,
 ) -> None:
     """Create a new playbook."""
@@ -103,6 +106,7 @@ def playbooks_create(
         description=description,
         status=status,
         competitor_name=competitor_name,
+        icp_ids=icp_ids,
     )
 
     body["organization_id"] = _get_org_id()
@@ -124,6 +128,9 @@ def playbooks_update(
     description: str | None = typer.Option(None, help="Description"),
     status: str | None = typer.Option(None, help="Status"),
     competitor_name: str | None = typer.Option(None, "--competitor-name", help="Competitor name"),
+    icp_ids: list[str] | None = typer.Option(
+        None, "--icp-id", help="Ideal customer profile id. Repeat for several."
+    ),
     json_output: bool = JSON_OPTION,
 ) -> None:
     """Update a playbook."""
@@ -133,6 +140,7 @@ def playbooks_update(
         description=description,
         status=status,
         competitor_name=competitor_name,
+        icp_ids=icp_ids,
     )
 
     if not body:

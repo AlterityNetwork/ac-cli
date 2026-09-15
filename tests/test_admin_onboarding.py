@@ -274,6 +274,34 @@ def test_onboarding_get_settings_json(invoke, mock_api):
     assert parsed["calendly_enabled"] is True
 
 
+def test_onboarding_update_settings_copilot_display_label(invoke, mock_api):
+    """The copilot display label reaches the settings body."""
+    route = mock_api.put(f"{_BASE}/settings").respond(200, json=SAMPLE_SETTINGS)
+    result = invoke(
+        [
+            "admin",
+            "onboarding",
+            "update-settings",
+            "--copilot-display-label",
+            "Growth partner",
+        ]
+    )
+    assert result.exit_code == 0
+    body = route.calls.last.request.content
+    assert (
+        b'"copilot_display_label": "Growth partner"' in body
+        or b'"copilot_display_label":"Growth partner"' in body
+    )
+
+
+def test_onboarding_update_settings_copilot_account_limit(invoke, mock_api):
+    """The copilot account limit reaches the settings body as an integer."""
+    route = mock_api.put(f"{_BASE}/settings").respond(200, json=SAMPLE_SETTINGS)
+    result = invoke(["admin", "onboarding", "update-settings", "--copilot-account-limit", "12"])
+    assert result.exit_code == 0
+    assert json.loads(route.calls.last.request.content) == {"copilot_account_limit": 12}
+
+
 def test_onboarding_update_settings(invoke, mock_api):
     mock_api.put(f"{_BASE}/settings").respond(200, json=SAMPLE_SETTINGS)
     result = invoke(
@@ -287,3 +315,21 @@ def test_onboarding_update_settings(invoke, mock_api):
     )
     assert result.exit_code == 0
     assert "Updated" in result.output
+
+
+def test_onboarding_update_settings_framework_template_file(invoke, mock_api, tmp_path):
+    path = tmp_path / "template.md"
+    path.write_text("# Approval framework\n\n## Section\n")
+    route = mock_api.put(f"{_BASE}/settings").respond(200, json=SAMPLE_SETTINGS)
+    result = invoke(
+        [
+            "admin",
+            "onboarding",
+            "update-settings",
+            "--framework-template-file",
+            str(path),
+        ]
+    )
+    assert result.exit_code == 0
+    body = json.loads(route.calls.last.request.content)
+    assert body == {"framework_template_md": "# Approval framework\n\n## Section\n"}

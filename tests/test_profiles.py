@@ -90,6 +90,20 @@ def test_profiles_members(invoke, mock_api):
     assert "Bob" in result.output
 
 
+def test_profiles_members_shows_the_role(invoke, mock_api):
+    """The team list marks a copilot seat, so the role column is printed."""
+    members = {
+        "data": [
+            {"id": "u-9", "first_name": "Cora", "last_name": "Pilot", "role": "copilot"},
+        ],
+        "copilot_display_label": "Copilot",
+    }
+    mock_api.get("/api/v1/profiles/members").respond(200, json=members)
+    result = invoke(["profiles", "members"])
+    assert result.exit_code == 0
+    assert "copilot" in result.output
+
+
 def test_profiles_members_json(invoke, mock_api):
     mock_api.get("/api/v1/profiles/members").respond(200, json=SAMPLE_MEMBERS)
     result = invoke(["profiles", "members", "--json"])

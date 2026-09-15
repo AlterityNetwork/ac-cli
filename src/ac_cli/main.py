@@ -27,6 +27,7 @@ from ac_cli.commands import (
     nylas,
     profiles,
     resources,
+    settings,
     tos,
     workflows,
     writing_styles,
@@ -92,6 +93,7 @@ app.add_typer(notifications.app, name="notifications")
 app.add_typer(nylas.app, name="nylas")
 app.add_typer(profiles.app, name="profiles")
 app.add_typer(resources.app, name="resources")
+app.add_typer(settings.app, name="settings")
 app.add_typer(tos.app, name="tos")
 app.add_typer(workflows.app, name="workflows")
 app.add_typer(writing_styles.app, name="styles")

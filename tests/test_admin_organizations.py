@@ -220,3 +220,70 @@ def test_orgs_unsuspend_error_maps_exit_code(invoke, mock_api):
     )
     result = invoke(["admin", "orgs", "unsuspend", "org-1", "--json"])
     assert result.exit_code == 3
+
+
+def test_orgs_update_targeting(invoke, mock_api):
+    import json as _json
+
+    updated = {**SAMPLE_ORG, "name": "Acme"}
+    route = mock_api.patch("/api/v1/admin/organizations/org-1").respond(200, json=updated)
+    result = invoke(
+        [
+            "admin",
+            "orgs",
+            "update",
+            "org-1",
+            "--target-customers",
+            "UK software teams",
+            "--target-locations",
+            "gb, ie",
+        ]
+    )
+    assert result.exit_code == 0
+    body = _json.loads(route.calls.last.request.content)
+    assert body["target_customers"] == "UK software teams"
+    assert body["target_locations"] == ["GB", "IE"]
+
+
+def test_orgs_update_clears_target_locations(invoke, mock_api):
+    import json as _json
+
+    route = mock_api.patch("/api/v1/admin/organizations/org-1").respond(200, json=SAMPLE_ORG)
+    result = invoke(["admin", "orgs", "update", "org-1", "--target-locations", ""])
+    assert result.exit_code == 0
+    body = _json.loads(route.calls.last.request.content)
+    assert body["target_locations"] == []
+
+
+def test_orgs_update_multiple_icps_and_clear(invoke, mock_api, tmp_path):
+    profiles = [
+        {"name": "Software", "description": "Software teams", "country_codes": ["GB"]},
+        {"name": "Manufacturing", "country_codes": ["DE"]},
+    ]
+    path = tmp_path / "icps.json"
+    route = mock_api.patch("/api/v1/admin/organizations/org-1").respond(200, json=SAMPLE_ORG)
+    for values in [profiles, []]:
+        path.write_text(json.dumps(values))
+        result = invoke(["admin", "orgs", "update", "org-1", "--icps-file", str(path), "--json"])
+        assert result.exit_code == 0, result.output
+        assert json.loads(route.calls.last.request.content)["ideal_customer_profiles"] == values
+
+
+def test_orgs_create_with_icps(invoke, mock_api, tmp_path):
+    path = tmp_path / "icps.json"
+    path.write_text('[{"name":"Software"}]')
+    route = mock_api.post("/api/v1/admin/organizations").respond(201, json=SAMPLE_ORG)
+    result = invoke(["admin", "orgs", "create", "--name", "Test Corp", "--icps-file", str(path)])
+    assert result.exit_code == 0, result.output
+    assert json.loads(route.calls.last.request.content)["ideal_customer_profiles"] == [
+        {"name": "Software"}
+    ]
+
+
+def test_orgs_icps_reject_invalid_json_without_request(invoke, mock_api, tmp_path):
+    path = tmp_path / "icps.json"
+    for text in ["{", "{}", '["wrong"]']:
+        path.write_text(text)
+        result = invoke(["admin", "orgs", "update", "org-1", "--icps-file", str(path), "--json"])
+        assert result.exit_code == 2
+        assert not mock_api.calls

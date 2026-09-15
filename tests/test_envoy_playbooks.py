@@ -61,6 +61,35 @@ def test_playbooks_create_json(invoke, mock_api):
     assert parsed["name"] == "Competitor Battlecard"
 
 
+def test_playbooks_create_sends_icp_ids(invoke, mock_api):
+    mock_api.get("/whoami").respond(200, json=WHOAMI_RESPONSE)
+    route = mock_api.post("/api/v1/playbooks").respond(201, json=SAMPLE_PLAYBOOK)
+    result = invoke(
+        [
+            "envoy",
+            "playbooks",
+            "create",
+            "--name",
+            "Competitor Battlecard",
+            "--icp-id",
+            "icp-1",
+            "--icp-id",
+            "icp-2",
+        ]
+    )
+    assert result.exit_code == 0
+    body = json.loads(route.calls.last.request.content)
+    assert body["icp_ids"] == ["icp-1", "icp-2"]
+
+
+def test_playbooks_update_sends_icp_ids(invoke, mock_api):
+    route = mock_api.patch("/api/v1/playbooks/pb-1").respond(200, json=SAMPLE_PLAYBOOK)
+    result = invoke(["envoy", "playbooks", "update", "pb-1", "--icp-id", "icp-1"])
+    assert result.exit_code == 0
+    body = json.loads(route.calls.last.request.content)
+    assert body == {"icp_ids": ["icp-1"]}
+
+
 def test_playbooks_update(invoke, mock_api):
     updated = {**SAMPLE_PLAYBOOK, "name": "Updated Playbook"}
     mock_api.patch("/api/v1/playbooks/pb-1").respond(200, json=updated)

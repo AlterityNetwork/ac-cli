@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+
 import typer
 from rich import print as rprint
 
@@ -327,6 +329,25 @@ def onboarding_update_settings(
     calendly_enabled: bool | None = typer.Option(
         None, "--calendly-enabled/--no-calendly-enabled", help="Enable Calendly globally"
     ),
+    copilot_display_label: str | None = typer.Option(
+        None,
+        "--copilot-display-label",
+        help="The label a customer sees for a copilot seat (default Copilot)",
+    ),
+    copilot_account_limit: int | None = typer.Option(
+        None,
+        "--copilot-account-limit",
+        min=1,
+        help="The number of organizations one copilot is expected to hold (default 10)",
+    ),
+    framework_template_file: Path | None = typer.Option(
+        None,
+        "--framework-template-file",
+        help="Markdown file with the approval framework template a new organization receives",
+        exists=True,
+        dir_okay=False,
+        readable=True,
+    ),
     json_output: bool = JSON_OPTION,
 ) -> None:
     """Update global managed onboarding settings."""
@@ -335,6 +356,11 @@ def onboarding_update_settings(
         terms_html=terms_html,
         calendly_url=calendly_url,
         calendly_enabled=calendly_enabled,
+        copilot_display_label=copilot_display_label,
+        copilot_account_limit=copilot_account_limit,
+        framework_template_md=(
+            framework_template_file.read_text() if framework_template_file else None
+        ),
     )
 
     if not body:
