@@ -19,6 +19,14 @@ from ac_cli.formatting import print_detail, print_json, print_table, styled
 
 people_app = typer.Typer(help="People/contact operations")
 
+PEOPLE_TABLE_COLUMNS = [
+    ("full_name", "Name"),
+    ("email", "Email"),
+    ("current_title", "Title"),
+    ("lifecycle_stage", "Stage"),
+    ("id", "ID"),
+]
+
 
 @people_app.command("list")
 def people_list(
@@ -68,13 +76,7 @@ def people_list(
 
     print_table(
         data.get("data", []),
-        [
-            ("full_name", "Name"),
-            ("email", "Email"),
-            ("current_title", "Title"),
-            ("lifecycle_stage", "Stage"),
-            ("id", "ID"),
-        ],
+        PEOPLE_TABLE_COLUMNS,
         title=f"People ({data.get('total', '?')} total)",
     )
 
@@ -122,6 +124,35 @@ def people_get(
             ("approved_at", "Approved At"),
         ],
     )
+
+
+@people_app.command("by-ids")
+def people_by_ids(
+    ids: str = typer.Option(..., "--ids", help="Comma-separated person IDs (max 200)"),
+    include_deleted: bool = typer.Option(
+        False,
+        "--include-deleted",
+        help="Include soft-deleted people in the results",
+    ),
+    json_output: bool = JSON_OPTION,
+) -> None:
+    """Batch-fetch people by ID list in a single request."""
+    set_json_mode(json_output)
+    id_list = _split_ids(ids)
+    resp = _api_request(
+        "post",
+        f"{_CRM}/people/by-ids",
+        json={"ids": id_list, "include_deleted": include_deleted},
+    )
+    data = resp.json()
+    if json_output:
+        print_json(data)
+    else:
+        print_table(
+            data.get("data", []),
+            PEOPLE_TABLE_COLUMNS,
+            title=f"People ({data.get('total', '?')} total)",
+        )
 
 
 @people_app.command("create")
