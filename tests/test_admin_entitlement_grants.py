@@ -172,3 +172,12 @@ def test_grants_create_revoke_mode(invoke, mock_api):
     assert result.exit_code == 0
     assert json.loads(route.calls[0].request.content)["mode"] == "revoke"
     assert "Created revoke row for network" in result.output
+
+
+def test_grants_delete_json(invoke, mock_api):
+    mock_api.delete(f"{BASE}/grant-1").respond(204)
+    result = invoke(
+        ["admin", "entitlement-grants", "delete", "grant-1", "--org-id", ORG, "--yes", "--json"]
+    )
+    assert result.exit_code == 0
+    assert json.loads(result.output) == {"deleted": "grant-1"}
