@@ -103,7 +103,14 @@ def plans_create(
         ..., "--annual-price-cents", help="Annual price (cents)"
     ),
     description: str | None = typer.Option(None, help="Description"),
-    features: str | None = typer.Option(None, help="JSON object of feature flags"),
+    features: str | None = typer.Option(
+        None,
+        help=(
+            'JSON template: {"keys": [...], "credits_monthly": N, '
+            '"limits": {"seats": N, "email_sends_per_day": N}}. '
+            "Any other field or key is refused."
+        ),
+    ),
     is_active: bool | None = typer.Option(None, "--active/--inactive", help="Active state"),
     json_output: bool = JSON_OPTION,
 ) -> None:
@@ -135,7 +142,14 @@ def plans_update(
     description: str | None = typer.Option(None, help="Description"),
     monthly_price_cents: int | None = typer.Option(None, "--monthly-price-cents"),
     annual_price_cents: int | None = typer.Option(None, "--annual-price-cents"),
-    features: str | None = typer.Option(None, help="JSON object of feature flags"),
+    features: str | None = typer.Option(
+        None,
+        help=(
+            'JSON template: {"keys": [...], "credits_monthly": N, '
+            '"limits": {"seats": N, "email_sends_per_day": N}}. '
+            "Any other field or key is refused."
+        ),
+    ),
     is_active: bool | None = typer.Option(None, "--active/--inactive"),
     json_output: bool = JSON_OPTION,
 ) -> None:
