@@ -19,6 +19,14 @@ from ac_cli.formatting import print_detail, print_json, print_table, styled
 
 people_app = typer.Typer(help="People/contact operations")
 
+PEOPLE_TABLE_COLUMNS = [
+    ("full_name", "Name"),
+    ("email", "Email"),
+    ("current_title", "Title"),
+    ("lifecycle_stage", "Stage"),
+    ("id", "ID"),
+]
+
 
 @people_app.command("list")
 def people_list(
@@ -68,13 +76,7 @@ def people_list(
 
     print_table(
         data.get("data", []),
-        [
-            ("full_name", "Name"),
-            ("email", "Email"),
-            ("current_title", "Title"),
-            ("lifecycle_stage", "Stage"),
-            ("id", "ID"),
-        ],
+        PEOPLE_TABLE_COLUMNS,
         title=f"People ({data.get('total', '?')} total)",
     )
 
@@ -130,7 +132,7 @@ def people_by_ids(
     include_deleted: bool = typer.Option(
         False,
         "--include-deleted",
-        help="Include soft-deleted people when resolving an existing reference",
+        help="Include soft-deleted people in the results",
     ),
     json_output: bool = JSON_OPTION,
 ) -> None:
@@ -146,7 +148,11 @@ def people_by_ids(
     if json_output:
         print_json(data)
     else:
-        rprint(styled("[green]Fetched {} people[/green]", data.get("total", 0)))
+        print_table(
+            data.get("data", []),
+            PEOPLE_TABLE_COLUMNS,
+            title=f"People ({data.get('total', '?')} total)",
+        )
 
 
 @people_app.command("create")

@@ -70,8 +70,22 @@ def test_people_by_ids(invoke, mock_api):
     result = invoke(["crm", "people", "by-ids", "--ids", "p1,p2"])
 
     assert result.exit_code == 0
-    assert "Fetched 1 people" in result.output
+    assert "Jane Smith" in result.output
+    assert "People (1 total)" in result.output
     assert route.calls.last.request.content == b'{"ids":["p1","p2"],"include_deleted":false}'
+
+
+def test_people_by_ids_include_deleted(invoke, mock_api):
+    route = mock_api.post("/api/v1/crm/people/by-ids").respond(
+        200, json={"data": [], "total": 0, "limit": 1, "offset": 0}
+    )
+
+    result = invoke(
+        ["crm", "people", "by-ids", "--ids", "p1", "--include-deleted"]
+    )
+
+    assert result.exit_code == 0
+    assert route.calls.last.request.content == b'{"ids":["p1"],"include_deleted":true}'
 
 
 def test_people_by_ids_json(invoke, mock_api):
