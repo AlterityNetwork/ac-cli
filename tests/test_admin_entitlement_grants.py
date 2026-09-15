@@ -129,3 +129,46 @@ def test_grants_delete_not_found(invoke, mock_api):
     mock_api.delete(f"{BASE}/missing").respond(404, json={"detail": "Entitlement grant not found"})
     result = invoke(["admin", "entitlement-grants", "delete", "missing", "--org-id", ORG, "--yes"])
     assert result.exit_code != 0
+
+
+EMPTY_LIST = {
+    "grants": [],
+    "snapshot": {
+        "keys": [],
+        "credits": {"allowance": 0},
+        "limits": {"seats": None, "email_sends_per_day": None},
+        "trials": [],
+        "access_mode": "full",
+    },
+}
+
+
+def test_grants_list_with_no_keys_prints_none(invoke, mock_api):
+    mock_api.get(BASE).respond(200, json=EMPTY_LIST)
+    result = invoke(["admin", "entitlement-grants", "list", "--org-id", ORG])
+    assert result.exit_code == 0
+    # An empty key set reads as a word, never as an empty line.
+    assert "Resolved keys: none" in result.output
+    assert "Entitlement Grants (0)" in result.output
+
+
+def test_grants_create_revoke_mode(invoke, mock_api):
+    route = mock_api.post(BASE).respond(201, json={**SAMPLE_GRANT, "mode": "revoke"})
+    result = invoke(
+        [
+            "admin",
+            "entitlement-grants",
+            "create",
+            "--org-id",
+            ORG,
+            "--key",
+            "network",
+            "--source",
+            "comp",
+            "--mode",
+            "revoke",
+        ]
+    )
+    assert result.exit_code == 0
+    assert json.loads(route.calls[0].request.content)["mode"] == "revoke"
+    assert "Created revoke row for network" in result.output
