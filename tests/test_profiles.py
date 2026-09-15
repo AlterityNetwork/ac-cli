@@ -153,11 +153,10 @@ SAMPLE_USAGE = {
     "period_start": "2026-09-01T00:00:00+00:00",
     "period_end": "2026-10-01T00:00:00+00:00",
     "actions": [
-        {"action_key": "company.search", "calls": 30, "total_tokens": 0, "cost_cents": 12},
-        {"action_key": "front_door.turn", "calls": 4, "total_tokens": 900, "cost_cents": 3},
+        {"action_key": "company.search", "calls": 30, "total_tokens": 0},
+        {"action_key": "front_door.turn", "calls": 4, "total_tokens": 900},
     ],
     "total_calls": 34,
-    "total_cost_cents": 15,
 }
 
 
@@ -174,7 +173,7 @@ def test_profiles_usage(invoke, mock_api):
 def test_profiles_usage_with_no_rows(invoke, mock_api):
     mock_api.get("/api/v1/subscriptions/me/usage").respond(
         200,
-        json={**SAMPLE_USAGE, "actions": [], "total_calls": 0, "total_cost_cents": 0},
+        json={**SAMPLE_USAGE, "actions": [], "total_calls": 0},
     )
     result = invoke(["profiles", "usage"])
     assert result.exit_code == 0
@@ -201,7 +200,6 @@ def test_profiles_usage_prints_an_action_key_literally(invoke, mock_api):
                     "action_key": "[bold]x",
                     "calls": 1,
                     "total_tokens": 0,
-                    "cost_cents": 0,
                 }
             ],
         },
@@ -212,9 +210,9 @@ def test_profiles_usage_prints_an_action_key_literally(invoke, mock_api):
 
 
 def test_profiles_usage_error(invoke, mock_api):
-    mock_api.get("/api/v1/subscriptions/me/usage").respond(500, json={"detail": "boom"})
+    mock_api.get("/api/v1/subscriptions/me/usage").respond(404, json={"detail": "no usage"})
     result = invoke(["profiles", "usage"])
-    assert result.exit_code != 0
+    assert result.exit_code == 3
 
 
 def test_profiles_subscription_json(invoke, mock_api):

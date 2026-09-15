@@ -146,7 +146,7 @@ def profiles_usage(
     ctx: typer.Context,
     json_output: bool = JSON_OPTION,
 ) -> None:
-    """Show what the current organization spent in its billing period, per action."""
+    """Show the current organization's usage in its billing period, per action."""
     set_json_mode(json_output)
     resp = _api_request("get", "/api/v1/subscriptions/me/usage")
     data = resp.json()
@@ -170,17 +170,10 @@ def profiles_usage(
             ("action_key", "Action"),
             ("calls", "Calls"),
             ("total_tokens", "Tokens"),
-            ("cost_cents", "Cost (cents)"),
         ],
         title="Usage by action",
     )
-    rprint(
-        styled(
-            "Total: {} calls, {} cents",
-            str(data.get("total_calls", 0)),
-            str(data.get("total_cost_cents", 0)),
-        )
-    )
+    rprint(styled("Total: {} calls", str(data.get("total_calls", 0))))
 
 
 @app.command("members")
