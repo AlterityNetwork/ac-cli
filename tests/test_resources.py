@@ -102,3 +102,4 @@ def test_resources_status_without_a_description(invoke, mock_api):
     result = invoke(["resources", "status", "res-1"])
     assert result.exit_code == 0
     assert "Description:" in result.output
+    assert "None" not in result.output
