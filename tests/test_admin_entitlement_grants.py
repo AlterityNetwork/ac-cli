@@ -107,7 +107,7 @@ def test_grants_create_validation_error(invoke, mock_api):
             "trial",
         ]
     )
-    assert result.exit_code != 0
+    assert result.exit_code == 2
 
 
 def test_grants_delete_with_yes(invoke, mock_api):

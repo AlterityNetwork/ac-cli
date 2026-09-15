@@ -596,4 +596,4 @@ def test_plans_update_rejected_template_exits_nonzero(invoke, mock_api):
     result = invoke(
         ["admin", "subscription-plans", "update", "plan-1", "--features", '{"seats": 10}']
     )
-    assert result.exit_code != 0
+    assert result.exit_code == 2

@@ -97,12 +97,17 @@ def grants_delete(
     grant_id: str = typer.Argument(..., help="Grant row ID"),
     organization_id: str = typer.Option(..., "--org-id", help="Organization ID"),
     yes: bool = typer.Option(False, "--yes", "-y", help="Skip confirmation"),
+    json_output: bool = JSON_OPTION,
 ) -> None:
     """Remove a grant row."""
+    set_json_mode(json_output)
     if not should_skip_confirm(yes):
         typer.confirm(f"Delete entitlement grant {grant_id}?", abort=True)
     _api_request(
         "delete",
         f"{_ADMIN}/organizations/{organization_id}/entitlement-grants/{grant_id}",
     )
-    rprint(styled("[green]Deleted entitlement grant {}[/green]", grant_id))
+    if json_output:
+        print_json({"deleted": grant_id})
+    else:
+        rprint(styled("[green]Deleted entitlement grant {}[/green]", grant_id))
