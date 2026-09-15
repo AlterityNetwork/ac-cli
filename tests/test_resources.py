@@ -92,3 +92,20 @@ def test_resources_status_json(invoke, mock_api):
     assert result.exit_code == 0
     parsed = json.loads(result.output)
     assert parsed["chunk_count"] == 42
+
+
+def test_resources_status_json_carries_the_description(invoke, mock_api):
+    mock_api.get("/api/v1/resources/res-1/status").respond(200, json=SAMPLE_STATUS)
+    result = invoke(["resources", "status", "res-1", "--json"])
+    assert result.exit_code == 0
+    parsed = json.loads(result.output)
+    assert parsed["source_description"] == "A summary of the document."
+
+
+def test_resources_status_without_a_description(invoke, mock_api):
+    """A row with no description still prints the Description label."""
+    payload = dict(SAMPLE_STATUS, source_description=None)
+    mock_api.get("/api/v1/resources/res-1/status").respond(200, json=payload)
+    result = invoke(["resources", "status", "res-1"])
+    assert result.exit_code == 0
+    assert "Description:" in result.output
