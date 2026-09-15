@@ -128,7 +128,7 @@ def test_grants_delete_aborted(invoke, mock_api):
 def test_grants_delete_not_found(invoke, mock_api):
     mock_api.delete(f"{BASE}/missing").respond(404, json={"detail": "Entitlement grant not found"})
     result = invoke(["admin", "entitlement-grants", "delete", "missing", "--org-id", ORG, "--yes"])
-    assert result.exit_code != 0
+    assert result.exit_code == 3
 
 
 EMPTY_LIST = {
