@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import json
+from pathlib import Path
+
 import typer
 from rich import print as rprint
 
@@ -9,6 +12,7 @@ from ac_cli.commands._helpers import (
     JSON_OPTION,
     _api_request,
     _build_body,
+    refuse_local,
     set_json_mode,
     should_skip_confirm,
 )
@@ -16,6 +20,17 @@ from ac_cli.commands.admin import _ADMIN
 from ac_cli.formatting import print_detail, print_json, print_table
 
 organizations_app = typer.Typer(help="Organization management")
+
+
+def _read_icps(path: Path) -> list[dict]:
+    """Reads a JSON list of ICPs before the request is sent."""
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeError, json.JSONDecodeError):
+        refuse_local("--icps-file must contain valid JSON")
+    if not isinstance(data, list) or any(not isinstance(item, dict) for item in data):
+        refuse_local("--icps-file must contain a JSON array of profile objects")
+    return data
 
 
 @organizations_app.command("list")
@@ -94,11 +109,17 @@ def organizations_create(
     name: str = typer.Option(..., help="Organization name"),
     slug: str | None = typer.Option(None, help="Organization slug"),
     plan: str | None = typer.Option(None, help="Plan"),
+    icps_file: Path | None = typer.Option(
+        None, "--icps-file", help="JSON file of ideal customer profiles; [] clears the list"
+    ),
     json_output: bool = JSON_OPTION,
 ) -> None:
     """Create a new organization."""
     set_json_mode(json_output)
     body = _build_body(name=name, slug=slug, plan=plan)
+
+    if icps_file is not None:
+        body["ideal_customer_profiles"] = _read_icps(icps_file)
 
     resp = _api_request("post", f"{_ADMIN}/organizations", json=body)
 
@@ -117,11 +138,31 @@ def organizations_update(
     slug: str | None = typer.Option(None, help="Organization slug"),
     plan: str | None = typer.Option(None, help="Plan"),
     logo_url: str | None = typer.Option(None, "--logo-url", help="Organization logo URL"),
+    target_customers: str | None = typer.Option(
+        None, "--target-customers", help="Who the organization sells to, as prose"
+    ),
+    target_locations: str | None = typer.Option(
+        None,
+        "--target-locations",
+        help="Comma-separated ISO 3166-1 alpha-2 country codes. An empty string clears the list",
+    ),
+    icps_file: Path | None = typer.Option(
+        None, "--icps-file", help="JSON file of ideal customer profiles; [] clears the list"
+    ),
     json_output: bool = JSON_OPTION,
 ) -> None:
     """Update an existing organization."""
     set_json_mode(json_output)
-    body = _build_body(name=name, slug=slug, plan=plan, logo_url=logo_url)
+    body = _build_body(
+        name=name, slug=slug, plan=plan, logo_url=logo_url, target_customers=target_customers
+    )
+    if target_locations is not None:
+        body["target_locations"] = [
+            code.strip().upper() for code in target_locations.split(",") if code.strip()
+        ]
+
+    if icps_file is not None:
+        body["ideal_customer_profiles"] = _read_icps(icps_file)
 
     if not body:
         rprint("[yellow]No fields to update.[/yellow]")

@@ -40,6 +40,7 @@ PATH_CONSTANTS: dict[str, str] = {
     "_APPS": "/api/v1/orgs",
     "_CHAT": "/api/v1/chat",
     "_CRM": "/api/v1/crm",
+    "_COPILOTS": "/api/v1/admin/copilots",
     "_ENVOY": "/api/v1/envoy",
     "_FILES": "/api/v1/files",
     "_IMPERSONATION": "/api/v1/impersonation",
@@ -55,6 +56,7 @@ PATH_CONSTANTS: dict[str, str] = {
     "_ONBOARD": "/api/v1/managed-onboarding",
     "_PROFILES": "/api/v1/profiles",
     "_RESOURCES": "/api/v1/resources",
+    "_SETTINGS": "/api/v1/settings",
     "_STYLES": "/api/v1/writing-styles",
     "_TOS": "/api/v1/tos",
     "_WORKFLOWS": "/api/v1/workflows",
@@ -65,6 +67,10 @@ PATH_CONSTANTS: dict[str, str] = {
 
 # API endpoints intentionally not covered by the CLI.
 OUT_OF_SCOPE: set[tuple[str, str]] = {
+    # Inngest worker discovery, invocation and registration; not user commands.
+    ("GET", "/api/inngest"),
+    ("POST", "/api/inngest"),
+    ("PUT", "/api/inngest"),
     ("POST", "/api/v1/webhook"),
     ("GET", "/api/v1/webhook"),
     # Frontend-only UI state: CRM surfaces poll this for the per-company

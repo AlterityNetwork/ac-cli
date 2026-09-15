@@ -170,6 +170,7 @@ def profiles_members(
             ("last_name", "Last Name"),
             ("email", "Email"),
             ("job_title", "Job Title"),
+            ("role", "Role"),
         ],
         title=f"Members ({data.get('total', '?')} total)",
     )

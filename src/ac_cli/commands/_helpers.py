@@ -2,10 +2,12 @@
 
 import contextvars
 import os
+from typing import NoReturn
 
 import httpx
 import typer
 from rich import print as rprint
+from rich.text import Text
 
 from ac_cli.client import get_api_client
 from ac_cli.formatting import print_json
@@ -189,3 +191,12 @@ def _build_body(**fields: object) -> dict:
             else:
                 body[key] = value
     return body
+
+
+def refuse_local(detail: str) -> NoReturn:
+    """Report invalid local input using the selected output format."""
+    if _json_output.get():
+        print_json({"error": True, "status_code": None, "detail": detail})
+    else:
+        rprint("[red]Invalid option:[/red]", Text(detail))
+    raise typer.Exit(code=2)
