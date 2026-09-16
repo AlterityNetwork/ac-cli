@@ -30,6 +30,8 @@ SAMPLE_STATUS = {
     "status": "completed",
     "chunk_count": 42,
     "error_message": None,
+    "source_description": "A summary of the document.",
+    "image_url": "https://r2/thumb.png",
 }
 
 
@@ -82,6 +84,8 @@ def test_resources_status(invoke, mock_api):
     assert result.exit_code == 0
     assert "completed" in result.output
     assert "42" in result.output
+    assert "A summary of the document." in result.output
+    assert "Thumbnail: https://r2/thumb.png" in result.output
 
 
 def test_resources_status_json(invoke, mock_api):
@@ -90,3 +94,15 @@ def test_resources_status_json(invoke, mock_api):
     assert result.exit_code == 0
     parsed = json.loads(result.output)
     assert parsed["chunk_count"] == 42
+    assert parsed["source_description"] == "A summary of the document."
+    assert parsed["image_url"] == "https://r2/thumb.png"
+
+
+def test_resources_status_without_a_description(invoke, mock_api):
+    """A row with no description still prints the Description label."""
+    payload = dict(SAMPLE_STATUS, source_description=None)
+    mock_api.get("/api/v1/resources/res-1/status").respond(200, json=payload)
+    result = invoke(["resources", "status", "res-1"])
+    assert result.exit_code == 0
+    assert "Description:" in result.output
+    assert "None" not in result.output
