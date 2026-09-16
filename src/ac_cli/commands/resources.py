@@ -155,5 +155,6 @@ def resources_status(
             ("chunk_count", "Chunk Count"),
             ("error_message", "Error"),
             ("source_description", "Description"),
+            ("image_url", "Thumbnail"),
         ],
     )
