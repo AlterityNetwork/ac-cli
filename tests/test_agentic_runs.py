@@ -316,6 +316,25 @@ def test_runs_list_passes_every_filter(invoke, mock_api):
     assert params["cursor"] == "abc"
 
 
+def test_runs_list_filters_on_the_capability(invoke, mock_api):
+    """A product reads its runs by capability, because it holds no definition id."""
+    route = mock_api.get("/api/v1/agentic/runs").respond(
+        200, json={"items": [], "next_cursor": None}
+    )
+    invoke(["agentic", "runs", "list", "--capability", "company.search"])
+
+    assert route.calls[0].request.url.params["capability_id"] == "company.search"
+
+
+def test_runs_list_sends_no_capability_by_default(invoke, mock_api):
+    route = mock_api.get("/api/v1/agentic/runs").respond(
+        200, json={"items": [], "next_cursor": None}
+    )
+    invoke(["agentic", "runs", "list"])
+
+    assert "capability_id" not in route.calls[0].request.url.params
+
+
 def test_runs_list_sends_no_root_only_by_default(invoke, mock_api):
     """The endpoint defaults to roots, and naming a parent is enough."""
     route = mock_api.get("/api/v1/agentic/runs").respond(

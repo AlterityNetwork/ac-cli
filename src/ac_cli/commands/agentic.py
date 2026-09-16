@@ -257,6 +257,9 @@ def runs_list(
     ctx: typer.Context,
     parent: str | None = typer.Option(None, "--parent", help="Children of one run"),
     definition_id: str | None = typer.Option(None, "--definition", help="Runs of one definition"),
+    capability: str | None = typer.Option(
+        None, "--capability", help="Runs of one capability, e.g. company.search"
+    ),
     status: str | None = typer.Option(None, "--status", help="Runs in one status"),
     every: bool = typer.Option(
         False, "--all", help="Include child runs. The default returns roots only."
@@ -278,6 +281,8 @@ def runs_list(
         params["parent_run_id"] = parent
     if definition_id:
         params["definition_id"] = definition_id
+    if capability:
+        params["capability_id"] = capability
     if status:
         params["status"] = status
     if cursor:
