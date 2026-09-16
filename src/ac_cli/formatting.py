@@ -36,7 +36,9 @@ def print_detail(data: dict, fields: list[tuple[str, str]]) -> None:
     fields: list of (key, label) tuples.
     """
     for key, label in fields:
-        value = data.get(key) or ""
+        value = data.get(key)
+        if value is None:
+            value = ""
         console.print(f"[bold]{label}:[/bold] {value}")
 
 
