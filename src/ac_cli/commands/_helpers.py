@@ -223,15 +223,6 @@ def _build_body(**fields: object) -> dict:
     return body
 
 
-def refuse_local(detail: str) -> NoReturn:
-    """Report invalid local input using the selected output format."""
-    if _json_output.get():
-        print_json({"error": True, "status_code": None, "detail": detail})
-    else:
-        rprint("[red]Invalid option:[/red]", Text(detail))
-    raise typer.Exit(code=2)
-
-
 def header_safe_key(key: str) -> bool:
     """Reports whether one idempotency key can travel in a request header.
 

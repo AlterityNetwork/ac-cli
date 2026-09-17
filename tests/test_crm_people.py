@@ -80,9 +80,7 @@ def test_people_by_ids_include_deleted(invoke, mock_api):
         200, json={"data": [], "total": 0, "limit": 1, "offset": 0}
     )
 
-    result = invoke(
-        ["crm", "people", "by-ids", "--ids", "p1", "--include-deleted"]
-    )
+    result = invoke(["crm", "people", "by-ids", "--ids", "p1", "--include-deleted"])
 
     assert result.exit_code == 0
     assert route.calls.last.request.content == b'{"ids":["p1"],"include_deleted":true}'

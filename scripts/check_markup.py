@@ -49,6 +49,12 @@ PRINT_ATTRS = {"print", "add_row"}
 # The wrappers that answer a renderable the markup parser never reads.
 SAFE_CALLS = {"as_text", "styled", "Text", "Table", "Pretty", "_cell"}
 
+# The same renderables, built through an attribute. `Text.assemble` joins
+# (text, style) pairs into a Text. The markup parser never reads a Text, so
+# the call is as safe as `Text`. The pair is matched whole: a plain
+# `assemble` on another object is not safe.
+SAFE_ATTR_CALLS = {("Text", "assemble")}
+
 # The keyword arguments of print that carry text. `sep` and `end` reach the
 # same parser as a positional argument does.
 TEXT_KEYWORDS = {"sep", "end"}
@@ -280,6 +286,12 @@ class _Checker:
         if isinstance(node, ast.Call):
             func = node.func
             name = func.id if isinstance(func, ast.Name) else getattr(func, "attr", "")
+            if (
+                isinstance(func, ast.Attribute)
+                and isinstance(func.value, ast.Name)
+                and (func.value.id, func.attr) in SAFE_ATTR_CALLS
+            ):
+                return
             if name not in SAFE_CALLS:
                 self._fail(lineno, node, "unwrapped print argument")
                 return

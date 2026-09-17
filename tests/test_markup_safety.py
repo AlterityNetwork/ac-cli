@@ -60,6 +60,24 @@ def test_the_gate_passes_a_wrapped_value(tmp_path):
     assert check_markup.check(module) == []
 
 
+def test_the_gate_passes_text_assemble(tmp_path):
+    """`Text.assemble` answers a Text, and the parser never reads a Text.
+
+    The gate read the attribute name only, so it refused the safe call and
+    the copilot settings commands failed it.
+    """
+    module = tmp_path / "sample.py"
+    module.write_text('rprint(Text.assemble(("Status:", "bold"), f" {status}"))\n')
+    assert check_markup.check(module) == []
+
+
+def test_the_gate_fails_assemble_on_another_object(tmp_path):
+    """The pair is matched whole, so only `Text` carries the exemption."""
+    module = tmp_path / "sample.py"
+    module.write_text('rprint(Report.assemble(f"{name}"))\n')
+    assert check_markup.check(module) != []
+
+
 def test_the_gate_fails_a_template_that_is_not_a_literal(tmp_path):
     """A template from somewhere else is the fault the gate exists for."""
     module = tmp_path / "sample.py"
