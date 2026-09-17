@@ -93,14 +93,16 @@ SIGNAL = {
 }
 
 
-def test_list_defaults_to_new_and_prints_partial_rows(invoke, mock_api):
+def test_list_reads_every_state_by_default_and_prints_partial_rows(invoke, mock_api):
+    """The route reads every review state when the caller names none, so the
+    command sends the parameter only when the caller passes it."""
     route = mock_api.get(BASE).respond(200, json={"items": [SUMMARY], "next_cursor": None})
 
     result = invoke(["agentic", "prospects", "list"])
 
     assert result.exit_code == 0
     assert "acme.test" in result.output
-    assert route.calls[0].request.url.params["review_state"] == "new"
+    assert "review_state" not in route.calls[0].request.url.params
     assert route.calls[0].request.url.params["limit"] == "50"
 
 

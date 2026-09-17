@@ -151,7 +151,9 @@ def _print_prospect(data: dict) -> None:
 @app.command("list")
 def prospects_list(
     ctx: typer.Context,
-    review_state: str = typer.Option("new", "--review-state", help="Review state"),
+    review_state: str | None = typer.Option(
+        None, "--review-state", help="Review state. The default reads every one."
+    ),
     last_seen_run_id: str | None = typer.Option(
         None, "--last-seen-run-id", help="Only prospects last written by this Run"
     ),
@@ -159,10 +161,11 @@ def prospects_list(
     limit: int = typer.Option(_PAGE_DEFAULT, "--limit", help="Page size, 1 to 100"),
     json_output: bool = JSON_OPTION,
 ) -> None:
-    """List prospects in one review state, newest first."""
+    """List prospects, newest first. Name a review state to read one."""
     set_json_mode(json_output)
     params = _page_params(limit, cursor)
-    params["review_state"] = review_state
+    if review_state is not None:
+        params["review_state"] = review_state
     if last_seen_run_id is not None:
         params["last_seen_run_id"] = last_seen_run_id
     data = _api_request("get", _PROSPECTS, params=params).json()
