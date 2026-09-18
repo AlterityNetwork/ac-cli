@@ -587,11 +587,20 @@ def test_curation_maps_promoted_to_exit_five(invoke, mock_api):
     assert invoke(["agentic", "prospects", "watch", PROSPECT_ID]).exit_code == 5
 
 
-def test_prospects_help_lists_the_six_commands(invoke):
+def test_prospects_help_lists_every_command(invoke):
     result = invoke(["agentic", "prospects", "--help"])
 
     assert result.exit_code == 0
-    for command in ("list", "get", "people", "signals", "watch", "dismiss"):
+    for command in (
+        "list",
+        "get",
+        "people",
+        "signals",
+        "watch",
+        "dismiss",
+        "act",
+        "promote",
+    ):
         assert command in result.output
 
 
