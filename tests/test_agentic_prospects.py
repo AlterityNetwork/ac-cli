@@ -127,8 +127,6 @@ def test_list_names_the_signal_that_made_the_prospect_relevant(invoke, mock_api,
     result = invoke(["agentic", "prospects", "list"])
 
     assert result.exit_code == 0
-    # A header folds at this width, so the column list carries the label.
-    assert ("latest_signal_type", "Signal") in _SUMMARY_FIELDS
     assert table_column(result.output, SIGNAL_COLUMN) == "funding_round"
 
 
@@ -141,9 +139,8 @@ def test_list_prints_a_blank_signal_cell_when_a_prospect_has_none(invoke, mock_a
     assert table_column(result.output, SIGNAL_COLUMN) == ""
 
 
-#: The `Top person` cell and the `Fit` cell, read from the column list itself.
+#: The `Top person` cell, read from the column list itself.
 TOP_PERSON_COLUMN = [key for key, _ in _SUMMARY_FIELDS].index("top_person_name")
-FIT_COLUMN = [key for key, _ in _SUMMARY_FIELDS].index("top_person_fit")
 
 TOP_PERSON = {
     **PERSON,
@@ -152,18 +149,17 @@ TOP_PERSON = {
 }
 
 
-def test_list_names_the_best_matched_person_and_the_fit(invoke, mock_api, table_column):
+def test_list_names_the_best_matched_person(invoke, mock_api, table_column):
+    """The row names the person. The score stays a `--json` field."""
     row = {**SUMMARY, "top_person": TOP_PERSON}
     mock_api.get(BASE).respond(200, json={"items": [row], "next_cursor": None})
 
     result = invoke(["agentic", "prospects", "list"])
 
     assert result.exit_code == 0
-    # A header folds at this width, so the column list carries the label.
-    assert ("top_person_name", "Top person") in _SUMMARY_FIELDS
-    assert ("top_person_fit", "Fit") in _SUMMARY_FIELDS
     assert table_column(result.output, TOP_PERSON_COLUMN) == "Alice"
-    assert table_column(result.output, FIT_COLUMN) == "91"
+    assert "Fit" not in result.output
+    assert "91" not in result.output
 
 
 def test_list_prints_a_blank_person_cell_when_a_prospect_has_none(invoke, mock_api, table_column):
@@ -173,7 +169,6 @@ def test_list_prints_a_blank_person_cell_when_a_prospect_has_none(invoke, mock_a
 
     assert result.exit_code == 0
     assert table_column(result.output, TOP_PERSON_COLUMN) == ""
-    assert table_column(result.output, FIT_COLUMN) == ""
 
 
 def test_list_keeps_the_signal_and_the_person_on_one_row(invoke, mock_api, table_column):
@@ -351,7 +346,7 @@ def test_people_prints_nested_person_fields(invoke, mock_api):
         ]
     )
 
-    assert "Alice" in result.output
+    assert "Alice Doe" in result.output
     assert "CFO" in result.output
     assert route.calls[0].request.url.params["cursor"] == "current"
     assert "--limit 5 --cursor next" in result.output

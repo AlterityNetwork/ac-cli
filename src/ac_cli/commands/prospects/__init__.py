@@ -25,7 +25,6 @@ _SUMMARY_FIELDS = [
     ("id", "Prospect ID"),
     ("company_name", "Company"),
     ("top_person_name", "Top person"),
-    ("top_person_fit", "Fit"),
     ("company_domain", "Domain"),
     ("review_state", "State"),
     ("opportunity_score", "Score"),
@@ -147,20 +146,21 @@ def _flat_latest_signal(item: dict) -> dict:
 def _flat_top_person(item: dict) -> dict:
     """Flattens the one person a prospect row names.
 
-    A table cell and a detail row each read one flat key. `top_person` is
-    `null` when the prospect has no people, and both keys stay absent.
+    A table cell and a detail row each read the flat key. `top_person` is
+    `null` when the prospect has no people, and the key stays absent. The
+    score of the person stays a `--json` field: a narrow column prints a
+    number the reader cannot act on.
 
     Args:
         item: One prospect summary or detail object.
 
     Returns:
-        The same object plus the two flat person keys.
+        The same object plus the flat person key.
     """
     person = item.get("top_person") or {}
     return {
         **item,
         "top_person_name": (person.get("person") or {}).get("full_name"),
-        "top_person_fit": person.get("persona_fit_score"),
     }
 
 
@@ -171,7 +171,7 @@ def _flat_prospect(item: dict) -> dict:
         item: One prospect summary or detail object.
 
     Returns:
-        The same object plus the flat signal keys and the flat person keys.
+        The same object plus the flat signal keys and the flat person key.
     """
     return _flat_top_person(_flat_latest_signal(item))
 
