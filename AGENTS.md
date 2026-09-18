@@ -46,10 +46,11 @@ uv sync --all-extras       # Install with dev dependencies (pytest, respx)
 | `files` | Image upload/delete |
 | `workflows` | Runs, schedules, presets, csv-parse |
 | `apps` | Organization app install/config |
+| `settings` | Organization settings: the copilot approval framework, targeting |
 | `agentic` | Agentic platform: capabilities, runs, definitions, tools, approvals, conversations, prospects, saved-searches, triggers, policies, limits |
 | `agents` | Managed agent runs (the live stack the agentic platform sits beside) |
 | `analytics` | Customer-facing organization analytics overview |
-| `admin` | Users, orgs, queues, demo, onboarding, app-usage, ai-usage, platform-activity, legal-docs, resources, apps, subscriptions, subscription-plans (super admin) |
+| `admin` | Users, orgs, queues, demo, onboarding, copilots, app-usage, ai-usage, platform-activity, legal-docs, resources, apps, subscriptions, subscription-plans (super admin) |
 | `profiles` | User profile (incl. set-organization, set-password, subscription) |
 | `resources` | Knowledge base resource management |
 | `styles` | Writing styles |
