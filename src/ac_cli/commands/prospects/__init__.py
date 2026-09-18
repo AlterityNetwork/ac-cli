@@ -24,6 +24,8 @@ _PAGE_MAX = 100
 _SUMMARY_FIELDS = [
     ("id", "Prospect ID"),
     ("company_name", "Company"),
+    ("top_person_name", "Top person"),
+    ("top_person_fit", "Fit"),
     ("company_domain", "Domain"),
     ("review_state", "State"),
     ("opportunity_score", "Score"),
@@ -41,6 +43,7 @@ _DETAIL_FIELDS = [
     ("recommended_action", "Recommended action"),
     ("latest_signal_type", "Signal"),
     ("latest_signal_observed_at", "Signal observed"),
+    ("top_person_name", "Top person"),
     ("people_state", "People"),
     ("people_state_reason", "People reason"),
     ("crm_company_id", "CRM company ID"),
@@ -141,9 +144,41 @@ def _flat_latest_signal(item: dict) -> dict:
     }
 
 
+def _flat_top_person(item: dict) -> dict:
+    """Flattens the one person a prospect row names.
+
+    A table cell and a detail row each read one flat key. `top_person` is
+    `null` when the prospect has no people, and both keys stay absent.
+
+    Args:
+        item: One prospect summary or detail object.
+
+    Returns:
+        The same object plus the two flat person keys.
+    """
+    person = item.get("top_person") or {}
+    return {
+        **item,
+        "top_person_name": (person.get("person") or {}).get("full_name"),
+        "top_person_fit": person.get("persona_fit_score"),
+    }
+
+
+def _flat_prospect(item: dict) -> dict:
+    """Flattens the signal and the person one prospect row names.
+
+    Args:
+        item: One prospect summary or detail object.
+
+    Returns:
+        The same object plus the flat signal keys and the flat person keys.
+    """
+    return _flat_top_person(_flat_latest_signal(item))
+
+
 def _print_prospect(data: dict) -> None:
     """Prints one prospect and its bounded company facts."""
-    print_detail(_flat_latest_signal(data), _DETAIL_FIELDS)
+    print_detail(_flat_prospect(data), _DETAIL_FIELDS)
     rprint("[bold]Company[/bold]")
     print_detail(data["company"], _COMPANY_FIELDS)
 
@@ -172,7 +207,7 @@ def prospects_list(
     if json_output:
         print_json(data)
         return
-    rows = [_flat_latest_signal(item) for item in data.get("items", [])]
+    rows = [_flat_prospect(item) for item in data.get("items", [])]
     print_table(rows, _SUMMARY_FIELDS, title="Prospects")
     _print_next_page(
         data.get("next_cursor"),

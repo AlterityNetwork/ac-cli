@@ -19,6 +19,7 @@ SUMMARY = {
     "people_state_reason": None,
     "crm_company_id": None,
     "latest_signal": None,
+    "top_person": None,
     "first_seen_at": "2026-08-28T10:00:00Z",
     "last_seen_at": "2026-08-28T10:00:00Z",
     "created_at": "2026-08-28T10:00:00Z",
@@ -93,7 +94,7 @@ SIGNAL = {
 }
 
 
-def test_list_reads_every_state_by_default_and_prints_partial_rows(invoke, mock_api):
+def test_list_reads_every_state_by_default_and_prints_partial_rows(invoke, mock_api, table_column):
     """The route reads every review state when the caller names none, so the
     command sends the parameter only when the caller passes it."""
     route = mock_api.get(BASE).respond(200, json={"items": [SUMMARY], "next_cursor": None})
@@ -101,7 +102,9 @@ def test_list_reads_every_state_by_default_and_prints_partial_rows(invoke, mock_
     result = invoke(["agentic", "prospects", "list"])
 
     assert result.exit_code == 0
-    assert "acme.test" in result.output
+    # The cell folds at this width, so the reader joins its parts.
+    domain_column = [key for key, _ in _SUMMARY_FIELDS].index("company_domain")
+    assert table_column(result.output, domain_column) == "acme.test"
     assert "review_state" not in route.calls[0].request.url.params
     assert route.calls[0].request.url.params["limit"] == "50"
 
@@ -124,7 +127,8 @@ def test_list_names_the_signal_that_made_the_prospect_relevant(invoke, mock_api,
     result = invoke(["agentic", "prospects", "list"])
 
     assert result.exit_code == 0
-    assert "Signal" in result.output
+    # A header folds at this width, so the column list carries the label.
+    assert ("latest_signal_type", "Signal") in _SUMMARY_FIELDS
     assert table_column(result.output, SIGNAL_COLUMN) == "funding_round"
 
 
@@ -135,6 +139,88 @@ def test_list_prints_a_blank_signal_cell_when_a_prospect_has_none(invoke, mock_a
 
     assert result.exit_code == 0
     assert table_column(result.output, SIGNAL_COLUMN) == ""
+
+
+#: The `Top person` cell and the `Fit` cell, read from the column list itself.
+TOP_PERSON_COLUMN = [key for key, _ in _SUMMARY_FIELDS].index("top_person_name")
+FIT_COLUMN = [key for key, _ in _SUMMARY_FIELDS].index("top_person_fit")
+
+TOP_PERSON = {
+    **PERSON,
+    "persona_fit_score": 91,
+    "person": {**PERSON["person"], "full_name": "Alice"},
+}
+
+
+def test_list_names_the_best_matched_person_and_the_fit(invoke, mock_api, table_column):
+    row = {**SUMMARY, "top_person": TOP_PERSON}
+    mock_api.get(BASE).respond(200, json={"items": [row], "next_cursor": None})
+
+    result = invoke(["agentic", "prospects", "list"])
+
+    assert result.exit_code == 0
+    # A header folds at this width, so the column list carries the label.
+    assert ("top_person_name", "Top person") in _SUMMARY_FIELDS
+    assert ("top_person_fit", "Fit") in _SUMMARY_FIELDS
+    assert table_column(result.output, TOP_PERSON_COLUMN) == "Alice"
+    assert table_column(result.output, FIT_COLUMN) == "91"
+
+
+def test_list_prints_a_blank_person_cell_when_a_prospect_has_none(invoke, mock_api, table_column):
+    mock_api.get(BASE).respond(200, json={"items": [SUMMARY], "next_cursor": None})
+
+    result = invoke(["agentic", "prospects", "list"])
+
+    assert result.exit_code == 0
+    assert table_column(result.output, TOP_PERSON_COLUMN) == ""
+    assert table_column(result.output, FIT_COLUMN) == ""
+
+
+def test_list_keeps_the_signal_and_the_person_on_one_row(invoke, mock_api, table_column):
+    """Two flatteners compose. Neither drops what the other added."""
+    row = {
+        **SUMMARY,
+        "latest_signal": {
+            "signal_type": "funding_round",
+            "observed_at": "2026-08-28T10:00:00Z",
+        },
+        "top_person": TOP_PERSON,
+    }
+    mock_api.get(BASE).respond(200, json={"items": [row], "next_cursor": None})
+
+    result = invoke(["agentic", "prospects", "list"])
+
+    assert table_column(result.output, SIGNAL_COLUMN) == "funding_round"
+    assert table_column(result.output, TOP_PERSON_COLUMN) == "Alice"
+
+
+def test_list_json_passes_the_top_person_through(invoke, mock_api):
+    page = {"items": [{**SUMMARY, "top_person": TOP_PERSON}], "next_cursor": None}
+    mock_api.get(BASE).respond(200, json=page)
+
+    result = invoke(["agentic", "prospects", "list", "--json"])
+
+    assert json.loads(result.output) == page
+
+
+def test_get_prints_the_best_matched_person(invoke, mock_api):
+    detail = {**DETAIL, "top_person": TOP_PERSON}
+    mock_api.get(f"{BASE}/{PROSPECT_ID}").respond(200, json=detail)
+
+    result = invoke(["agentic", "prospects", "get", PROSPECT_ID])
+
+    assert result.exit_code == 0
+    assert "Top person" in result.output
+    assert "Alice" in result.output
+
+
+def test_get_prints_no_person_when_the_prospect_has_none(invoke, mock_api):
+    mock_api.get(f"{BASE}/{PROSPECT_ID}").respond(200, json=DETAIL)
+
+    result = invoke(["agentic", "prospects", "get", PROSPECT_ID])
+
+    assert result.exit_code == 0
+    assert "Alice" not in result.output
 
 
 def test_get_prints_the_signal_that_made_the_prospect_relevant(invoke, mock_api):
@@ -265,7 +351,7 @@ def test_people_prints_nested_person_fields(invoke, mock_api):
         ]
     )
 
-    assert "Alice Doe" in result.output
+    assert "Alice" in result.output
     assert "CFO" in result.output
     assert route.calls[0].request.url.params["cursor"] == "current"
     assert "--limit 5 --cursor next" in result.output

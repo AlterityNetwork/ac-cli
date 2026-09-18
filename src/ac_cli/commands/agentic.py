@@ -107,11 +107,15 @@ _RUN_FIELDS = [
     ("ended_at", "Ended"),
 ]
 
+# `Prospects` is blank on every list but a `--capability signals.search` one.
+# The API counts the prospects of a Run on that list alone, and it answers null
+# everywhere else. Zero is a Run that wrote no prospect.
 _LIST_FIELDS = [
     ("id", "Run ID"),
     ("definition_name", "Definition"),
     ("status", "Status"),
     ("kind", "Kind"),
+    ("prospect_count", "Prospects"),
     ("created_at", "Created"),
 ]
 
