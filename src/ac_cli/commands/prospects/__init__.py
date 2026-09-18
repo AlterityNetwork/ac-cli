@@ -25,7 +25,7 @@ _SUMMARY_FIELDS = [
     ("id", "Prospect ID"),
     ("company_name", "Company"),
     ("top_person_name", "Top person"),
-    ("suggested_action_kind", "Action"),
+    ("suggested_action_short", "Action"),
     ("company_domain", "Domain"),
     ("review_state", "State"),
     ("opportunity_score", "Score"),
@@ -166,6 +166,11 @@ def _flat_top_person(item: dict) -> dict:
     }
 
 
+#: The column form of each kind. Only `create_task` shortens, and it keeps the
+#: column to five characters in a table that is already wide. `get` prints the
+#: kind in full.
+_ACTION_SHORT = {"create_task": "task"}
+
 #: How each kind reads in one line. The value is the argument that names the
 #: move, so a reader sees what the move does and not only its name.
 _ACTION_ARG = {
@@ -178,9 +183,9 @@ _ACTION_ARG = {
 def _flat_suggested_action(item: dict) -> dict:
     """Flattens the move a prospect names.
 
-    A table cell reads the kind. A detail row reads the kind, the one argument
-    that names the move, and the due date when the move is a task. Both keys
-    stay absent when no Run scored the prospect.
+    A table cell reads the short form of the kind. A detail row reads the kind
+    in full, the one argument that names the move, and the due date when the
+    move is a task. Both keys stay absent when no Run scored the prospect.
 
     Args:
         item: One prospect summary or detail object.
@@ -191,7 +196,7 @@ def _flat_suggested_action(item: dict) -> dict:
     action = item.get("suggested_action") or {}
     kind = action.get("kind")
     if not kind:
-        return {**item, "suggested_action_kind": None, "suggested_action_text": None}
+        return {**item, "suggested_action_short": None, "suggested_action_text": None}
     args = action.get("args") or {}
     text = kind
     named = args.get(_ACTION_ARG.get(kind, ""))
@@ -202,7 +207,7 @@ def _flat_suggested_action(item: dict) -> dict:
         text = f"{text} (due in {due} days)"
     return {
         **item,
-        "suggested_action_kind": kind,
+        "suggested_action_short": _ACTION_SHORT.get(kind, kind),
         "suggested_action_text": text,
     }
 

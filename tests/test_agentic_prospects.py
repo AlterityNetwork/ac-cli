@@ -2,6 +2,8 @@
 
 import json
 
+import pytest
+
 from ac_cli.commands.prospects import _SUMMARY_FIELDS
 
 BASE = "/api/v1/agentic/prospects"
@@ -219,7 +221,7 @@ def test_get_prints_no_person_when_the_prospect_has_none(invoke, mock_api):
     assert "Alice" not in result.output
 
 
-ACTION_COLUMN = [key for key, _ in _SUMMARY_FIELDS].index("suggested_action_kind")
+ACTION_COLUMN = [key for key, _ in _SUMMARY_FIELDS].index("suggested_action_short")
 
 SUGGESTED_ACTION = {
     "kind": "create_task",
@@ -240,8 +242,32 @@ def test_list_names_the_move_in_the_action_column(invoke, mock_api, table_column
     result = invoke(["agentic", "prospects", "list"])
 
     assert result.exit_code == 0
-    assert ("suggested_action_kind", "Action") in _SUMMARY_FIELDS
-    assert table_column(result.output, ACTION_COLUMN) == "create_task"
+    assert ("suggested_action_short", "Action") in _SUMMARY_FIELDS
+    # The short form keeps the column to five characters.
+    assert table_column(result.output, ACTION_COLUMN) == "task"
+
+
+@pytest.mark.parametrize(
+    ("kind", "short"),
+    [
+        ("create_task", "task"),
+        ("watch", "watch"),
+        ("promote", "promote"),
+        ("dismiss", "dismiss"),
+    ],
+)
+def test_the_action_column_prints_the_short_form(invoke, mock_api, table_column, kind, short):
+    """`create_task` is the only kind that shortens, and it saves five
+    characters in a table that is already wide."""
+    row = {
+        **SUMMARY,
+        "suggested_action": {**SUGGESTED_ACTION, "kind": kind, "args": {}},
+    }
+    mock_api.get(BASE).respond(200, json={"items": [row], "next_cursor": None})
+
+    result = invoke(["agentic", "prospects", "list"])
+
+    assert table_column(result.output, ACTION_COLUMN) == short
 
 
 def test_list_prints_a_blank_action_cell_when_no_run_scored_it(invoke, mock_api, table_column):
