@@ -166,9 +166,9 @@ def _flat_top_person(item: dict) -> dict:
     }
 
 
-#: The column form of each kind. Only `create_task` shortens, and it keeps the
-#: column to five characters in a table that is already wide. `get` prints the
-#: kind in full.
+#: The column form of each kind. Only `create_task` shortens, to `task`. The
+#: widest cell is then seven characters rather than eleven, in a table that is
+#: already wide. `get` prints the kind in full.
 _ACTION_SHORT = {"create_task": "task"}
 
 #: How each kind reads in one line. The value is the argument that names the

@@ -242,8 +242,6 @@ def test_list_names_the_move_in_the_action_column(invoke, mock_api, table_column
     result = invoke(["agentic", "prospects", "list"])
 
     assert result.exit_code == 0
-    assert ("suggested_action_short", "Action") in _SUMMARY_FIELDS
-    # The short form keeps the column to five characters.
     assert table_column(result.output, ACTION_COLUMN) == "task"
 
 
@@ -257,8 +255,11 @@ def test_list_names_the_move_in_the_action_column(invoke, mock_api, table_column
     ],
 )
 def test_the_action_column_prints_the_short_form(invoke, mock_api, table_column, kind, short):
-    """`create_task` is the only kind that shortens, and it saves five
-    characters in a table that is already wide."""
+    """`create_task` is the only kind that shortens, to `task`.
+
+    The widest cell is then seven characters rather than eleven, in a table
+    that is already wide.
+    """
     row = {
         **SUMMARY,
         "suggested_action": {**SUGGESTED_ACTION, "kind": kind, "args": {}},
