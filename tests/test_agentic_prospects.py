@@ -20,6 +20,7 @@ SUMMARY = {
     "crm_company_id": None,
     "latest_signal": None,
     "top_person": None,
+    "suggested_action": None,
     "first_seen_at": "2026-08-28T10:00:00Z",
     "last_seen_at": "2026-08-28T10:00:00Z",
     "created_at": "2026-08-28T10:00:00Z",
@@ -216,6 +217,132 @@ def test_get_prints_no_person_when_the_prospect_has_none(invoke, mock_api):
 
     assert result.exit_code == 0
     assert "Alice" not in result.output
+
+
+ACTION_COLUMN = [key for key, _ in _SUMMARY_FIELDS].index("suggested_action_kind")
+
+SUGGESTED_ACTION = {
+    "kind": "create_task",
+    "args": {
+        "title": "Contact the VP Engineering",
+        "due_in_days": 3,
+        "person_id": None,
+    },
+    "rationale": "The funding signal is current and the fit holds.",
+    "timing": "this week",
+}
+
+
+def test_list_names_the_move_in_the_action_column(invoke, mock_api, table_column):
+    row = {**SUMMARY, "suggested_action": SUGGESTED_ACTION}
+    mock_api.get(BASE).respond(200, json={"items": [row], "next_cursor": None})
+
+    result = invoke(["agentic", "prospects", "list"])
+
+    assert result.exit_code == 0
+    assert ("suggested_action_kind", "Action") in _SUMMARY_FIELDS
+    assert table_column(result.output, ACTION_COLUMN) == "create_task"
+
+
+def test_list_prints_a_blank_action_cell_when_no_run_scored_it(invoke, mock_api, table_column):
+    mock_api.get(BASE).respond(200, json={"items": [SUMMARY], "next_cursor": None})
+
+    result = invoke(["agentic", "prospects", "list"])
+
+    assert table_column(result.output, ACTION_COLUMN) == ""
+
+
+def test_get_prints_the_move_with_its_main_argument(invoke, mock_api):
+    """The row reads kind, then the one argument that names the move."""
+    detail = {**DETAIL, "suggested_action": SUGGESTED_ACTION}
+    mock_api.get(f"{BASE}/{PROSPECT_ID}").respond(200, json=detail)
+
+    result = invoke(["agentic", "prospects", "get", PROSPECT_ID])
+
+    assert result.exit_code == 0
+    assert "Suggested action" in result.output
+    assert "create_task: Contact the VP Engineering (due in 3 days)" in result.output
+
+
+def test_get_prints_the_trigger_of_a_watch(invoke, mock_api):
+    detail = {
+        **DETAIL,
+        "suggested_action": {
+            "kind": "watch",
+            "args": {"until": "the next executive hire"},
+            "rationale": "The fit holds but the timing does not.",
+            "timing": "until the next executive hire",
+        },
+    }
+    mock_api.get(f"{BASE}/{PROSPECT_ID}").respond(200, json=detail)
+
+    result = invoke(["agentic", "prospects", "get", PROSPECT_ID])
+
+    assert "watch: the next executive hire" in result.output
+
+
+def test_get_prints_promote_with_no_argument(invoke, mock_api):
+    detail = {
+        **DETAIL,
+        "suggested_action": {
+            "kind": "promote",
+            "args": {},
+            "rationale": "The fit is proven.",
+            "timing": "now",
+        },
+    }
+    mock_api.get(f"{BASE}/{PROSPECT_ID}").respond(200, json=detail)
+
+    result = invoke(["agentic", "prospects", "get", PROSPECT_ID])
+
+    assert "promote" in result.output
+
+
+def test_act_runs_the_move_and_prints_what_it_produced(invoke, mock_api):
+    route = mock_api.post(f"{BASE}/{PROSPECT_ID}/act").respond(
+        200,
+        json={
+            "prospect": {**DETAIL, "suggested_action": SUGGESTED_ACTION},
+            "result": {
+                "kind": "create_task",
+                "task_id": "77777777-7777-4777-8777-777777777777",
+            },
+        },
+    )
+
+    result = invoke(["agentic", "prospects", "act", PROSPECT_ID])
+
+    assert result.exit_code == 0
+    assert route.called
+    assert "create_task" in result.output
+    assert "77777777-7777-4777-8777-777777777777" in result.output
+
+
+def test_act_json_keeps_the_whole_answer(invoke, mock_api):
+    body = {
+        "prospect": DETAIL,
+        "result": {"kind": "watch", "task_id": None},
+    }
+    mock_api.post(f"{BASE}/{PROSPECT_ID}/act").respond(200, json=body)
+
+    result = invoke(["agentic", "prospects", "act", PROSPECT_ID, "--json"])
+
+    assert json.loads(result.output) == body
+
+
+def test_act_maps_a_prospect_with_no_action_to_exit_five(invoke, mock_api):
+    """409 is the conflict code, and the CLI maps it to 5."""
+    mock_api.post(f"{BASE}/{PROSPECT_ID}/act").respond(
+        409, json={"detail": "carries no suggested action to perform"}
+    )
+
+    assert invoke(["agentic", "prospects", "act", PROSPECT_ID]).exit_code == 5
+
+
+def test_act_maps_not_found_to_exit_three(invoke, mock_api):
+    mock_api.post(f"{BASE}/{PROSPECT_ID}/act").respond(404, json={"detail": "prospect not found"})
+
+    assert invoke(["agentic", "prospects", "act", PROSPECT_ID]).exit_code == 3
 
 
 def test_get_prints_the_signal_that_made_the_prospect_relevant(invoke, mock_api):

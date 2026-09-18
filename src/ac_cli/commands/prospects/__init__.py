@@ -25,6 +25,7 @@ _SUMMARY_FIELDS = [
     ("id", "Prospect ID"),
     ("company_name", "Company"),
     ("top_person_name", "Top person"),
+    ("suggested_action_kind", "Action"),
     ("company_domain", "Domain"),
     ("review_state", "State"),
     ("opportunity_score", "Score"),
@@ -43,6 +44,7 @@ _DETAIL_FIELDS = [
     ("latest_signal_type", "Signal"),
     ("latest_signal_observed_at", "Signal observed"),
     ("top_person_name", "Top person"),
+    ("suggested_action_text", "Suggested action"),
     ("people_state", "People"),
     ("people_state_reason", "People reason"),
     ("crm_company_id", "CRM company ID"),
@@ -164,6 +166,47 @@ def _flat_top_person(item: dict) -> dict:
     }
 
 
+#: How each kind reads in one line. The value is the argument that names the
+#: move, so a reader sees what the move does and not only its name.
+_ACTION_ARG = {
+    "create_task": "title",
+    "watch": "until",
+    "dismiss": "reason",
+}
+
+
+def _flat_suggested_action(item: dict) -> dict:
+    """Flattens the move a prospect names.
+
+    A table cell reads the kind. A detail row reads the kind, the one argument
+    that names the move, and the due date when the move is a task. Both keys
+    stay absent when no Run scored the prospect.
+
+    Args:
+        item: One prospect summary or detail object.
+
+    Returns:
+        The same object plus the two flat action keys.
+    """
+    action = item.get("suggested_action") or {}
+    kind = action.get("kind")
+    if not kind:
+        return {**item, "suggested_action_kind": None, "suggested_action_text": None}
+    args = action.get("args") or {}
+    text = kind
+    named = args.get(_ACTION_ARG.get(kind, ""))
+    if named:
+        text = f"{kind}: {named}"
+    due = args.get("due_in_days")
+    if due is not None:
+        text = f"{text} (due in {due} days)"
+    return {
+        **item,
+        "suggested_action_kind": kind,
+        "suggested_action_text": text,
+    }
+
+
 def _flat_prospect(item: dict) -> dict:
     """Flattens the signal and the person one prospect row names.
 
@@ -173,7 +216,7 @@ def _flat_prospect(item: dict) -> dict:
     Returns:
         The same object plus the flat signal keys and the flat person key.
     """
-    return _flat_top_person(_flat_latest_signal(item))
+    return _flat_suggested_action(_flat_top_person(_flat_latest_signal(item)))
 
 
 def _print_prospect(data: dict) -> None:
@@ -327,6 +370,29 @@ def prospects_dismiss(
     set_json_mode(json_output)
     data = _api_request("post", f"{_PROSPECTS}/{prospect_id}/dismiss").json()
     _print_curation(data, json_output=json_output)
+
+
+_ACT_FIELDS = [
+    ("kind", "Move"),
+    ("task_id", "CRM task ID"),
+]
+
+
+@app.command("act")
+def prospects_act(
+    ctx: typer.Context,
+    prospect_id: str = typer.Argument(..., help="Prospect ID"),
+    json_output: bool = JSON_OPTION,
+) -> None:
+    """Perform the suggested action this prospect carries."""
+    set_json_mode(json_output)
+    data = _api_request("post", f"{_PROSPECTS}/{prospect_id}/act").json()
+    if json_output:
+        print_json(data)
+        return
+    print_detail(data["result"], _ACT_FIELDS)
+    rprint("[bold]Prospect[/bold]")
+    _print_prospect(data["prospect"])
 
 
 _PROMOTION_FIELDS = [
