@@ -112,8 +112,13 @@ def _print_next_page(
     *,
     review_state: str | None = None,
     last_seen_run_id: str | None = None,
+    sort: str | None = None,
 ) -> None:
-    """Prints the options that continue the same page walk."""
+    """Prints the options that continue the same page walk.
+
+    ⚠️ The hint always names the sort. A cursor belongs to one sort, and the
+    API answers 400 to a cursor another sort wrote.
+    """
     if not next_cursor:
         return
     parts: list[object] = ["[dim]Next page:[/dim]"]
@@ -121,6 +126,8 @@ def _print_next_page(
         parts += ["--review-state", as_text(review_state)]
     if last_seen_run_id is not None:
         parts += ["--last-seen-run-id", as_text(last_seen_run_id)]
+    if sort is not None:
+        parts += ["--sort", as_text(sort)]
     if limit != _PAGE_DEFAULT:
         parts += ["--limit", as_text(limit)]
     parts += ["--cursor", as_text(next_cursor)]
@@ -242,17 +249,30 @@ def prospects_list(
     last_seen_run_id: str | None = typer.Option(
         None, "--last-seen-run-id", help="Only prospects last written by this Run"
     ),
+    sort: str | None = typer.Option(
+        None,
+        "--sort",
+        help=(
+            "Order: score, signal_strength or discovered. "
+            "The default is discovered, which is the date this organization "
+            "first saw the company."
+        ),
+    ),
     cursor: str | None = typer.Option(None, "--cursor", help="Page to continue"),
     limit: int = typer.Option(_PAGE_DEFAULT, "--limit", help="Page size, 1 to 100"),
     json_output: bool = JSON_OPTION,
 ) -> None:
-    """List prospects, newest first. Name a review state to read one."""
+    """List prospects. Name a sort to change the order, or a review state to
+    read one."""
     set_json_mode(json_output)
     params = _page_params(limit, cursor)
     if review_state is not None:
         params["review_state"] = review_state
     if last_seen_run_id is not None:
         params["last_seen_run_id"] = last_seen_run_id
+    # The API owns the default sort, so an omitted option cannot drift from it.
+    if sort is not None:
+        params["sort"] = sort
     data = _api_request("get", _PROSPECTS, params=params).json()
     if json_output:
         print_json(data)
@@ -264,6 +284,7 @@ def prospects_list(
         limit,
         review_state=review_state,
         last_seen_run_id=last_seen_run_id,
+        sort=sort,
     )
 
 

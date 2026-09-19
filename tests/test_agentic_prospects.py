@@ -411,6 +411,36 @@ def test_list_forwards_filter_cursor_and_limit(invoke, mock_api):
     assert "--review-state watching --limit 10 --cursor next" in result.output
 
 
+@pytest.mark.parametrize("sort", ["score", "signal_strength", "discovered"])
+def test_list_forwards_each_sort(invoke, mock_api, sort):
+    route = mock_api.get(BASE).respond(200, json={"items": [], "next_cursor": None})
+
+    result = invoke(["agentic", "prospects", "list", "--sort", sort])
+
+    assert result.exit_code == 0
+    assert route.calls[0].request.url.params["sort"] == sort
+
+
+def test_list_sends_no_sort_by_default(invoke, mock_api):
+    """The API owns the default, so the CLI cannot drift from it."""
+    route = mock_api.get(BASE).respond(200, json={"items": [], "next_cursor": None})
+
+    result = invoke(["agentic", "prospects", "list"])
+
+    assert result.exit_code == 0
+    assert "sort" not in route.calls[0].request.url.params
+
+
+def test_the_next_page_keeps_the_sort(invoke, mock_api):
+    """A cursor belongs to one sort, so the hint that replays it names that
+    sort."""
+    mock_api.get(BASE).respond(200, json={"items": [], "next_cursor": "tok"})
+
+    result = invoke(["agentic", "prospects", "list", "--sort", "signal_strength"])
+
+    assert "--sort signal_strength --cursor tok" in result.output
+
+
 def test_list_filters_by_last_seen_run(invoke, mock_api):
     run_id = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"
     route = mock_api.get(BASE).respond(200, json={"items": [], "next_cursor": "tok"})
@@ -457,6 +487,18 @@ def test_list_forwards_an_explicit_empty_cursor_for_api_validation(invoke, mock_
     assert result.exit_code == 1
     assert "cursor" in route.calls[0].request.url.params
     assert route.calls[0].request.url.params["cursor"] == ""
+
+
+def test_a_cursor_of_another_sort_is_refused(invoke, mock_api):
+    """The API refuses the token, and the command reports that refusal."""
+    route = mock_api.get(BASE).respond(
+        400, json={"detail": "the cursor was written for the score sort"}
+    )
+
+    result = invoke(["agentic", "prospects", "list", "--sort", "signal_strength", "--cursor", "t"])
+
+    assert result.exit_code == 1
+    assert route.calls[0].request.url.params["sort"] == "signal_strength"
 
 
 def test_get_prints_the_prospect_and_company(invoke, mock_api):
