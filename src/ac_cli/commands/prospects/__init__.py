@@ -54,6 +54,13 @@ _DETAIL_FIELDS = [
     ("created_at", "Created"),
     ("updated_at", "Updated"),
 ]
+#: The review states, in the order the inbox shows its tabs.
+_COUNT_FIELDS = [
+    ("new", "New"),
+    ("watching", "Watching"),
+    ("dismissed", "Dismissed"),
+    ("promoted", "Promoted"),
+]
 _COMPANY_FIELDS = [
     ("id", "Company ID"),
     ("description", "Description"),
@@ -286,6 +293,20 @@ def prospects_list(
         last_seen_run_id=last_seen_run_id,
         sort=sort,
     )
+
+
+@app.command("counts")
+def prospects_counts(
+    ctx: typer.Context,
+    json_output: bool = JSON_OPTION,
+) -> None:
+    """Count the prospects in each review state."""
+    set_json_mode(json_output)
+    data = _api_request("get", f"{_PROSPECTS}/counts").json()
+    if json_output:
+        print_json(data)
+        return
+    print_detail(data, _COUNT_FIELDS)
 
 
 @app.command("get")

@@ -501,6 +501,49 @@ def test_a_cursor_of_another_sort_is_refused(invoke, mock_api):
     assert route.calls[0].request.url.params["sort"] == "signal_strength"
 
 
+COUNTS = {"new": 4, "watching": 2, "dismissed": 1, "promoted": 0}
+
+
+def test_counts_prints_every_review_state(invoke, mock_api):
+    route = mock_api.get(f"{BASE}/counts").respond(200, json=COUNTS)
+
+    result = invoke(["agentic", "prospects", "counts"])
+
+    assert result.exit_code == 0
+    assert route.called
+    for label in ("New", "Watching", "Dismissed", "Promoted"):
+        assert label in result.output
+
+
+def test_counts_prints_a_zero_state(invoke, mock_api):
+    """A state with no prospect reads 0, and never a blank cell."""
+    mock_api.get(f"{BASE}/counts").respond(
+        200, json={"new": 0, "watching": 0, "dismissed": 0, "promoted": 0}
+    )
+
+    result = invoke(["agentic", "prospects", "counts"])
+
+    assert result.exit_code == 0
+    assert "0" in result.output
+
+
+def test_counts_json_keeps_the_body(invoke, mock_api):
+    mock_api.get(f"{BASE}/counts").respond(200, json=COUNTS)
+
+    result = invoke(["agentic", "prospects", "counts", "--json"])
+
+    assert result.exit_code == 0
+    assert json.loads(result.output) == COUNTS
+
+
+def test_counts_reports_an_api_refusal(invoke, mock_api):
+    mock_api.get(f"{BASE}/counts").respond(403, json={"detail": "no access"})
+
+    result = invoke(["agentic", "prospects", "counts"])
+
+    assert result.exit_code == 4
+
+
 def test_get_prints_the_prospect_and_company(invoke, mock_api):
     route = mock_api.get(f"{BASE}/{PROSPECT_ID}").respond(200, json=DETAIL)
 
