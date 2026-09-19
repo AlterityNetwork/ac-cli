@@ -492,7 +492,7 @@ def test_list_forwards_an_explicit_empty_cursor_for_api_validation(invoke, mock_
 def test_a_cursor_of_another_sort_is_refused(invoke, mock_api):
     """The API refuses the token, and the command reports that refusal."""
     route = mock_api.get(BASE).respond(
-        400, json={"detail": "the cursor was written for the score sort"}
+        400, json={"detail": "the cursor was written for another sort"}
     )
 
     result = invoke(["agentic", "prospects", "list", "--sort", "signal_strength", "--cursor", "t"])
