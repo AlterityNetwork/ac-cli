@@ -379,6 +379,18 @@ def prospects_dismiss(
     _print_curation(data, json_output=json_output)
 
 
+@app.command("restore")
+def prospects_restore(
+    ctx: typer.Context,
+    prospect_id: str = typer.Argument(..., help="Prospect ID"),
+    json_output: bool = JSON_OPTION,
+) -> None:
+    """Return one watched or dismissed prospect to new."""
+    set_json_mode(json_output)
+    data = _api_request("post", f"{_PROSPECTS}/{prospect_id}/restore").json()
+    _print_curation(data, json_output=json_output)
+
+
 @app.command("dismiss-action")
 def prospects_dismiss_action(
     ctx: typer.Context,

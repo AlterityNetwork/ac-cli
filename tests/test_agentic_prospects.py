@@ -589,6 +589,44 @@ def test_curation_maps_promoted_to_exit_five(invoke, mock_api):
     assert invoke(["agentic", "prospects", "watch", PROSPECT_ID]).exit_code == 5
 
 
+def test_restore_posts_the_intent_and_prints_durable_state(invoke, mock_api):
+    route = mock_api.post(f"{BASE}/{PROSPECT_ID}/restore").respond(
+        200, json={**DETAIL, "review_state": "new"}
+    )
+
+    result = invoke(["agentic", "prospects", "restore", PROSPECT_ID])
+
+    assert result.exit_code == 0
+    assert route.called
+    assert "new" in result.output
+
+
+def test_restore_json_keeps_the_durable_detail(invoke, mock_api):
+    detail = {**DETAIL, "review_state": "new"}
+    mock_api.post(f"{BASE}/{PROSPECT_ID}/restore").respond(200, json=detail)
+
+    result = invoke(["agentic", "prospects", "restore", PROSPECT_ID, "--json"])
+
+    assert json.loads(result.output) == detail
+
+
+def test_restore_maps_not_found_to_exit_three(invoke, mock_api):
+    mock_api.post(f"{BASE}/{PROSPECT_ID}/restore").respond(
+        404, json={"detail": "prospect not found"}
+    )
+
+    assert invoke(["agentic", "prospects", "restore", PROSPECT_ID]).exit_code == 3
+
+
+def test_restore_maps_a_promoted_prospect_to_exit_five(invoke, mock_api):
+    mock_api.post(f"{BASE}/{PROSPECT_ID}/restore").respond(
+        409,
+        json={"detail": "a promoted prospect is in the CRM and cannot be restored"},
+    )
+
+    assert invoke(["agentic", "prospects", "restore", PROSPECT_ID]).exit_code == 5
+
+
 DISMISSED = {
     **DETAIL,
     "suggested_action_dismissed_at": "2026-08-28T11:00:00Z",
@@ -645,6 +683,7 @@ def test_prospects_help_lists_every_command(invoke):
         "watch",
         "dismiss",
         "dismiss-action",
+        "restore",
         "act",
         "promote",
     ):
