@@ -45,6 +45,7 @@ _DETAIL_FIELDS = [
     ("latest_signal_observed_at", "Signal observed"),
     ("top_person_name", "Top person"),
     ("suggested_action_text", "Suggested action"),
+    ("suggested_action_dismissed_at", "Action dismissed"),
     ("people_state", "People"),
     ("people_state_reason", "People reason"),
     ("crm_company_id", "CRM company ID"),
@@ -55,6 +56,7 @@ _DETAIL_FIELDS = [
 ]
 _COMPANY_FIELDS = [
     ("id", "Company ID"),
+    ("description", "Description"),
     ("linkedin_url", "LinkedIn"),
     ("website", "Website"),
     ("industry", "Industry"),
@@ -375,6 +377,21 @@ def prospects_dismiss(
     set_json_mode(json_output)
     data = _api_request("post", f"{_PROSPECTS}/{prospect_id}/dismiss").json()
     _print_curation(data, json_output=json_output)
+
+
+@app.command("dismiss-action")
+def prospects_dismiss_action(
+    ctx: typer.Context,
+    prospect_id: str = typer.Argument(..., help="Prospect ID"),
+    json_output: bool = JSON_OPTION,
+) -> None:
+    """Close the suggested action card of one prospect."""
+    set_json_mode(json_output)
+    data = _api_request("post", f"{_PROSPECTS}/{prospect_id}/suggested-action/dismiss").json()
+    if json_output:
+        print_json(data)
+        return
+    _print_prospect(data)
 
 
 _ACT_FIELDS = [

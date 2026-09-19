@@ -23,6 +23,7 @@ SUMMARY = {
     "latest_signal": None,
     "top_person": None,
     "suggested_action": None,
+    "suggested_action_dismissed_at": None,
     "first_seen_at": "2026-08-28T10:00:00Z",
     "last_seen_at": "2026-08-28T10:00:00Z",
     "created_at": "2026-08-28T10:00:00Z",
@@ -32,6 +33,7 @@ DETAIL = {
     **SUMMARY,
     "company": {
         "id": "22222222-2222-4222-8222-222222222222",
+        "description": "Acme sells a payments platform to small retailers.",
         "linkedin_url": None,
         "website": "https://acme.test",
         "industry": "Software",
@@ -587,6 +589,50 @@ def test_curation_maps_promoted_to_exit_five(invoke, mock_api):
     assert invoke(["agentic", "prospects", "watch", PROSPECT_ID]).exit_code == 5
 
 
+DISMISSED = {
+    **DETAIL,
+    "suggested_action_dismissed_at": "2026-08-28T11:00:00Z",
+}
+
+
+def test_dismiss_action_posts_and_prints_the_durable_stamp(invoke, mock_api):
+    route = mock_api.post(f"{BASE}/{PROSPECT_ID}/suggested-action/dismiss").respond(
+        200, json=DISMISSED
+    )
+
+    result = invoke(["agentic", "prospects", "dismiss-action", PROSPECT_ID])
+
+    assert result.exit_code == 0
+    assert route.called
+    assert "Action dismissed" in result.output
+    assert "2026-08-28T11:00:00Z" in result.output
+
+
+def test_dismiss_action_json_keeps_the_durable_detail(invoke, mock_api):
+    mock_api.post(f"{BASE}/{PROSPECT_ID}/suggested-action/dismiss").respond(200, json=DISMISSED)
+
+    result = invoke(["agentic", "prospects", "dismiss-action", PROSPECT_ID, "--json"])
+
+    assert json.loads(result.output) == DISMISSED
+
+
+def test_dismiss_action_maps_not_found_to_exit_three(invoke, mock_api):
+    mock_api.post(f"{BASE}/{PROSPECT_ID}/suggested-action/dismiss").respond(
+        404, json={"detail": "prospect not found"}
+    )
+
+    assert invoke(["agentic", "prospects", "dismiss-action", PROSPECT_ID]).exit_code == 3
+
+
+def test_an_open_card_prints_a_blank_dismissal(invoke, mock_api):
+    mock_api.get(f"{BASE}/{PROSPECT_ID}").respond(200, json=DETAIL)
+
+    result = invoke(["agentic", "prospects", "get", PROSPECT_ID])
+
+    assert result.exit_code == 0
+    assert "Action dismissed" in result.output
+
+
 def test_prospects_help_lists_every_command(invoke):
     result = invoke(["agentic", "prospects", "--help"])
 
@@ -598,6 +644,7 @@ def test_prospects_help_lists_every_command(invoke):
         "signals",
         "watch",
         "dismiss",
+        "dismiss-action",
         "act",
         "promote",
     ):
