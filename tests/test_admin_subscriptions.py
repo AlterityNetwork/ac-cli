@@ -587,3 +587,13 @@ def test_subscriptions_switch_comped_error_maps_exit_code(invoke, mock_api):
     )
     result = invoke(["admin", "subscriptions", "switch-comped", "sub-1", "--yes", "--json"])
     assert result.exit_code == 4
+
+
+def test_plans_update_rejected_template_exits_nonzero(invoke, mock_api):
+    mock_api.patch("/api/v1/admin/subscription-plans/plan-1").respond(
+        422, json={"detail": [{"msg": "Extra inputs are not permitted"}]}
+    )
+    result = invoke(
+        ["admin", "subscription-plans", "update", "plan-1", "--features", '{"seats": 10}']
+    )
+    assert result.exit_code == 2
