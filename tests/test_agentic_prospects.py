@@ -762,6 +762,7 @@ def test_prospects_help_lists_every_command(invoke):
     assert result.exit_code == 0
     for command in (
         "list",
+        "counts",
         "get",
         "people",
         "signals",
