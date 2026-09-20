@@ -54,6 +54,8 @@ def _handle_error(exc: httpx.HTTPStatusError) -> None:
     exit_code = _EXIT_CODES.get(exc.response.status_code, 1)
     if _json_output.get():
         error = {"error": True, "status_code": exc.response.status_code, "detail": detail}
+        # The public API error contract exposes context as a JSON object.
+        # Do not forward arbitrary scalar/list payloads outside that contract.
         if isinstance(context, dict):
             error["context"] = context
         print_json(error)

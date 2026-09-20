@@ -360,7 +360,7 @@ def test_signals_create_rejects_malformed_resolution_file_before_http(invoke, mo
     path.write_text("{broken", encoding="utf-8")
     result = invoke([*_create_args(), "--resolution-file", str(path), "--json"])
     assert result.exit_code == 2
-    assert "--resolution-file" in json.loads(result.output)["detail"]
+    assert json.loads(result.output)["detail"] == "--resolution-file must contain valid JSON"
     assert not mock_api.calls
 
 
@@ -378,7 +378,8 @@ def test_signals_create_rejects_unreadable_resolution_file(invoke, mock_api, tmp
         [*_create_args(), "--resolution-file", str(tmp_path / "missing.json"), "--json"]
     )
     assert result.exit_code == 2
-    assert "--resolution-file" in json.loads(result.output)["detail"]
+    assert json.loads(result.output)["detail"].startswith("Cannot read --resolution-file:")
+    assert "missing.json" in json.loads(result.output)["detail"]
     assert not mock_api.calls
 
 
@@ -400,4 +401,18 @@ def test_signal_resolution_error_preserves_snapshot_and_candidates(
         "status_code": status_code,
         "detail": "Compare candidate events",
         "context": context,
+    }
+
+
+@pytest.mark.parametrize("context", [["private payload"], "private payload", None])
+def test_signal_resolution_error_omits_non_object_context(invoke, mock_api, context):
+    mock_api.post("/api/v1/admin/intelligence/signals").respond(
+        400, json={"message": "Invalid event resolution", "context": context}
+    )
+    result = invoke([*_create_args(), "--json"])
+    assert result.exit_code == 1
+    assert json.loads(result.output) == {
+        "error": True,
+        "status_code": 400,
+        "detail": "Invalid event resolution",
     }

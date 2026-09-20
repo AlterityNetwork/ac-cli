@@ -159,8 +159,10 @@ def signals_create(
     if resolution_file is not None:
         try:
             resolution = json.loads(resolution_file.read_text(encoding="utf-8"))
-        except (OSError, ValueError):
-            refuse_local("--resolution-file must contain a readable JSON object")
+        except OSError as exc:
+            refuse_local(f"Cannot read --resolution-file: {exc}")
+        except ValueError:
+            refuse_local("--resolution-file must contain valid JSON")
         if not isinstance(resolution, dict):
             refuse_local("--resolution-file must contain a JSON object")
         body["resolution"] = resolution
