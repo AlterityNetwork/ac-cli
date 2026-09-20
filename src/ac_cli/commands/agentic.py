@@ -144,19 +144,14 @@ _SPAN_FIELDS = [
 @capabilities_app.command("start")
 def capabilities_start(
     capability_id: str = typer.Argument(..., help="Stable capability ID, such as company.search"),
-    contract_version: int = typer.Option(
-        ..., "--contract-version", help="Published contract version"
-    ),
     input_json: str = typer.Option(..., "--input", help="Capability input as a JSON object"),
     idempotency_key: str = typer.Option(
         ..., "--idempotency-key", help="Delivery key; reuse it only for the same request"
     ),
     json_output: bool = JSON_OPTION,
 ) -> None:
-    """Start a capability with an explicit contract version and delivery key."""
+    """Start a capability with the active contract and a delivery key."""
     set_json_mode(json_output)
-    if contract_version < 1:
-        refuse_local("--contract-version must be positive", contract_version)
     idempotency_key = checked_header_key(idempotency_key)
     try:
         value = json.loads(input_json)
@@ -170,7 +165,7 @@ def capabilities_start(
     resp = _api_request(
         "post",
         f"{_AGENTIC}/capabilities/{capability_id}/runs",
-        json={"contract_version": contract_version, "input": value},
+        json={"input": value},
         headers={"Idempotency-Key": idempotency_key},
     )
     data = resp.json()
@@ -1004,7 +999,6 @@ _CAPABILITY_LIST_FIELDS = [
     ("availability", "Availability"),
     ("reason", "Reason"),
     ("name", "Name"),
-    ("contract_version", "Version"),
 ]
 
 _CAPABILITY_FIELDS = [
@@ -1013,7 +1007,6 @@ _CAPABILITY_FIELDS = [
     ("reason", "Reason"),
     ("name", "Name"),
     ("description", "Description"),
-    ("contract_version", "Version"),
     ("executor_type", "Executor"),
 ]
 

@@ -20,8 +20,6 @@ ARGS = [
     "capabilities",
     "start",
     "company.search",
-    "--contract-version",
-    "1",
     "--input",
     '{"query":"acme"}',
     "--idempotency-key",
@@ -52,7 +50,7 @@ def test_start_preserves_request_and_run_response(invoke, mock_api, outcome, sta
     assert result.exit_code == 0, result.output
     assert json.loads(result.output) == run
     request = route.calls[0].request
-    assert json.loads(request.content) == {"contract_version": 1, "input": {"query": "acme"}}
+    assert json.loads(request.content) == {"input": {"query": "acme"}}
     assert request.headers["Idempotency-Key"] == "delivery-42"
 
 
@@ -72,7 +70,7 @@ def test_human_response_shows_capability_and_status(invoke, mock_api):
     assert "waiting" in result.output
 
 
-@pytest.mark.parametrize("flag", ["--contract-version", "--input", "--idempotency-key"])
+@pytest.mark.parametrize("flag", ["--input", "--idempotency-key"])
 def test_required_flags_cannot_default(invoke, mock_api, flag):
     args = ARGS.copy()
     index = args.index(flag)
@@ -103,14 +101,6 @@ def test_bad_local_input_is_a_json_error_without_http(invoke, mock_api, flag, va
     assert not mock_api.calls
 
 
-@pytest.mark.parametrize("value", ["0", "-1", "1.5", "true"])
-def test_version_is_a_positive_integer(invoke, mock_api, value):
-    args = ARGS.copy()
-    args[args.index("--contract-version") + 1] = value
-    assert invoke(args).exit_code == 2
-    assert not mock_api.calls
-
-
 @pytest.mark.parametrize(
     "status,code,exit_code",
     [
@@ -119,7 +109,6 @@ def test_version_is_a_positive_integer(invoke, mock_api, value):
         (404, "capability_not_found", 3),
         (409, "capability_unavailable", 5),
         (409, "idempotency_conflict", 5),
-        (409, "contract_version_conflict", 5),
         (413, "input_too_large", 1),
         (422, "invalid_input", 2),
         (429, "budget_denied", 1),
@@ -176,6 +165,7 @@ def test_capabilities_list(invoke, mock_api):
     assert result.exit_code == 0
     assert "company.search" in result.output
     assert "Capabilities (1)" in result.output
+    assert "Version" not in result.output
 
 
 def test_capabilities_list_asks_for_available_only_by_default(invoke, mock_api):
@@ -245,6 +235,7 @@ def test_capabilities_get(invoke, mock_api):
     assert route.called
     assert result.exit_code == 0
     assert "Company Search" in result.output
+    assert "Version" not in result.output
     # The scopes are a list, so `print_detail` cannot render them.
     assert "crm.get_company" in result.output
 
