@@ -24,10 +24,6 @@ _SAVED_SEARCHES = "/api/v1/agentic/saved-searches"
 #: takes the rows it works on, so the API refuses a saved brief for one.
 _CAPABILITIES = ("signals.search", "people.search", "company.search")
 _CAPABILITY_HELP = f"Which product saves the brief: {', '.join(_CAPABILITIES)}"
-#: The row records the version the caller is serving, never a constant in the
-#: API. A tenant runs the binding its provisioning wrote. Read it from
-#: `ac agentic capabilities get <id>`.
-_VERSION_HELP = "The version the capability publishes to your organization now"
 _PAGE_DEFAULT = 50
 _PAGE_MIN = 1
 _PAGE_MAX = 100
@@ -44,7 +40,6 @@ _SUMMARY_FIELDS = [
 _DETAIL_FIELDS = [
     ("id", "Saved search ID"),
     ("capability_id", "Capability"),
-    ("contract_version", "Contract version"),
     ("name", "Name"),
     ("last_run_id", "Last run"),
     ("last_run_at", "Last run at"),
@@ -87,13 +82,6 @@ def _checked_capability(capability: str) -> str:
     refuse_local(f"--capability must be one of: {', '.join(_CAPABILITIES)}", capability)
 
 
-def _checked_contract_version(version: int) -> int:
-    """Refuse a version that the stable capability contract refuses."""
-    if version >= 1:
-        return version
-    refuse_local("--contract-version must be positive")
-
-
 def _page_params(limit: int, cursor: str | None) -> dict[str, object]:
     """Build one page query and preserve an explicit empty cursor."""
     params: dict[str, object] = {"limit": _checked_limit(limit)}
@@ -125,7 +113,6 @@ def _print_saved_search(data: dict) -> None:
 def saved_searches_create(
     ctx: typer.Context,
     capability: str = typer.Option(..., "--capability", help=_CAPABILITY_HELP),
-    contract_version: int = typer.Option(..., "--contract-version", help=_VERSION_HELP),
     name: str = typer.Option(..., "--name", help="What to call the saved search"),
     brief: str = typer.Option(
         ...,
@@ -138,7 +125,6 @@ def saved_searches_create(
     set_json_mode(json_output)
     body = {
         "capability_id": _checked_capability(capability),
-        "contract_version": _checked_contract_version(contract_version),
         "name": name,
         "brief": _parse_object(brief, "--brief"),
     }
@@ -200,28 +186,19 @@ def saved_searches_patch(
     brief: str | None = typer.Option(
         None,
         "--brief",
-        help="Full replacement brief JSON; it needs --contract-version",
+        help="Full replacement brief JSON",
     ),
-    contract_version: int | None = typer.Option(None, "--contract-version", help=_VERSION_HELP),
     json_output: bool = JSON_OPTION,
 ) -> None:
-    """Replace the name, brief, or both under one write token.
-
-    A replacement brief also records the version it was written under, which
-    is how a start stops refusing a stale one. A rename reads no schema, so it
-    names no version.
-    """
+    """Replace the name, brief, or both under one write token."""
     set_json_mode(json_output)
     if name is None and brief is None:
         refuse_local("provide --name or --brief")
-    if (brief is None) != (contract_version is None):
-        refuse_local("pass --contract-version with --brief, and only with it")
     body: dict = {"expected_updated_at": expected_updated_at}
     if name is not None:
         body["name"] = name
     if brief is not None:
         body["brief"] = _parse_object(brief, "--brief")
-        body["contract_version"] = _checked_contract_version(contract_version or 0)
     data = _api_request("patch", f"{_SAVED_SEARCHES}/{search_id}", json=body).json()
     if json_output:
         print_json(data)
@@ -251,11 +228,6 @@ def saved_searches_delete(
 def saved_searches_start(
     ctx: typer.Context,
     search_id: str = typer.Argument(..., help="Saved search ID"),
-    contract_version: int = typer.Option(
-        ...,
-        "--contract-version",
-        help="The version the capability publishes now",
-    ),
     idempotency_key: str = typer.Option(
         ...,
         "--idempotency-key",
@@ -263,18 +235,13 @@ def saved_searches_start(
     ),
     json_output: bool = JSON_OPTION,
 ) -> None:
-    """Start one Run with the stored brief.
-
-    The API refuses a brief whose stored contract version is no longer the
-    published one. Correct the brief with `patch --brief` to clear that.
-    """
+    """Start one Run with the stored brief and active contract."""
     set_json_mode(json_output)
-    version = _checked_contract_version(contract_version)
     key = checked_header_key(idempotency_key)
     data = _api_request(
         "post",
         f"{_SAVED_SEARCHES}/{search_id}/runs",
-        json={"contract_version": version},
+        json={},
         headers={"Idempotency-Key": key},
     ).json()
     if json_output:
