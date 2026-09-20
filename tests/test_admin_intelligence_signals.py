@@ -2,6 +2,8 @@
 
 import json
 
+import pytest
+
 SAMPLE_SIGNAL = {
     "id": "sig-1",
     "subject_type": "company",
@@ -298,3 +300,104 @@ def test_sources_bulk_delete(invoke, mock_api):
     result = invoke(["admin", "intelligence", "sources", "bulk-delete", "--id", "src-1", "--yes"])
     assert result.exit_code == 0
     assert json.loads(route.calls.last.request.content) == {"ids": ["src-1"]}
+
+
+def _create_args():
+    return [
+        "admin",
+        "intelligence",
+        "signals",
+        "create",
+        "--subject-type",
+        "company",
+        "--subject-id",
+        "co-1",
+        "--signal-type",
+        "funding_round",
+        "--observed-at",
+        "2026-06-01T09:00:00Z",
+    ]
+
+
+def test_signals_create_forwards_resolution_file(invoke, mock_api, tmp_path):
+    resolution = {
+        "snapshot": "observed-candidate-snapshot",
+        "comparisons": [
+            {
+                "candidate_id": "44444444-4444-4444-8444-444444444444",
+                "verdict": "same",
+                "incoming_evidence": "Acme raised GBP 10m in a Series B",
+                "candidate_evidence": "Series B funding of GBP 10m",
+                "reason": "Same company, amount and round",
+            }
+        ],
+    }
+    path = tmp_path / "resolution.json"
+    path.write_text(json.dumps(resolution), encoding="utf-8")
+    route = mock_api.post("/api/v1/admin/intelligence/signals").respond(200, json=SAMPLE_SIGNAL)
+    result = invoke(
+        [
+            *_create_args(),
+            "--resolution-file",
+            str(path),
+            "--source-id",
+            "src-1",
+            "--description",
+            "Acme raised GBP 10m in a Series B",
+            "--json",
+        ]
+    )
+    assert result.exit_code == 0
+    body = json.loads(route.calls.last.request.content)
+    assert body["resolution"] == resolution
+    assert body["source_id"] == "src-1"
+    assert body["description"] == "Acme raised GBP 10m in a Series B"
+    assert json.loads(result.output) == SAMPLE_SIGNAL
+
+
+def test_signals_create_rejects_malformed_resolution_file_before_http(invoke, mock_api, tmp_path):
+    path = tmp_path / "broken.json"
+    path.write_text("{broken", encoding="utf-8")
+    result = invoke([*_create_args(), "--resolution-file", str(path), "--json"])
+    assert result.exit_code == 2
+    assert "--resolution-file" in json.loads(result.output)["detail"]
+    assert not mock_api.calls
+
+
+def test_signals_create_rejects_non_object_resolution_file(invoke, mock_api, tmp_path):
+    path = tmp_path / "array.json"
+    path.write_text("[]", encoding="utf-8")
+    result = invoke([*_create_args(), "--resolution-file", str(path), "--json"])
+    assert result.exit_code == 2
+    assert "JSON object" in json.loads(result.output)["detail"]
+    assert not mock_api.calls
+
+
+def test_signals_create_rejects_unreadable_resolution_file(invoke, mock_api, tmp_path):
+    result = invoke(
+        [*_create_args(), "--resolution-file", str(tmp_path / "missing.json"), "--json"]
+    )
+    assert result.exit_code == 2
+    assert "--resolution-file" in json.loads(result.output)["detail"]
+    assert not mock_api.calls
+
+
+@pytest.mark.parametrize("status_code,exit_code", [(400, 1), (422, 2)])
+def test_signal_resolution_error_preserves_snapshot_and_candidates(
+    invoke, mock_api, status_code, exit_code
+):
+    context = {
+        "snapshot": "snapshot-1",
+        "candidates": [{"id": "signal-1", "claims": ["Acme raised a Series B"]}],
+    }
+    mock_api.post("/api/v1/admin/intelligence/signals").respond(
+        status_code, json={"message": "Compare candidate events", "context": context}
+    )
+    result = invoke([*_create_args(), "--json"])
+    assert result.exit_code == exit_code
+    assert json.loads(result.output) == {
+        "error": True,
+        "status_code": status_code,
+        "detail": "Compare candidate events",
+        "context": context,
+    }

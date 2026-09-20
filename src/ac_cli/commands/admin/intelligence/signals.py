@@ -8,11 +8,15 @@
 
 from __future__ import annotations
 
+import json
+from pathlib import Path
+
 import typer
 
 from ac_cli.commands._helpers import (
     JSON_OPTION,
     _api_request,
+    refuse_local,
     set_json_mode,
     should_skip_confirm,
 )
@@ -134,6 +138,11 @@ def signals_create(
         None, "--related-company", help="Company the signal rolls up to"
     ),
     source_id: str | None = typer.Option(None, "--source-id", help="Discovering fetch ID"),
+    resolution_file: Path | None = typer.Option(
+        None,
+        "--resolution-file",
+        help="JSON object with a candidate snapshot and evidence comparisons",
+    ),
     json_output: bool = JSON_OPTION,
 ) -> None:
     """Create an intel signal. The dedup key is derived server-side."""
@@ -147,6 +156,14 @@ def signals_create(
         related_company_id=related_company_id,
         source_id=source_id,
     )
+    if resolution_file is not None:
+        try:
+            resolution = json.loads(resolution_file.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            refuse_local("--resolution-file must contain a readable JSON object")
+        if not isinstance(resolution, dict):
+            refuse_local("--resolution-file must contain a JSON object")
+        body["resolution"] = resolution
     resp = _api_request("post", f"{_INTEL}/signals", json=body)
     data = resp.json()
     if json_output:

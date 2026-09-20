@@ -44,14 +44,19 @@ def _handle_error(exc: httpx.HTTPStatusError) -> None:
     reason. Print the detail through as_text, which never reaches the markup
     parser. See as_text in formatting.py.
     """
+    context = None
     try:
         body = exc.response.json()
+        context = body.get("context")
         detail = body.get("detail") or body.get("message") or exc.response.text
     except (ValueError, KeyError):
         detail = exc.response.text
     exit_code = _EXIT_CODES.get(exc.response.status_code, 1)
     if _json_output.get():
-        print_json({"error": True, "status_code": exc.response.status_code, "detail": detail})
+        error = {"error": True, "status_code": exc.response.status_code, "detail": detail}
+        if isinstance(context, dict):
+            error["context"] = context
+        print_json(error)
     else:
         rprint(styled("[red]Error {}:[/red]", exc.response.status_code), as_text(detail))
     raise typer.Exit(code=exit_code)
