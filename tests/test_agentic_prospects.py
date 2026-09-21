@@ -772,6 +772,7 @@ def test_prospects_help_lists_every_command(invoke):
         "restore",
         "act",
         "promote",
+        "delete",
     ):
         assert command in result.output
 
@@ -855,3 +856,36 @@ def test_promote_reports_a_conflict(invoke, mock_api):
 
     assert result.exit_code != 0
     assert "cannot resolve" in result.output
+
+
+def test_delete_removes_the_prospect(invoke, mock_api):
+    route = mock_api.delete(f"{BASE}/{PROSPECT_ID}").respond(204)
+
+    result = invoke(["agentic", "prospects", "delete", PROSPECT_ID, "--yes"])
+
+    assert result.exit_code == 0
+    assert route.called
+    assert PROSPECT_ID in result.output
+
+
+def test_delete_json_names_the_prospect(invoke, mock_api):
+    mock_api.delete(f"{BASE}/{PROSPECT_ID}").respond(204)
+
+    result = invoke(["agentic", "prospects", "delete", PROSPECT_ID, "--yes", "--json"])
+
+    assert json.loads(result.output) == {"ok": True, "id": PROSPECT_ID, "action": "delete"}
+
+
+def test_delete_asks_before_it_removes_the_prospect(invoke, mock_api):
+    route = mock_api.delete(f"{BASE}/{PROSPECT_ID}").respond(204)
+
+    result = invoke(["agentic", "prospects", "delete", PROSPECT_ID], input="n\n")
+
+    assert result.exit_code != 0
+    assert not route.calls
+
+
+def test_delete_maps_not_found_to_exit_three(invoke, mock_api):
+    mock_api.delete(f"{BASE}/{PROSPECT_ID}").respond(404, json={"detail": "prospect not found"})
+
+    assert invoke(["agentic", "prospects", "delete", PROSPECT_ID, "--yes"]).exit_code == 3
