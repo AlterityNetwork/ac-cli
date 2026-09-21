@@ -29,6 +29,7 @@ MESSAGE = {
     "attachment_count": 0,
     "run_id": None,
     "in_reply_to": None,
+    "kind": "reply",
     "created_at": "2026-08-30T10:00:00Z",
 }
 
@@ -121,7 +122,32 @@ def test_messages_reads_one_conversation(invoke, mock_api):
 
     assert result.exit_code == 0
     assert route.called
-    assert "what is my pipeline" in result.output
+    # The table can wrap the text after adding the message kind column.
+    assert "what is my" in result.output
+    assert "pipeline" in result.output
+
+
+def test_messages_tells_the_handoff_from_the_work_report(invoke, mock_api):
+    page = {
+        "items": [
+            {**MESSAGE, "role": "assistant", "text": "I started that.", "kind": "reply"},
+            {
+                **MESSAGE,
+                "id": "44444444-4444-4444-8444-444444444444",
+                "role": "assistant",
+                "text": "The search found 18 companies.",
+                "kind": "report",
+            },
+        ],
+        "next_cursor": None,
+    }
+    mock_api.get(MESSAGES).respond(200, json=page)
+
+    result = invoke(["agentic", "conversations", "messages", CONVERSATION_ID])
+
+    assert result.exit_code == 0
+    assert "reply" in result.output
+    assert "report" in result.output
 
 
 def test_messages_json_keeps_the_page(invoke, mock_api):
