@@ -29,6 +29,7 @@ import json
 import shlex
 import uuid
 from datetime import datetime
+from enum import Enum
 from urllib.parse import quote
 
 import typer
@@ -119,6 +120,7 @@ _LIST_FIELDS = [
     ("created_at", "Created"),
 ]
 
+
 # ⚠️ **`No call` is what makes the `Status` column readable.** A `tool` span
 # that reads `ok` is not always a call: a call that stopped for a person and a
 # call answered from the journal both close `ok` and both carry the tool name.
@@ -130,6 +132,13 @@ _LIST_FIELDS = [
 # hex characters still tell the spans of one run apart, so the column is worth
 # the four. An eighth would take a timestamp below that bar, which is why
 # `updated_at` prints on a line instead. See _print_spans_hint.
+class _SpanScope(str, Enum):
+    """Which spans a read answers. It mirrors `SpanScope` in ac-python-api."""
+
+    run = "run"
+    tree = "tree"
+
+
 _SPAN_FIELDS = [
     ("span_id", "Span ID"),
     ("kind", "Kind"),
@@ -508,13 +517,25 @@ def runs_spans(
         help="Read the spans that moved at or after this instant, as ISO 8601 with a time zone",
     ),
     cursor: str | None = typer.Option(None, "--cursor", help="Page to continue"),
+    scope: _SpanScope = typer.Option(
+        _SpanScope.run,
+        "--scope",
+        help="run reads this run alone, tree reads every run below its root",
+    ),
     limit: int = typer.Option(_PAGE_DEFAULT, "--limit", help="Page size, 1 to 100"),
     json_output: bool = JSON_OPTION,
 ) -> None:
-    """List the spans of one run.
+    """List the spans of one run, or of its whole tree.
 
     It reads the spans of that run alone. A child run holds its own spans, so
-    open the child to read them.
+    open the child to read them, or pass `--scope tree`.
+
+    ⚠️ **A node that runs an agent starts a child run.** That child writes its
+    own spans, so the default read never answers them. A company.search run
+    measured in ENG-2559 answered two spans by default while the tree held
+    five: the planner's run, segment and llm spans were under the child, and
+    they held 3,455 ms of a 6,309 ms run. Pass `--scope tree` to see where a
+    run spent its time.
 
     `--since` is what a client reads after a dropped stream. The run stream
     keeps no backlog, so a reconnecting reader asks for the spans that moved
@@ -550,6 +571,10 @@ def runs_spans(
         params["since"] = since
     if cursor:
         params["cursor"] = cursor
+    # The API defaults to the run, so a default read sends nothing and the
+    # request stays the one every older client wrote.
+    if scope is not _SpanScope.run:
+        params["scope"] = scope.value
 
     resp = _api_request("get", f"{_AGENTIC}/runs/{run_id}/spans", params=params)
 

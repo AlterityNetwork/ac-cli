@@ -470,6 +470,61 @@ def test_runs_spans_sends_since(invoke, mock_api):
     assert route.calls[0].request.url.params["since"] == "2026-08-26T10:00:00+00:00"
 
 
+def test_runs_spans_sends_the_tree_scope(invoke, mock_api):
+    """A node that runs an agent starts a child Run holding its own spans.
+
+    ENG-2559 measured a company.search Run whose default read answered two
+    spans while the tree held five. Without this option the CLI cannot ask
+    the route for the whole tree.
+    """
+    route = mock_api.get(f"/api/v1/agentic/runs/{SAMPLE_RUN['id']}/spans").respond(
+        200, json={"items": [], "next_cursor": None}
+    )
+
+    invoke(["agentic", "runs", "spans", SAMPLE_RUN["id"], "--scope", "tree"])
+
+    assert route.calls[0].request.url.params["scope"] == "tree"
+
+
+def test_runs_spans_omits_the_scope_when_it_is_the_default(invoke, mock_api):
+    """The API defaults to the run, so a plain read sends nothing."""
+    route = mock_api.get(f"/api/v1/agentic/runs/{SAMPLE_RUN['id']}/spans").respond(
+        200, json={"items": [], "next_cursor": None}
+    )
+
+    invoke(["agentic", "runs", "spans", SAMPLE_RUN["id"]])
+
+    assert "scope" not in route.calls[0].request.url.params
+
+
+def test_runs_spans_refuses_an_unknown_scope(invoke, mock_api):
+    """It refuses the value, and not the option.
+
+    Asserting the exit code alone passes before `--scope` exists at all, so
+    the message must name the two the API accepts.
+    """
+    result = invoke(["agentic", "runs", "spans", SAMPLE_RUN["id"], "--scope", "everything"])
+
+    assert result.exit_code != 0
+    assert "run" in result.output and "tree" in result.output
+
+
+def test_runs_spans_json_carries_the_capability_report(invoke, mock_api):
+    """The funnel the run recorded, which the table has no column for."""
+    report = {"company.search": {"totals": {"returned": 15, "excluded": 0}}}
+    mock_api.get(f"/api/v1/agentic/runs/{SAMPLE_RUN['id']}/spans").respond(
+        200,
+        json={
+            "items": [{**SAMPLE_SPAN, "reports": report}],
+            "next_cursor": None,
+        },
+    )
+
+    result = invoke(["agentic", "runs", "spans", SAMPLE_RUN["id"], "--json"])
+
+    assert json.loads(result.output)["items"][0]["reports"] == report
+
+
 def test_runs_spans_omits_since_when_absent(invoke, mock_api):
     """A plain read orders the page on `started_at`.
 
