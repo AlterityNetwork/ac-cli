@@ -353,3 +353,50 @@ def test_onboarding_template_file_error_is_json(invoke, tmp_path, file_kind):
         "status_code": None,
         "detail": "--framework-template-file must be a readable UTF-8 file",
     }
+
+
+def test_onboarding_create_comped_sends_flag(invoke, mock_api):
+    route = mock_api.post(f"{_BASE}/accounts").respond(200, json=SAMPLE_ACCOUNT)
+    result = invoke(
+        [
+            "admin",
+            "onboarding",
+            "create",
+            "--email",
+            "user@example.com",
+            "--first-name",
+            "Jane",
+            "--last-name",
+            "Doe",
+            "--org-name",
+            "Test Corp",
+            "--comped",
+            "--json",
+        ]
+    )
+    assert result.exit_code == 0
+    body = json.loads(route.calls.last.request.content)
+    assert body["is_comped"] is True
+
+
+def test_onboarding_create_omits_comped_by_default(invoke, mock_api):
+    route = mock_api.post(f"{_BASE}/accounts").respond(200, json=SAMPLE_ACCOUNT)
+    result = invoke(
+        [
+            "admin",
+            "onboarding",
+            "create",
+            "--email",
+            "user@example.com",
+            "--first-name",
+            "Jane",
+            "--last-name",
+            "Doe",
+            "--org-name",
+            "Test Corp",
+            "--json",
+        ]
+    )
+    assert result.exit_code == 0
+    body = json.loads(route.calls.last.request.content)
+    assert "is_comped" not in body

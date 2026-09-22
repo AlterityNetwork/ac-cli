@@ -69,8 +69,6 @@ def test_create_sends_name_and_full_brief(invoke, mock_api):
             "create",
             "--capability",
             SIGNALS,
-            "--contract-version",
-            "3",
             "--name",
             "UK fintech",
             "--brief",
@@ -81,7 +79,6 @@ def test_create_sends_name_and_full_brief(invoke, mock_api):
     assert result.exit_code == 0
     assert json.loads(route.calls[0].request.content) == {
         "capability_id": SIGNALS,
-        "contract_version": 3,
         "name": "UK fintech",
         "brief": BRIEF,
     }
@@ -99,8 +96,6 @@ def test_create_json_keeps_the_detail(invoke, mock_api):
             "create",
             "--capability",
             SIGNALS,
-            "--contract-version",
-            "3",
             "--name",
             "UK fintech",
             "--brief",
@@ -122,8 +117,6 @@ def test_create_refuses_non_object_brief_before_request(invoke, mock_api):
             "create",
             "--capability",
             SIGNALS,
-            "--contract-version",
-            "3",
             "--name",
             "UK fintech",
             "--brief",
@@ -147,8 +140,6 @@ def test_create_refuses_invalid_json_before_request(invoke, mock_api):
             "create",
             "--capability",
             SIGNALS,
-            "--contract-version",
-            "3",
             "--name",
             "UK fintech",
             "--brief",
@@ -274,8 +265,6 @@ def test_patch_sends_only_named_fields_and_opaque_token(invoke, mock_api):
             "opaque-token",
             "--brief",
             '{"company_criteria":["fintech"]}',
-            "--contract-version",
-            "3",
         ]
     )
 
@@ -283,7 +272,6 @@ def test_patch_sends_only_named_fields_and_opaque_token(invoke, mock_api):
     assert json.loads(route.calls[0].request.content) == {
         "expected_updated_at": "opaque-token",
         "brief": {"company_criteria": ["fintech"]},
-        "contract_version": 3,
     }
 
 
@@ -359,7 +347,7 @@ def test_delete_with_yes_prints_success(invoke, mock_api):
     assert "Saved search deleted" in result.output
 
 
-def test_start_sends_contract_version_and_given_key(invoke, mock_api):
+def test_start_uses_active_contract_and_given_key(invoke, mock_api):
     route = mock_api.post(f"{BASE}/{SEARCH_ID}/runs").respond(200, json=RUN)
 
     result = invoke(
@@ -368,54 +356,23 @@ def test_start_sends_contract_version_and_given_key(invoke, mock_api):
             "saved-searches",
             "start",
             SEARCH_ID,
-            "--contract-version",
-            "1",
             "--idempotency-key",
             "delivery-1",
         ]
     )
 
     assert result.exit_code == 0
-    assert json.loads(route.calls[0].request.content) == {"contract_version": 1}
+    assert json.loads(route.calls[0].request.content) == {}
     assert route.calls[0].request.headers["Idempotency-Key"] == "delivery-1"
     assert RUN_ID in result.output
 
 
-def test_start_requires_version_and_key(invoke, mock_api):
+def test_start_requires_key(invoke, mock_api):
     route = mock_api.post(f"{BASE}/{SEARCH_ID}/runs").respond(200, json=RUN)
 
-    missing_version = invoke(
-        ["agentic", "saved-searches", "start", SEARCH_ID, "--idempotency-key", "key"]
-    )
-    missing_key = invoke(
-        ["agentic", "saved-searches", "start", SEARCH_ID, "--contract-version", "1"]
-    )
+    missing_key = invoke(["agentic", "saved-searches", "start", SEARCH_ID])
 
-    assert missing_version.exit_code == 2
     assert missing_key.exit_code == 2
-    assert not route.called
-
-
-def test_start_refuses_an_invalid_version_before_request(invoke, mock_api):
-    """A version the contract refuses never reaches the API."""
-    route = mock_api.post(f"{BASE}/{SEARCH_ID}/runs").respond(200, json=RUN)
-
-    result = invoke(
-        [
-            "agentic",
-            "saved-searches",
-            "start",
-            SEARCH_ID,
-            "--contract-version",
-            "0",
-            "--idempotency-key",
-            "delivery-1",
-            "--json",
-        ]
-    )
-
-    assert result.exit_code == 2
-    assert json.loads(result.output)["error"] is True
     assert not route.called
 
 
@@ -428,8 +385,6 @@ def test_start_json_keeps_run_detail(invoke, mock_api):
             "saved-searches",
             "start",
             SEARCH_ID,
-            "--contract-version",
-            "1",
             "--idempotency-key",
             "delivery-1",
             "--json",
@@ -448,8 +403,6 @@ def test_start_reports_duplicate_run(invoke, mock_api):
             "saved-searches",
             "start",
             SEARCH_ID,
-            "--contract-version",
-            "1",
             "--idempotency-key",
             "delivery-1",
         ]
@@ -469,8 +422,6 @@ def test_start_maps_in_progress_to_conflict_exit(invoke, mock_api):
             "saved-searches",
             "start",
             SEARCH_ID,
-            "--contract-version",
-            "1",
             "--idempotency-key",
             "delivery-1",
             "--json",
@@ -549,8 +500,6 @@ def test_start_refuses_a_key_the_header_refuses(invoke, mock_api, key):
             "saved-searches",
             "start",
             SEARCH_ID,
-            "--contract-version",
-            "1",
             "--idempotency-key",
             key,
             "--json",
@@ -572,8 +521,6 @@ def test_a_capability_that_holds_no_saved_search_is_refused_locally(invoke, mock
     arguments = ["agentic", "saved-searches", command, "--capability", "people.enrich"]
     if command == "create":
         arguments += [
-            "--contract-version",
-            "3",
             "--name",
             "One",
             "--brief",
@@ -613,8 +560,6 @@ def test_create_sends_another_capability_and_its_brief(invoke, mock_api):
             "create",
             "--capability",
             "people.search",
-            "--contract-version",
-            "4",
             "--name",
             "EU engineers",
             "--brief",
@@ -626,7 +571,6 @@ def test_create_sends_another_capability_and_its_brief(invoke, mock_api):
     assert result.exit_code == 0
     assert json.loads(route.calls[0].request.content) == {
         "capability_id": "people.search",
-        "contract_version": 4,
         "name": "EU engineers",
         "brief": people_brief,
     }
@@ -643,36 +587,7 @@ def test_diff_reports_the_refusal_of_a_product_that_publishes_none(invoke, mock_
     assert "no diff" in result.output
 
 
-def test_start_reports_a_stale_stored_contract_version(invoke, mock_api):
-    mock_api.post(f"{BASE}/{SEARCH_ID}/runs").respond(
-        409,
-        json={
-            "detail": {
-                "code": "contract_version_stale",
-                "saved_contract_version": 2,
-                "published_contract_version": 3,
-            }
-        },
-    )
-
-    result = invoke(
-        [
-            "agentic",
-            "saved-searches",
-            "start",
-            SEARCH_ID,
-            "--contract-version",
-            "3",
-            "--idempotency-key",
-            "delivery",
-        ]
-    )
-
-    assert result.exit_code != 0
-    assert "contract_version_stale" in result.output
-
-
-def test_patch_sends_the_version_a_replacement_brief_was_written_under(invoke, mock_api):
+def test_patch_sends_a_replacement_brief(invoke, mock_api):
     route = mock_api.patch(f"{BASE}/{SEARCH_ID}").respond(200, json=DETAIL)
 
     result = invoke(
@@ -685,8 +600,6 @@ def test_patch_sends_the_version_a_replacement_brief_was_written_under(invoke, m
             "opaque",
             "--brief",
             json.dumps(BRIEF),
-            "--contract-version",
-            "3",
         ]
     )
 
@@ -694,33 +607,4 @@ def test_patch_sends_the_version_a_replacement_brief_was_written_under(invoke, m
     assert json.loads(route.calls[0].request.content) == {
         "expected_updated_at": "opaque",
         "brief": BRIEF,
-        "contract_version": 3,
     }
-
-
-@pytest.mark.parametrize(
-    "extra",
-    [
-        ["--brief", json.dumps(BRIEF)],
-        ["--name", "Renamed", "--contract-version", "3"],
-    ],
-    ids=["brief-without-version", "version-without-brief"],
-)
-def test_patch_pairs_the_version_with_the_brief_before_it_sends(invoke, mock_api, extra):
-    route = mock_api.patch(f"{BASE}/{SEARCH_ID}").respond(200, json=DETAIL)
-
-    result = invoke(
-        [
-            "agentic",
-            "saved-searches",
-            "patch",
-            SEARCH_ID,
-            "--expected-updated-at",
-            "opaque",
-            *extra,
-        ]
-    )
-
-    assert result.exit_code != 0
-    assert "--contract-version" in result.output
-    assert not route.calls

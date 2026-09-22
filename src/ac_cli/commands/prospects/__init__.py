@@ -12,7 +12,14 @@ from ac_cli.commands._helpers import (
     set_json_mode,
     should_skip_confirm,
 )
-from ac_cli.formatting import as_text, console, print_detail, print_json, print_table
+from ac_cli.formatting import (
+    as_text,
+    console,
+    print_detail,
+    print_json,
+    print_table,
+    styled,
+)
 
 app = typer.Typer(help="Review and curate agentic prospects")
 
@@ -516,3 +523,21 @@ def prospects_promote(
     people = data.get("people") or []
     if people:
         print_table(people, _PROMOTED_PERSON_FIELDS, title="Promoted people")
+
+
+@app.command("delete")
+def prospects_delete(
+    ctx: typer.Context,
+    prospect_id: str = typer.Argument(..., help="Prospect ID"),
+    yes: bool = typer.Option(False, "--yes", "-y", help="Skip the confirmation."),
+    json_output: bool = JSON_OPTION,
+) -> None:
+    """Delete one prospect with its people and its signals."""
+    set_json_mode(json_output)
+    if not should_skip_confirm(yes):
+        typer.confirm(f"Delete prospect {prospect_id}?", abort=True)
+    _api_request("delete", f"{_PROSPECTS}/{prospect_id}")
+    if json_output:
+        print_json({"ok": True, "id": prospect_id, "action": "delete"})
+        return
+    rprint(styled("[green]Deleted prospect {}[/green]", prospect_id))
