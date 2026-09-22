@@ -113,7 +113,7 @@ _RUN_FIELDS = [
 # everywhere else. Zero is a Run that wrote no prospect.
 _LIST_FIELDS = [
     ("id", "Run ID"),
-    ("definition_name", "Definition"),
+    ("display_name", "Definition / Search"),
     ("status", "Status"),
     ("kind", "Kind"),
     ("prospect_count", "Prospects"),
@@ -304,7 +304,14 @@ def runs_list(
         return
 
     items = data.get("items", [])
-    print_table(items, _LIST_FIELDS, title=f"Runs ({len(items)})")
+    rows = [
+        {
+            **item,
+            "display_name": item.get("search_query") or item.get("definition_name"),
+        }
+        for item in items
+    ]
+    print_table(rows, _LIST_FIELDS, title=f"Runs ({len(items)})")
     if data.get("next_cursor"):
         _print_cursor_hint(
             data["next_cursor"],
