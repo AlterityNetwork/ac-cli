@@ -503,6 +503,34 @@ def _print_spans_hint(
     console.print(*parts, soft_wrap=True)
 
 
+@runs_app.command("progress")
+def runs_progress(
+    ctx: typer.Context,
+    run_id: str = typer.Argument(..., help="Root run ID"),
+    json_output: bool = JSON_OPTION,
+):
+    """Show product milestones across a root run and its child agents."""
+    set_json_mode(json_output)
+    data = _api_request("get", f"{_AGENTIC}/runs/{run_id}/progress").json()
+    if json_output:
+        print_json(data)
+        return
+    print_detail(data, [("run_id", "Run"), ("status", "Status")])
+    print_table(
+        data.get("stages", []),
+        [("name", "Stage"), ("status", "Status"), ("updated_at", "Updated")],
+        title="Search progress",
+    )
+
+    for stage in data.get("stages", []):
+        if stage.get("activity"):
+            print_table(
+                stage["activity"],
+                [("kind", "Kind"), ("name", "Activity"), ("status", "Status")],
+                title=stage["name"],
+            )
+
+
 @runs_app.command("spans")
 def runs_spans(
     ctx: typer.Context,

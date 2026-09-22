@@ -1213,3 +1213,43 @@ def test_runs_start_sends_a_key_at_the_length_bound(invoke, mock_api):
 
     assert result.exit_code == 0, result.output
     assert route.calls[0].request.headers["Idempotency-Key"] == key
+
+
+@pytest.mark.parametrize("json_output", [False, True])
+def test_runs_progress(invoke, mock_api, json_output):
+    data = {
+        "run_id": SAMPLE_RUN["id"],
+        "status": "running",
+        "stages": [
+            {
+                "name": "Finding companies",
+                "status": "running",
+                "updated_at": None,
+                "activity": [
+                    {"id": "tool-1", "kind": "tool", "name": "Web search", "status": "running"}
+                ],
+            }
+        ],
+    }
+    route = mock_api.get(f"/api/v1/agentic/runs/{SAMPLE_RUN['id']}/progress").respond(
+        200, json=data
+    )
+    result = invoke(
+        ["agentic", "runs", "progress", SAMPLE_RUN["id"]] + (["--json"] if json_output else [])
+    )
+    assert result.exit_code == 0
+    assert route.called
+    assert "running" in result.output
+    assert "Web search" in result.output
+    if json_output:
+        assert json.loads(result.output) == data
+
+
+@pytest.mark.parametrize("status,exit_code", [(404, 3), (403, 4), (422, 2)])
+def test_runs_progress_errors(invoke, mock_api, status, exit_code):
+    mock_api.get(f"/api/v1/agentic/runs/{SAMPLE_RUN['id']}/progress").respond(
+        status, json={"detail": "Unavailable"}
+    )
+    result = invoke(["agentic", "runs", "progress", SAMPLE_RUN["id"], "--json"])
+    assert result.exit_code == exit_code
+    assert json.loads(result.output)["status_code"] == status
