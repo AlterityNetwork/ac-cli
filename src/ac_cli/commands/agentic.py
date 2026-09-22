@@ -534,7 +534,7 @@ def runs_spans(
     scope: _SpanScope = typer.Option(
         _SpanScope.run,
         "--scope",
-        help="run reads this run alone, tree reads every run below its root",
+        help="run reads this run alone, tree reads every run of its tree",
     ),
     limit: int = typer.Option(_PAGE_DEFAULT, "--limit", help="Page size, 1 to 100"),
     json_output: bool = JSON_OPTION,
@@ -543,6 +543,11 @@ def runs_spans(
 
     It reads the spans of that run alone. A child run holds its own spans, so
     open the child to read them, or pass `--scope tree`.
+
+    ⚠️ **`--scope tree` answers the tree of the root, whichever member you
+    name.** A child carries the root's id and never its own, so naming a child
+    answers its parent and its siblings too, not a subtree. Name a child with
+    no scope to read that child alone.
 
     ⚠️ **A node that runs an agent starts a child run.** That child writes its
     own spans, so the default read never answers them. A company.search run
