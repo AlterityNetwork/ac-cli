@@ -506,7 +506,9 @@ def test_runs_spans_refuses_an_unknown_scope(invoke, mock_api):
     result = invoke(["agentic", "runs", "spans", SAMPLE_RUN["id"], "--scope", "everything"])
 
     assert result.exit_code != 0
-    assert "run" in result.output and "tree" in result.output
+    # Not "run": the usage line already holds the word "runs". Only the second
+    # value proves the message names the choices.
+    assert "tree" in result.output
 
 
 def test_runs_spans_json_carries_the_capability_report(invoke, mock_api):
@@ -910,6 +912,63 @@ def test_runs_spans_hint_repeats_a_page_size_the_caller_chose(invoke, mock_api):
     result = invoke(["agentic", "runs", "spans", SAMPLE_RUN["id"], "--limit", "100"])
 
     assert "--limit 100 --cursor abc123" in result.output
+
+
+def test_runs_spans_hint_repeats_the_scope(invoke, mock_api):
+    """Dropped from the pasted line, the next page narrows back to the run.
+
+    The API refuses that cursor, so the drain stops with spans unread rather
+    than reading a different set. Either way the pasted line must carry it.
+    """
+    mock_api.get(f"/api/v1/agentic/runs/{SAMPLE_RUN['id']}/spans").respond(
+        200, json={"items": [SAMPLE_SPAN], "next_cursor": "abc123"}
+    )
+
+    result = invoke(["agentic", "runs", "spans", SAMPLE_RUN["id"], "--scope", "tree"])
+
+    assert "--scope tree" in result.output
+
+
+def test_runs_spans_reconnect_hint_repeats_the_scope(invoke, mock_api):
+    """A poll loop pastes this line every iteration.
+
+    Without the scope the second iteration watches the root run alone, and it
+    never sees a child run's spans close.
+    """
+    mock_api.get(f"/api/v1/agentic/runs/{SAMPLE_RUN['id']}/spans").respond(
+        200,
+        json={
+            "items": [{**SAMPLE_SPAN, "updated_at": "2026-08-26T11:00:00Z"}],
+            "next_cursor": None,
+        },
+    )
+
+    result = invoke(
+        [
+            "agentic",
+            "runs",
+            "spans",
+            SAMPLE_RUN["id"],
+            "--since",
+            "2026-08-26T10:00:00+00:00",
+            "--scope",
+            "tree",
+        ]
+    )
+
+    assert "Reconnect with:" in result.output
+    assert "--scope tree" in result.output
+
+
+def test_runs_spans_hint_omits_the_default_scope(invoke, mock_api):
+    """The API defaults to the run, so the line stays the one it was."""
+    mock_api.get(f"/api/v1/agentic/runs/{SAMPLE_RUN['id']}/spans").respond(
+        200, json={"items": [SAMPLE_SPAN], "next_cursor": "abc123"}
+    )
+
+    result = invoke(["agentic", "runs", "spans", SAMPLE_RUN["id"]])
+
+    assert "--scope" not in result.output
 
 
 def test_runs_spans_hint_omits_the_default_page_size(invoke, mock_api):
