@@ -58,6 +58,7 @@ _CONVERSATION_FIELDS = [
 _MESSAGE_FIELDS = [
     ("id", "Message ID"),
     ("role", "Role"),
+    ("kind", "Kind"),
     ("text", "Text"),
     ("run_id", "Run"),
     ("created_at", "Created"),

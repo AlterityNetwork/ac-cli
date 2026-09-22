@@ -10,6 +10,7 @@ import uuid
 import pytest
 
 from ac_cli.commands._helpers import HEADER_KEY_MAX_LENGTH
+from ac_cli.commands.agentic import _LIST_FIELDS
 from tests.conftest import UNSENDABLE_KEYS
 
 SAMPLE_RUN = {
@@ -284,6 +285,50 @@ def test_runs_list(invoke, mock_api):
     result = invoke(["agentic", "runs", "list"])
     assert result.exit_code == 0
     assert "Weekly digest" in result.output
+
+
+#: The `Prospects` cell, read from the column list itself.
+PROSPECT_COUNT_COLUMN = [key for key, _ in _LIST_FIELDS].index("prospect_count")
+
+
+def test_runs_list_names_how_many_prospects_a_run_wrote(invoke, mock_api, table_column):
+    """The Sonar list carries the count. The column reads it as it is."""
+    run = {**SAMPLE_RUN, "capability_id": "signals.search", "prospect_count": 12}
+    mock_api.get("/api/v1/agentic/runs").respond(200, json={"items": [run], "next_cursor": None})
+
+    result = invoke(["agentic", "runs", "list", "--capability", "signals.search"])
+
+    assert result.exit_code == 0
+    assert "Prospects" in result.output
+    assert table_column(result.output, PROSPECT_COUNT_COLUMN) == "12"
+
+
+def test_runs_list_prints_zero_and_never_a_blank_for_an_empty_run(invoke, mock_api, table_column):
+    """Zero is a Run that wrote no prospect. A blank cell is no count at all."""
+    run = {**SAMPLE_RUN, "capability_id": "signals.search", "prospect_count": 0}
+    mock_api.get("/api/v1/agentic/runs").respond(200, json={"items": [run], "next_cursor": None})
+
+    result = invoke(["agentic", "runs", "list", "--capability", "signals.search"])
+
+    assert table_column(result.output, PROSPECT_COUNT_COLUMN) == "0"
+
+
+def test_runs_list_prints_a_blank_prospect_cell_when_nobody_counted(invoke, mock_api, table_column):
+    run = {**SAMPLE_RUN, "prospect_count": None}
+    mock_api.get("/api/v1/agentic/runs").respond(200, json={"items": [run], "next_cursor": None})
+
+    result = invoke(["agentic", "runs", "list"])
+
+    assert table_column(result.output, PROSPECT_COUNT_COLUMN) == ""
+
+
+def test_runs_list_json_passes_the_prospect_count_through(invoke, mock_api):
+    page = {"items": [{**SAMPLE_RUN, "prospect_count": 12}], "next_cursor": None}
+    mock_api.get("/api/v1/agentic/runs").respond(200, json=page)
+
+    result = invoke(["agentic", "runs", "list", "--json"])
+
+    assert json.loads(result.output) == page
 
 
 def test_runs_list_passes_every_filter(invoke, mock_api):
