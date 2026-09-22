@@ -319,7 +319,8 @@ def _create_args():
     ]
 
 
-def test_signals_create_forwards_resolution_file(invoke, mock_api, tmp_path):
+@pytest.mark.parametrize("referenced", [False, True])
+def test_signals_create_forwards_resolution_file(invoke, mock_api, tmp_path, referenced):
     resolution = {
         "snapshot": "observed-candidate-snapshot",
         "comparisons": [
@@ -332,6 +333,11 @@ def test_signals_create_forwards_resolution_file(invoke, mock_api, tmp_path):
             }
         ],
     }
+    if referenced:
+        resolution["comparisons"][0].update(
+            incoming_evidence={"field": "description", "index": 0},
+            candidate_evidence={"field": "claims", "index": 0},
+        )
     path = tmp_path / "resolution.json"
     path.write_text(json.dumps(resolution), encoding="utf-8")
     route = mock_api.post("/api/v1/admin/intelligence/signals").respond(200, json=SAMPLE_SIGNAL)

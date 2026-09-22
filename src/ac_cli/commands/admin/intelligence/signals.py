@@ -141,7 +141,7 @@ def signals_create(
     resolution_file: Path | None = typer.Option(
         None,
         "--resolution-file",
-        help="JSON object with a candidate snapshot and evidence comparisons",
+        help="JSON candidate snapshot and comparisons; evidence supports field/index references or exact quotes",
     ),
     json_output: bool = JSON_OPTION,
 ) -> None:
