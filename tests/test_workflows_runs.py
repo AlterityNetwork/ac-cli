@@ -135,6 +135,40 @@ def test_runs_list_include_archived(invoke, mock_api):
     assert route.calls[0].request.url.params["include_archived"] == "true"
 
 
+def test_runs_list_archived_only(invoke, mock_api):
+    route = mock_api.get("/api/v1/workflows/wf-1/runs").respond(
+        200, json={"data": [SAMPLE_RUN], "total": 1}
+    )
+
+    result = invoke(["workflows", "runs", "list", "wf-1", "--archived-only"])
+
+    assert result.exit_code == 0
+    assert route.calls[0].request.url.params["archived_only"] == "true"
+    assert "include_archived" not in route.calls[0].request.url.params
+
+
+def test_runs_list_rejects_conflicting_archive_modes(invoke, mock_api):
+    mock_api.get("/api/v1/workflows/wf-1/runs").respond(200, json={"data": [], "total": 0})
+
+    result = invoke(
+        [
+            "workflows",
+            "runs",
+            "list",
+            "wf-1",
+            "--include-archived",
+            "--archived-only",
+            "--json",
+        ]
+    )
+
+    assert result.exit_code == 2
+    assert json.loads(result.output)["detail"] == (
+        "--include-archived and --archived-only cannot be used together"
+    )
+    assert not mock_api.calls
+
+
 def test_runs_archive(invoke, mock_api):
     route = mock_api.post("/api/v1/workflows/wf-1/runs/archive").respond(
         200, json={"archived_count": 2}
