@@ -18,6 +18,7 @@ SAMPLE_RUN = {
     "kind": "agent",
     "definition_id": "22222222-2222-4222-8222-222222222222",
     "definition_name": "Weekly digest",
+    "search_query": None,
     "status": "running",
     "waiting_on": None,
     "source": "api",
@@ -285,6 +286,20 @@ def test_runs_list(invoke, mock_api):
     result = invoke(["agentic", "runs", "list"])
     assert result.exit_code == 0
     assert "Weekly digest" in result.output
+
+
+def test_runs_list_shows_the_user_search_query(invoke, mock_api, table_column):
+    run = {
+        **SAMPLE_RUN,
+        "definition_name": "People Search",
+        "search_query": "Revenue leaders in London",
+    }
+    mock_api.get("/api/v1/agentic/runs").respond(200, json={"items": [run], "next_cursor": None})
+
+    result = invoke(["agentic", "runs", "list", "--capability", "people.search"])
+
+    assert result.exit_code == 0
+    assert table_column(result.output, 1).replace(" ", "") == "RevenueleadersinLondon"
 
 
 #: The `Prospects` cell, read from the column list itself.
