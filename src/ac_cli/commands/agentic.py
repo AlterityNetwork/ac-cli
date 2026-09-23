@@ -29,6 +29,7 @@ import json
 import shlex
 import uuid
 from datetime import datetime
+from enum import Enum
 from urllib.parse import quote
 
 import typer
@@ -112,13 +113,21 @@ _RUN_FIELDS = [
 # answers null everywhere else. Zero is a Run that wrote no prospect.
 _LIST_FIELDS = [
     ("id", "Run ID"),
-    ("definition_name", "Definition"),
+    ("display_name", "Definition / Search"),
     ("title", "Title"),
     ("status", "Status"),
     ("kind", "Kind"),
     ("prospect_count", "Prospects"),
     ("created_at", "Created"),
 ]
+
+
+class _SpanScope(str, Enum):
+    """Which spans a read answers. It mirrors `SpanScope` in ac-python-api."""
+
+    run = "run"
+    tree = "tree"
+
 
 # ⚠️ **`No call` is what makes the `Status` column readable.** A `tool` span
 # that reads `ok` is not always a call: a call that stopped for a person and a
@@ -304,7 +313,14 @@ def runs_list(
         return
 
     items = data.get("items", [])
-    print_table(items, _LIST_FIELDS, title=f"Runs ({len(items)})")
+    rows = [
+        {
+            **item,
+            "display_name": item.get("search_query") or item.get("definition_name"),
+        }
+        for item in items
+    ]
+    print_table(rows, _LIST_FIELDS, title=f"Runs ({len(items)})")
     if data.get("next_cursor"):
         _print_cursor_hint(
             data["next_cursor"],
@@ -422,13 +438,22 @@ def _print_cursor_hint(
 
 
 def _print_spans_hint(
-    items: list[dict], next_cursor: str | None, since: str | None, limit: int
+    items: list[dict],
+    next_cursor: str | None,
+    since: str | None,
+    limit: int,
+    scope: _SpanScope,
 ) -> None:
     """Prints the command that reads the next spans, or reconnects.
 
     ⚠️ **A cursor names the order it was written for.** A `--since` page is
     tagged `updated_at` and a plain page is tagged `started_at`, so the hint
     repeats `--since`. Pasted without it, the same cursor answers `400`.
+
+    ⚠️ **It names the scope for the same reason.** `run` is the default, so a
+    pasted line that drops `--scope` reads another set. The cursor carries the
+    scope too and the API refuses the pair, so the drain stops with spans
+    unread rather than answering a short page in silence.
 
     ⚠️ **The hint prints with `soft_wrap`, so the cursor stays one token.** A
     cursor is about 108 characters, and the console hard wraps a longer line at
@@ -466,6 +491,7 @@ def _print_spans_hint(
         next_cursor: The token of the next page, or None at the end of it.
         since: The value this read carried, or None for a plain read.
         limit: The page size the read carried.
+        scope: The set this read carried.
     """
     if next_cursor:
         page: list[object] = ["[dim]Next page:[/dim]"]
@@ -473,6 +499,8 @@ def _print_spans_hint(
             page += ["--since", as_text(since)]
         if limit != _PAGE_DEFAULT:
             page += ["--limit", as_text(limit)]
+        if scope is not _SpanScope.run:
+            page += ["--scope", as_text(scope.value)]
         page += ["--cursor", as_text(next_cursor)]
         console.print(*page, soft_wrap=True)
         return
@@ -505,6 +533,8 @@ def _print_spans_hint(
     parts: list[object] = ["[dim]Reconnect with:[/dim] --since", as_text(newest or since)]
     if limit != _PAGE_DEFAULT:
         parts += ["--limit", as_text(limit)]
+    if scope is not _SpanScope.run:
+        parts += ["--scope", as_text(scope.value)]
     console.print(*parts, soft_wrap=True)
 
 
@@ -546,13 +576,30 @@ def runs_spans(
         help="Read the spans that moved at or after this instant, as ISO 8601 with a time zone",
     ),
     cursor: str | None = typer.Option(None, "--cursor", help="Page to continue"),
+    scope: _SpanScope = typer.Option(
+        _SpanScope.run,
+        "--scope",
+        help="run reads this run alone, tree reads every run of its tree",
+    ),
     limit: int = typer.Option(_PAGE_DEFAULT, "--limit", help="Page size, 1 to 100"),
     json_output: bool = JSON_OPTION,
 ) -> None:
-    """List the spans of one run.
+    """List the spans of one run, or of its whole tree.
 
     It reads the spans of that run alone. A child run holds its own spans, so
-    open the child to read them.
+    open the child to read them, or pass `--scope tree`.
+
+    ⚠️ **`--scope tree` answers the tree of the root, whichever member you
+    name.** A child carries the root's id and never its own, so naming a child
+    answers its parent and its siblings too, not a subtree. Name a child with
+    no scope to read that child alone.
+
+    ⚠️ **A node that runs an agent starts a child run.** That child writes its
+    own spans, so the default read never answers them. A company.search run
+    measured in ENG-2559 answered two spans by default while the tree held
+    five: the planner's run, segment and llm spans were under the child, and
+    they held 3,455 ms of a 6,309 ms run. Pass `--scope tree` to see where a
+    run spent its time.
 
     `--since` is what a client reads after a dropped stream. The run stream
     keeps no backlog, so a reconnecting reader asks for the spans that moved
@@ -588,6 +635,10 @@ def runs_spans(
         params["since"] = since
     if cursor:
         params["cursor"] = cursor
+    # The API defaults to the run, so a default read sends nothing and the
+    # request stays the one every older client wrote.
+    if scope is not _SpanScope.run:
+        params["scope"] = scope.value
 
     resp = _api_request("get", f"{_AGENTIC}/runs/{run_id}/spans", params=params)
 
@@ -608,7 +659,7 @@ def runs_spans(
             " so the No call column is blank on every row and a gated call"
             " cannot be told from a real one."
         )
-    _print_spans_hint(items, data.get("next_cursor"), since, limit)
+    _print_spans_hint(items, data.get("next_cursor"), since, limit, scope)
 
 
 @runs_app.command("cancel")

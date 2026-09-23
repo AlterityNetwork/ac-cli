@@ -18,6 +18,7 @@ SAMPLE_RUN = {
     "kind": "agent",
     "definition_id": "22222222-2222-4222-8222-222222222222",
     "definition_name": "Weekly digest",
+    "search_query": None,
     "status": "running",
     "waiting_on": None,
     "source": "api",
@@ -285,8 +286,22 @@ def test_runs_list(invoke, mock_api, table_column):
     result = invoke(["agentic", "runs", "list"])
     assert result.exit_code == 0
     # The cell folds on a narrow terminal, and the reader drops the fold points.
-    definition = [key for key, _ in _LIST_FIELDS].index("definition_name")
+    definition = [key for key, _ in _LIST_FIELDS].index("display_name")
     assert table_column(result.output, definition).replace(" ", "") == "Weeklydigest"
+
+
+def test_runs_list_shows_the_user_search_query(invoke, mock_api, table_column):
+    run = {
+        **SAMPLE_RUN,
+        "definition_name": "People Search",
+        "search_query": "Revenue leaders in London",
+    }
+    mock_api.get("/api/v1/agentic/runs").respond(200, json={"items": [run], "next_cursor": None})
+
+    result = invoke(["agentic", "runs", "list", "--capability", "people.search"])
+
+    assert result.exit_code == 0
+    assert table_column(result.output, 1).replace(" ", "") == "RevenueleadersinLondon"
 
 
 #: The `Prospects` cell, read from the column list itself.
@@ -470,6 +485,63 @@ def test_runs_spans_sends_since(invoke, mock_api):
     )
 
     assert route.calls[0].request.url.params["since"] == "2026-08-26T10:00:00+00:00"
+
+
+def test_runs_spans_sends_the_tree_scope(invoke, mock_api):
+    """A node that runs an agent starts a child Run holding its own spans.
+
+    ENG-2559 measured a company.search Run whose default read answered two
+    spans while the tree held five. Without this option the CLI cannot ask
+    the route for the whole tree.
+    """
+    route = mock_api.get(f"/api/v1/agentic/runs/{SAMPLE_RUN['id']}/spans").respond(
+        200, json={"items": [], "next_cursor": None}
+    )
+
+    invoke(["agentic", "runs", "spans", SAMPLE_RUN["id"], "--scope", "tree"])
+
+    assert route.calls[0].request.url.params["scope"] == "tree"
+
+
+def test_runs_spans_omits_the_scope_when_it_is_the_default(invoke, mock_api):
+    """The API defaults to the run, so a plain read sends nothing."""
+    route = mock_api.get(f"/api/v1/agentic/runs/{SAMPLE_RUN['id']}/spans").respond(
+        200, json={"items": [], "next_cursor": None}
+    )
+
+    invoke(["agentic", "runs", "spans", SAMPLE_RUN["id"]])
+
+    assert "scope" not in route.calls[0].request.url.params
+
+
+def test_runs_spans_refuses_an_unknown_scope(invoke, mock_api):
+    """It refuses the value, and not the option.
+
+    Asserting the exit code alone passes before `--scope` exists at all, so
+    the message must name the two the API accepts.
+    """
+    result = invoke(["agentic", "runs", "spans", SAMPLE_RUN["id"], "--scope", "everything"])
+
+    assert result.exit_code != 0
+    # Not "run": the usage line already holds the word "runs". Only the second
+    # value proves the message names the choices.
+    assert "tree" in result.output
+
+
+def test_runs_spans_json_carries_the_capability_report(invoke, mock_api):
+    """The funnel the run recorded, which the table has no column for."""
+    report = {"company.search": {"totals": {"returned": 15, "excluded": 0}}}
+    mock_api.get(f"/api/v1/agentic/runs/{SAMPLE_RUN['id']}/spans").respond(
+        200,
+        json={
+            "items": [{**SAMPLE_SPAN, "reports": report}],
+            "next_cursor": None,
+        },
+    )
+
+    result = invoke(["agentic", "runs", "spans", SAMPLE_RUN["id"], "--json"])
+
+    assert json.loads(result.output)["items"][0]["reports"] == report
 
 
 def test_runs_spans_omits_since_when_absent(invoke, mock_api):
@@ -857,6 +929,63 @@ def test_runs_spans_hint_repeats_a_page_size_the_caller_chose(invoke, mock_api):
     result = invoke(["agentic", "runs", "spans", SAMPLE_RUN["id"], "--limit", "100"])
 
     assert "--limit 100 --cursor abc123" in result.output
+
+
+def test_runs_spans_hint_repeats_the_scope(invoke, mock_api):
+    """Dropped from the pasted line, the next page narrows back to the run.
+
+    The API refuses that cursor, so the drain stops with spans unread rather
+    than reading a different set. Either way the pasted line must carry it.
+    """
+    mock_api.get(f"/api/v1/agentic/runs/{SAMPLE_RUN['id']}/spans").respond(
+        200, json={"items": [SAMPLE_SPAN], "next_cursor": "abc123"}
+    )
+
+    result = invoke(["agentic", "runs", "spans", SAMPLE_RUN["id"], "--scope", "tree"])
+
+    assert "--scope tree" in result.output
+
+
+def test_runs_spans_reconnect_hint_repeats_the_scope(invoke, mock_api):
+    """A poll loop pastes this line every iteration.
+
+    Without the scope the second iteration watches the root run alone, and it
+    never sees a child run's spans close.
+    """
+    mock_api.get(f"/api/v1/agentic/runs/{SAMPLE_RUN['id']}/spans").respond(
+        200,
+        json={
+            "items": [{**SAMPLE_SPAN, "updated_at": "2026-08-26T11:00:00Z"}],
+            "next_cursor": None,
+        },
+    )
+
+    result = invoke(
+        [
+            "agentic",
+            "runs",
+            "spans",
+            SAMPLE_RUN["id"],
+            "--since",
+            "2026-08-26T10:00:00+00:00",
+            "--scope",
+            "tree",
+        ]
+    )
+
+    assert "Reconnect with:" in result.output
+    assert "--scope tree" in result.output
+
+
+def test_runs_spans_hint_omits_the_default_scope(invoke, mock_api):
+    """The API defaults to the run, so the line stays the one it was."""
+    mock_api.get(f"/api/v1/agentic/runs/{SAMPLE_RUN['id']}/spans").respond(
+        200, json={"items": [SAMPLE_SPAN], "next_cursor": "abc123"}
+    )
+
+    result = invoke(["agentic", "runs", "spans", SAMPLE_RUN["id"]])
+
+    assert "--scope" not in result.output
 
 
 def test_runs_spans_hint_omits_the_default_page_size(invoke, mock_api):
