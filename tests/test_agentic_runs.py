@@ -452,6 +452,48 @@ def test_runs_spans_json(invoke, mock_api):
     assert json.loads(result.output)["items"][0]["name"] == "crm.search"
 
 
+def test_runs_span_detail_json(invoke, mock_api):
+    path = f"/api/v1/agentic/runs/{SAMPLE_RUN['id']}/spans/{SAMPLE_SPAN['span_id']}"
+    mock_api.get(path).respond(200, json={"input": {"query": "growth"}, "output": ["result"]})
+
+    result = invoke(
+        [
+            "agentic",
+            "runs",
+            "span-detail",
+            SAMPLE_RUN["id"],
+            SAMPLE_SPAN["span_id"],
+            "--json",
+        ]
+    )
+
+    assert result.exit_code == 0
+    assert json.loads(result.output) == {
+        "input": {"query": "growth"},
+        "output": ["result"],
+    }
+
+
+def test_runs_span_detail_displays_payload(invoke, mock_api):
+    path = f"/api/v1/agentic/runs/{SAMPLE_RUN['id']}/spans/{SAMPLE_SPAN['span_id']}"
+    mock_api.get(path).respond(200, json={"input": {"query": "growth"}, "output": ["result"]})
+
+    result = invoke(["agentic", "runs", "span-detail", SAMPLE_RUN["id"], SAMPLE_SPAN["span_id"]])
+
+    assert result.exit_code == 0
+    assert "growth" in result.output
+    assert "result" in result.output
+
+
+def test_runs_span_detail_reports_not_found(invoke, mock_api):
+    path = f"/api/v1/agentic/runs/{SAMPLE_RUN['id']}/spans/{SAMPLE_SPAN['span_id']}"
+    mock_api.get(path).respond(404, json={"detail": "Not found"})
+
+    result = invoke(["agentic", "runs", "span-detail", SAMPLE_RUN["id"], SAMPLE_SPAN["span_id"]])
+
+    assert result.exit_code == 3
+
+
 def test_runs_spans_pages(invoke, mock_api):
     route = mock_api.get(f"/api/v1/agentic/runs/{SAMPLE_RUN['id']}/spans").respond(
         200, json={"items": [], "next_cursor": None}
