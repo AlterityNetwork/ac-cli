@@ -107,12 +107,13 @@ _RUN_FIELDS = [
     ("ended_at", "Ended"),
 ]
 
-# `Prospects` is blank on every list but a `--capability signals.search` one.
-# The API counts the prospects of a Run on that list alone, and it answers null
-# everywhere else. Zero is a Run that wrote no prospect.
+# `Title` and `Prospects` are blank on every list but a `--capability
+# signals.search` one. The API names and counts a Run on that list alone, and it
+# answers null everywhere else. Zero is a Run that wrote no prospect.
 _LIST_FIELDS = [
     ("id", "Run ID"),
     ("definition_name", "Definition"),
+    ("title", "Title"),
     ("status", "Status"),
     ("kind", "Kind"),
     ("prospect_count", "Prospects"),
@@ -260,6 +261,12 @@ def runs_list(
         None, "--capability", help="Runs of one capability, e.g. company.search"
     ),
     status: str | None = typer.Option(None, "--status", help="Runs in one status"),
+    source: str | None = typer.Option(
+        None,
+        "--source",
+        help="Runs one entry point started: front_door, trigger, api or workflow_step. "
+        "A schedule starts trigger runs.",
+    ),
     every: bool = typer.Option(
         False, "--all", help="Include child runs. The default returns roots only."
     ),
@@ -284,6 +291,8 @@ def runs_list(
         params["capability_id"] = capability
     if status:
         params["status"] = status
+    if source:
+        params["source"] = source
     if cursor:
         params["cursor"] = cursor
 
@@ -304,6 +313,7 @@ def runs_list(
                 ("--parent", parent),
                 ("--definition", definition_id),
                 ("--status", status),
+                ("--source", source),
                 ("--all", every),
             ],
         )

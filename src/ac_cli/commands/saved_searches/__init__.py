@@ -29,10 +29,11 @@ _PAGE_MIN = 1
 _PAGE_MAX = 100
 
 # The caller names one capability to list, so a column repeating it on every
-# row carries nothing and costs the width the other five columns need.
+# row carries nothing and costs the width the other columns need.
 _SUMMARY_FIELDS = [
     ("id", "Saved search ID"),
     ("name", "Name"),
+    ("schedule", "Schedule"),
     ("last_run_id", "Last run"),
     ("last_run_at", "Last run at"),
     ("updated_at", "Token"),
@@ -41,6 +42,7 @@ _DETAIL_FIELDS = [
     ("id", "Saved search ID"),
     ("capability_id", "Capability"),
     ("name", "Name"),
+    ("description", "Description"),
     ("last_run_id", "Last run"),
     ("last_run_at", "Last run at"),
     ("created_at", "Created"),
@@ -103,6 +105,22 @@ def _print_next_page(next_cursor: str | None, limit: int, capability: str | None
     console.print(*parts, soft_wrap=True)
 
 
+def _schedule_text(schedule: dict | None) -> str | None:
+    """Render one schedule as its cron and zone, or None when there is none."""
+    if not schedule:
+        return None
+    return f"{schedule['cron']} {schedule['timezone']}"
+
+
+def _print_schedule(data: dict) -> None:
+    """Print the schedule one read or write answered."""
+    text = _schedule_text(data.get("schedule"))
+    if text is None:
+        rprint("No schedule. The saved search runs only when someone starts it.")
+        return
+    rprint("[bold]Schedule:[/bold]", as_text(text))
+
+
 def _print_saved_search(data: dict) -> None:
     """Print one saved search and its complete brief."""
     print_detail(data, _DETAIL_FIELDS)
@@ -154,7 +172,10 @@ def saved_searches_list(
     if json_output:
         print_json(data)
         return
-    print_table(data.get("items", []), _SUMMARY_FIELDS, title="Saved searches")
+    rows = [
+        {**item, "schedule": _schedule_text(item.get("schedule"))} for item in data.get("items", [])
+    ]
+    print_table(rows, _SUMMARY_FIELDS, title="Saved searches")
     _print_next_page(data.get("next_cursor"), limit, checked)
 
 
@@ -302,3 +323,61 @@ def saved_searches_diff(
         )
     print_table(rows, _DIFF_FIELDS, title="Latest saved-search diff")
     _print_next_page(data.get("next_cursor"), limit)
+
+
+schedule_app = typer.Typer(help="Run a Signals saved search on a schedule")
+app.add_typer(schedule_app, name="schedule")
+
+
+@schedule_app.command("get")
+def saved_search_schedule_get(
+    ctx: typer.Context,
+    search_id: str = typer.Argument(..., help="Saved search ID"),
+    json_output: bool = JSON_OPTION,
+) -> None:
+    """Show the schedule that starts one saved search."""
+    set_json_mode(json_output)
+    data = _api_request("get", f"{_SAVED_SEARCHES}/{search_id}/schedule").json()
+    if json_output:
+        print_json(data)
+        return
+    _print_schedule(data)
+
+
+@schedule_app.command("set")
+def saved_search_schedule_set(
+    ctx: typer.Context,
+    search_id: str = typer.Argument(..., help="Saved search ID"),
+    cron: str = typer.Option(..., "--cron", help="Five-field cron, such as '0 9 * * 1'"),
+    timezone: str = typer.Option("UTC", "--timezone", help="IANA zone the cron is read in"),
+    json_output: bool = JSON_OPTION,
+) -> None:
+    """Start one Signals saved search on a schedule. You become its author."""
+    set_json_mode(json_output)
+    data = _api_request(
+        "put",
+        f"{_SAVED_SEARCHES}/{search_id}/schedule",
+        json={"cron": cron, "timezone": timezone},
+    ).json()
+    if json_output:
+        print_json(data)
+        return
+    _print_schedule(data)
+
+
+@schedule_app.command("clear")
+def saved_search_schedule_clear(
+    ctx: typer.Context,
+    search_id: str = typer.Argument(..., help="Saved search ID"),
+    yes: bool = typer.Option(False, "--yes", "-y", help="Skip confirmation"),
+    json_output: bool = JSON_OPTION,
+) -> None:
+    """Stop the schedule of one saved search. A Run already started continues."""
+    set_json_mode(json_output)
+    if not should_skip_confirm(yes):
+        typer.confirm(f"Stop the schedule of saved search {search_id}?", abort=True)
+    _api_request("delete", f"{_SAVED_SEARCHES}/{search_id}/schedule")
+    if json_output:
+        print_json({"id": search_id, "schedule": None})
+        return
+    rprint("[green]Schedule stopped:[/green]", as_text(search_id))

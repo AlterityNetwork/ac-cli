@@ -21,7 +21,11 @@ SUMMARY = {
     "last_run_at": "2026-08-28T10:00:00Z",
     "created_at": "2026-08-28T09:00:00Z",
     "updated_at": "2026-08-28T10:00:00.123456Z",
+    "description": "Hiring a head of RevOps",
 }
+SCHEDULE = {"cron": "0 9 * * 1", "timezone": "Europe/London"}
+#: A list item also carries the schedule an enabled trigger gives the search.
+LIST_ITEM = {**SUMMARY, "schedule": SCHEDULE}
 BRIEF = {
     "icp": "UK fintech",
     "region": "UK",
@@ -234,6 +238,88 @@ def test_get_prints_detail_and_full_brief(invoke, mock_api):
     assert result.exit_code == 0
     assert "UK fintech" in result.output
     assert "region" in result.output
+
+
+@pytest.mark.parametrize(("schedule", "cell"), [(SCHEDULE, "09**1Europe/London"), (None, "")])
+def test_list_shows_the_schedule_of_each_search(invoke, mock_api, table_column, schedule, cell):
+    item = {**SUMMARY, "schedule": schedule}
+    mock_api.get(BASE).respond(200, json={"items": [item], "next_cursor": None})
+
+    result = invoke(["agentic", "saved-searches", "list", "--capability", SIGNALS])
+
+    assert result.exit_code == 0
+    # The cell folds, and the reader drops the fold points and their spaces.
+    assert table_column(result.output, 2).replace(" ", "") == cell
+
+
+def test_schedule_get_prints_the_schedule_or_none(invoke, mock_api):
+    route = mock_api.get(f"{BASE}/{SEARCH_ID}/schedule")
+    route.respond(200, json={"schedule": SCHEDULE})
+
+    result = invoke(["agentic", "saved-searches", "schedule", "get", SEARCH_ID])
+    assert result.exit_code == 0
+    assert "0 9 * * 1" in result.output
+    assert "Europe/London" in result.output
+
+    route.respond(200, json={"schedule": None})
+    result = invoke(["agentic", "saved-searches", "schedule", "get", SEARCH_ID])
+    assert "No schedule" in result.output
+
+
+def test_schedule_set_sends_the_cron_and_zone(invoke, mock_api):
+    route = mock_api.put(f"{BASE}/{SEARCH_ID}/schedule").respond(200, json={"schedule": SCHEDULE})
+
+    result = invoke(
+        [
+            "agentic",
+            "saved-searches",
+            "schedule",
+            "set",
+            SEARCH_ID,
+            "--cron",
+            "0 9 * * 1",
+            "--timezone",
+            "Europe/London",
+            "--json",
+        ]
+    )
+
+    assert result.exit_code == 0
+    assert json.loads(route.calls[0].request.content) == SCHEDULE
+    assert json.loads(result.output) == {"schedule": SCHEDULE}
+
+
+def test_schedule_set_maps_an_unrunnable_schedule_to_exit_one(invoke, mock_api):
+    mock_api.put(f"{BASE}/{SEARCH_ID}/schedule").respond(
+        422, json={"detail": {"code": "schedule_invalid", "message": "never fires"}}
+    )
+
+    result = invoke(
+        ["agentic", "saved-searches", "schedule", "set", SEARCH_ID, "--cron", "0 0 30 2 *"]
+    )
+
+    assert result.exit_code != 0
+
+
+def test_schedule_clear_confirms_then_deletes(invoke, mock_api):
+    route = mock_api.delete(f"{BASE}/{SEARCH_ID}/schedule").respond(204)
+
+    refused = invoke(["agentic", "saved-searches", "schedule", "clear", SEARCH_ID], input="n\n")
+    assert refused.exit_code != 0
+    assert not route.called
+
+    result = invoke(["agentic", "saved-searches", "schedule", "clear", SEARCH_ID, "--yes"])
+    assert result.exit_code == 0
+    assert route.called
+
+
+def test_get_prints_the_description(invoke, mock_api):
+    mock_api.get(f"{BASE}/{SEARCH_ID}").respond(200, json=DETAIL)
+
+    result = invoke(["agentic", "saved-searches", "get", SEARCH_ID])
+
+    assert "Description:" in result.output
+    assert "Hiring a head of RevOps" in result.output
 
 
 def test_get_json_keeps_detail(invoke, mock_api):

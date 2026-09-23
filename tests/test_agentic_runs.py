@@ -278,13 +278,15 @@ def test_runs_get_not_found(invoke, mock_api):
 # --- list ------------------------------------------------------------------
 
 
-def test_runs_list(invoke, mock_api):
+def test_runs_list(invoke, mock_api, table_column):
     mock_api.get("/api/v1/agentic/runs").respond(
         200, json={"items": [SAMPLE_RUN], "next_cursor": None}
     )
     result = invoke(["agentic", "runs", "list"])
     assert result.exit_code == 0
-    assert "Weekly digest" in result.output
+    # The cell folds on a narrow terminal, and the reader drops the fold points.
+    definition = [key for key, _ in _LIST_FIELDS].index("definition_name")
+    assert table_column(result.output, definition).replace(" ", "") == "Weeklydigest"
 
 
 #: The `Prospects` cell, read from the column list itself.
@@ -1253,3 +1255,51 @@ def test_runs_progress_errors(invoke, mock_api, status, exit_code):
     result = invoke(["agentic", "runs", "progress", SAMPLE_RUN["id"], "--json"])
     assert result.exit_code == exit_code
     assert json.loads(result.output)["status_code"] == status
+
+
+#: The `Title` cell, read from the column list itself.
+TITLE_COLUMN = [key for key, _ in _LIST_FIELDS].index("title")
+
+
+def test_runs_list_names_a_signals_run_by_its_title(invoke, mock_api, table_column):
+    """Every Signals Run shares one definition name, so the title tells them apart."""
+    run = {**SAMPLE_RUN, "capability_id": "signals.search", "title": "UK fintech"}
+    mock_api.get("/api/v1/agentic/runs").respond(200, json={"items": [run], "next_cursor": None})
+
+    result = invoke(["agentic", "runs", "list", "--capability", "signals.search"])
+
+    assert result.exit_code == 0
+    assert "Title" in result.output
+    assert table_column(result.output, TITLE_COLUMN).replace(" ", "") == "UKfintech"
+
+
+def test_runs_list_sends_the_source_it_is_given(invoke, mock_api):
+    """A schedule starts a run with the `trigger` source."""
+    route = mock_api.get("/api/v1/agentic/runs").respond(
+        200, json={"items": [], "next_cursor": None}
+    )
+
+    result = invoke(["agentic", "runs", "list", "--source", "trigger"])
+
+    assert result.exit_code == 0
+    assert route.calls[0].request.url.params["source"] == "trigger"
+
+
+def test_runs_list_sends_no_source_by_default(invoke, mock_api):
+    route = mock_api.get("/api/v1/agentic/runs").respond(
+        200, json={"items": [], "next_cursor": None}
+    )
+
+    invoke(["agentic", "runs", "list"])
+
+    assert "source" not in route.calls[0].request.url.params
+
+
+def test_runs_list_keeps_the_source_in_the_next_page_hint(invoke, mock_api):
+    mock_api.get("/api/v1/agentic/runs").respond(
+        200, json={"items": [SAMPLE_RUN], "next_cursor": "next"}
+    )
+
+    result = invoke(["agentic", "runs", "list", "--source", "trigger"])
+
+    assert "--source trigger" in " ".join(result.output.split())
