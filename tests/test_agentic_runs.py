@@ -481,8 +481,8 @@ def test_runs_span_detail_displays_payload(invoke, mock_api):
     result = invoke(["agentic", "runs", "span-detail", SAMPLE_RUN["id"], SAMPLE_SPAN["span_id"]])
 
     assert result.exit_code == 0
-    assert "growth" in result.output
-    assert "result" in result.output
+    assert '"query": "growth"' in result.output
+    assert '"result"' in result.output
 
 
 def test_runs_span_detail_reports_not_found(invoke, mock_api):
@@ -492,6 +492,20 @@ def test_runs_span_detail_reports_not_found(invoke, mock_api):
     result = invoke(["agentic", "runs", "span-detail", SAMPLE_RUN["id"], SAMPLE_SPAN["span_id"]])
 
     assert result.exit_code == 3
+
+
+def test_runs_span_detail_json_error(invoke, mock_api):
+    path = f"/api/v1/agentic/runs/{SAMPLE_RUN['id']}/spans/{SAMPLE_SPAN['span_id']}"
+    mock_api.get(path).respond(404, json={"detail": "Not found"})
+
+    result = invoke(
+        ["agentic", "runs", "span-detail", SAMPLE_RUN["id"], SAMPLE_SPAN["span_id"], "--json"]
+    )
+
+    assert result.exit_code == 3
+    body = json.loads(result.output)
+    assert body["error"] is True
+    assert body["status_code"] == 404
 
 
 def test_runs_spans_pages(invoke, mock_api):

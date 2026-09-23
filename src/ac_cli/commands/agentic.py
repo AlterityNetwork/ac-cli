@@ -676,7 +676,13 @@ def runs_span_detail(
     if json_output:
         print_json(data)
         return
-    print_detail(data, [("input", "Input"), ("output", "Output")])
+    print_detail(
+        {
+            "input": json.dumps(data.get("input"), indent=2),
+            "output": json.dumps(data.get("output"), indent=2),
+        },
+        [("input", "Input"), ("output", "Output")],
+    )
 
 
 @runs_app.command("cancel")
