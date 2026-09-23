@@ -662,6 +662,29 @@ def runs_spans(
     _print_spans_hint(items, data.get("next_cursor"), since, limit, scope)
 
 
+@runs_app.command("span-detail")
+def runs_span_detail(
+    ctx: typer.Context,
+    run_id: str = typer.Argument(..., help="Run ID that wrote the span"),
+    span_id: str = typer.Argument(..., help="Span ID"),
+    json_output: bool = JSON_OPTION,
+) -> None:
+    """Read the stored input and output of one span."""
+    set_json_mode(json_output)
+    resp = _api_request("get", f"{_AGENTIC}/runs/{run_id}/spans/{span_id}")
+    data = resp.json()
+    if json_output:
+        print_json(data)
+        return
+    print_detail(
+        {
+            "input": json.dumps(data.get("input"), indent=2),
+            "output": json.dumps(data.get("output"), indent=2),
+        },
+        [("input", "Input"), ("output", "Output")],
+    )
+
+
 @runs_app.command("cancel")
 def runs_cancel(
     ctx: typer.Context,
