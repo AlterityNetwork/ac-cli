@@ -30,7 +30,9 @@ _PAGE_MAX = 100
 
 _SUMMARY_FIELDS = [
     ("id", "Prospect ID"),
+    ("subject_type", "Subject"),
     ("company_name", "Company"),
+    ("person_name", "Person"),
     ("top_person_name", "Top person"),
     ("suggested_action_short", "Action"),
     ("company_domain", "Domain"),
@@ -42,7 +44,9 @@ _SUMMARY_FIELDS = [
 ]
 _DETAIL_FIELDS = [
     ("id", "Prospect ID"),
+    ("subject_type", "Subject"),
     ("company_name", "Company"),
+    ("person_name", "Person"),
     ("company_domain", "Domain"),
     ("review_state", "State"),
     ("opportunity_score", "Score"),
@@ -95,6 +99,20 @@ _PERSON_FIELDS = [
     ("persona_fit_score", "Fit"),
     ("contact_state", "Contact"),
     ("email", "Email"),
+]
+#: The subject of a person prospect, which a People Signals Run writes.
+_SUBJECT_PERSON_FIELDS = [
+    ("id", "Person ID"),
+    ("full_name", "Name"),
+    ("current_title", "Title"),
+    ("current_company_text", "Company"),
+    ("location", "Location"),
+    ("country", "Country"),
+    ("linkedin_url", "LinkedIn"),
+    ("personal_website", "Website"),
+    ("social_profile_url", "Social profile"),
+    ("email", "Email"),
+    ("last_enriched_at", "Last enriched"),
 ]
 _SIGNAL_FIELDS = [
     ("signal_type", "Type"),
@@ -235,23 +253,52 @@ def _flat_suggested_action(item: dict) -> dict:
     }
 
 
-def _flat_prospect(item: dict) -> dict:
-    """Flattens the signal and the person one prospect row names.
+def _flat_subject(item: dict) -> dict:
+    """Flattens the subject one prospect row names.
+
+    A company prospect names its company in the company fields. A person
+    prospect names its person under `person`, so the table reads the name from
+    there. A row from before the subject field is a company.
 
     Args:
         item: One prospect summary or detail object.
 
     Returns:
-        The same object plus the flat signal keys and the flat person key.
+        The same object plus `subject_type` and the flat person name.
     """
-    return _flat_suggested_action(_flat_top_person(_flat_latest_signal(item)))
+    person = item.get("person") or {}
+    return {
+        **item,
+        "subject_type": item.get("subject_type") or "company",
+        "person_name": person.get("full_name"),
+    }
+
+
+def _flat_prospect(item: dict) -> dict:
+    """Flattens the subject, the signal and the person one prospect row names.
+
+    Args:
+        item: One prospect summary or detail object.
+
+    Returns:
+        The same object plus the flat subject, signal and person keys.
+    """
+    return _flat_suggested_action(_flat_top_person(_flat_latest_signal(_flat_subject(item))))
 
 
 def _print_prospect(data: dict) -> None:
-    """Prints one prospect and its bounded company facts."""
+    """Prints one prospect and the bounded facts of its subject.
+
+    A company prospect prints its company block. A person prospect prints its
+    person block, and it has no company to print.
+    """
     print_detail(_flat_prospect(data), _DETAIL_FIELDS)
-    rprint("[bold]Company[/bold]")
-    print_detail(data["company"], _COMPANY_FIELDS)
+    if data.get("person"):
+        rprint("[bold]Person[/bold]")
+        print_detail(data["person"], _SUBJECT_PERSON_FIELDS)
+    if data.get("company"):
+        rprint("[bold]Company[/bold]")
+        print_detail(data["company"], _COMPANY_FIELDS)
 
 
 @app.command("list")
@@ -500,7 +547,7 @@ def prospects_promote(
         "--person",
         help="A prospect person ID to promote. Repeat for each person.",
     ),
-    list_id: str = typer.Option(None, "--list", help="A static CRM list the company joins."),
+    list_id: str = typer.Option(None, "--list", help="A static CRM list the prospect joins."),
     yes: bool = typer.Option(False, "--yes", "-y", help="Skip the confirmation."),
     json_output: bool = JSON_OPTION,
 ) -> None:
