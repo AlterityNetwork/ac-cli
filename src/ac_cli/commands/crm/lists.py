@@ -33,8 +33,9 @@ def lists_list(
         [
             ("name", "Name"),
             ("type", "Type"),
-            ("member_type", "Member Type"),
             ("member_count", "Members"),
+            ("person_count", "People"),
+            ("company_count", "Companies"),
             ("id", "ID"),
         ],
         title=f"Lists ({data.get('total', '?')} total)",
@@ -63,8 +64,9 @@ def lists_get(
             ("name", "Name"),
             ("description", "Description"),
             ("type", "Type"),
-            ("member_type", "Member Type"),
             ("member_count", "Members"),
+            ("person_count", "People"),
+            ("company_count", "Companies"),
             ("created_at", "Created"),
             ("updated_at", "Updated"),
         ],
@@ -75,17 +77,15 @@ def lists_get(
 def lists_create(
     ctx: typer.Context,
     name: str = typer.Option(..., help="List name"),
-    member_type: str = typer.Option("mixed", "--member-type", help="person, company, or mixed"),
     description: str | None = typer.Option(None, help="Description"),
     list_type: str = typer.Option("static", "--type", help="static or dynamic"),
     json_output: bool = JSON_OPTION,
 ) -> None:
-    """Create a new list."""
+    """Create a new list. Every list holds people and companies."""
     set_json_mode(json_output)
     body = _build_body(
         name=name,
         type=list_type,
-        member_type=member_type,
         description=description,
     )
 
@@ -107,7 +107,6 @@ def lists_update(
     name: str | None = typer.Option(None, help="List name"),
     description: str | None = typer.Option(None, help="Description"),
     list_type: str | None = typer.Option(None, "--type", help="static or dynamic"),
-    member_type: str | None = typer.Option(None, "--member-type", help="person, company, or mixed"),
     json_output: bool = JSON_OPTION,
 ) -> None:
     """Update an existing list."""
@@ -116,7 +115,6 @@ def lists_update(
         name=name,
         description=description,
         type=list_type,
-        member_type=member_type,
     )
 
     if not body:
@@ -138,15 +136,21 @@ def lists_members(
     list_id: str = typer.Argument(..., help="List ID"),
     limit: int = typer.Option(100, help="Max results"),
     offset: int = typer.Option(0, help="Offset"),
+    member_type: str | None = typer.Option(
+        None, "--member-type", help="person or company. Omit to list both kinds."
+    ),
     json_output: bool = JSON_OPTION,
 ) -> None:
-    """List members of a list."""
+    """List members of a list. A list holds people and companies."""
     set_json_mode(json_output)
-    resp = _api_request(
-        "get",
-        f"{_CRM}/lists/{list_id}/members",
-        params={"limit": limit, "offset": offset},
-    )
+    if member_type is not None and member_type not in ("person", "company"):
+        rprint("[red]--member-type must be 'person' or 'company'[/red]")
+        raise typer.Exit(code=1)
+
+    params: dict[str, str | int] = {"limit": limit, "offset": offset}
+    if member_type is not None:
+        params["member_type"] = member_type
+    resp = _api_request("get", f"{_CRM}/lists/{list_id}/members", params=params)
 
     data = resp.json()
     if json_output:
