@@ -32,15 +32,14 @@ def workflows_callback(ctx: typer.Context) -> None:
 # -- Standalone commands -------------------------------------------------------
 
 
-def _upload_csv(file: str, endpoint: str) -> dict:
-    """Uploads one CSV file to a parse endpoint and answers the parsed body.
+def _csv_path(file: str) -> Path:
+    """Checks the path the reader gave and answers it as a Path.
 
     Args:
         file: The path the reader gave.
-        endpoint: The API path under the workflows prefix.
 
     Returns:
-        The parsed JSON body.
+        The path of a .csv file that exists.
     """
     path = Path(file)
     if not path.exists():
@@ -50,22 +49,7 @@ def _upload_csv(file: str, endpoint: str) -> dict:
     if not path.suffix.lower() == ".csv":
         rprint("[red]File must be a .csv file[/red]")
         raise typer.Exit(code=1)
-
-    # Multipart file upload — _api_request supports files= kwarg
-    with open(path, "rb") as f:
-        with get_api_client() as client:
-            try:
-                resp = client.post(
-                    f"{_WORKFLOWS}/csv/{endpoint}",
-                    files={"file": (path.name, f, "text/csv")},
-                )
-                resp.raise_for_status()
-            except httpx.HTTPStatusError as exc:
-                _handle_error(exc)
-            except httpx.HTTPError as exc:
-                _handle_connection_error(exc)
-
-    return resp.json()
+    return path
 
 
 @app.command("csv-parse")
@@ -76,7 +60,22 @@ def csv_parse(
 ) -> None:
     """Parse a CSV file into structured company data."""
     set_json_mode(json_output)
-    data = _upload_csv(file, "parse-companies")
+    path = _csv_path(file)
+    # Multipart file upload — _api_request supports files= kwarg
+    with open(path, "rb") as f:
+        with get_api_client() as client:
+            try:
+                resp = client.post(
+                    f"{_WORKFLOWS}/csv/parse-companies",
+                    files={"file": (path.name, f, "text/csv")},
+                )
+                resp.raise_for_status()
+            except httpx.HTTPStatusError as exc:
+                _handle_error(exc)
+            except httpx.HTTPError as exc:
+                _handle_connection_error(exc)
+
+    data = resp.json()
     if json_output:
         print_json(data)
         return
@@ -115,7 +114,21 @@ def csv_parse_people(
     file that lists companies; use csv-parse for that file.
     """
     set_json_mode(json_output)
-    data = _upload_csv(file, "parse-people")
+    path = _csv_path(file)
+    with open(path, "rb") as f:
+        with get_api_client() as client:
+            try:
+                resp = client.post(
+                    f"{_WORKFLOWS}/csv/parse-people",
+                    files={"file": (path.name, f, "text/csv")},
+                )
+                resp.raise_for_status()
+            except httpx.HTTPStatusError as exc:
+                _handle_error(exc)
+            except httpx.HTTPError as exc:
+                _handle_connection_error(exc)
+
+    data = resp.json()
     if json_output:
         print_json(data)
         return
