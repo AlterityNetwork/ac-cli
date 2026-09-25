@@ -76,8 +76,8 @@ def test_get_json_keeps_the_null_company(invoke, mock_api):
     assert json.loads(result.output)["person"]["full_name"] == "Jane Doe"
 
 
-def _block_headers(output: str) -> list[str]:
-    """The lines that hold only a block header, such as "Person"."""
+def _output_lines(output: str) -> list[str]:
+    """Every output line, stripped, so a test can match a block header exactly."""
     return [line.strip() for line in output.splitlines()]
 
 
@@ -112,7 +112,7 @@ def test_get_prints_the_company_block_and_no_person_block_for_a_company(invoke, 
     result = invoke(["agentic", "prospects", "get", PROSPECT_ID])
 
     assert result.exit_code == 0
-    lines = _block_headers(result.output)
+    lines = _output_lines(result.output)
     assert "Company" in lines
     assert "Person" not in lines
     assert "Software" in result.output
@@ -132,7 +132,7 @@ def test_act_on_a_person_prospect_prints_the_task_and_the_person(invoke, mock_ap
 
     assert result.exit_code == 0
     assert task_id in result.output
-    lines = _block_headers(result.output)
+    lines = _output_lines(result.output)
     assert "Person" in lines
     assert "Company" not in lines
     assert "Jane Doe" in result.output
