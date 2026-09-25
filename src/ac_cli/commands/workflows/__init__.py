@@ -1,4 +1,4 @@
-"""Workflow commands: runs, schedules, presets, csv-parse."""
+"""Workflow commands: runs, schedules, presets, csv-parse, csv-parse-people."""
 
 from __future__ import annotations
 
@@ -32,14 +32,16 @@ def workflows_callback(ctx: typer.Context) -> None:
 # -- Standalone commands -------------------------------------------------------
 
 
-@app.command("csv-parse")
-def csv_parse(
-    ctx: typer.Context,
-    file: str = typer.Argument(..., help="Path to CSV file"),
-    json_output: bool = JSON_OPTION,
-) -> None:
-    """Parse a CSV file into structured company data."""
-    set_json_mode(json_output)
+def _upload_csv(file: str, endpoint: str) -> dict:
+    """Uploads one CSV file to a parse endpoint and answers the parsed body.
+
+    Args:
+        file: The path the reader gave.
+        endpoint: The API path under the workflows prefix.
+
+    Returns:
+        The parsed JSON body.
+    """
     path = Path(file)
     if not path.exists():
         rprint(styled("[red]File not found:[/red] {}", file))
@@ -54,7 +56,7 @@ def csv_parse(
         with get_api_client() as client:
             try:
                 resp = client.post(
-                    f"{_WORKFLOWS}/csv/parse-companies",
+                    f"{_WORKFLOWS}/csv/{endpoint}",
                     files={"file": (path.name, f, "text/csv")},
                 )
                 resp.raise_for_status()
@@ -63,7 +65,18 @@ def csv_parse(
             except httpx.HTTPError as exc:
                 _handle_connection_error(exc)
 
-    data = resp.json()
+    return resp.json()
+
+
+@app.command("csv-parse")
+def csv_parse(
+    ctx: typer.Context,
+    file: str = typer.Argument(..., help="Path to CSV file"),
+    json_output: bool = JSON_OPTION,
+) -> None:
+    """Parse a CSV file into structured company data."""
+    set_json_mode(json_output)
+    data = _upload_csv(file, "parse-companies")
     if json_output:
         print_json(data)
         return
@@ -87,6 +100,46 @@ def csv_parse(
             ("source_type", "Source"),
         ],
         title=f"Parsed Companies ({len(companies)})",
+    )
+
+
+@app.command("csv-parse-people")
+def csv_parse_people(
+    ctx: typer.Context,
+    file: str = typer.Argument(..., help="Path to a contacts CSV file"),
+    json_output: bool = JSON_OPTION,
+) -> None:
+    """Parse a contacts CSV file into people rows.
+
+    Every row comes back with its 1-based row number. The API refuses a
+    file that lists companies; use csv-parse for that file.
+    """
+    set_json_mode(json_output)
+    data = _upload_csv(file, "parse-people")
+    if json_output:
+        print_json(data)
+        return
+
+    people = data.get("people", [])
+    rprint(
+        styled(
+            "\n[bold]Parsed {} rows[/bold] (truncated: {})\n",
+            data.get("total_rows", 0),
+            data.get("truncated", False),
+        )
+    )
+    print_table(
+        people,
+        [
+            ("row", "Row"),
+            ("full_name", "Name"),
+            ("email", "Email"),
+            ("title", "Title"),
+            ("company_name", "Company"),
+            ("domain", "Domain"),
+            ("linkedin_url", "LinkedIn"),
+        ],
+        title=f"Parsed People ({len(people)})",
     )
 
 
