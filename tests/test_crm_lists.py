@@ -12,8 +12,10 @@ SAMPLE_LIST = {
     "name": "Target Companies",
     "description": "Companies to reach out to",
     "type": "static",
-    "member_type": "company",
+    "member_type": "mixed",
     "member_count": 5,
+    "person_count": 3,
+    "company_count": 2,
     "created_at": "2026-01-01T00:00:00Z",
     "updated_at": "2026-01-01T00:00:00Z",
 }
@@ -39,6 +41,8 @@ def test_lists_list(invoke, mock_api):
     result = invoke(["crm", "lists", "list"])
     assert result.exit_code == 0
     assert "Target Companies" in result.output
+    assert "People" in result.output
+    assert "Companies" in result.output
 
 
 def test_lists_list_json(invoke, mock_api):
@@ -59,12 +63,22 @@ def test_lists_get(invoke, mock_api):
 
 def test_lists_create(invoke, mock_api):
     mock_api.get("/whoami").respond(200, json=WHOAMI_RESPONSE)
-    mock_api.post("/api/v1/crm/lists").respond(201, json=SAMPLE_LIST)
-    result = invoke(
-        ["crm", "lists", "create", "--name", "Target Companies", "--member-type", "company"]
-    )
+    route = mock_api.post("/api/v1/crm/lists").respond(201, json=SAMPLE_LIST)
+    result = invoke(["crm", "lists", "create", "--name", "Target Companies"])
     assert result.exit_code == 0
     assert "Created list" in result.output
+    body = json.loads(route.calls[0].request.content)
+    assert "member_type" not in body
+
+
+def test_lists_create_has_no_member_type(invoke, mock_api):
+    result = invoke(["crm", "lists", "create", "--name", "X", "--member-type", "person"])
+    assert result.exit_code == 2
+
+
+def test_lists_update_has_no_member_type(invoke, mock_api):
+    result = invoke(["crm", "lists", "update", "l1", "--member-type", "person"])
+    assert result.exit_code == 2
 
 
 def test_lists_update(invoke, mock_api):
@@ -100,6 +114,22 @@ def test_lists_members(invoke, mock_api):
     result = invoke(["crm", "lists", "members", "l1"])
     assert result.exit_code == 0
     assert "c1" in result.output
+
+
+def test_lists_members_member_type(invoke, mock_api):
+    route = mock_api.get("/api/v1/crm/lists/l1/members").respond(
+        200, json={"data": [SAMPLE_MEMBER], "total": 1}
+    )
+    result = invoke(["crm", "lists", "members", "l1", "--member-type", "company", "--json"])
+    assert result.exit_code == 0
+    assert route.calls[0].request.url.params["member_type"] == "company"
+    assert json.loads(result.output)["total"] == 1
+
+
+def test_lists_members_invalid_member_type(invoke, mock_api):
+    result = invoke(["crm", "lists", "members", "l1", "--member-type", "mixed"])
+    assert result.exit_code == 1
+    assert "person" in result.output
 
 
 def test_lists_add_member(invoke, mock_api):
