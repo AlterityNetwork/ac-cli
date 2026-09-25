@@ -95,7 +95,7 @@ _PERSON_FIELDS = [
     ("person_id", "Person ID"),
     ("full_name", "Name"),
     ("current_title", "Title"),
-    ("current_company_text", "Company"),
+    ("employer_name", "Company"),
     ("persona_fit_score", "Fit"),
     ("contact_state", "Contact"),
     ("email", "Email"),
@@ -105,7 +105,7 @@ _SUBJECT_PERSON_FIELDS = [
     ("id", "Person ID"),
     ("full_name", "Name"),
     ("current_title", "Title"),
-    ("current_company_text", "Company"),
+    ("employer_name", "Company"),
     ("location", "Location"),
     ("country", "Country"),
     ("linkedin_url", "LinkedIn"),
@@ -253,6 +253,23 @@ def _flat_suggested_action(item: dict) -> dict:
     }
 
 
+def _employer_name(person: dict) -> str | None:
+    """Answers the employer a person row shows.
+
+    The linked company names the employer. The free text the research
+    recorded is the fallback for a person with no linked company.
+
+    Args:
+        person: One person object of a prospect read.
+
+    Returns:
+        The employer name, or None.
+    """
+    linked = person.get("current_company") or {}
+    name = str(linked.get("name") or "").strip()
+    return name or str(person.get("current_company_text") or "").strip() or None
+
+
 def _flat_subject(item: dict) -> dict:
     """Flattens the subject one prospect row names.
 
@@ -295,7 +312,11 @@ def _print_prospect(data: dict) -> None:
     print_detail(_flat_prospect(data), _DETAIL_FIELDS)
     if data.get("person"):
         rprint("[bold]Person[/bold]")
-        print_detail(data["person"], _SUBJECT_PERSON_FIELDS)
+        person = data["person"]
+        print_detail(
+            {**person, "employer_name": _employer_name(person)},
+            _SUBJECT_PERSON_FIELDS,
+        )
     if data.get("company"):
         rprint("[bold]Company[/bold]")
         print_detail(data["company"], _COMPANY_FIELDS)
@@ -404,6 +425,7 @@ def prospects_people(
                 **item,
                 "person_id": person["id"],
                 **person,
+                "employer_name": _employer_name(person),
             }
         )
     print_table(rows, _PERSON_FIELDS, title="Prospect people")
