@@ -33,14 +33,7 @@ def workflows_callback(ctx: typer.Context) -> None:
 
 
 def _csv_path(file: str) -> Path:
-    """Checks the path the reader gave and answers it as a Path.
-
-    Args:
-        file: The path the reader gave.
-
-    Returns:
-        The path of a .csv file that exists.
-    """
+    """Checks that the file exists and is a .csv, and answers its Path."""
     path = Path(file)
     if not path.exists():
         rprint(styled("[red]File not found:[/red] {}", file))

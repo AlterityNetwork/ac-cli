@@ -162,3 +162,15 @@ def test_csv_parse_people_api_error_json(invoke, mock_api, tmp_path):
     parsed = json.loads(result.output)
     assert parsed["error"] is True
     assert parsed["status_code"] == 400
+
+
+def test_csv_parse_people_api_error(invoke, mock_api, tmp_path):
+    """A companies file gets exit code 1 and the 400 in the plain output."""
+    mock_api.post("/api/v1/workflows/csv/parse-people").respond(
+        400, json={"message": "This file lists companies. Choose Companies and upload it again."}
+    )
+    csv_file = tmp_path / "companies.csv"
+    csv_file.write_text("name,website\nAcme,acme.com\n")
+    result = invoke(["workflows", "csv-parse-people", str(csv_file)])
+    assert result.exit_code == 1
+    assert "400" in result.output
