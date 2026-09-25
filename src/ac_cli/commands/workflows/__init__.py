@@ -101,11 +101,7 @@ def csv_parse_people(
     file: str = typer.Argument(..., help="Path to a contacts CSV file"),
     json_output: bool = JSON_OPTION,
 ) -> None:
-    """Parse a contacts CSV file into people rows.
-
-    Every row comes back with its 1-based row number. The API refuses a
-    file that lists companies; use csv-parse for that file.
-    """
+    """Parse a contacts CSV file into people rows; the API refuses a company file."""
     set_json_mode(json_output)
     path = _csv_path(file)
     with open(path, "rb") as f:
