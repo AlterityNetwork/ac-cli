@@ -266,7 +266,8 @@ def _employer_name(person: dict) -> str | None:
         The employer name, or None.
     """
     linked = person.get("current_company") or {}
-    return linked.get("name") or person.get("current_company_text")
+    name = str(linked.get("name") or "").strip()
+    return name or str(person.get("current_company_text") or "").strip() or None
 
 
 def _flat_subject(item: dict) -> dict:

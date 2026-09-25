@@ -128,6 +128,20 @@ def test_get_falls_back_to_the_employer_text(invoke, mock_api):
     assert "Copy Hackers Ltd" in result.output
 
 
+def test_get_falls_back_to_the_text_when_the_linked_name_is_blank(invoke, mock_api):
+    person = {
+        **PERSON_SUBJECT,
+        "current_company_text": "Copy Hackers Ltd",
+        "current_company": {**EMPLOYER, "name": "   "},
+    }
+    mock_api.get(f"{BASE}/{PROSPECT_ID}").respond(200, json={**PERSON_DETAIL, "person": person})
+
+    result = invoke(["agentic", "prospects", "get", PROSPECT_ID])
+
+    assert result.exit_code == 0
+    assert "Copy Hackers Ltd" in result.output
+
+
 def test_people_prints_each_persons_linked_employer(invoke, mock_api):
     mock_api.get(f"{BASE}/{PROSPECT_ID}/people").respond(
         200,
