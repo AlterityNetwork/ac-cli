@@ -388,6 +388,50 @@ def test_runs_list_filters_on_the_capability(invoke, mock_api):
     assert route.calls[0].request.url.params["capability_id"] == "company.search"
 
 
+def test_runs_list_filters_on_several_capabilities(invoke, mock_api):
+    """The Signals history reads the company and the people Runs in one page."""
+    route = mock_api.get("/api/v1/agentic/runs").respond(
+        200, json={"items": [], "next_cursor": None}
+    )
+    invoke(
+        [
+            "agentic",
+            "runs",
+            "list",
+            "--capability",
+            "signals.search",
+            "--capability",
+            "people.signals",
+        ]
+    )
+
+    assert route.calls[0].request.url.params.get_list("capability_id") == [
+        "signals.search",
+        "people.signals",
+    ]
+
+
+def test_runs_list_next_page_hint_repeats_each_capability(invoke, mock_api):
+    """A cursor carries no filter, so the hint names every capability again."""
+    mock_api.get("/api/v1/agentic/runs").respond(
+        200, json={"items": [SAMPLE_RUN], "next_cursor": "abc"}
+    )
+    result = invoke(
+        [
+            "agentic",
+            "runs",
+            "list",
+            "--capability",
+            "signals.search",
+            "--capability",
+            "people.signals",
+        ]
+    )
+
+    assert result.exit_code == 0
+    assert "--capability signals.search --capability people.signals" in result.output
+
+
 def test_runs_list_sends_no_capability_by_default(invoke, mock_api):
     route = mock_api.get("/api/v1/agentic/runs").respond(
         200, json={"items": [], "next_cursor": None}

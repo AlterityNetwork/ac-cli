@@ -266,8 +266,10 @@ def runs_list(
     ctx: typer.Context,
     parent: str | None = typer.Option(None, "--parent", help="Children of one run"),
     definition_id: str | None = typer.Option(None, "--definition", help="Runs of one definition"),
-    capability: str | None = typer.Option(
-        None, "--capability", help="Runs of one capability, e.g. company.search"
+    capability: list[str] | None = typer.Option(
+        None,
+        "--capability",
+        help="Runs of one capability, e.g. company.search. Repeat it to name more than one.",
     ),
     status: str | None = typer.Option(None, "--status", help="Runs in one status"),
     source: str | None = typer.Option(
@@ -328,6 +330,7 @@ def runs_list(
             filters=[
                 ("--parent", parent),
                 ("--definition", definition_id),
+                *(("--capability", one) for one in capability or []),
                 ("--status", status),
                 ("--source", source),
                 ("--all", every),
