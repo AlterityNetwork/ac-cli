@@ -90,6 +90,29 @@ def test_signals_get(invoke, mock_api):
     assert json.loads(result.output)["id"] == "sig-1"
 
 
+def test_signals_get_explains_new_sonar_provenance_and_scores(invoke, mock_api):
+    mock_api.get("/api/v1/crm/signals/sig-2").respond(
+        200,
+        json={
+            **SIGNAL,
+            "id": "sig-2",
+            "evidence_origin": "intelligence",
+            "prospect_id": "prospect-2",
+            "signal_score": 83,
+            "signal_reason": "Verified event",
+            "opportunity_score": 71,
+            "opportunity_reason": "Strong fit",
+            "citations": [{"source": {"provider": "News", "source_ref": "https://example.com/story"}}],
+        },
+    )
+    result = invoke(["crm", "signals", "get", "sig-2"])
+    assert result.exit_code == 0
+    assert "intelligence" in result.output
+    assert "83" in result.output
+    assert "71" in result.output
+    assert "prospect-2" in result.output
+
+
 def test_signals_create_company(invoke, mock_api):
     route = mock_api.post("/api/v1/crm/signals").respond(201, json=SIGNAL)
     result = invoke(
