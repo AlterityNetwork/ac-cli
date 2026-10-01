@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import json
+
 import typer
 from rich import print as rprint
 
@@ -79,6 +81,8 @@ def signals_list(
         [
             ("signal_type", "Type"),
             ("description", "Description"),
+            ("evidence_origin", "Origin"),
+            ("signal_score", "Score"),
             ("signal_date", "Date"),
             ("source_agent", "Source"),
             ("id", "ID"),
@@ -102,6 +106,9 @@ def signals_get(
         print_json(data)
         return
 
+    if data.get("citations"):
+        data = {**data, "citations": json.dumps(data["citations"], indent=2)}
+
     print_detail(
         data,
         [
@@ -112,6 +119,14 @@ def signals_get(
             ("source_url", "Source URL"),
             ("source_agent", "Source Agent"),
             ("snippet", "Snippet"),
+            ("evidence_origin", "Evidence Origin"),
+            ("intel_signal_id", "Intelligence Signal"),
+            ("prospect_id", "Prospect"),
+            ("signal_score", "Signal Score"),
+            ("signal_reason", "Signal Reason"),
+            ("opportunity_score", "Opportunity Score"),
+            ("opportunity_reason", "Opportunity Reason"),
+            ("citations", "Citations"),
             ("workflow_run_id", "Workflow Run"),
             ("created_at", "Created"),
         ],
