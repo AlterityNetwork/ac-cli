@@ -526,7 +526,7 @@ def test_list_reports_a_signal_type_the_api_refuses(invoke, mock_api):
     result = invoke(["agentic", "prospects", "list", "--signal-type", "funding"])
 
     assert route.calls[0].request.url.params["signal_type"] == "funding"
-    assert result.exit_code != 0
+    assert result.exit_code == 2
 
 
 def test_list_json_keeps_the_page(invoke, mock_api):
