@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from enum import Enum
+
 import typer
 from rich import print as rprint
 
@@ -586,17 +588,49 @@ def communications_reject(
         )
 
 
+class RegenerateScope(str, Enum):
+    """Which drafts a regenerate replaces."""
+
+    draft = "draft"
+    step = "step"
+
+
 @communications_app.command("regenerate")
 def communications_regenerate(
     ctx: typer.Context,
     communication_id: str = typer.Argument(..., help="Communication ID"),
+    instruction: str | None = typer.Option(
+        None, "--instruction", help="Feedback for the new draft"
+    ),
+    apply_to_sequence: bool = typer.Option(
+        False,
+        "--apply-to-sequence",
+        help="Also save the feedback on the sequence for every later draft",
+    ),
+    scope: RegenerateScope | None = typer.Option(
+        None,
+        "--scope",
+        help="draft: this draft only. step: every waiting draft of the same step",
+    ),
     json_output: bool = JSON_OPTION,
 ) -> None:
     """Regenerate a pending communication's draft."""
     set_json_mode(json_output)
-    resp = _api_request("post", f"{_CRM}/communications/{communication_id}/regenerate")
+    body = _build_body(
+        instruction=instruction,
+        apply_to_sequence=apply_to_sequence or None,
+        scope=scope.value if scope else None,
+    )
+    resp = _api_request("post", f"{_CRM}/communications/{communication_id}/regenerate", json=body)
     data = resp.json()
     if json_output:
         print_json(data)
     else:
-        rprint(styled("[green]Regenerated communication {}[/green]", communication_id))
+        count = data.get("regenerated_count") or 1
+        rprint(
+            styled(
+                "[green]Regenerating {} drafts from communication {}[/green]",
+                count,
+                communication_id,
+            )
+        )

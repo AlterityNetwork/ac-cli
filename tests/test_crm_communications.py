@@ -685,6 +685,38 @@ def test_comms_reject(invoke, mock_api):
     assert "Rejected" in result.output
 
 
+def test_comms_regenerate_sends_feedback_for_the_step(invoke, mock_api):
+    route = mock_api.post("/api/v1/crm/communications/c1/regenerate").respond(
+        200, json={"communication_id": "c1", "regenerated_count": 3}
+    )
+    result = invoke(
+        [
+            "crm",
+            "comms",
+            "regenerate",
+            "c1",
+            "--instruction",
+            "Shorter please",
+            "--apply-to-sequence",
+            "--scope",
+            "step",
+        ]
+    )
+    assert result.exit_code == 0
+    body = json.loads(route.calls[0].request.content.decode())
+    assert body == {
+        "instruction": "Shorter please",
+        "apply_to_sequence": True,
+        "scope": "step",
+    }
+    assert "3 drafts" in result.output
+
+
+def test_comms_regenerate_rejects_unknown_scope(invoke, mock_api):
+    result = invoke(["crm", "comms", "regenerate", "c1", "--scope", "sequence"])
+    assert result.exit_code != 0
+
+
 def test_comms_regenerate(invoke, mock_api):
     mock_api.post("/api/v1/crm/communications/c1/regenerate").respond(
         202, json={"id": "c1", "status": "queued"}

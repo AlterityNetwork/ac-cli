@@ -98,6 +98,11 @@ def sequences_create(
     writing_style_id: str | None = typer.Option(
         None, "--writing-style-id", help="Writing style ID"
     ),
+    draft_feedback: str | None = typer.Option(
+        None,
+        "--draft-feedback",
+        help="Reviewer feedback that every draft of the sequence applies. Pass '' to clear it.",
+    ),
     playbook_id: str | None = typer.Option(None, "--playbook-id", help="Playbook ID"),
     crm_list_id: str | None = typer.Option(None, "--crm-list-id", help="CRM list ID"),
     execution_mode: str | None = typer.Option(None, "--execution-mode", help="Execution mode"),
@@ -114,6 +119,7 @@ def sequences_create(
         name=name,
         description=description,
         writing_style_id=writing_style_id,
+        draft_feedback=draft_feedback,
         playbook_id=playbook_id,
         crm_list_id=crm_list_id,
         execution_mode=execution_mode,
@@ -140,6 +146,11 @@ def sequences_update(
     writing_style_id: str | None = typer.Option(
         None, "--writing-style-id", help="Writing style ID"
     ),
+    draft_feedback: str | None = typer.Option(
+        None,
+        "--draft-feedback",
+        help="Reviewer feedback that every draft of the sequence applies. Pass '' to clear it.",
+    ),
     playbook_id: str | None = typer.Option(None, "--playbook-id", help="Playbook ID"),
     crm_list_id: str | None = typer.Option(None, "--crm-list-id", help="CRM list ID"),
     execution_mode: str | None = typer.Option(None, "--execution-mode", help="Execution mode"),
@@ -156,6 +167,7 @@ def sequences_update(
         name=name,
         description=description,
         writing_style_id=writing_style_id,
+        draft_feedback=draft_feedback,
         playbook_id=playbook_id,
         crm_list_id=crm_list_id,
         execution_mode=execution_mode,
