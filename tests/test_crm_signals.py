@@ -125,6 +125,21 @@ def test_projected_signal_get_shows_evidence_and_scores(invoke, mock_api):
         "https://example.com/funding",
     ):
         assert value in result.output
+    assert "[{'url':" not in result.output
+
+
+def test_projected_signal_get_shows_citation_source_refs(invoke, mock_api):
+    signal = {
+        **PROJECTED_SIGNAL,
+        "citations": [{"source": {"provider": "news", "source_ref": "https://example.com/story"}}],
+    }
+    mock_api.get("/api/v1/crm/signals/sig-1").respond(200, json=signal)
+
+    result = invoke(["crm", "signals", "get", "sig-1"])
+
+    assert result.exit_code == 0
+    assert "https://example.com/story" in result.output
+    assert "'source':" not in result.output
 
 
 def test_signals_create_company(invoke, mock_api):

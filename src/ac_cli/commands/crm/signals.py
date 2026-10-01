@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import json
+
 import typer
 from rich import print as rprint
 
@@ -103,6 +105,9 @@ def signals_get(
     if json_output:
         print_json(data)
         return
+
+    if data.get("citations"):
+        data = {**data, "citations": json.dumps(data["citations"], indent=2)}
 
     print_detail(
         data,
