@@ -460,6 +460,75 @@ def test_list_filters_by_last_seen_run(invoke, mock_api):
     assert f"--last-seen-run-id {run_id} --cursor tok" in result.output
 
 
+def test_list_forwards_the_three_server_filters(invoke, mock_api):
+    route = mock_api.get(BASE).respond(200, json={"items": [], "next_cursor": "tok"})
+
+    result = invoke(
+        [
+            "agentic",
+            "prospects",
+            "list",
+            "--people-state",
+            "found",
+            "--signal-type",
+            "hired_growth_role",
+            "--search",
+            "Jack & Jill",
+        ]
+    )
+
+    assert result.exit_code == 0
+    params = route.calls[0].request.url.params
+    assert params["people_state"] == "found"
+    assert params["signal_type"] == "hired_growth_role"
+    assert params["search"] == "Jack & Jill"
+
+
+def test_list_sends_no_filter_the_caller_did_not_name(invoke, mock_api):
+    route = mock_api.get(BASE).respond(200, json={"items": [], "next_cursor": None})
+
+    invoke(["agentic", "prospects", "list"])
+
+    params = route.calls[0].request.url.params
+    for name in ("people_state", "signal_type", "search"):
+        assert name not in params
+
+
+def test_the_next_page_keeps_the_filters(invoke, mock_api):
+    """The next page reads under the same filters, so the hint names them."""
+    mock_api.get(BASE).respond(200, json={"items": [], "next_cursor": "tok"})
+
+    result = invoke(
+        [
+            "agentic",
+            "prospects",
+            "list",
+            "--people-state",
+            "found",
+            "--signal-type",
+            "funding_round",
+            "--search",
+            "acme",
+        ]
+    )
+
+    assert (
+        "--people-state found --signal-type funding_round --search acme --cursor tok"
+        in result.output
+    )
+
+
+def test_list_reports_a_signal_type_the_api_refuses(invoke, mock_api):
+    """The API owns the vocabulary, so the command sends the type and
+    reports the refusal."""
+    route = mock_api.get(BASE).respond(422, json={"detail": "signal_type is not valid"})
+
+    result = invoke(["agentic", "prospects", "list", "--signal-type", "funding"])
+
+    assert route.calls[0].request.url.params["signal_type"] == "funding"
+    assert result.exit_code == 2
+
+
 def test_list_json_keeps_the_page(invoke, mock_api):
     page = {"items": [SUMMARY], "next_cursor": "next"}
     mock_api.get(BASE).respond(200, json=page)
@@ -540,6 +609,53 @@ def test_counts_reports_an_api_refusal(invoke, mock_api):
     mock_api.get(f"{BASE}/counts").respond(403, json={"detail": "no access"})
 
     result = invoke(["agentic", "prospects", "counts"])
+
+    assert result.exit_code == 4
+
+
+SIGNAL_TYPES = {
+    "items": [
+        {"signal_type": "funding_round", "count": 7},
+        {"signal_type": "market_expansion", "count": 2},
+    ]
+}
+
+
+def test_signal_types_prints_each_type_and_its_count(invoke, mock_api):
+    route = mock_api.get(f"{BASE}/signal-types").respond(200, json=SIGNAL_TYPES)
+
+    result = invoke(["agentic", "prospects", "signal-types", "--review-state", "watching"])
+
+    assert result.exit_code == 0
+    assert route.calls[0].request.url.params["review_state"] == "watching"
+    assert "funding_round" in result.output
+    assert "market_expansion" in result.output
+    assert "7" in result.output
+
+
+def test_signal_types_reads_the_new_state_by_default(invoke, mock_api):
+    """The inbox opens on the new state, so the command does too."""
+    route = mock_api.get(f"{BASE}/signal-types").respond(200, json={"items": []})
+
+    result = invoke(["agentic", "prospects", "signal-types"])
+
+    assert result.exit_code == 0
+    assert route.calls[0].request.url.params["review_state"] == "new"
+
+
+def test_signal_types_json_keeps_the_body(invoke, mock_api):
+    mock_api.get(f"{BASE}/signal-types").respond(200, json=SIGNAL_TYPES)
+
+    result = invoke(["agentic", "prospects", "signal-types", "--json"])
+
+    assert result.exit_code == 0
+    assert json.loads(result.output) == SIGNAL_TYPES
+
+
+def test_signal_types_reports_an_api_refusal(invoke, mock_api):
+    mock_api.get(f"{BASE}/signal-types").respond(403, json={"detail": "no access"})
+
+    result = invoke(["agentic", "prospects", "signal-types"])
 
     assert result.exit_code == 4
 
@@ -763,6 +879,7 @@ def test_prospects_help_lists_every_command(invoke):
     for command in (
         "list",
         "counts",
+        "signal-types",
         "get",
         "people",
         "signals",
