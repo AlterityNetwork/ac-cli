@@ -14,6 +14,18 @@ SIGNAL = {
     "created_at": "2026-05-10T00:00:00Z",
 }
 
+PROJECTED_SIGNAL = {
+    **SIGNAL,
+    "evidence_origin": "intelligence",
+    "intel_signal_id": "intel-sig-1",
+    "prospect_id": "prospect-1",
+    "signal_score": 86,
+    "signal_reason": "Recent funding supports expansion",
+    "opportunity_score": 91,
+    "opportunity_reason": "Strong fit and timely need",
+    "citations": [{"url": "https://example.com/funding"}],
+}
+
 
 def test_signals_list(invoke, mock_api):
     mock_api.get("/api/v1/crm/signals").respond(
@@ -88,6 +100,31 @@ def test_signals_get(invoke, mock_api):
     result = invoke(["crm", "signals", "get", "sig-1", "--json"])
     assert result.exit_code == 0
     assert json.loads(result.output)["id"] == "sig-1"
+
+
+def test_projected_signals_list_shows_origin_and_score(invoke, mock_api, table_column):
+    mock_api.get("/api/v1/crm/signals").respond(
+        200,
+        json={"data": [PROJECTED_SIGNAL], "total": 1, "limit": 50, "offset": 0, "has_more": False},
+    )
+    result = invoke(["crm", "signals", "list"])
+    assert result.exit_code == 0
+    assert table_column(result.output, 2) == "intelligence"
+    assert table_column(result.output, 3) == "86"
+
+
+def test_projected_signal_get_shows_evidence_and_scores(invoke, mock_api):
+    mock_api.get("/api/v1/crm/signals/sig-1").respond(200, json=PROJECTED_SIGNAL)
+    result = invoke(["crm", "signals", "get", "sig-1"])
+    assert result.exit_code == 0
+    for value in (
+        "intel-sig-1",
+        "prospect-1",
+        "Recent funding supports expansion",
+        "Strong fit and timely need",
+        "https://example.com/funding",
+    ):
+        assert value in result.output
 
 
 def test_signals_create_company(invoke, mock_api):
