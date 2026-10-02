@@ -959,6 +959,29 @@ def test_promote_sends_the_list_and_an_empty_selection(invoke, mock_api):
     }
 
 
+def test_promote_sends_the_named_signals_and_prints_their_people(invoke, mock_api):
+    signal = "88888888-8888-4888-8888-888888888888"
+    crm_person = "99999999-9999-4999-8999-999999999999"
+    route = mock_api.post(f"{BASE}/{PROSPECT_ID}/promote").respond(
+        200,
+        json={
+            **PROMOTION,
+            "people": [],
+            "named_people": [{"signal_id": signal, "crm_person_id": crm_person}],
+        },
+    )
+
+    result = invoke(["agentic", "prospects", "promote", PROSPECT_ID, "--signal", signal, "--yes"])
+
+    assert result.exit_code == 0
+    assert json.loads(route.calls[0].request.content) == {
+        "person_ids": [],
+        "list_id": None,
+        "named_signal_ids": [signal],
+    }
+    assert crm_person in result.output
+
+
 def test_promote_json_keeps_the_whole_answer(invoke, mock_api):
     mock_api.post(f"{BASE}/{PROSPECT_ID}/promote").respond(200, json=PROMOTION)
 
