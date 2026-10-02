@@ -567,6 +567,14 @@ def test_list_sends_a_zero_score_bound(invoke, mock_api):
     assert route.calls[0].request.url.params["max_score"] == "0"
 
 
+@pytest.mark.parametrize("bound", [["--min-score", "-1"], ["--max-score", "101"]])
+def test_list_refuses_a_score_outside_the_scale_before_request(invoke, mock_api, bound):
+    result = invoke(["agentic", "prospects", "list", *bound])
+
+    assert result.exit_code == 2
+    assert not mock_api.calls
+
+
 def test_list_sends_no_saved_search_or_score_unless_named(invoke, mock_api):
     route = mock_api.get(BASE).respond(200, json={"items": [], "next_cursor": None})
 

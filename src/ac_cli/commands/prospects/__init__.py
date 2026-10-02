@@ -382,10 +382,10 @@ def prospects_list(
         None, "--saved-search-id", help="Only prospects this saved search returned"
     ),
     min_score: int | None = typer.Option(
-        None, "--min-score", help="Lowest opportunity score to keep, 0 to 100"
+        None, "--min-score", min=0, max=100, help="Lowest opportunity score to keep, 0 to 100"
     ),
     max_score: int | None = typer.Option(
-        None, "--max-score", help="Highest opportunity score to keep, 0 to 100"
+        None, "--max-score", min=0, max=100, help="Highest opportunity score to keep, 0 to 100"
     ),
     sort: str | None = typer.Option(
         None,
