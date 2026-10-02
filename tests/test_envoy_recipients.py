@@ -218,3 +218,52 @@ def test_recipients_remove_with_yes(invoke, mock_api):
 def test_recipients_remove_aborted(invoke, mock_api):
     result = invoke(["envoy", "recipients", "remove", "seq-1", "r1"], input="n\n")
     assert result.exit_code == 1
+
+
+HISTORY = {
+    "recipient_id": "rec-1",
+    "steps": [
+        {
+            "step_id": "s1",
+            "step_order": 1,
+            "type": "message",
+            "status": "sent",
+            "subject": "One gap at Nuveau",
+        },
+        {"step_id": "s2", "step_order": 2, "type": "delay", "status": "upcoming"},
+    ],
+    "messages": [
+        {
+            "id": "c1",
+            "direction": "outbound",
+            "subject": "One gap at Nuveau",
+            "communication_date": "2026-09-20T10:00:00Z",
+        },
+        {
+            "id": "c2",
+            "direction": "inbound",
+            "subject": "Re: One gap at Nuveau",
+            "communication_date": "2026-09-21T09:00:00Z",
+        },
+    ],
+}
+
+
+def test_recipients_history(invoke, mock_api):
+    mock_api.get("/api/v1/envoy/sequences/seq-1/recipients/rec-1/history").respond(
+        200, json=HISTORY
+    )
+    result = invoke(["envoy", "recipients", "history", "seq-1", "rec-1"])
+    assert result.exit_code == 0
+    assert "One gap at Nuveau" in result.output
+    assert "upcoming" in result.output
+    assert "Re: One gap at Nuveau" in result.output
+
+
+def test_recipients_history_json(invoke, mock_api):
+    mock_api.get("/api/v1/envoy/sequences/seq-1/recipients/rec-1/history").respond(
+        200, json=HISTORY
+    )
+    result = invoke(["envoy", "recipients", "history", "seq-1", "rec-1", "--json"])
+    assert result.exit_code == 0
+    assert json.loads(result.output)["messages"][1]["direction"] == "inbound"
