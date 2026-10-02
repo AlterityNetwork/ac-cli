@@ -63,8 +63,8 @@ def signal_preferences_set(
         None,
         "--score-threshold",
         min=0,
-        max=10,
-        help="Company lead-score cutoff (0-10)",
+        max=100,
+        help="Prospect opportunity-score cutoff (0-100)",
     ),
     clear_threshold: bool = typer.Option(
         False, "--clear-threshold", help="Remove the score threshold (show all scores)"

@@ -152,6 +152,9 @@ def _print_next_page(
     people_state: str | None = None,
     signal_type: str | None = None,
     search: str | None = None,
+    saved_search_id: str | None = None,
+    min_score: int | None = None,
+    max_score: int | None = None,
     sort: str | None = None,
 ) -> None:
     """Prints the options that continue the same page walk.
@@ -175,6 +178,12 @@ def _print_next_page(
         parts += ["--signal-type", as_text(signal_type)]
     if search is not None:
         parts += ["--search", as_text(search)]
+    if saved_search_id is not None:
+        parts += ["--saved-search-id", as_text(saved_search_id)]
+    if min_score is not None:
+        parts += ["--min-score", as_text(min_score)]
+    if max_score is not None:
+        parts += ["--max-score", as_text(max_score)]
     if sort is not None:
         parts += ["--sort", as_text(sort)]
     if limit != _PAGE_DEFAULT:
@@ -369,6 +378,15 @@ def prospects_list(
         "--search",
         help="Text in the company, person or employer name or domain",
     ),
+    saved_search_id: str | None = typer.Option(
+        None, "--saved-search-id", help="Only prospects this saved search returned"
+    ),
+    min_score: int | None = typer.Option(
+        None, "--min-score", help="Lowest opportunity score to keep, 0 to 100"
+    ),
+    max_score: int | None = typer.Option(
+        None, "--max-score", help="Highest opportunity score to keep, 0 to 100"
+    ),
     sort: str | None = typer.Option(
         None,
         "--sort",
@@ -398,6 +416,12 @@ def prospects_list(
         params["signal_type"] = signal_type
     if search is not None:
         params["search"] = search
+    if saved_search_id is not None:
+        params["saved_search_id"] = saved_search_id
+    if min_score is not None:
+        params["min_score"] = min_score
+    if max_score is not None:
+        params["max_score"] = max_score
     # The API owns the default sort, so an omitted option cannot drift from it.
     if sort is not None:
         params["sort"] = sort
@@ -416,6 +440,9 @@ def prospects_list(
         people_state=people_state,
         signal_type=signal_type,
         search=search,
+        saved_search_id=saved_search_id,
+        min_score=min_score,
+        max_score=max_score,
         sort=sort,
     )
 
