@@ -460,6 +460,151 @@ def test_list_filters_by_last_seen_run(invoke, mock_api):
     assert f"--last-seen-run-id {run_id} --cursor tok" in result.output
 
 
+def test_list_filters_by_named_prospects(invoke, mock_api):
+    first = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb"
+    second = "cccccccc-cccc-4ccc-8ccc-cccccccccccc"
+    route = mock_api.get(BASE).respond(200, json={"items": [], "next_cursor": "tok"})
+
+    result = invoke(["agentic", "prospects", "list", "--id", first, "--id", second])
+
+    assert result.exit_code == 0
+    assert route.calls[0].request.url.params.get_list("ids") == [first, second]
+    assert f"--id {first} --id {second} --cursor tok" in result.output
+
+
+def test_list_forwards_the_three_server_filters(invoke, mock_api):
+    route = mock_api.get(BASE).respond(200, json={"items": [], "next_cursor": "tok"})
+
+    result = invoke(
+        [
+            "agentic",
+            "prospects",
+            "list",
+            "--people-state",
+            "found",
+            "--signal-type",
+            "hired_growth_role",
+            "--search",
+            "Jack & Jill",
+        ]
+    )
+
+    assert result.exit_code == 0
+    params = route.calls[0].request.url.params
+    assert params["people_state"] == "found"
+    assert params["signal_type"] == "hired_growth_role"
+    assert params["search"] == "Jack & Jill"
+
+
+def test_list_sends_no_filter_the_caller_did_not_name(invoke, mock_api):
+    route = mock_api.get(BASE).respond(200, json={"items": [], "next_cursor": None})
+
+    invoke(["agentic", "prospects", "list"])
+
+    params = route.calls[0].request.url.params
+    for name in ("people_state", "signal_type", "search"):
+        assert name not in params
+
+
+def test_the_next_page_keeps_the_filters(invoke, mock_api):
+    """The next page reads under the same filters, so the hint names them."""
+    mock_api.get(BASE).respond(200, json={"items": [], "next_cursor": "tok"})
+
+    result = invoke(
+        [
+            "agentic",
+            "prospects",
+            "list",
+            "--people-state",
+            "found",
+            "--signal-type",
+            "funding_round",
+            "--search",
+            "acme",
+        ]
+    )
+
+    assert (
+        "--people-state found --signal-type funding_round --search acme --cursor tok"
+        in result.output
+    )
+
+
+def test_list_forwards_the_saved_search_and_the_score_band(invoke, mock_api):
+    search_id = "11111111-2222-3333-4444-555555555555"
+    route = mock_api.get(BASE).respond(200, json={"items": [], "next_cursor": "tok"})
+
+    result = invoke(
+        [
+            "agentic",
+            "prospects",
+            "list",
+            "--saved-search-id",
+            search_id,
+            "--min-score",
+            "60",
+            "--max-score",
+            "90",
+        ]
+    )
+
+    assert result.exit_code == 0
+    params = route.calls[0].request.url.params
+    assert params["saved_search_id"] == search_id
+    assert params["min_score"] == "60"
+    assert params["max_score"] == "90"
+    assert (
+        f"--saved-search-id {search_id} --min-score 60 --max-score 90 --cursor tok" in result.output
+    )
+
+
+def test_list_sends_a_zero_score_bound(invoke, mock_api):
+    """Zero is a bound, not an absent bound."""
+    route = mock_api.get(BASE).respond(200, json={"items": [], "next_cursor": None})
+
+    invoke(["agentic", "prospects", "list", "--max-score", "0"])
+
+    assert route.calls[0].request.url.params["max_score"] == "0"
+
+
+def test_the_next_page_keeps_a_zero_score_bound(invoke, mock_api):
+    """Zero is a bound, so the next-page hint names it."""
+    mock_api.get(BASE).respond(200, json={"items": [], "next_cursor": "tok"})
+
+    result = invoke(["agentic", "prospects", "list", "--max-score", "0"])
+
+    assert "--max-score 0 --cursor tok" in result.output
+
+
+@pytest.mark.parametrize("bound", [["--min-score", "-1"], ["--max-score", "101"]])
+def test_list_refuses_a_score_outside_the_scale_before_request(invoke, mock_api, bound):
+    result = invoke(["agentic", "prospects", "list", *bound])
+
+    assert result.exit_code == 2
+    assert not mock_api.calls
+
+
+def test_list_sends_no_saved_search_or_score_unless_named(invoke, mock_api):
+    route = mock_api.get(BASE).respond(200, json={"items": [], "next_cursor": None})
+
+    invoke(["agentic", "prospects", "list"])
+
+    params = route.calls[0].request.url.params
+    for name in ("saved_search_id", "min_score", "max_score"):
+        assert name not in params
+
+
+def test_list_reports_a_signal_type_the_api_refuses(invoke, mock_api):
+    """The API owns the vocabulary, so the command sends the type and
+    reports the refusal."""
+    route = mock_api.get(BASE).respond(422, json={"detail": "signal_type is not valid"})
+
+    result = invoke(["agentic", "prospects", "list", "--signal-type", "funding"])
+
+    assert route.calls[0].request.url.params["signal_type"] == "funding"
+    assert result.exit_code == 2
+
+
 def test_list_json_keeps_the_page(invoke, mock_api):
     page = {"items": [SUMMARY], "next_cursor": "next"}
     mock_api.get(BASE).respond(200, json=page)
@@ -540,6 +685,53 @@ def test_counts_reports_an_api_refusal(invoke, mock_api):
     mock_api.get(f"{BASE}/counts").respond(403, json={"detail": "no access"})
 
     result = invoke(["agentic", "prospects", "counts"])
+
+    assert result.exit_code == 4
+
+
+SIGNAL_TYPES = {
+    "items": [
+        {"signal_type": "funding_round", "count": 7},
+        {"signal_type": "market_expansion", "count": 2},
+    ]
+}
+
+
+def test_signal_types_prints_each_type_and_its_count(invoke, mock_api):
+    route = mock_api.get(f"{BASE}/signal-types").respond(200, json=SIGNAL_TYPES)
+
+    result = invoke(["agentic", "prospects", "signal-types", "--review-state", "watching"])
+
+    assert result.exit_code == 0
+    assert route.calls[0].request.url.params["review_state"] == "watching"
+    assert "funding_round" in result.output
+    assert "market_expansion" in result.output
+    assert "7" in result.output
+
+
+def test_signal_types_reads_the_new_state_by_default(invoke, mock_api):
+    """The inbox opens on the new state, so the command does too."""
+    route = mock_api.get(f"{BASE}/signal-types").respond(200, json={"items": []})
+
+    result = invoke(["agentic", "prospects", "signal-types"])
+
+    assert result.exit_code == 0
+    assert route.calls[0].request.url.params["review_state"] == "new"
+
+
+def test_signal_types_json_keeps_the_body(invoke, mock_api):
+    mock_api.get(f"{BASE}/signal-types").respond(200, json=SIGNAL_TYPES)
+
+    result = invoke(["agentic", "prospects", "signal-types", "--json"])
+
+    assert result.exit_code == 0
+    assert json.loads(result.output) == SIGNAL_TYPES
+
+
+def test_signal_types_reports_an_api_refusal(invoke, mock_api):
+    mock_api.get(f"{BASE}/signal-types").respond(403, json={"detail": "no access"})
+
+    result = invoke(["agentic", "prospects", "signal-types"])
 
     assert result.exit_code == 4
 
@@ -763,6 +955,7 @@ def test_prospects_help_lists_every_command(invoke):
     for command in (
         "list",
         "counts",
+        "signal-types",
         "get",
         "people",
         "signals",
@@ -828,6 +1021,29 @@ def test_promote_sends_the_list_and_an_empty_selection(invoke, mock_api):
         "person_ids": [],
         "list_id": list_id,
     }
+
+
+def test_promote_sends_the_named_signals_and_prints_their_people(invoke, mock_api):
+    signal = "88888888-8888-4888-8888-888888888888"
+    crm_person = "99999999-9999-4999-8999-999999999999"
+    route = mock_api.post(f"{BASE}/{PROSPECT_ID}/promote").respond(
+        200,
+        json={
+            **PROMOTION,
+            "people": [],
+            "named_people": [{"signal_id": signal, "crm_person_id": crm_person}],
+        },
+    )
+
+    result = invoke(["agentic", "prospects", "promote", PROSPECT_ID, "--signal", signal, "--yes"])
+
+    assert result.exit_code == 0
+    assert json.loads(route.calls[0].request.content) == {
+        "person_ids": [],
+        "list_id": None,
+        "named_signal_ids": [signal],
+    }
+    assert crm_person in result.output
 
 
 def test_promote_json_keeps_the_whole_answer(invoke, mock_api):

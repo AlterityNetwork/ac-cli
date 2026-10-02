@@ -72,6 +72,10 @@ _COUNT_FIELDS = [
     ("dismissed", "Dismissed"),
     ("promoted", "Promoted"),
 ]
+_SIGNAL_TYPE_FIELDS = [
+    ("signal_type", "Signal type"),
+    ("count", "Prospects"),
+]
 _COMPANY_FIELDS = [
     ("id", "Company ID"),
     ("description", "Description"),
@@ -144,12 +148,20 @@ def _print_next_page(
     *,
     review_state: str | None = None,
     last_seen_run_id: str | None = None,
+    ids: list[str] | None = None,
+    people_state: str | None = None,
+    signal_type: str | None = None,
+    search: str | None = None,
+    saved_search_id: str | None = None,
+    min_score: int | None = None,
+    max_score: int | None = None,
     sort: str | None = None,
 ) -> None:
     """Prints the options that continue the same page walk.
 
-    ⚠️ The hint always names the sort. A cursor belongs to one sort, and the
-    API answers 400 to a cursor another sort wrote.
+    ⚠️ The hint always names the sort and the filters. A cursor belongs to
+    one sort, and the API answers 400 to a cursor another sort wrote. Under
+    other filters the cursor names a position in another list.
     """
     if not next_cursor:
         return
@@ -158,6 +170,20 @@ def _print_next_page(
         parts += ["--review-state", as_text(review_state)]
     if last_seen_run_id is not None:
         parts += ["--last-seen-run-id", as_text(last_seen_run_id)]
+    for one in ids or []:
+        parts += ["--id", as_text(one)]
+    if people_state is not None:
+        parts += ["--people-state", as_text(people_state)]
+    if signal_type is not None:
+        parts += ["--signal-type", as_text(signal_type)]
+    if search is not None:
+        parts += ["--search", as_text(search)]
+    if saved_search_id is not None:
+        parts += ["--saved-search-id", as_text(saved_search_id)]
+    if min_score is not None:
+        parts += ["--min-score", as_text(min_score)]
+    if max_score is not None:
+        parts += ["--max-score", as_text(max_score)]
     if sort is not None:
         parts += ["--sort", as_text(sort)]
     if limit != _PAGE_DEFAULT:
@@ -331,6 +357,36 @@ def prospects_list(
     last_seen_run_id: str | None = typer.Option(
         None, "--last-seen-run-id", help="Only prospects last written by this Run"
     ),
+    ids: list[str] | None = typer.Option(
+        None, "--id", help="Only this prospect. Repeat for each one, up to 100."
+    ),
+    people_state: str | None = typer.Option(
+        None,
+        "--people-state",
+        help="People state: found, pending or no_matching_people",
+    ),
+    signal_type: str | None = typer.Option(
+        None,
+        "--signal-type",
+        help=(
+            "Only prospects that hold one signal of this type, such as "
+            "funding_round. `signal-types` lists the types a state holds."
+        ),
+    ),
+    search: str | None = typer.Option(
+        None,
+        "--search",
+        help="Text in the company, person or employer name or domain",
+    ),
+    saved_search_id: str | None = typer.Option(
+        None, "--saved-search-id", help="Only prospects this saved search returned"
+    ),
+    min_score: int | None = typer.Option(
+        None, "--min-score", min=0, max=100, help="Lowest opportunity score to keep, 0 to 100"
+    ),
+    max_score: int | None = typer.Option(
+        None, "--max-score", min=0, max=100, help="Highest opportunity score to keep, 0 to 100"
+    ),
     sort: str | None = typer.Option(
         None,
         "--sort",
@@ -352,6 +408,20 @@ def prospects_list(
         params["review_state"] = review_state
     if last_seen_run_id is not None:
         params["last_seen_run_id"] = last_seen_run_id
+    if ids:
+        params["ids"] = ids
+    if people_state is not None:
+        params["people_state"] = people_state
+    if signal_type is not None:
+        params["signal_type"] = signal_type
+    if search is not None:
+        params["search"] = search
+    if saved_search_id is not None:
+        params["saved_search_id"] = saved_search_id
+    if min_score is not None:
+        params["min_score"] = min_score
+    if max_score is not None:
+        params["max_score"] = max_score
     # The API owns the default sort, so an omitted option cannot drift from it.
     if sort is not None:
         params["sort"] = sort
@@ -366,6 +436,13 @@ def prospects_list(
         limit,
         review_state=review_state,
         last_seen_run_id=last_seen_run_id,
+        ids=ids,
+        people_state=people_state,
+        signal_type=signal_type,
+        search=search,
+        saved_search_id=saved_search_id,
+        min_score=min_score,
+        max_score=max_score,
         sort=sort,
     )
 
@@ -382,6 +459,24 @@ def prospects_counts(
         print_json(data)
         return
     print_detail(data, _COUNT_FIELDS)
+
+
+@app.command("signal-types")
+def prospects_signal_types(
+    ctx: typer.Context,
+    review_state: str = typer.Option("new", "--review-state", help="Review state to count in"),
+    json_output: bool = JSON_OPTION,
+) -> None:
+    """List the signal types the prospects of one review state hold, with a
+    count each."""
+    set_json_mode(json_output)
+    data = _api_request(
+        "get", f"{_PROSPECTS}/signal-types", params={"review_state": review_state}
+    ).json()
+    if json_output:
+        print_json(data)
+        return
+    print_table(data.get("items", []), _SIGNAL_TYPE_FIELDS, title="Signal types")
 
 
 @app.command("get")
@@ -560,6 +655,12 @@ _PROMOTED_PERSON_FIELDS = [
 ]
 
 
+_PROMOTED_NAMED_FIELDS = [
+    ("signal_id", "Signal ID"),
+    ("crm_person_id", "CRM person ID"),
+]
+
+
 @app.command("promote")
 def prospects_promote(
     ctx: typer.Context,
@@ -569,6 +670,14 @@ def prospects_promote(
         "--person",
         help="A prospect person ID to promote. Repeat for each person.",
     ),
+    signal: list[str] = typer.Option(
+        [],
+        "--signal",
+        help=(
+            "A signal ID whose named person joins CRM by name at the company. "
+            "Repeat for each signal."
+        ),
+    ),
     list_id: str = typer.Option(None, "--list", help="A static CRM list the prospect joins."),
     yes: bool = typer.Option(False, "--yes", "-y", help="Skip the confirmation."),
     json_output: bool = JSON_OPTION,
@@ -577,14 +686,14 @@ def prospects_promote(
     set_json_mode(json_output)
     if not should_skip_confirm(yes):
         typer.confirm(
-            f"Promote prospect {prospect_id} and {len(person)} people into CRM?",
+            f"Promote prospect {prospect_id} and {len(person) + len(signal)} people into CRM?",
             abort=True,
         )
-    data = _api_request(
-        "post",
-        f"{_PROSPECTS}/{prospect_id}/promote",
-        json={"person_ids": list(person), "list_id": list_id},
-    ).json()
+    body: dict[str, object] = {"person_ids": list(person), "list_id": list_id}
+    # An API without the field refuses it, so an empty list is not sent.
+    if signal:
+        body["named_signal_ids"] = list(signal)
+    data = _api_request("post", f"{_PROSPECTS}/{prospect_id}/promote", json=body).json()
     if json_output:
         print_json(data)
         return
@@ -592,6 +701,9 @@ def prospects_promote(
     people = data.get("people") or []
     if people:
         print_table(people, _PROMOTED_PERSON_FIELDS, title="Promoted people")
+    named = data.get("named_people") or []
+    if named:
+        print_table(named, _PROMOTED_NAMED_FIELDS, title="People named in signals")
 
 
 @app.command("delete")

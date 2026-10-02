@@ -281,6 +281,11 @@ def runs_list(
     every: bool = typer.Option(
         False, "--all", help="Include child runs. The default returns roots only."
     ),
+    include_result: bool = typer.Option(
+        False,
+        "--include-result",
+        help="Put the result of each run on its row. Read it with --json.",
+    ),
     cursor: str | None = typer.Option(None, "--cursor", help="Page to continue"),
     limit: int = typer.Option(_PAGE_DEFAULT, "--limit", help="Page size, 1 to 100"),
     json_output: bool = JSON_OPTION,
@@ -304,6 +309,8 @@ def runs_list(
         params["status"] = status
     if source:
         params["source"] = source
+    if include_result:
+        params["include_result"] = "true"
     if cursor:
         params["cursor"] = cursor
 
@@ -334,6 +341,7 @@ def runs_list(
                 ("--status", status),
                 ("--source", source),
                 ("--all", every),
+                ("--include-result", include_result),
             ],
         )
 
