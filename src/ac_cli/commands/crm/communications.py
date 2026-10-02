@@ -632,7 +632,7 @@ def communications_regenerate(
     if json_output:
         print_json(data)
     else:
-        count = data.get("regenerated_count") or 1
+        count = data.get("regenerated_count", 1)
         rprint(
             styled(
                 "[green]Regenerating {} drafts from communication {}[/green]",
