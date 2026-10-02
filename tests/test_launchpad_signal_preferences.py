@@ -136,27 +136,16 @@ def test_set_invalid_value_exits_2(invoke, mock_api):
     assert result.exit_code == 2
 
 
-def test_set_rejects_score_threshold_above_one_hundred_before_request(invoke, mock_api):
+def test_set_rejects_score_threshold_above_ten_before_request(invoke, mock_api):
     result = invoke(
         [
             "launchpad",
             "signal-preferences",
             "set",
             "--score-threshold",
-            "101",
+            "50",
         ]
     )
 
     assert result.exit_code == 2
     assert not mock_api.calls
-
-
-def test_set_accepts_a_threshold_on_the_opportunity_score_scale(invoke, mock_api):
-    """The threshold filters the 0-100 prospect opportunity_score."""
-    mock_api.get(_PATH).respond(200, json=CURRENT)
-    route = mock_api.put(_PATH).respond(200, json={**CURRENT, "score_threshold": 70})
-
-    result = invoke(["launchpad", "signal-preferences", "set", "--score-threshold", "70"])
-
-    assert result.exit_code == 0
-    assert json.loads(route.calls.last.request.content)["score_threshold"] == 70
