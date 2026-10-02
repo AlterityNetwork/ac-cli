@@ -74,9 +74,9 @@ OUT_OF_SCOPE: set[tuple[str, str]] = {
     # "Headhunter search in progress" indicator; not a CLI workflow.
     ("GET", "/api/v1/workflows/headhunter/active-runs"),
     # Frontend-only widget composition: batches the Launchpad's per-saved-search
-    # company windows into one request. `runs/companies?preset_id=` covers the
-    # same data one preset at a time, which is the CLI-shaped call.
-    ("GET", "/api/v1/workflows/{id}/runs/companies/by-preset"),
+    # prospect windows into one request. `agentic prospects list
+    # --saved-search-id` covers the same data one search at a time.
+    ("GET", "/api/v1/agentic/prospects/by-saved-search"),
     # Signature-authenticated FullEnrich provider callbacks (ENG-1733).
     ("POST", "/api/v1/fullenrich/webhook"),
     ("POST", "/api/v1/fullenrich/webhook/contact"),

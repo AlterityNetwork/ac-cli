@@ -530,6 +530,70 @@ def test_the_next_page_keeps_the_filters(invoke, mock_api):
     )
 
 
+def test_list_forwards_the_saved_search_and_the_score_band(invoke, mock_api):
+    search_id = "11111111-2222-3333-4444-555555555555"
+    route = mock_api.get(BASE).respond(200, json={"items": [], "next_cursor": "tok"})
+
+    result = invoke(
+        [
+            "agentic",
+            "prospects",
+            "list",
+            "--saved-search-id",
+            search_id,
+            "--min-score",
+            "60",
+            "--max-score",
+            "90",
+        ]
+    )
+
+    assert result.exit_code == 0
+    params = route.calls[0].request.url.params
+    assert params["saved_search_id"] == search_id
+    assert params["min_score"] == "60"
+    assert params["max_score"] == "90"
+    assert (
+        f"--saved-search-id {search_id} --min-score 60 --max-score 90 --cursor tok" in result.output
+    )
+
+
+def test_list_sends_a_zero_score_bound(invoke, mock_api):
+    """Zero is a bound, not an absent bound."""
+    route = mock_api.get(BASE).respond(200, json={"items": [], "next_cursor": None})
+
+    invoke(["agentic", "prospects", "list", "--max-score", "0"])
+
+    assert route.calls[0].request.url.params["max_score"] == "0"
+
+
+def test_the_next_page_keeps_a_zero_score_bound(invoke, mock_api):
+    """Zero is a bound, so the next-page hint names it."""
+    mock_api.get(BASE).respond(200, json={"items": [], "next_cursor": "tok"})
+
+    result = invoke(["agentic", "prospects", "list", "--max-score", "0"])
+
+    assert "--max-score 0 --cursor tok" in result.output
+
+
+@pytest.mark.parametrize("bound", [["--min-score", "-1"], ["--max-score", "101"]])
+def test_list_refuses_a_score_outside_the_scale_before_request(invoke, mock_api, bound):
+    result = invoke(["agentic", "prospects", "list", *bound])
+
+    assert result.exit_code == 2
+    assert not mock_api.calls
+
+
+def test_list_sends_no_saved_search_or_score_unless_named(invoke, mock_api):
+    route = mock_api.get(BASE).respond(200, json={"items": [], "next_cursor": None})
+
+    invoke(["agentic", "prospects", "list"])
+
+    params = route.calls[0].request.url.params
+    for name in ("saved_search_id", "min_score", "max_score"):
+        assert name not in params
+
+
 def test_list_reports_a_signal_type_the_api_refuses(invoke, mock_api):
     """The API owns the vocabulary, so the command sends the type and
     reports the refusal."""
