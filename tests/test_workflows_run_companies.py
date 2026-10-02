@@ -100,6 +100,36 @@ def test_run_companies_list_omits_crm_company_ids_by_default(invoke, mock_api):
     assert "crm_company_ids" not in str(route.calls.last.request.url)
 
 
+def test_run_companies_list_workflow_run_company_ids(invoke, mock_api):
+    """--workflow-run-company-ids passes through as a query param."""
+    route = mock_api.get("/api/v1/workflows/wf-1/runs/companies").respond(
+        200, json={"data": [], "total": 0, "limit": 50, "offset": 0, "has_more": False}
+    )
+    result = invoke(
+        [
+            "workflows",
+            "run-companies",
+            "list",
+            "wf-1",
+            "--workflow-run-company-ids",
+            "wrc-1,wrc-2",
+            "--json",
+        ]
+    )
+    assert result.exit_code == 0
+    assert route.calls.last.request.url.params["workflow_run_company_ids"] == "wrc-1,wrc-2"
+
+
+def test_run_companies_list_omits_workflow_run_company_ids_by_default(invoke, mock_api):
+    """No flag → no workflow_run_company_ids param."""
+    route = mock_api.get("/api/v1/workflows/wf-1/runs/companies").respond(
+        200, json={"data": [], "total": 0, "limit": 50, "offset": 0, "has_more": False}
+    )
+    result = invoke(["workflows", "run-companies", "list", "wf-1", "--json"])
+    assert result.exit_code == 0
+    assert "workflow_run_company_ids" not in str(route.calls.last.request.url)
+
+
 def test_run_companies_add_to_crm(invoke, mock_api):
     mock_api.post("/api/v1/workflows/wf-1/runs/companies/add-to-crm").respond(
         200,
