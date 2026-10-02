@@ -105,6 +105,35 @@ def test_sequences_update_skip_non_working_days(invoke, mock_api):
     assert body["skip_non_working_days"] is False
 
 
+def test_sequences_create_draft_feedback(invoke, mock_api):
+    mock_api.get("/whoami").respond(200, json=WHOAMI_RESPONSE)
+    route = mock_api.post("/api/v1/envoy/sequences").respond(201, json=SAMPLE_SEQUENCE)
+    result = invoke(
+        ["envoy", "sequences", "create", "--name", "Q1", "--draft-feedback", "No questions."]
+    )
+    assert result.exit_code == 0
+    body = json.loads(route.calls.last.request.content)
+    assert body["draft_feedback"] == "No questions."
+
+
+def test_sequences_update_draft_feedback(invoke, mock_api):
+    route = mock_api.patch("/api/v1/envoy/sequences/seq-1").respond(200, json=SAMPLE_SEQUENCE)
+    result = invoke(
+        ["envoy", "sequences", "update", "seq-1", "--draft-feedback", "Write in British English."]
+    )
+    assert result.exit_code == 0
+    body = json.loads(route.calls.last.request.content)
+    assert body == {"draft_feedback": "Write in British English."}
+
+
+def test_sequences_update_clears_draft_feedback(invoke, mock_api):
+    route = mock_api.patch("/api/v1/envoy/sequences/seq-1").respond(200, json=SAMPLE_SEQUENCE)
+    result = invoke(["envoy", "sequences", "update", "seq-1", "--draft-feedback", ""])
+    assert result.exit_code == 0
+    body = json.loads(route.calls.last.request.content)
+    assert body == {"draft_feedback": ""}
+
+
 def test_sequences_delete_with_yes(invoke, mock_api):
     mock_api.delete("/api/v1/envoy/sequences/seq-1").respond(204)
     result = invoke(["envoy", "sequences", "delete", "seq-1", "--yes"])

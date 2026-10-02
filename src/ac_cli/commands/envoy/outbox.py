@@ -9,6 +9,7 @@ from rich import print as rprint
 
 from ac_cli.commands._helpers import JSON_OPTION, set_json_mode
 from ac_cli.commands.crm import _CRM, _api_request, _build_body
+from ac_cli.commands.crm.communications import RegenerateScope
 from ac_cli.commands.envoy import _ENVOY
 from ac_cli.formatting import print_json, print_table, styled
 
@@ -242,16 +243,39 @@ def outbox_reject(
 def outbox_regenerate(
     ctx: typer.Context,
     draft_id: str = typer.Argument(..., help="Draft ID"),
-    instruction: str | None = typer.Option(None, help="Instruction for regeneration"),
+    instruction: str | None = typer.Option(
+        None, "--instruction", help="Feedback for the new draft"
+    ),
+    apply_to_sequence: bool = typer.Option(
+        False,
+        "--apply-to-sequence",
+        help="Also save the feedback on the sequence for every later draft",
+    ),
+    apply_to_writing_style: bool = typer.Option(
+        False,
+        "--apply-to-writing-style",
+        help="Also rewrite your writing style for this sequence with the feedback",
+    ),
+    scope: RegenerateScope | None = typer.Option(
+        None,
+        "--scope",
+        help="draft: this draft only. step: every waiting draft of the same step",
+    ),
     json_output: bool = JSON_OPTION,
 ) -> None:
     """Regenerate a draft with AI."""
     set_json_mode(json_output)
-    req_body = _build_body(instruction=instruction)
+    req_body = _build_body(
+        instruction=instruction,
+        apply_to_sequence=apply_to_sequence or None,
+        apply_to_writing_style=apply_to_writing_style or None,
+        scope=scope.value if scope else None,
+    )
     resp = _api_request("post", f"{_CRM}/communications/{draft_id}/regenerate", json=req_body)
 
     data = resp.json()
     if json_output:
         print_json(data)
     else:
-        rprint(styled("[green]Regenerated draft {}[/green]", draft_id))
+        count = data.get("regenerated_count", 1)
+        rprint(styled("[green]Regenerating {} drafts from {}[/green]", count, draft_id))
