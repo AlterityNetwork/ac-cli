@@ -148,6 +148,7 @@ def _print_next_page(
     *,
     review_state: str | None = None,
     last_seen_run_id: str | None = None,
+    ids: list[str] | None = None,
     people_state: str | None = None,
     signal_type: str | None = None,
     search: str | None = None,
@@ -166,6 +167,8 @@ def _print_next_page(
         parts += ["--review-state", as_text(review_state)]
     if last_seen_run_id is not None:
         parts += ["--last-seen-run-id", as_text(last_seen_run_id)]
+    for one in ids or []:
+        parts += ["--id", as_text(one)]
     if people_state is not None:
         parts += ["--people-state", as_text(people_state)]
     if signal_type is not None:
@@ -345,6 +348,9 @@ def prospects_list(
     last_seen_run_id: str | None = typer.Option(
         None, "--last-seen-run-id", help="Only prospects last written by this Run"
     ),
+    ids: list[str] | None = typer.Option(
+        None, "--id", help="Only this prospect. Repeat for each one, up to 100."
+    ),
     people_state: str | None = typer.Option(
         None,
         "--people-state",
@@ -384,6 +390,8 @@ def prospects_list(
         params["review_state"] = review_state
     if last_seen_run_id is not None:
         params["last_seen_run_id"] = last_seen_run_id
+    if ids:
+        params["ids"] = ids
     if people_state is not None:
         params["people_state"] = people_state
     if signal_type is not None:
@@ -404,6 +412,7 @@ def prospects_list(
         limit,
         review_state=review_state,
         last_seen_run_id=last_seen_run_id,
+        ids=ids,
         people_state=people_state,
         signal_type=signal_type,
         search=search,

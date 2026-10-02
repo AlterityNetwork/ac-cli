@@ -460,6 +460,18 @@ def test_list_filters_by_last_seen_run(invoke, mock_api):
     assert f"--last-seen-run-id {run_id} --cursor tok" in result.output
 
 
+def test_list_filters_by_named_prospects(invoke, mock_api):
+    first = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb"
+    second = "cccccccc-cccc-4ccc-8ccc-cccccccccccc"
+    route = mock_api.get(BASE).respond(200, json={"items": [], "next_cursor": "tok"})
+
+    result = invoke(["agentic", "prospects", "list", "--id", first, "--id", second])
+
+    assert result.exit_code == 0
+    assert route.calls[0].request.url.params.get_list("ids") == [first, second]
+    assert f"--id {first} --id {second} --cursor tok" in result.output
+
+
 def test_list_forwards_the_three_server_filters(invoke, mock_api):
     route = mock_api.get(BASE).respond(200, json={"items": [], "next_cursor": "tok"})
 

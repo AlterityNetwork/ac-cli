@@ -451,6 +451,30 @@ def test_runs_list_sends_no_root_only_by_default(invoke, mock_api):
     assert "root_only" not in route.calls[0].request.url.params
 
 
+def test_runs_list_sends_no_include_result_by_default(invoke, mock_api):
+    """A list reads no payload column unless the caller asks."""
+    route = mock_api.get("/api/v1/agentic/runs").respond(
+        200, json={"items": [], "next_cursor": None}
+    )
+    invoke(["agentic", "runs", "list"])
+
+    assert "include_result" not in route.calls[0].request.url.params
+
+
+def test_runs_list_include_result_asks_for_each_result(invoke, mock_api):
+    """One list request carries the result of each Run (ENG-2534)."""
+    result_body = {"output": {"company_search": {"items": []}}}
+    route = mock_api.get("/api/v1/agentic/runs").respond(
+        200,
+        json={"items": [{**SAMPLE_RUN, "result": result_body}], "next_cursor": None},
+    )
+    result = invoke(["agentic", "runs", "list", "--include-result", "--json"])
+
+    assert result.exit_code == 0
+    assert route.calls[0].request.url.params["include_result"] == "true"
+    assert json.loads(result.output)["items"][0]["result"] == result_body
+
+
 def test_runs_list_all_asks_for_every_run(invoke, mock_api):
     route = mock_api.get("/api/v1/agentic/runs").respond(
         200, json={"items": [], "next_cursor": None}
