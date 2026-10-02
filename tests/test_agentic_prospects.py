@@ -567,6 +567,15 @@ def test_list_sends_a_zero_score_bound(invoke, mock_api):
     assert route.calls[0].request.url.params["max_score"] == "0"
 
 
+def test_the_next_page_keeps_a_zero_score_bound(invoke, mock_api):
+    """Zero is a bound, so the next-page hint names it."""
+    mock_api.get(BASE).respond(200, json={"items": [], "next_cursor": "tok"})
+
+    result = invoke(["agentic", "prospects", "list", "--max-score", "0"])
+
+    assert "--max-score 0 --cursor tok" in result.output
+
+
 @pytest.mark.parametrize("bound", [["--min-score", "-1"], ["--max-score", "101"]])
 def test_list_refuses_a_score_outside_the_scale_before_request(invoke, mock_api, bound):
     result = invoke(["agentic", "prospects", "list", *bound])
