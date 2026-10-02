@@ -229,8 +229,16 @@ HISTORY = {
             "type": "message",
             "status": "sent",
             "subject": "One gap at Nuveau",
+            "awaiting_approval_count": 0,
         },
         {"step_id": "s2", "step_order": 2, "type": "delay", "status": "upcoming"},
+        {
+            "step_id": "s3",
+            "step_order": 3,
+            "type": "message",
+            "status": "draft_generated",
+            "awaiting_approval_count": 8,
+        },
     ],
     "messages": [
         {
@@ -257,6 +265,8 @@ def test_recipients_history(invoke, mock_api):
     assert result.exit_code == 0
     assert "One gap at Nuveau" in result.output
     assert "upcoming" in result.output
+    assert "Awaiting approval" in result.output
+    assert "8" in result.output
     assert "Re: One gap at Nuveau" in result.output
 
 
