@@ -607,6 +607,11 @@ def communications_regenerate(
         "--apply-to-sequence",
         help="Also save the feedback on the sequence for every later draft",
     ),
+    apply_to_writing_style: bool = typer.Option(
+        False,
+        "--apply-to-writing-style",
+        help="Also rewrite your writing style for this sequence with the feedback",
+    ),
     scope: RegenerateScope | None = typer.Option(
         None,
         "--scope",
@@ -619,6 +624,7 @@ def communications_regenerate(
     body = _build_body(
         instruction=instruction,
         apply_to_sequence=apply_to_sequence or None,
+        apply_to_writing_style=apply_to_writing_style or None,
         scope=scope.value if scope else None,
     )
     resp = _api_request("post", f"{_CRM}/communications/{communication_id}/regenerate", json=body)

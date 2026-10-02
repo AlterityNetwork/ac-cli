@@ -712,6 +712,26 @@ def test_comms_regenerate_sends_feedback_for_the_step(invoke, mock_api):
     assert "3 drafts" in result.output
 
 
+def test_comms_regenerate_applies_feedback_to_the_writing_style(invoke, mock_api):
+    route = mock_api.post("/api/v1/crm/communications/c1/regenerate").respond(
+        200, json={"communication_id": "c1", "regenerated_count": 1}
+    )
+    result = invoke(
+        [
+            "crm",
+            "comms",
+            "regenerate",
+            "c1",
+            "--instruction",
+            "Shorter sentences.",
+            "--apply-to-writing-style",
+        ]
+    )
+    assert result.exit_code == 0
+    body = json.loads(route.calls[0].request.content.decode())
+    assert body == {"instruction": "Shorter sentences.", "apply_to_writing_style": True}
+
+
 def test_comms_regenerate_rejects_unknown_scope(invoke, mock_api):
     result = invoke(["crm", "comms", "regenerate", "c1", "--scope", "sequence"])
     assert result.exit_code != 0

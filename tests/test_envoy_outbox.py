@@ -337,6 +337,26 @@ def test_outbox_regenerate_saves_feedback_on_the_sequence(invoke, mock_api):
     assert body == {"instruction": "Write in British English.", "apply_to_sequence": True}
 
 
+def test_outbox_regenerate_applies_feedback_to_the_writing_style(invoke, mock_api):
+    route = mock_api.post("/api/v1/crm/communications/draft-1/regenerate").respond(
+        200, json={"regenerated_count": 1}
+    )
+    result = invoke(
+        [
+            "envoy",
+            "outbox",
+            "regenerate",
+            "draft-1",
+            "--instruction",
+            "Shorter.",
+            "--apply-to-writing-style",
+        ]
+    )
+    assert result.exit_code == 0
+    body = json.loads(route.calls[0].request.content.decode())
+    assert body == {"instruction": "Shorter.", "apply_to_writing_style": True}
+
+
 def test_outbox_regenerate_json(invoke, mock_api):
     mock_api.post("/api/v1/crm/communications/draft-1/regenerate").respond(
         200, json={"regenerated": True}
