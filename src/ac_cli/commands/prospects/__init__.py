@@ -628,6 +628,12 @@ _PROMOTED_PERSON_FIELDS = [
 ]
 
 
+_PROMOTED_NAMED_FIELDS = [
+    ("signal_id", "Signal ID"),
+    ("crm_person_id", "CRM person ID"),
+]
+
+
 @app.command("promote")
 def prospects_promote(
     ctx: typer.Context,
@@ -637,6 +643,14 @@ def prospects_promote(
         "--person",
         help="A prospect person ID to promote. Repeat for each person.",
     ),
+    signal: list[str] = typer.Option(
+        [],
+        "--signal",
+        help=(
+            "A signal ID whose named person joins CRM by name at the company. "
+            "Repeat for each signal."
+        ),
+    ),
     list_id: str = typer.Option(None, "--list", help="A static CRM list the prospect joins."),
     yes: bool = typer.Option(False, "--yes", "-y", help="Skip the confirmation."),
     json_output: bool = JSON_OPTION,
@@ -645,14 +659,14 @@ def prospects_promote(
     set_json_mode(json_output)
     if not should_skip_confirm(yes):
         typer.confirm(
-            f"Promote prospect {prospect_id} and {len(person)} people into CRM?",
+            f"Promote prospect {prospect_id} and {len(person) + len(signal)} people into CRM?",
             abort=True,
         )
-    data = _api_request(
-        "post",
-        f"{_PROSPECTS}/{prospect_id}/promote",
-        json={"person_ids": list(person), "list_id": list_id},
-    ).json()
+    body: dict[str, object] = {"person_ids": list(person), "list_id": list_id}
+    # An API without the field refuses it, so an empty list is not sent.
+    if signal:
+        body["named_signal_ids"] = list(signal)
+    data = _api_request("post", f"{_PROSPECTS}/{prospect_id}/promote", json=body).json()
     if json_output:
         print_json(data)
         return
@@ -660,6 +674,9 @@ def prospects_promote(
     people = data.get("people") or []
     if people:
         print_table(people, _PROMOTED_PERSON_FIELDS, title="Promoted people")
+    named = data.get("named_people") or []
+    if named:
+        print_table(named, _PROMOTED_NAMED_FIELDS, title="People named in signals")
 
 
 @app.command("delete")
