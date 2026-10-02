@@ -76,7 +76,8 @@ def recipients_history(
             ("type", "Type"),
             ("status", "Status"),
             ("subject", "Subject"),
-            ("awaiting_approval_count", "Awaiting approval"),
+            ("awaiting_approval_count", "Waiting"),
+            ("skip_reason", "Reason"),
         ],
         title=f"Steps ({len(steps)})",
     )
