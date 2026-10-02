@@ -277,4 +277,5 @@ def outbox_regenerate(
     if json_output:
         print_json(data)
     else:
-        rprint(styled("[green]Regenerated draft {}[/green]", draft_id))
+        count = data.get("regenerated_count", 1)
+        rprint(styled("[green]Regenerating {} drafts from {}[/green]", count, draft_id))

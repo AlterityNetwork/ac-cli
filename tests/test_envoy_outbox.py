@@ -314,7 +314,7 @@ def test_outbox_regenerate(invoke, mock_api):
         ["envoy", "outbox", "regenerate", "draft-1", "--instruction", "Make it shorter"]
     )
     assert result.exit_code == 0
-    assert "Regenerated" in result.output
+    assert "Regenerating 1 drafts from draft-1" in result.output
 
 
 def test_outbox_regenerate_saves_feedback_on_the_sequence(invoke, mock_api):
@@ -355,6 +355,15 @@ def test_outbox_regenerate_applies_feedback_to_the_writing_style(invoke, mock_ap
     assert result.exit_code == 0
     body = json.loads(route.calls[0].request.content.decode())
     assert body == {"instruction": "Shorter.", "apply_to_writing_style": True}
+
+
+def test_outbox_regenerate_step_scope_reports_the_count(invoke, mock_api):
+    mock_api.post("/api/v1/crm/communications/draft-1/regenerate").respond(
+        200, json={"regenerated_count": 8}
+    )
+    result = invoke(["envoy", "outbox", "regenerate", "draft-1", "--scope", "step"])
+    assert result.exit_code == 0
+    assert "Regenerating 8 drafts from draft-1" in result.output
 
 
 def test_outbox_regenerate_json(invoke, mock_api):
