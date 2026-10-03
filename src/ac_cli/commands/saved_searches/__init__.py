@@ -92,13 +92,15 @@ def _page_params(limit: int, cursor: str | None) -> dict[str, object]:
     return params
 
 
-def _print_next_page(next_cursor: str | None, limit: int, capability: str | None = None) -> None:
+def _print_next_page(
+    next_cursor: str | None, limit: int, capability: str | list[str] | None = None
+) -> None:
     """Print the options that continue the same page walk."""
     if not next_cursor:
         return
     parts: list[object] = ["[dim]Next page:[/dim]"]
-    if capability is not None:
-        parts += ["--capability", as_text(capability)]
+    for one in [capability] if isinstance(capability, str) else capability or []:
+        parts += ["--capability", as_text(one)]
     if limit != _PAGE_DEFAULT:
         parts += ["--limit", as_text(limit)]
     parts += ["--cursor", as_text(next_cursor)]
@@ -156,14 +158,16 @@ def saved_searches_create(
 @app.command("list")
 def saved_searches_list(
     ctx: typer.Context,
-    capability: str = typer.Option(..., "--capability", help=_CAPABILITY_HELP),
+    capability: list[str] = typer.Option(..., "--capability", help=_CAPABILITY_HELP),
     cursor: str | None = typer.Option(None, "--cursor", help="Page to continue"),
     limit: int = typer.Option(_PAGE_DEFAULT, "--limit", help="Page size, 1 to 100"),
     json_output: bool = JSON_OPTION,
 ) -> None:
-    """List one product's saved-search summaries, newest first."""
+    """List selected products' saved-search summaries, newest first."""
     set_json_mode(json_output)
-    checked = _checked_capability(capability)
+    checked = list(dict.fromkeys(_checked_capability(one) for one in capability))
+    if len(checked) > 4:
+        raise typer.BadParameter("at most four capabilities", param_hint="--capability")
     data = _api_request(
         "get",
         _SAVED_SEARCHES,
