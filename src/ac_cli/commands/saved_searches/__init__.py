@@ -20,9 +20,9 @@ from ac_cli.formatting import as_text, console, print_detail, print_json, print_
 app = typer.Typer(help="Manage repeatable agentic saved searches")
 
 _SAVED_SEARCHES = "/api/v1/agentic/saved-searches"
-#: The three search capabilities that hold a saved brief. An enrich capability
+#: Search capabilities that hold a saved brief. An enrich capability
 #: takes the rows it works on, so the API refuses a saved brief for one.
-_CAPABILITIES = ("signals.search", "people.search", "company.search")
+_CAPABILITIES = ("signals.search", "people.signals", "people.search", "company.search")
 _CAPABILITY_HELP = f"Which product saves the brief: {', '.join(_CAPABILITIES)}"
 _PAGE_DEFAULT = 50
 _PAGE_MIN = 1

@@ -662,6 +662,34 @@ def test_create_sends_another_capability_and_its_brief(invoke, mock_api):
     }
 
 
+def test_create_accepts_people_signals_input(invoke, mock_api):
+    brief = {"signal_recency": "1m", "brief": {"icp": "New marketing leaders"}}
+    detail = {**DETAIL, "capability_id": "people.signals", "brief": brief}
+    route = mock_api.post(BASE).respond(201, json=detail)
+
+    result = invoke(
+        [
+            "agentic",
+            "saved-searches",
+            "create",
+            "--capability",
+            "people.signals",
+            "--name",
+            "Marketing leaders",
+            "--brief",
+            json.dumps(brief),
+            "--json",
+        ]
+    )
+
+    assert result.exit_code == 0
+    assert json.loads(route.calls[0].request.content) == {
+        "capability_id": "people.signals",
+        "name": "Marketing leaders",
+        "brief": brief,
+    }
+
+
 def test_diff_reports_the_refusal_of_a_product_that_publishes_none(invoke, mock_api):
     mock_api.get(f"{BASE}/{SEARCH_ID}/diff").respond(
         409, json={"detail": "a saved search for this capability has no diff"}
