@@ -230,6 +230,33 @@ def test_list_without_a_next_cursor_prints_no_hint(invoke, mock_api):
     assert "Next page" not in result.output
 
 
+def test_list_combines_multiple_capabilities(invoke, mock_api, table_column):
+    people = {**SUMMARY, "id": RUN_ID, "capability_id": "people.signals", "name": "Leaders"}
+    route = mock_api.get(BASE).respond(
+        200, json={"items": [SUMMARY, people], "next_cursor": "next"}
+    )
+
+    result = invoke(
+        [
+            "agentic",
+            "saved-searches",
+            "list",
+            "--capability",
+            SIGNALS,
+            "--capability",
+            "people.signals",
+        ]
+    )
+
+    assert result.exit_code == 0
+    request = route.calls[-1].request
+    assert request.url.params.get_list("capability") == [SIGNALS, "people.signals"]
+    assert "--capability signals.search --capability people.signals" in result.output
+    assert "Type" in result.output
+    assert "signals.search" in table_column(result.output, 2)
+    assert "people.signals" in table_column(result.output, 2)
+
+
 def test_get_prints_detail_and_full_brief(invoke, mock_api):
     mock_api.get(f"{BASE}/{SEARCH_ID}").respond(200, json=DETAIL)
 
@@ -659,6 +686,34 @@ def test_create_sends_another_capability_and_its_brief(invoke, mock_api):
         "capability_id": "people.search",
         "name": "EU engineers",
         "brief": people_brief,
+    }
+
+
+def test_create_accepts_people_signals_input(invoke, mock_api):
+    brief = {"signal_recency": "1m", "brief": {"icp": "New marketing leaders"}}
+    detail = {**DETAIL, "capability_id": "people.signals", "brief": brief}
+    route = mock_api.post(BASE).respond(201, json=detail)
+
+    result = invoke(
+        [
+            "agentic",
+            "saved-searches",
+            "create",
+            "--capability",
+            "people.signals",
+            "--name",
+            "Marketing leaders",
+            "--brief",
+            json.dumps(brief),
+            "--json",
+        ]
+    )
+
+    assert result.exit_code == 0
+    assert json.loads(route.calls[0].request.content) == {
+        "capability_id": "people.signals",
+        "name": "Marketing leaders",
+        "brief": brief,
     }
 
 
