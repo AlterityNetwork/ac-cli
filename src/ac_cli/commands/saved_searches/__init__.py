@@ -28,13 +28,19 @@ _PAGE_DEFAULT = 50
 _PAGE_MIN = 1
 _PAGE_MAX = 100
 
-# The caller names one capability to list, so a column repeating it on every
-# row carries nothing and costs the width the other columns need.
 _SUMMARY_FIELDS = [
     ("id", "Saved search ID"),
     ("name", "Name"),
     ("schedule", "Schedule"),
     ("last_run_id", "Last run"),
+    ("last_run_at", "Last run at"),
+    ("updated_at", "Token"),
+]
+_MULTI_SUMMARY_FIELDS = [
+    ("id", "Saved search ID"),
+    ("name", "Name"),
+    ("capability_id", "Type"),
+    ("schedule", "Schedule"),
     ("last_run_at", "Last run at"),
     ("updated_at", "Token"),
 ]
@@ -166,8 +172,6 @@ def saved_searches_list(
     """List selected products' saved-search summaries, newest first."""
     set_json_mode(json_output)
     checked = list(dict.fromkeys(_checked_capability(one) for one in capability))
-    if len(checked) > 4:
-        raise typer.BadParameter("at most four capabilities", param_hint="--capability")
     data = _api_request(
         "get",
         _SAVED_SEARCHES,
@@ -179,7 +183,11 @@ def saved_searches_list(
     rows = [
         {**item, "schedule": _schedule_text(item.get("schedule"))} for item in data.get("items", [])
     ]
-    print_table(rows, _SUMMARY_FIELDS, title="Saved searches")
+    print_table(
+        rows,
+        _MULTI_SUMMARY_FIELDS if len(checked) > 1 else _SUMMARY_FIELDS,
+        title="Saved searches",
+    )
     _print_next_page(data.get("next_cursor"), limit, checked)
 
 

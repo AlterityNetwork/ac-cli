@@ -230,8 +230,11 @@ def test_list_without_a_next_cursor_prints_no_hint(invoke, mock_api):
     assert "Next page" not in result.output
 
 
-def test_list_combines_multiple_capabilities(invoke, mock_api):
-    route = mock_api.get(BASE).respond(200, json={"items": [], "next_cursor": "next"})
+def test_list_combines_multiple_capabilities(invoke, mock_api, table_column):
+    people = {**SUMMARY, "id": RUN_ID, "capability_id": "people.signals", "name": "Leaders"}
+    route = mock_api.get(BASE).respond(
+        200, json={"items": [SUMMARY, people], "next_cursor": "next"}
+    )
 
     result = invoke(
         [
@@ -249,6 +252,9 @@ def test_list_combines_multiple_capabilities(invoke, mock_api):
     request = route.calls[-1].request
     assert request.url.params.get_list("capability") == [SIGNALS, "people.signals"]
     assert "--capability signals.search --capability people.signals" in result.output
+    assert "Type" in result.output
+    assert "signals.search" in table_column(result.output, 2)
+    assert "people.signals" in table_column(result.output, 2)
 
 
 def test_get_prints_detail_and_full_brief(invoke, mock_api):
