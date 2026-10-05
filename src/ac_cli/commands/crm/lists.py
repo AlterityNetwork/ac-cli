@@ -106,16 +106,25 @@ def lists_update(
     list_id: str = typer.Argument(..., help="List ID"),
     name: str | None = typer.Option(None, help="List name"),
     description: str | None = typer.Option(None, help="Description"),
+    clear_description: bool = typer.Option(
+        False, "--clear-description", help="Remove the description"
+    ),
     list_type: str | None = typer.Option(None, "--type", help="static or dynamic"),
     json_output: bool = JSON_OPTION,
 ) -> None:
     """Update an existing list."""
     set_json_mode(json_output)
+    if description is not None and clear_description:
+        rprint("[red]Use --description or --clear-description, not both[/red]")
+        raise typer.Exit(code=1)
+
     body = _build_body(
         name=name,
         description=description,
         type=list_type,
     )
+    if clear_description:
+        body["description"] = None
 
     if not body:
         rprint("[yellow]No fields to update.[/yellow]")
@@ -139,6 +148,14 @@ def lists_members(
     member_type: str | None = typer.Option(
         None, "--member-type", help="person or company. Omit to list both kinds."
     ),
+    include_company_details: bool = typer.Option(
+        False,
+        "--include-company-details",
+        help="Add the company row. With --member-type person, the employer.",
+    ),
+    include_person_details: bool = typer.Option(
+        False, "--include-person-details", help="Add the person row"
+    ),
     json_output: bool = JSON_OPTION,
 ) -> None:
     """List members of a list. A list holds people and companies."""
@@ -150,6 +167,10 @@ def lists_members(
     params: dict[str, str | int] = {"limit": limit, "offset": offset}
     if member_type is not None:
         params["member_type"] = member_type
+    if include_company_details:
+        params["include_company_details"] = "true"
+    if include_person_details:
+        params["include_person_details"] = "true"
     resp = _api_request("get", f"{_CRM}/lists/{list_id}/members", params=params)
 
     data = resp.json()
@@ -235,6 +256,7 @@ def lists_remove_member(
     list_id: str = typer.Argument(..., help="List ID"),
     person_id: str | None = typer.Option(None, "--person-id", help="Person ID"),
     company_id: str | None = typer.Option(None, "--company-id", help="Company ID"),
+    yes: bool = typer.Option(False, "--yes", "-y", help="Skip confirmation"),
     json_output: bool = JSON_OPTION,
 ) -> None:
     """Remove a member from a list."""
@@ -248,6 +270,9 @@ def lists_remove_member(
     else:
         rprint("[red]Must specify --person-id or --company-id[/red]")
         raise typer.Exit(code=1)
+
+    if not should_skip_confirm(yes):
+        typer.confirm(f"Remove {member_type} {member_id} from list {list_id}?", abort=True)
 
     _api_request("delete", f"{_CRM}/lists/{list_id}/members/{member_type}/{member_id}")
 
@@ -342,11 +367,13 @@ def lists_bulk_remove_members(
     if not should_skip_confirm(yes):
         typer.confirm(f"Remove {len(id_list)} {member_type}(s) from list {list_id}?", abort=True)
 
-    _api_request(
+    resp = _api_request(
         "post",
         f"{_CRM}/lists/{list_id}/members/bulk-remove",
         json={"member_type": member_type, "member_ids": id_list},
     )
+    # An id that is not on the list removes nothing, so report the server count.
+    removed = int((resp.json() if resp.content else {}).get("removed_count", 0))
 
     if json_output:
         print_json(
@@ -355,14 +382,23 @@ def lists_bulk_remove_members(
                 "list_id": list_id,
                 "member_type": member_type,
                 "member_ids": id_list,
-                "count": len(id_list),
+                "count": removed,
+                "requested_count": len(id_list),
                 "action": "bulk-remove-members",
             }
+        )
+    elif removed == len(id_list):
+        rprint(
+            styled("[green]Removed {} {}(s) from list {}[/green]", removed, member_type, list_id)
         )
     else:
         rprint(
             styled(
-                "[green]Removed {} {}(s) from list {}[/green]", len(id_list), member_type, list_id
+                "[green]Removed {} of {} {}(s) from list {}[/green]",
+                removed,
+                len(id_list),
+                member_type,
+                list_id,
             )
         )
 
