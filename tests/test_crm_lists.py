@@ -168,14 +168,16 @@ def test_lists_for_member_missing_id(invoke, mock_api):
 
 def test_lists_remove_member(invoke, mock_api):
     mock_api.delete("/api/v1/crm/lists/l1/members/company/c1").respond(204)
-    result = invoke(["crm", "lists", "remove-member", "l1", "--company-id", "c1"])
+    result = invoke(["crm", "lists", "remove-member", "l1", "--company-id", "c1", "--yes"])
     assert result.exit_code == 0
     assert "Removed" in result.output
 
 
 def test_lists_remove_member_json(invoke, mock_api):
     mock_api.delete("/api/v1/crm/lists/l1/members/company/c1").respond(204)
-    result = invoke(["crm", "lists", "remove-member", "l1", "--company-id", "c1", "--json"])
+    result = invoke(
+        ["crm", "lists", "remove-member", "l1", "--company-id", "c1", "--yes", "--json"]
+    )
     assert result.exit_code == 0
     parsed = json.loads(result.output)
     assert parsed == {
@@ -189,7 +191,7 @@ def test_lists_remove_member_json(invoke, mock_api):
 
 def test_lists_remove_member_person(invoke, mock_api):
     mock_api.delete("/api/v1/crm/lists/l1/members/person/p1").respond(204)
-    result = invoke(["crm", "lists", "remove-member", "l1", "--person-id", "p1"])
+    result = invoke(["crm", "lists", "remove-member", "l1", "--person-id", "p1", "--yes"])
     assert result.exit_code == 0
 
 
@@ -234,7 +236,9 @@ def test_lists_list_follows_redirect(invoke, mock_api):
 
 
 def test_lists_bulk_remove_with_yes(invoke, mock_api):
-    route = mock_api.post("/api/v1/crm/lists/l1/members/bulk-remove").respond(204)
+    route = mock_api.post("/api/v1/crm/lists/l1/members/bulk-remove").respond(
+        200, json={"removed_count": 3}
+    )
     result = invoke(
         [
             "crm",
@@ -307,7 +311,9 @@ def test_lists_bulk_remove_aborted(invoke, mock_api):
 
 
 def test_lists_bulk_remove_json(invoke, mock_api):
-    mock_api.post("/api/v1/crm/lists/l1/members/bulk-remove").respond(204)
+    mock_api.post("/api/v1/crm/lists/l1/members/bulk-remove").respond(
+        200, json={"removed_count": 2}
+    )
     result = invoke(
         [
             "crm",
@@ -658,3 +664,68 @@ def test_lists_bulk_move_propagates_422(invoke, mock_api):
         ]
     )
     assert result.exit_code == 2
+
+
+def test_lists_remove_member_asks_first(invoke, mock_api):
+    route = mock_api.delete("/api/v1/crm/lists/l1/members/company/c1").respond(204)
+    result = invoke(["crm", "lists", "remove-member", "l1", "--company-id", "c1"], input="n\n")
+    assert result.exit_code == 1
+    assert not route.called
+
+
+def test_lists_bulk_remove_reports_the_server_count(invoke, mock_api):
+    mock_api.post("/api/v1/crm/lists/l1/members/bulk-remove").respond(
+        200, json={"removed_count": 1}
+    )
+    args = ["crm", "lists", "bulk-remove-members", "l1", "--member-type", "person"]
+    result = invoke([*args, "--ids", "p1,p2,p3", "--yes"])
+    assert result.exit_code == 0
+    assert "Removed 1 of 3 person(s)" in result.output
+
+    result = invoke([*args, "--ids", "p1,p2,p3", "--yes", "--json"])
+    parsed = json.loads(result.output)
+    assert parsed["count"] == 1
+    assert parsed["requested_count"] == 3
+
+
+def test_lists_members_include_details(invoke, mock_api):
+    route = mock_api.get("/api/v1/crm/lists/l1/members").respond(
+        200, json={"data": [SAMPLE_MEMBER], "total": 1}
+    )
+    result = invoke(
+        [
+            "crm",
+            "lists",
+            "members",
+            "l1",
+            "--member-type",
+            "company",
+            "--include-company-details",
+            "--include-person-details",
+        ]
+    )
+    assert result.exit_code == 0
+    params = route.calls.last.request.url.params
+    assert params["include_company_details"] == "true"
+    assert params["include_person_details"] == "true"
+
+
+def test_lists_update_clear_description(invoke, mock_api):
+    route = mock_api.patch("/api/v1/crm/lists/l1").respond(200, json=SAMPLE_LIST)
+    result = invoke(["crm", "lists", "update", "l1", "--clear-description"])
+    assert result.exit_code == 0
+    assert json.loads(route.calls.last.request.content) == {"description": None}
+
+
+def test_lists_update_rejects_description_and_clear(invoke, mock_api):
+    result = invoke(["crm", "lists", "update", "l1", "--description", "x", "--clear-description"])
+    assert result.exit_code == 1
+
+
+def test_lists_add_member_reports_a_duplicate(invoke, mock_api):
+    mock_api.post("/api/v1/crm/lists/l1/members").respond(
+        409, json={"detail": "This member is already on the list"}
+    )
+    result = invoke(["crm", "lists", "add-member", "l1", "--person-id", "p1"])
+    assert result.exit_code == 5  # the CLI maps 409 to exit code 5
+    assert "already on the list" in result.output
