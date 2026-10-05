@@ -20,21 +20,27 @@ from ac_cli.formatting import as_text, console, print_detail, print_json, print_
 app = typer.Typer(help="Manage repeatable agentic saved searches")
 
 _SAVED_SEARCHES = "/api/v1/agentic/saved-searches"
-#: The three search capabilities that hold a saved brief. An enrich capability
+#: Search capabilities that hold a saved brief. An enrich capability
 #: takes the rows it works on, so the API refuses a saved brief for one.
-_CAPABILITIES = ("signals.search", "people.search", "company.search")
+_CAPABILITIES = ("signals.search", "people.signals", "people.search", "company.search")
 _CAPABILITY_HELP = f"Which product saves the brief: {', '.join(_CAPABILITIES)}"
 _PAGE_DEFAULT = 50
 _PAGE_MIN = 1
 _PAGE_MAX = 100
 
-# The caller names one capability to list, so a column repeating it on every
-# row carries nothing and costs the width the other columns need.
 _SUMMARY_FIELDS = [
     ("id", "Saved search ID"),
     ("name", "Name"),
     ("schedule", "Schedule"),
     ("last_run_id", "Last run"),
+    ("last_run_at", "Last run at"),
+    ("updated_at", "Token"),
+]
+_MULTI_SUMMARY_FIELDS = [
+    ("id", "Saved search ID"),
+    ("name", "Name"),
+    ("capability_id", "Type"),
+    ("schedule", "Schedule"),
     ("last_run_at", "Last run at"),
     ("updated_at", "Token"),
 ]
@@ -92,13 +98,15 @@ def _page_params(limit: int, cursor: str | None) -> dict[str, object]:
     return params
 
 
-def _print_next_page(next_cursor: str | None, limit: int, capability: str | None = None) -> None:
+def _print_next_page(
+    next_cursor: str | None, limit: int, capability: str | list[str] | None = None
+) -> None:
     """Print the options that continue the same page walk."""
     if not next_cursor:
         return
     parts: list[object] = ["[dim]Next page:[/dim]"]
-    if capability is not None:
-        parts += ["--capability", as_text(capability)]
+    for one in [capability] if isinstance(capability, str) else capability or []:
+        parts += ["--capability", as_text(one)]
     if limit != _PAGE_DEFAULT:
         parts += ["--limit", as_text(limit)]
     parts += ["--cursor", as_text(next_cursor)]
@@ -156,14 +164,14 @@ def saved_searches_create(
 @app.command("list")
 def saved_searches_list(
     ctx: typer.Context,
-    capability: str = typer.Option(..., "--capability", help=_CAPABILITY_HELP),
+    capability: list[str] = typer.Option(..., "--capability", help=_CAPABILITY_HELP),
     cursor: str | None = typer.Option(None, "--cursor", help="Page to continue"),
     limit: int = typer.Option(_PAGE_DEFAULT, "--limit", help="Page size, 1 to 100"),
     json_output: bool = JSON_OPTION,
 ) -> None:
-    """List one product's saved-search summaries, newest first."""
+    """List selected products' saved-search summaries, newest first."""
     set_json_mode(json_output)
-    checked = _checked_capability(capability)
+    checked = list(dict.fromkeys(_checked_capability(one) for one in capability))
     data = _api_request(
         "get",
         _SAVED_SEARCHES,
@@ -175,7 +183,11 @@ def saved_searches_list(
     rows = [
         {**item, "schedule": _schedule_text(item.get("schedule"))} for item in data.get("items", [])
     ]
-    print_table(rows, _SUMMARY_FIELDS, title="Saved searches")
+    print_table(
+        rows,
+        _MULTI_SUMMARY_FIELDS if len(checked) > 1 else _SUMMARY_FIELDS,
+        title="Saved searches",
+    )
     _print_next_page(data.get("next_cursor"), limit, checked)
 
 

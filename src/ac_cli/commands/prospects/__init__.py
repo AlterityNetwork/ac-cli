@@ -370,7 +370,8 @@ def prospects_list(
         "--signal-type",
         help=(
             "Only prospects that hold one signal of this type, such as "
-            "funding_round. `signal-types` lists the types a state holds."
+            "product_launch or paid_campaign_launch. `signal-types` lists "
+            "the types a state holds."
         ),
     ),
     search: str | None = typer.Option(

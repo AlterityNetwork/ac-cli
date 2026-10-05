@@ -496,6 +496,28 @@ def test_list_forwards_the_three_server_filters(invoke, mock_api):
     assert params["search"] == "Jack & Jill"
 
 
+@pytest.mark.parametrize(
+    "signal_type",
+    [
+        "product_launch",
+        "new_marketing_leader",
+        "paid_campaign_launch",
+        "marketing_initiative_announcement",
+    ],
+)
+def test_list_supports_agency_signal_filters(invoke, mock_api, signal_type):
+    route = mock_api.get(BASE).respond(200, json={"items": [], "next_cursor": None})
+
+    result = invoke(["agentic", "prospects", "list", "--signal-type", signal_type])
+
+    assert result.exit_code == 0
+    assert route.calls[0].request.url.params["signal_type"] == signal_type
+
+
+def test_list_help_names_a_paid_campaign_signal(invoke):
+    assert "paid_campaign_launch" in invoke(["agentic", "prospects", "list", "--help"]).output
+
+
 def test_list_sends_no_filter_the_caller_did_not_name(invoke, mock_api):
     route = mock_api.get(BASE).respond(200, json={"items": [], "next_cursor": None})
 

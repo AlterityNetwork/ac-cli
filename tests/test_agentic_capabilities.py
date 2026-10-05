@@ -54,6 +54,39 @@ def test_start_preserves_request_and_run_response(invoke, mock_api, outcome, sta
     assert request.headers["Idempotency-Key"] == "delivery-42"
 
 
+def test_start_passes_people_signals_list_and_employer_fit(invoke, mock_api):
+    """The generic start command keeps the published People Signals input."""
+    payload = {
+        "source": "people_set",
+        "people": [{"full_name": "Ada Lovelace", "email": "ada@example.com"}],
+        "brief": {
+            "icp": "Started a marketing leadership role",
+            "employer_criteria": "B2B SaaS companies",
+        },
+        "signal_recency": "1m",
+    }
+    route = mock_api.post("/api/v1/agentic/capabilities/people.signals/runs").respond(
+        200, json={**SAMPLE_RUN, "capability_id": "people.signals"}
+    )
+
+    result = invoke(
+        [
+            "agentic",
+            "capabilities",
+            "start",
+            "people.signals",
+            "--input",
+            json.dumps(payload),
+            "--idempotency-key",
+            "people-set-1",
+            "--json",
+        ]
+    )
+
+    assert result.exit_code == 0, result.output
+    assert json.loads(route.calls[0].request.content) == {"input": payload}
+
+
 def test_human_response_shows_capability_and_status(invoke, mock_api):
     mock_api.post(PATH).respond(
         200,
