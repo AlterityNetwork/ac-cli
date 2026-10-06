@@ -1,13 +1,16 @@
 """Organization settings commands.
 
 `ac settings framework` reads, saves and publishes the copilot approval
-framework of the active organization.
+framework of the active organization. `ac settings dossier` prints Memory:
+what the apps know about the organization and about you.
 """
 
 from __future__ import annotations
 
 import json
+import re
 from pathlib import Path
+from typing import NoReturn
 
 import typer
 from rich import print as rprint
@@ -161,3 +164,85 @@ def targeting_set(
         print_json(response.json())
     else:
         rprint("[green]Targeting saved[/green]")
+
+
+dossier_app = typer.Typer(
+    help="Memory: what the apps know about the active organization and about you"
+)
+app.add_typer(dossier_app, name="dossier")
+
+
+@dossier_app.command("get")
+def dossier_get(
+    user: bool = typer.Option(
+        False, "--user", help="Add the section about you: profile, signature, writing style"
+    ),
+    json_output: bool = JSON_OPTION,
+) -> None:
+    """Print Memory as Markdown.
+
+    The Markdown goes to stdout, so it pipes to a file. The empty fields go to
+    stderr with the Settings page that fills each one.
+    """
+    set_json_mode(json_output)
+    params = {"include_user": "true"} if user else None
+    response = _api_request("get", f"{_SETTINGS}/dossier", params=params)
+    data = response.json()
+    if json_output:
+        print_json(data)
+        return
+    typer.echo(data.get("markdown") or "", nl=False)
+    gaps = data.get("gaps") or []
+    if gaps:
+        typer.echo("", err=True)
+        typer.echo("Empty fields:", err=True)
+        for gap in gaps:
+            typer.echo(f"  - {gap.get('message')} ({gap.get('settings_path')})", err=True)
+
+
+def _write_failed(path: Path, exc: OSError, *, json_output: bool) -> NoReturn:
+    """Reports a file the command could not write, then exits 1.
+
+    A write failure is a runtime error, not bad input, so it takes exit code 1
+    and not the validation code that refuse_local uses.
+    """
+    message = f"Could not write {path}: {exc.strerror or exc}"
+    if json_output:
+        print_json({"error": True, "status_code": None, "detail": message})
+    else:
+        rprint("[red]Error:[/red]", Text(message))
+    raise typer.Exit(code=1)
+
+
+_FILENAME = re.compile(r'filename="([^"/\\]+)"')
+
+
+@dossier_app.command("pdf")
+def dossier_pdf(
+    output: Path | None = typer.Option(
+        None,
+        "--output",
+        "-o",
+        help="Where to save the PDF. Defaults to the server file name in this folder",
+    ),
+    user: bool = typer.Option(
+        False, "--user", help="Add the section about you: profile, signature, writing style"
+    ),
+    json_output: bool = JSON_OPTION,
+) -> None:
+    """Save Memory as a PDF file."""
+    set_json_mode(json_output)
+    params = {"include_user": "true"} if user else None
+    response = _api_request("get", f"{_SETTINGS}/dossier/pdf", params=params)
+    if output is None:
+        match = _FILENAME.search(response.headers.get("content-disposition", ""))
+        output = Path(match.group(1) if match else "memory.pdf")
+    try:
+        output.parent.mkdir(parents=True, exist_ok=True)
+        output.write_bytes(response.content)
+    except OSError as exc:
+        _write_failed(output, exc, json_output=json_output)
+    if json_output:
+        print_json({"path": str(output), "bytes": len(response.content)})
+        return
+    typer.echo(f"Saved {output}")
