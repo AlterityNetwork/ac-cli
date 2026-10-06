@@ -408,3 +408,112 @@ def test_send_refuses_a_row_that_is_no_kind_and_id(invoke, mock_api, value):
 
     assert result.exit_code == 2
     assert not route.called
+
+
+# --- draft conversations ---------------------------------------------------
+
+_DRAFT = {"capability_id": "signals.search", "input": {"source": "discovery"}}
+
+
+def test_create_opens_a_draft_conversation(invoke, mock_api):
+    route = mock_api.post(BASE).respond(
+        201, json={**CONVERSATION, "draft_capability_ids": ["people.signals", "signals.search"]}
+    )
+
+    result = invoke(
+        [
+            "agentic",
+            "conversations",
+            "create",
+            "--draft-capability",
+            "signals.search",
+            "--draft-capability",
+            "people.signals",
+        ]
+    )
+
+    assert result.exit_code == 0, result.output
+    assert json.loads(route.calls[0].request.content) == {
+        "draft_capability_ids": ["signals.search", "people.signals"]
+    }
+    assert "signals.search" in result.output
+
+
+def test_list_reads_the_draft_conversations_of_one_capability(invoke, mock_api):
+    route = mock_api.get(BASE).respond(200, json={"items": [], "next_cursor": None})
+
+    invoke(["agentic", "conversations", "list", "--draft-capability", "signals.search"])
+
+    assert route.calls[0].request.url.params["draft_capability_id"] == "signals.search"
+
+
+def test_list_sends_no_filter_by_default(invoke, mock_api):
+    route = mock_api.get(BASE).respond(200, json={"items": [], "next_cursor": None})
+
+    invoke(["agentic", "conversations", "list"])
+
+    assert "draft_capability_id" not in route.calls[0].request.url.params
+
+
+def test_send_carries_the_form_state(invoke, mock_api):
+    route = mock_api.post(MESSAGES).respond(202, json={**MESSAGE, "draft": _DRAFT})
+
+    result = invoke(
+        [
+            "agentic",
+            "conversations",
+            "send",
+            CONVERSATION_ID,
+            "only fintechs",
+            "--draft",
+            json.dumps(_DRAFT),
+        ]
+    )
+
+    assert result.exit_code == 0, result.output
+    assert json.loads(route.calls[0].request.content) == {
+        "text": "only fintechs",
+        "draft": _DRAFT,
+    }
+
+
+@pytest.mark.parametrize(
+    "value",
+    [
+        "not json",
+        "[]",
+        '{"capability_id": "signals.search"}',
+        '{"capability_id": 1, "input": {}}',
+        '{"capability_id": "signals.search", "input": []}',
+    ],
+)
+def test_send_refuses_a_draft_of_the_wrong_shape(invoke, mock_api, value):
+    route = mock_api.post(MESSAGES).respond(202, json=MESSAGE)
+
+    result = invoke(
+        ["agentic", "conversations", "send", CONVERSATION_ID, "hi", "--draft", value, "--json"]
+    )
+
+    assert result.exit_code == 2, result.output
+    assert "--draft" in json.loads(result.output)["detail"]
+    assert not route.called
+
+
+def test_send_reports_an_oversized_draft(invoke, mock_api):
+    mock_api.post(MESSAGES).respond(413, json={"detail": "a draft holds 65536 bytes at most"})
+
+    result = invoke(
+        ["agentic", "conversations", "send", CONVERSATION_ID, "hi", "--draft", json.dumps(_DRAFT)]
+    )
+
+    assert result.exit_code != 0
+    assert "65536" in result.output
+
+
+def test_messages_json_keeps_the_draft(invoke, mock_api):
+    page = {"items": [{**MESSAGE, "draft": _DRAFT}], "next_cursor": None}
+    mock_api.get(MESSAGES).respond(200, json=page)
+
+    result = invoke(["agentic", "conversations", "messages", CONVERSATION_ID, "--json"])
+
+    assert json.loads(result.output)["items"][0]["draft"] == _DRAFT
