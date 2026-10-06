@@ -8,6 +8,7 @@ what the apps know about the organization and about you.
 from __future__ import annotations
 
 import json
+import re
 from pathlib import Path
 
 import typer
@@ -196,3 +197,37 @@ def dossier_get(
         typer.echo("Empty fields:", err=True)
         for gap in gaps:
             typer.echo(f"  - {gap.get('message')} ({gap.get('settings_path')})", err=True)
+
+
+_FILENAME = re.compile(r'filename="([^"/\\]+)"')
+
+
+@dossier_app.command("pdf")
+def dossier_pdf(
+    output: Path | None = typer.Option(
+        None,
+        "--output",
+        "-o",
+        help="Where to save the PDF. Defaults to the server file name in this folder",
+    ),
+    user: bool = typer.Option(
+        False, "--user", help="Add the section about you: profile, signature, writing style"
+    ),
+    json_output: bool = JSON_OPTION,
+) -> None:
+    """Save Memory as a PDF file."""
+    set_json_mode(json_output)
+    params = {"include_user": "true"} if user else None
+    response = _api_request("get", f"{_SETTINGS}/dossier/pdf", params=params)
+    if output is None:
+        match = _FILENAME.search(response.headers.get("content-disposition", ""))
+        output = Path(match.group(1) if match else "memory.pdf")
+    try:
+        output.parent.mkdir(parents=True, exist_ok=True)
+        output.write_bytes(response.content)
+    except OSError:
+        refuse_local(f"Could not write {output}")
+    if json_output:
+        print_json({"path": str(output), "bytes": len(response.content)})
+        return
+    typer.echo(f"Saved {output}")

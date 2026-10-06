@@ -73,3 +73,48 @@ def test_dossier_get_forbidden_json(invoke, mock_api):
     result = invoke(["settings", "dossier", "get", "--json"])
     assert result.exit_code == 4
     assert json.loads(result.output)["status_code"] == 403
+
+
+_PDF = b"%PDF-1.4 memory"
+_DISPOSITION = 'attachment; filename="memory-northwind-studio-2026-10-06.pdf"'
+
+
+def test_dossier_pdf_saves_the_file_under_the_server_name(invoke, mock_api, tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    route = mock_api.get(f"{_BASE}/pdf").respond(
+        200, content=_PDF, headers={"content-disposition": _DISPOSITION}
+    )
+    result = invoke(["settings", "dossier", "pdf"])
+    assert result.exit_code == 0, result.output
+    saved = tmp_path / "memory-northwind-studio-2026-10-06.pdf"
+    assert saved.read_bytes() == _PDF
+    assert "include_user" not in str(route.calls.last.request.url)
+    assert "memory-northwind-studio-2026-10-06.pdf" in result.output
+
+
+def test_dossier_pdf_writes_to_the_output_path_with_the_user(invoke, mock_api, tmp_path):
+    route = mock_api.get(f"{_BASE}/pdf").respond(
+        200, content=_PDF, headers={"content-disposition": _DISPOSITION}
+    )
+    target = tmp_path / "out" / "mine.pdf"
+    result = invoke(["settings", "dossier", "pdf", "--user", "--output", str(target)])
+    assert result.exit_code == 0, result.output
+    assert target.read_bytes() == _PDF
+    assert route.calls.last.request.url.params["include_user"] == "true"
+
+
+def test_dossier_pdf_json(invoke, mock_api, tmp_path):
+    mock_api.get(f"{_BASE}/pdf").respond(
+        200, content=_PDF, headers={"content-disposition": _DISPOSITION}
+    )
+    target = tmp_path / "m.pdf"
+    result = invoke(["settings", "dossier", "pdf", "--output", str(target), "--json"])
+    assert result.exit_code == 0
+    assert json.loads(result.output) == {"path": str(target), "bytes": len(_PDF)}
+
+
+def test_dossier_pdf_forbidden(invoke, mock_api, tmp_path):
+    mock_api.get(f"{_BASE}/pdf").respond(403, json={"detail": "Not allowed"})
+    result = invoke(["settings", "dossier", "pdf", "--output", str(tmp_path / "x.pdf")])
+    assert result.exit_code == 4
+    assert not (tmp_path / "x.pdf").exists()
