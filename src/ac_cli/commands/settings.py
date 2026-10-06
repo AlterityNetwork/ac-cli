@@ -1,7 +1,8 @@
 """Organization settings commands.
 
 `ac settings framework` reads, saves and publishes the copilot approval
-framework of the active organization.
+framework of the active organization. `ac settings dossier` prints the Company
+dossier that the LLM features read.
 """
 
 from __future__ import annotations
@@ -161,3 +162,35 @@ def targeting_set(
         print_json(response.json())
     else:
         rprint("[green]Targeting saved[/green]")
+
+
+dossier_app = typer.Typer(help="The Company dossier of the active organization")
+app.add_typer(dossier_app, name="dossier")
+
+
+@dossier_app.command("get")
+def dossier_get(
+    user: bool = typer.Option(
+        False, "--user", help="Add the section about you: profile, signature, writing style"
+    ),
+    json_output: bool = JSON_OPTION,
+) -> None:
+    """Print the Company dossier as Markdown.
+
+    The Markdown goes to stdout, so it pipes to a file. The empty fields go to
+    stderr with the Settings page that fills each one.
+    """
+    set_json_mode(json_output)
+    params = {"include_user": "true"} if user else None
+    response = _api_request("get", f"{_SETTINGS}/dossier", params=params)
+    data = response.json()
+    if json_output:
+        print_json(data)
+        return
+    typer.echo(str(data.get("markdown", "")), nl=False)
+    gaps = data.get("gaps") or []
+    if gaps:
+        typer.echo("", err=True)
+        typer.echo("Empty fields:", err=True)
+        for gap in gaps:
+            typer.echo(f"  - {gap.get('message')} ({gap.get('settings_path')})", err=True)
