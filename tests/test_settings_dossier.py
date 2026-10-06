@@ -118,3 +118,30 @@ def test_dossier_pdf_forbidden(invoke, mock_api, tmp_path):
     result = invoke(["settings", "dossier", "pdf", "--output", str(tmp_path / "x.pdf")])
     assert result.exit_code == 4
     assert not (tmp_path / "x.pdf").exists()
+
+
+def test_dossier_get_prints_nothing_for_a_null_markdown(invoke, mock_api):
+    mock_api.get(_BASE).respond(200, json={**SAMPLE, "markdown": None, "gaps": []})
+    result = invoke(["settings", "dossier", "get"])
+    assert result.exit_code == 0
+    assert "None" not in result.output
+
+
+def test_dossier_pdf_write_failure_exits_1(invoke, mock_api, tmp_path):
+    mock_api.get(f"{_BASE}/pdf").respond(
+        200, content=_PDF, headers={"content-disposition": _DISPOSITION}
+    )
+    result = invoke(["settings", "dossier", "pdf", "--output", str(tmp_path), "--json"])
+    assert result.exit_code == 1
+    body = json.loads(result.output)
+    assert body["error"] is True
+    assert str(tmp_path) in body["detail"]
+
+
+def test_dossier_pdf_write_failure_exits_1_in_text_mode(invoke, mock_api, tmp_path):
+    mock_api.get(f"{_BASE}/pdf").respond(
+        200, content=_PDF, headers={"content-disposition": _DISPOSITION}
+    )
+    result = invoke(["settings", "dossier", "pdf", "--output", str(tmp_path)])
+    assert result.exit_code == 1
+    assert "Could not write" in result.output
