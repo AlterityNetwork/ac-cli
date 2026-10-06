@@ -1,4 +1,4 @@
-"""Tests for `ac settings dossier` (the Company dossier)."""
+"""Tests for `ac settings dossier` (Memory)."""
 
 import json
 
@@ -15,7 +15,9 @@ SAMPLE = {
     "documents_total": 0,
     "generated_at": "2026-10-06T12:00:00+00:00",
     "user": None,
-    "markdown": "# Company dossier: Northwind Studio\n\n## Company [beta]\n",
+    "markdown": "# Memory: Northwind Studio\n\n## Company [beta]\n",
+    "company_markdown": "## Company [beta]\n",
+    "user_markdown": None,
     "gaps": [
         {
             "section": "company",
@@ -31,7 +33,7 @@ def test_dossier_get_prints_the_markdown(invoke, mock_api):
     route = mock_api.get(_BASE).respond(200, json=SAMPLE)
     result = invoke(["settings", "dossier", "get"])
     assert result.exit_code == 0, result.output
-    assert "# Company dossier: Northwind Studio" in result.output
+    assert "# Memory: Northwind Studio" in result.output
     assert "## Company [beta]" in result.output
     assert "include_user" not in str(route.calls.last.request.url)
 

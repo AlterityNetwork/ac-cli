@@ -1,8 +1,8 @@
 """Organization settings commands.
 
 `ac settings framework` reads, saves and publishes the copilot approval
-framework of the active organization. `ac settings dossier` prints the Company
-dossier that the LLM features read.
+framework of the active organization. `ac settings dossier` prints Memory:
+what the apps know about the organization and about you.
 """
 
 from __future__ import annotations
@@ -164,7 +164,9 @@ def targeting_set(
         rprint("[green]Targeting saved[/green]")
 
 
-dossier_app = typer.Typer(help="The Company dossier of the active organization")
+dossier_app = typer.Typer(
+    help="Memory: what the apps know about the active organization and about you"
+)
 app.add_typer(dossier_app, name="dossier")
 
 
@@ -175,7 +177,7 @@ def dossier_get(
     ),
     json_output: bool = JSON_OPTION,
 ) -> None:
-    """Print the Company dossier as Markdown.
+    """Print Memory as Markdown.
 
     The Markdown goes to stdout, so it pipes to a file. The empty fields go to
     stderr with the Settings page that fills each one.
