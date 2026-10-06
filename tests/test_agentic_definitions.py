@@ -25,8 +25,21 @@ SAMPLE = {
     "draft_config": {"instructions": "Answer."},
     "published_config": None,
     "referenced_ids": [],
+    "capability_binding": None,
     "validation": None,
 }
+
+BINDING = {
+    "capability_id": "company.search",
+    "contract_version": 2,
+    "name": "Company Search",
+    "description": "Finds companies and returns selectable references.",
+    "input_schema": {"type": "object", "additionalProperties": False, "properties": {}},
+    "output_schema": {"type": "object", "additionalProperties": False, "properties": {}},
+    "platform_managed": True,
+}
+
+BOUND = {**SAMPLE, "kind": "workflow", "state": "active", "capability_binding": BINDING}
 
 BASE = "/api/v1/agentic/definitions"
 
@@ -116,6 +129,35 @@ def test_definitions_get(invoke, mock_api):
 
     assert result.exit_code == 0
     assert "researcher" in result.output
+
+
+def test_definitions_get_shows_the_capability_contract(invoke, mock_api):
+    mock_api.get(f"{BASE}/{DEFINITION_ID}").respond(200, json=BOUND)
+    result = invoke(["agentic", "definitions", "get", DEFINITION_ID])
+
+    assert result.exit_code == 0
+    assert "Capability: company.search" in result.output
+    assert "Contract version: 2" in result.output
+    assert "--json" in result.output
+
+
+def test_definitions_get_of_an_unbound_definition_names_no_capability(invoke, mock_api):
+    mock_api.get(f"{BASE}/{DEFINITION_ID}").respond(200, json=SAMPLE)
+    result = invoke(["agentic", "definitions", "get", DEFINITION_ID])
+
+    assert result.exit_code == 0
+    assert "company.search" not in result.output
+    assert "--json" not in result.output
+
+
+def test_definitions_get_json_carries_both_schemas(invoke, mock_api):
+    mock_api.get(f"{BASE}/{DEFINITION_ID}").respond(200, json=BOUND)
+    result = invoke(["agentic", "definitions", "get", DEFINITION_ID, "--json"])
+
+    assert result.exit_code == 0
+    binding = json.loads(result.output)["capability_binding"]
+    assert binding["input_schema"] == BINDING["input_schema"]
+    assert binding["output_schema"] == BINDING["output_schema"]
 
 
 def test_definitions_get_of_another_tenant_is_not_found(invoke, mock_api):

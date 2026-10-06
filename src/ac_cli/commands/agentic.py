@@ -735,6 +735,8 @@ _DEFINITION_FIELDS = [
     ("state", "State"),
     ("has_unpublished_changes", "Unpublished edits"),
     ("source_definition_id", "Forked from"),
+    ("capability_id", "Capability"),
+    ("contract_version", "Contract version"),
     ("created_at", "Created"),
     ("published_at", "Published"),
     ("updated_at", "Token"),
@@ -888,6 +890,10 @@ def definitions_get(
 
     A platform template answers 404 here. It is visible through `list` and
     through `fork`.
+
+    Only the root workflow of a capability holds a capability contract. The
+    table shows its capability ID and its contract version. Use `--json` to
+    read the two JSON Schemas.
     """
     set_json_mode(json_output)
     resp = _api_request("get", f"{_AGENTIC}/definitions/{definition_id}")
@@ -897,9 +903,21 @@ def definitions_get(
         print_json(data)
         return
 
-    print_detail(data, _DEFINITION_FIELDS)
+    # `print_detail` prints a nested object as a Python repr. The two scalars
+    # of the binding therefore move up to the row before it prints.
+    binding = data.get("capability_binding") or {}
+    print_detail(
+        {
+            **data,
+            "capability_id": binding.get("capability_id"),
+            "contract_version": binding.get("contract_version"),
+        },
+        _DEFINITION_FIELDS,
+    )
     if data.get("has_unpublished_changes"):
         rprint("[dim]The draft differs from what is published.[/dim]")
+    if binding:
+        rprint("[dim]Use --json to read the input and output schemas.[/dim]")
 
 
 @definitions_app.command("patch")
