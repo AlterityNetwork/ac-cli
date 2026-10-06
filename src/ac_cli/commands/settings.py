@@ -10,6 +10,7 @@ from __future__ import annotations
 import json
 import re
 from pathlib import Path
+from typing import NoReturn
 
 import typer
 from rich import print as rprint
@@ -190,13 +191,27 @@ def dossier_get(
     if json_output:
         print_json(data)
         return
-    typer.echo(str(data.get("markdown", "")), nl=False)
+    typer.echo(data.get("markdown") or "", nl=False)
     gaps = data.get("gaps") or []
     if gaps:
         typer.echo("", err=True)
         typer.echo("Empty fields:", err=True)
         for gap in gaps:
             typer.echo(f"  - {gap.get('message')} ({gap.get('settings_path')})", err=True)
+
+
+def _write_failed(path: Path, exc: OSError, *, json_output: bool) -> NoReturn:
+    """Reports a file the command could not write, then exits 1.
+
+    A write failure is a runtime error, not bad input, so it takes exit code 1
+    and not the validation code that refuse_local uses.
+    """
+    message = f"Could not write {path}: {exc.strerror or exc}"
+    if json_output:
+        print_json({"error": True, "status_code": None, "detail": message})
+    else:
+        rprint("[red]Error:[/red]", Text(message))
+    raise typer.Exit(code=1)
 
 
 _FILENAME = re.compile(r'filename="([^"/\\]+)"')
@@ -225,8 +240,8 @@ def dossier_pdf(
     try:
         output.parent.mkdir(parents=True, exist_ok=True)
         output.write_bytes(response.content)
-    except OSError:
-        refuse_local(f"Could not write {output}")
+    except OSError as exc:
+        _write_failed(output, exc, json_output=json_output)
     if json_output:
         print_json({"path": str(output), "bytes": len(response.content)})
         return
