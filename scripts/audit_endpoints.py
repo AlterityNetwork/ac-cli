@@ -77,6 +77,9 @@ OUT_OF_SCOPE: set[tuple[str, str]] = {
     # prospect windows into one request. `agentic prospects list
     # --saved-search-id` covers the same data one search at a time.
     ("GET", "/api/v1/agentic/prospects/by-saved-search"),
+    # Frontend-only bridge from selected People Search rows to CRM identities.
+    # List and review actions already have their own CLI commands.
+    ("POST", "/api/v1/agentic/people/resolve"),
     # Signature-authenticated FullEnrich provider callbacks (ENG-1733).
     ("POST", "/api/v1/fullenrich/webhook"),
     ("POST", "/api/v1/fullenrich/webhook/contact"),
