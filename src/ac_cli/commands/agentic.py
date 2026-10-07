@@ -737,11 +737,16 @@ _DEFINITION_FIELDS = [
     ("source_definition_id", "Forked from"),
     ("capability_id", "Capability"),
     ("contract_version", "Contract version"),
+    ("capability_active", "Active executor"),
+    ("platform_managed", "Platform managed"),
     ("created_at", "Created"),
     ("published_at", "Published"),
     ("updated_at", "Token"),
 ]
 
+# `Capability` is the seventh column. Each further column makes every cell
+# narrower at 80 columns, so `capability_active` and `platform_managed` print
+# on `get` and in `--json` alone.
 _DEFINITION_LIST_FIELDS = [
     ("id", "Definition ID"),
     ("name", "Name"),
@@ -749,6 +754,16 @@ _DEFINITION_LIST_FIELDS = [
     ("origin", "Origin"),
     ("state", "State"),
     ("has_unpublished_changes", "Unpublished edits"),
+    ("capability_id", "Capability"),
+]
+
+# One linked definition of a detail: a row it names, or a row that names it.
+_DEFINITION_LINK_FIELDS = [
+    ("id", "Definition ID"),
+    ("name", "Name"),
+    ("kind", "Kind"),
+    ("state", "State"),
+    ("capability_id", "Capability"),
 ]
 
 
@@ -894,6 +909,10 @@ def definitions_get(
     Only the root workflow of a capability holds a capability contract. The
     table shows its capability ID and its contract version. Use `--json` to
     read the two JSON Schemas.
+
+    Two tables follow when they hold a row. `References` names the definitions
+    this one uses. `Used by` names the definitions that use this one, 200 at
+    most.
     """
     set_json_mode(json_output)
     resp = _api_request("get", f"{_AGENTIC}/definitions/{definition_id}")
@@ -918,6 +937,12 @@ def definitions_get(
         rprint("[dim]The draft differs from what is published.[/dim]")
     if binding:
         rprint("[dim]Use --json to read the input and output schemas.[/dim]")
+    references = data.get("references") or []
+    if references:
+        print_table(references, _DEFINITION_LINK_FIELDS, title=f"References ({len(references)})")
+    used_by = data.get("used_by") or []
+    if used_by:
+        print_table(used_by, _DEFINITION_LINK_FIELDS, title=f"Used by ({len(used_by)})")
 
 
 @definitions_app.command("patch")
@@ -1098,6 +1123,7 @@ tools_app = typer.Typer(help="Agentic tool catalogue")
 
 _TOOL_LIST_FIELDS = [
     ("name", "Tool ID"),
+    ("title", "Title"),
     ("side_effects", "Effect"),
     ("description", "Description"),
 ]
@@ -1111,8 +1137,8 @@ def tools_list(
     """List every tool a definition may name in `tool_ids`.
 
     The catalogue belongs to the platform, so every caller reads the same rows.
-    The table shows the tool id, the effect and the description. A long id
-    folds over two or more lines. The table never cuts it.
+    The table shows the tool id, the title, the effect and the description. A
+    long id folds over two or more lines. The table never cuts it.
 
     Use `--json` to read a whole row. It carries the two JSON Schemas, which no
     table renders. It also puts each tool id on one line, which a script reads.
@@ -1140,6 +1166,7 @@ _CAPABILITY_LIST_FIELDS = [
     ("availability", "Availability"),
     ("reason", "Reason"),
     ("name", "Name"),
+    ("definition_id", "Definition ID"),
 ]
 
 _CAPABILITY_FIELDS = [
@@ -1149,6 +1176,7 @@ _CAPABILITY_FIELDS = [
     ("name", "Name"),
     ("description", "Description"),
     ("executor_type", "Executor"),
+    ("definition_id", "Definition ID"),
 ]
 
 

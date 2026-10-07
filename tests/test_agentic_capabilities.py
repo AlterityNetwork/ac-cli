@@ -181,12 +181,14 @@ AVAILABLE = {
     },
     "required_scopes": ["run.start", "crm.get_company"],
     "executor_type": "workflow",
+    "definition_id": "44444444-4444-4444-8444-444444444444",
 }
 
 UNAVAILABLE = {
     "capability_id": "people.enrich",
     "availability": "unavailable",
     "reason": "not_installed",
+    "definition_id": None,
 }
 
 
@@ -271,6 +273,35 @@ def test_capabilities_get(invoke, mock_api):
     assert "Version" not in result.output
     # The scopes are a list, so `print_detail` cannot render them.
     assert "crm.get_company" in result.output
+
+
+def test_capabilities_list_shows_the_definition_link(invoke, mock_api):
+    """The table names the definition row each capability runs."""
+    mock_api.get(BASE).respond(200, json={"items": [AVAILABLE]})
+
+    result = invoke(["agentic", "capabilities", "list"])
+
+    assert result.exit_code == 0
+    assert "Definition ID" in result.output
+    assert "44444444" in result.output
+
+
+def test_capabilities_list_json_carries_the_definition_link(invoke, mock_api):
+    mock_api.get(BASE).respond(200, json={"items": [AVAILABLE, UNAVAILABLE]})
+
+    result = invoke(["agentic", "capabilities", "list", "--all", "--json"])
+
+    rows = json.loads(result.output)["items"]
+    assert [row["definition_id"] for row in rows] == [AVAILABLE["definition_id"], None]
+
+
+def test_capabilities_get_shows_the_definition_link(invoke, mock_api):
+    mock_api.get(f"{BASE}/company.search").respond(200, json=AVAILABLE)
+
+    result = invoke(["agentic", "capabilities", "get", "company.search"])
+
+    assert result.exit_code == 0
+    assert f"Definition ID: {AVAILABLE['definition_id']}" in result.output
 
 
 def test_capabilities_get_renders_an_unavailable_record(invoke, mock_api):

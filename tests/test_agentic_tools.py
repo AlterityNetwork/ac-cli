@@ -11,6 +11,7 @@ BASE = "/api/v1/agentic/tools"
 
 SAMPLE = {
     "name": "crm.search_people",
+    "title": "Search people in the CRM",
     "description": (
         "Search the people of this organization. The free text matches a "
         "name, an email, a job title and a summary. Filter also by company "
@@ -34,6 +35,25 @@ def test_tools_list(invoke, mock_api):
 
     assert result.exit_code == 0
     assert "crm.search_people" in result.output
+
+
+def test_tools_list_shows_the_title(invoke, mock_api):
+    """A person reads the title, and a definition names the tool id."""
+    mock_api.get(BASE).respond(200, json={"items": [SAMPLE]})
+
+    result = invoke(["agentic", "tools", "list"])
+
+    assert result.exit_code == 0
+    assert "Title" in result.output
+    assert "Search people in" in result.output
+
+
+def test_tools_list_json_carries_the_title(invoke, mock_api):
+    mock_api.get(BASE).respond(200, json={"items": [SAMPLE]})
+
+    result = invoke(["agentic", "tools", "list", "--json"])
+
+    assert json.loads(result.output)["items"][0]["title"] == "Search people in the CRM"
 
 
 def test_tools_list_json_carries_both_schemas(invoke, mock_api):

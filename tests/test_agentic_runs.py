@@ -668,6 +668,21 @@ def test_runs_spans_json_carries_the_capability_report(invoke, mock_api):
     assert json.loads(result.output)["items"][0]["reports"] == report
 
 
+def test_runs_spans_json_carries_the_step_path(invoke, mock_api):
+    """The workflow node that wrote the span, which the table has no column for."""
+    mock_api.get(f"/api/v1/agentic/runs/{SAMPLE_RUN['id']}/spans").respond(
+        200,
+        json={
+            "items": [{**SAMPLE_SPAN, "step_path": "merge-people"}],
+            "next_cursor": None,
+        },
+    )
+
+    result = invoke(["agentic", "runs", "spans", SAMPLE_RUN["id"], "--json"])
+
+    assert json.loads(result.output)["items"][0]["step_path"] == "merge-people"
+
+
 def test_runs_spans_omits_since_when_absent(invoke, mock_api):
     """A plain read orders the page on `started_at`.
 

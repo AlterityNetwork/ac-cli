@@ -27,6 +27,11 @@ SAMPLE = {
     "referenced_ids": [],
     "capability_binding": None,
     "validation": None,
+    "capability_id": None,
+    "capability_active": False,
+    "platform_managed": False,
+    "references": [],
+    "used_by": [],
 }
 
 BINDING = {
@@ -39,7 +44,46 @@ BINDING = {
     "platform_managed": True,
 }
 
-BOUND = {**SAMPLE, "kind": "workflow", "state": "active", "capability_binding": BINDING}
+BOUND = {
+    **SAMPLE,
+    "kind": "workflow",
+    "state": "active",
+    "capability_binding": BINDING,
+    "capability_id": "company.search",
+    "capability_active": True,
+    "platform_managed": True,
+}
+
+CHILD_ID = "22222222-2222-4222-8222-222222222222"
+PARENT_ID = "33333333-3333-4333-8333-333333333333"
+
+LINKED = {
+    **SAMPLE,
+    "kind": "workflow",
+    "referenced_ids": [CHILD_ID],
+    "references": [
+        {
+            "id": CHILD_ID,
+            "kind": "agent",
+            "name": "finder",
+            "state": "active",
+            "origin": "custom",
+            "capability_id": None,
+            "capability_active": False,
+        }
+    ],
+    "used_by": [
+        {
+            "id": PARENT_ID,
+            "kind": "workflow",
+            "name": "digest",
+            "state": "disabled",
+            "origin": "custom",
+            "capability_id": "signals.search",
+            "capability_active": False,
+        }
+    ],
+}
 
 BASE = "/api/v1/agentic/definitions"
 
@@ -78,6 +122,28 @@ def test_definitions_list_forwards_every_filter(invoke, mock_api):
     assert params["origin"] == "platform"
     assert params["state"] == "active"
     assert params["cursor"] == "abc"
+
+
+def test_definitions_list_shows_the_capability_link(invoke, mock_api):
+    """A row names the capability it binds."""
+    mock_api.get(BASE).respond(200, json={"items": [BOUND], "next_cursor": None})
+
+    result = invoke(["agentic", "definitions", "list"])
+
+    assert result.exit_code == 0
+    assert "Capabil" in result.output
+    assert "company" in result.output
+
+
+def test_definitions_list_json_carries_the_capability_link(invoke, mock_api):
+    mock_api.get(BASE).respond(200, json={"items": [BOUND], "next_cursor": None})
+
+    result = invoke(["agentic", "definitions", "list", "--json"])
+
+    row = json.loads(result.output)["items"][0]
+    assert row["capability_id"] == "company.search"
+    assert row["capability_active"] is True
+    assert row["platform_managed"] is True
 
 
 def test_definitions_list_json(invoke, mock_api):
@@ -139,6 +205,46 @@ def test_definitions_get_shows_the_capability_contract(invoke, mock_api):
     assert "Capability: company.search" in result.output
     assert "Contract version: 2" in result.output
     assert "--json" in result.output
+
+
+def test_definitions_get_shows_the_capability_flags(invoke, mock_api):
+    mock_api.get(f"{BASE}/{DEFINITION_ID}").respond(200, json=BOUND)
+    result = invoke(["agentic", "definitions", "get", DEFINITION_ID])
+
+    assert result.exit_code == 0
+    assert "Active executor: True" in result.output
+    assert "Platform managed: True" in result.output
+
+
+def test_definitions_get_shows_the_links_in_both_directions(invoke, mock_api):
+    """The detail names what the row uses and what uses the row."""
+    mock_api.get(f"{BASE}/{DEFINITION_ID}").respond(200, json=LINKED)
+    result = invoke(["agentic", "definitions", "get", DEFINITION_ID])
+
+    assert result.exit_code == 0
+    assert "References (1)" in result.output
+    assert "finder" in result.output
+    assert "Used by (1)" in result.output
+    assert "digest" in result.output
+    assert "signals.search" in result.output
+
+
+def test_definitions_get_with_no_links_prints_no_link_table(invoke, mock_api):
+    mock_api.get(f"{BASE}/{DEFINITION_ID}").respond(200, json=SAMPLE)
+    result = invoke(["agentic", "definitions", "get", DEFINITION_ID])
+
+    assert result.exit_code == 0
+    assert "References" not in result.output
+    assert "Used by" not in result.output
+
+
+def test_definitions_get_json_carries_the_links(invoke, mock_api):
+    mock_api.get(f"{BASE}/{DEFINITION_ID}").respond(200, json=LINKED)
+    result = invoke(["agentic", "definitions", "get", DEFINITION_ID, "--json"])
+
+    body = json.loads(result.output)
+    assert body["references"] == LINKED["references"]
+    assert body["used_by"] == LINKED["used_by"]
 
 
 def test_definitions_get_of_an_unbound_definition_names_no_capability(invoke, mock_api):
