@@ -70,6 +70,9 @@ PATH_CONSTANTS: dict[str, str] = {
 
 # API endpoints intentionally not covered by the CLI.
 OUT_OF_SCOPE: set[tuple[str, str]] = {
+    # Frontend-only selection bridge: resolves frozen Company Search rows to
+    # CRM ids before the existing list and mark-actioned routes are called.
+    ("POST", "/api/v1/agentic/runs/companies/materialize"),
     # Frontend-only UI state: CRM surfaces poll this for the per-company
     # "Headhunter search in progress" indicator; not a CLI workflow.
     ("GET", "/api/v1/workflows/headhunter/active-runs"),
