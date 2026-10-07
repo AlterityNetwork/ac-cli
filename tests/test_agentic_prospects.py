@@ -503,6 +503,8 @@ def test_list_forwards_the_three_server_filters(invoke, mock_api):
         "new_marketing_leader",
         "paid_campaign_launch",
         "marketing_initiative_announcement",
+        "tech_stack",
+        "agency_review",
     ],
 )
 def test_list_supports_agency_signal_filters(invoke, mock_api, signal_type):
@@ -514,8 +516,10 @@ def test_list_supports_agency_signal_filters(invoke, mock_api, signal_type):
     assert route.calls[0].request.url.params["signal_type"] == signal_type
 
 
-def test_list_help_names_a_paid_campaign_signal(invoke):
-    assert "paid_campaign_launch" in invoke(["agentic", "prospects", "list", "--help"]).output
+def test_list_help_names_current_and_stored_signal_types(invoke):
+    help_text = invoke(["agentic", "prospects", "list", "--help"]).output
+    assert "paid_campaign_launch" in help_text
+    assert "agency_review" in help_text
 
 
 def test_list_sends_no_filter_the_caller_did_not_name(invoke, mock_api):
@@ -621,9 +625,9 @@ def test_list_reports_a_signal_type_the_api_refuses(invoke, mock_api):
     reports the refusal."""
     route = mock_api.get(BASE).respond(422, json={"detail": "signal_type is not valid"})
 
-    result = invoke(["agentic", "prospects", "list", "--signal-type", "funding"])
+    result = invoke(["agentic", "prospects", "list", "--signal-type", "not_a_signal"])
 
-    assert route.calls[0].request.url.params["signal_type"] == "funding"
+    assert route.calls[0].request.url.params["signal_type"] == "not_a_signal"
     assert result.exit_code == 2
 
 
@@ -715,6 +719,7 @@ SIGNAL_TYPES = {
     "items": [
         {"signal_type": "funding_round", "count": 7},
         {"signal_type": "market_expansion", "count": 2},
+        {"signal_type": "agency_review", "count": 4},
     ]
 }
 
