@@ -1166,7 +1166,6 @@ _CAPABILITY_LIST_FIELDS = [
     ("availability", "Availability"),
     ("reason", "Reason"),
     ("name", "Name"),
-    ("definition_id", "Definition ID"),
 ]
 
 _CAPABILITY_FIELDS = [
@@ -1176,7 +1175,6 @@ _CAPABILITY_FIELDS = [
     ("name", "Name"),
     ("description", "Description"),
     ("executor_type", "Executor"),
-    ("definition_id", "Definition ID"),
 ]
 
 
