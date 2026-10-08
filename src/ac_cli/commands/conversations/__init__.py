@@ -13,6 +13,7 @@ engineering/system-design/agentic-platform/interfaces/surfaces.md, Web chat.
 
 from __future__ import annotations
 
+import json
 import uuid
 
 import typer
@@ -47,6 +48,7 @@ _CONVERSATION_FIELDS = [
     ("id", "Conversation ID"),
     ("title", "Title"),
     ("summary", "Summary"),
+    ("draft_capability_ids", "Drafts for"),
     ("created_by", "Created by"),
     ("last_activity_at", "Last activity"),
     ("created_at", "Created"),
@@ -104,15 +106,22 @@ def conversations_list(
     ctx: typer.Context,
     cursor: str | None = typer.Option(None, "--cursor", help="Page to continue"),
     limit: int = typer.Option(_PAGE_DEFAULT, "--limit", help="Page size, 1 to 100"),
+    draft_capability: str | None = typer.Option(
+        None,
+        "--draft-capability",
+        help=(
+            "List the draft conversations of one capability, such as "
+            "signals.search. Without it the list holds ordinary chats only."
+        ),
+    ),
     json_output: bool = JSON_OPTION,
 ) -> None:
     """List your conversations, the one that moved last first."""
     set_json_mode(json_output)
-    data = _api_request(
-        "get",
-        _CONVERSATIONS,
-        params=_page_params(limit, cursor),
-    ).json()
+    params = _page_params(limit, cursor)
+    if draft_capability is not None:
+        params["draft_capability_id"] = draft_capability
+    data = _api_request("get", _CONVERSATIONS, params=params).json()
     if json_output:
         print_json(data)
         return
@@ -124,6 +133,15 @@ def conversations_list(
 def conversations_create(
     ctx: typer.Context,
     title: str | None = typer.Option(None, "--title", help="Optional title"),
+    draft_capability: list[str] = typer.Option(
+        [],
+        "--draft-capability",
+        help=(
+            "Open a draft conversation for this capability. Repeat for each "
+            "one. Its turns write a search for a form and start no run. The "
+            "API takes signals.search and people.signals."
+        ),
+    ),
     json_output: bool = JSON_OPTION,
 ) -> None:
     """Open one conversation."""
@@ -131,6 +149,8 @@ def conversations_create(
     body: dict[str, object] = {}
     if title is not None:
         body["title"] = title
+    if draft_capability:
+        body["draft_capability_ids"] = draft_capability
     data = _api_request("post", _CONVERSATIONS, json=body).json()
     if json_output:
         print_json(data)
@@ -181,6 +201,31 @@ def _entity_ref(value: str) -> dict[str, str]:
     return {"kind": kind.strip(), "id": row_id.strip()}
 
 
+def _draft(value: str) -> dict[str, object]:
+    """Reads one `--draft` flag, or refuses it before any HTTP call.
+
+    Args:
+        value: A JSON object with `capability_id` and an object `input`.
+
+    Returns:
+        The draft body.
+
+    Raises:
+        typer.Exit: Code 2, when the value is not that object.
+    """
+    try:
+        draft = json.loads(value)
+    except ValueError:
+        draft = None
+    if (
+        not isinstance(draft, dict)
+        or not isinstance(draft.get("capability_id"), str)
+        or not isinstance(draft.get("input"), dict)
+    ):
+        refuse_local("--draft must be a JSON object with a capability_id and an object input")
+    return {"capability_id": draft["capability_id"], "input": draft["input"]}
+
+
 @app.command("send")
 def conversations_send(
     ctx: typer.Context,
@@ -200,6 +245,15 @@ def conversations_send(
         "--idempotency-key",
         help="Delivery identity of this message. A fresh one is minted when it is not given.",
     ),
+    draft: str | None = typer.Option(
+        None,
+        "--draft",
+        help=(
+            "The form state of a draft conversation, as JSON: "
+            '{"capability_id": "signals.search", "input": {...}}. '
+            "The answer carries the drafted search."
+        ),
+    ),
     json_output: bool = JSON_OPTION,
 ) -> None:
     """Send one message, and start one turn.
@@ -210,6 +264,11 @@ def conversations_send(
     """
     set_json_mode(json_output)
     refs = [_entity_ref(one) for one in entity_ref]
+    body: dict[str, object] = {"text": text}
+    if refs:
+        body["entity_refs"] = refs
+    if draft is not None:
+        body["draft"] = _draft(draft)
     # A fresh key per invocation, and never a stable one. The key names the
     # delivery, so a value derived from the text would make tomorrow's message
     # a duplicate of today's and it would never be answered.
@@ -220,7 +279,7 @@ def conversations_send(
     response = _api_request(
         "post",
         f"{_CONVERSATIONS}/{conversation_id}/messages",
-        json={"text": text, "entity_refs": refs} if refs else {"text": text},
+        json=body,
         headers={"Idempotency-Key": key},
     )
     data = response.json()

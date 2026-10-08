@@ -146,6 +146,10 @@ OUT_OF_SCOPE: set[tuple[str, str]] = {
     # wrote, whatever the stream delivered. This one never closes on content
     # either, so a CLI command would hold until the connection bound.
     ("GET", "/api/v1/agentic/conversations/{id}/stream"),
+    # Frontend-only UI state: the buttons the empty Sonar chat shows. A CLI
+    # user types the request, so a list of suggested requests serves no
+    # command.
+    ("GET", "/api/v1/agentic/conversations/draft-suggestions"),
     ("GET", "/api/v1/resources/{id}/stream"),
     ("GET", "/api/v1/resources/{id}/preview-url"),
     ("PATCH", "/api/v1/resources/{id}"),
