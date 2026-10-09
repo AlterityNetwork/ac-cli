@@ -813,6 +813,9 @@ def definitions_list(
     kind: str | None = typer.Option(None, "--kind", help="agent, workflow or skill"),
     origin: str | None = typer.Option(None, "--origin", help="platform or custom"),
     state: str | None = typer.Option(None, "--state", help="draft, active or disabled"),
+    include_archived: bool = typer.Option(
+        False, "--include-archived", help="Also list the archived definitions"
+    ),
     cursor: str | None = typer.Option(None, "--cursor", help="Page to continue"),
     limit: int = typer.Option(_PAGE_DEFAULT, "--limit", help="Page size, 1 to 100"),
     json_output: bool = JSON_OPTION,
@@ -820,7 +823,8 @@ def definitions_list(
     """List the definitions this organization may see.
 
     The page carries your own definitions in every state, plus the platform
-    templates that are active. A fork starts from a template.
+    templates that are active. A fork starts from a template. An archived
+    definition is hidden unless you pass --include-archived.
     """
     set_json_mode(json_output)
     _checked_limit(limit)
@@ -831,6 +835,8 @@ def definitions_list(
         params["origin"] = origin
     if state:
         params["state"] = state
+    if include_archived:
+        params["include_archived"] = "true"
     if cursor:
         params["cursor"] = cursor
 
@@ -847,7 +853,12 @@ def definitions_list(
         _print_cursor_hint(
             data["next_cursor"],
             limit,
-            filters=[("--kind", kind), ("--origin", origin), ("--state", state)],
+            filters=[
+                ("--kind", kind),
+                ("--origin", origin),
+                ("--state", state),
+                ("--include-archived", include_archived),
+            ],
         )
 
 
@@ -1044,6 +1055,51 @@ def definitions_enable(
         print_json(data)
         return
     rprint("[green]Enabled:[/green]", as_text(f"{data['id']} (state: {data['state']})"))
+
+
+@definitions_app.command("archive")
+def definitions_archive(
+    ctx: typer.Context,
+    definition_id: str = typer.Argument(..., help="Definition ID"),
+    yes: bool = typer.Option(False, "--yes", "-y", help="Skip confirmation"),
+    json_output: bool = JSON_OPTION,
+) -> None:
+    """Hide one definition from the default list.
+
+    A published definition is never deleted. An active one is disabled first,
+    and the archive is refused while an active definition still references it.
+    """
+    set_json_mode(json_output)
+    if not should_skip_confirm(yes):
+        typer.confirm(f"Archive definition {definition_id}?", abort=True)
+
+    resp = _api_request("post", f"{_AGENTIC}/definitions/{definition_id}/archive")
+
+    data = resp.json()
+    if json_output:
+        print_json(data)
+        return
+    rprint("[green]Archived:[/green]", as_text(f"{data['id']} (state: {data['state']})"))
+
+
+@definitions_app.command("unarchive")
+def definitions_unarchive(
+    ctx: typer.Context,
+    definition_id: str = typer.Argument(..., help="Definition ID"),
+    json_output: bool = JSON_OPTION,
+) -> None:
+    """Return one definition to the default list.
+
+    A published definition stays disabled. Enable it as a separate step.
+    """
+    set_json_mode(json_output)
+    resp = _api_request("post", f"{_AGENTIC}/definitions/{definition_id}/unarchive")
+
+    data = resp.json()
+    if json_output:
+        print_json(data)
+        return
+    rprint("[green]Unarchived:[/green]", as_text(f"{data['id']} (state: {data['state']})"))
 
 
 @definitions_app.command("fork")
