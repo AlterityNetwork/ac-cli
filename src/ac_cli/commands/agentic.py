@@ -1524,7 +1524,10 @@ def connections_list(
     provider: str | None = typer.Option(None, "--provider", help="Read one provider only"),
     json_output: bool = JSON_OPTION,
 ) -> None:
-    """List the provider connections of your organization."""
+    """List your own provider connections.
+
+    An organization admin sees every connection of the organization.
+    """
     set_json_mode(json_output)
     params = {"provider": provider} if provider else None
 
@@ -1536,7 +1539,7 @@ def connections_list(
         return
     items = data.get("items", [])
     if not items:
-        rprint("[yellow]No connections:[/yellow] this organization linked no account")
+        rprint("[yellow]No connections:[/yellow] you have not connected an account")
         return
     print_table(items, _CONNECTION_LIST_FIELDS, title=f"Connections ({len(items)})")
 
@@ -1564,7 +1567,7 @@ def connections_link(
     provider: str = typer.Option(..., "--provider", help="The provider to link, e.g. linkedin"),
     json_output: bool = JSON_OPTION,
 ) -> None:
-    """Start the link flow for a new account, and print its URL.
+    """Start the link flow for your own account, and print its URL.
 
     Open the URL in a browser to finish the link. The connection appears in
     `connections list` when the provider confirms it.
