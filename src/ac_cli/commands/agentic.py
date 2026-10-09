@@ -10,7 +10,9 @@ and starts one of them,
 `ac agentic prospects` reviews discovered companies,
 `ac agentic saved-searches` manages repeatable search briefs,
 `ac agentic policies` writes the rules an organization governs its agents with,
-and `ac agentic limits` reads and writes what it may spend in a day. All ten
+`ac agentic connections` links and revokes the provider accounts its agents act
+through, and `ac agentic limits` reads and writes what it may spend in a day and
+how many actions each connection may take. All eleven
 sit beside the live `ac agents runs` and replace none of it: the two stacks are
 branch isolated until the cutover, so the alias and the deletion of the old
 commands belong to Phase 7.
@@ -32,12 +34,16 @@ from datetime import datetime
 from enum import Enum
 from urllib.parse import quote
 
+import httpx
 import typer
 from rich import print as rprint
 
+from ac_cli.client import get_api_client
 from ac_cli.commands._helpers import (
     JSON_OPTION,
     _api_request,
+    _handle_connection_error,
+    _handle_error,
     checked_header_key,
     refuse_local,
     set_json_mode,
@@ -1449,6 +1455,185 @@ app.add_typer(prospects_app, name="prospects")
 app.add_typer(saved_searches_app, name="saved-searches")
 
 
+connections_app = typer.Typer(help="Agentic provider connections")
+
+_CONNECTION_FIELDS = [
+    ("id", "Connection ID"),
+    ("provider", "Provider"),
+    ("display_name", "Name"),
+    ("status", "Status"),
+    ("owner_user_id", "Owner"),
+    ("created_at", "Created"),
+    ("updated_at", "Updated"),
+    ("revoked_at", "Revoked"),
+]
+
+_CONNECTION_LIST_FIELDS = [
+    ("id", "Connection ID"),
+    ("provider", "Provider"),
+    ("display_name", "Name"),
+    ("status", "Status"),
+    ("owner_user_id", "Owner"),
+    ("created_at", "Created"),
+    ("revoked_at", "Revoked"),
+]
+
+
+def _report_link_error(exc: httpx.HTTPStatusError, subject: str, json_output: bool) -> None:
+    """Reports a failed link or reconnect request, then exits.
+
+    A 503 tells the caller that this deploy has no link flow for the
+    provider, or that its rollout gate is off. The command prints that in
+    plain words and exits 1. Every other status takes the shared error path.
+
+    Args:
+        exc: The error httpx raised.
+        subject: The words that name the provider in the message.
+        json_output: True when the caller asked for JSON.
+
+    Raises:
+        typer.Exit: Always.
+    """
+    if exc.response.status_code != 503:
+        _handle_error(exc)
+    detail = f"{subject} is not available on this deploy."
+    if json_output:
+        print_json({"error": True, "status_code": 503, "detail": detail})
+    else:
+        rprint(styled("[red]Not available:[/red] {}", detail))
+    raise typer.Exit(code=1)
+
+
+def _report_link_url(data: dict, json_output: bool) -> None:
+    """Prints the URL that the person opens to finish the link flow.
+
+    Args:
+        data: The body the endpoint answered.
+        json_output: True when the caller asked for JSON.
+    """
+    if json_output:
+        print_json(data)
+        return
+    rprint("[green]Open this URL to finish the link:[/green]")
+    rprint(as_text(data["url"]))
+
+
+@connections_app.command("list")
+def connections_list(
+    ctx: typer.Context,
+    provider: str | None = typer.Option(None, "--provider", help="Read one provider only"),
+    json_output: bool = JSON_OPTION,
+) -> None:
+    """List your own provider connections.
+
+    An organization admin sees every connection of the organization.
+    """
+    set_json_mode(json_output)
+    params = {"provider": provider} if provider else None
+
+    resp = _api_request("get", f"{_AGENTIC}/connections", params=params)
+
+    data = resp.json()
+    if json_output:
+        print_json(data)
+        return
+    items = data.get("items", [])
+    if not items:
+        rprint("[yellow]No connections:[/yellow] you have not connected an account")
+        return
+    print_table(items, _CONNECTION_LIST_FIELDS, title=f"Connections ({len(items)})")
+
+
+@connections_app.command("get")
+def connections_get(
+    ctx: typer.Context,
+    connection_id: str = typer.Argument(..., help="Connection ID"),
+    json_output: bool = JSON_OPTION,
+) -> None:
+    """Read one connection."""
+    set_json_mode(json_output)
+    resp = _api_request("get", f"{_AGENTIC}/connections/{connection_id}")
+
+    data = resp.json()
+    if json_output:
+        print_json(data)
+        return
+    print_detail(data, _CONNECTION_FIELDS)
+
+
+@connections_app.command("link")
+def connections_link(
+    ctx: typer.Context,
+    provider: str = typer.Option(..., "--provider", help="The provider to link, e.g. linkedin"),
+    json_output: bool = JSON_OPTION,
+) -> None:
+    """Start the link flow for your own account, and print its URL.
+
+    Open the URL in a browser to finish the link. The connection appears in
+    `connections list` when the provider confirms it.
+    """
+    set_json_mode(json_output)
+    with get_api_client() as client:
+        try:
+            resp = client.post(f"{_AGENTIC}/connections/link", json={"provider": provider})
+            resp.raise_for_status()
+        except httpx.HTTPStatusError as exc:
+            _report_link_error(exc, f"The {provider} provider", json_output)
+        except httpx.HTTPError as exc:
+            _handle_connection_error(exc)
+    _report_link_url(resp.json(), json_output)
+
+
+@connections_app.command("reconnect")
+def connections_reconnect(
+    ctx: typer.Context,
+    connection_id: str = typer.Argument(..., help="Connection ID"),
+    json_output: bool = JSON_OPTION,
+) -> None:
+    """Start the link flow again for one connection, and print its URL.
+
+    Use it when the connection reads needs_reauth. A revoked connection
+    cannot reconnect, so the API answers 409.
+    """
+    set_json_mode(json_output)
+    with get_api_client() as client:
+        try:
+            resp = client.post(f"{_AGENTIC}/connections/{connection_id}/reconnect")
+            resp.raise_for_status()
+        except httpx.HTTPStatusError as exc:
+            _report_link_error(exc, "The provider of this connection", json_output)
+        except httpx.HTTPError as exc:
+            _handle_connection_error(exc)
+    _report_link_url(resp.json(), json_output)
+
+
+@connections_app.command("revoke")
+def connections_revoke(
+    ctx: typer.Context,
+    connection_id: str = typer.Argument(..., help="Connection ID"),
+    yes: bool = typer.Option(False, "--yes", "-y", help="Skip confirmation"),
+    json_output: bool = JSON_OPTION,
+) -> None:
+    """Revoke one connection, so no agent acts through it again.
+
+    A revoked connection cannot reconnect. Link the account again to use it.
+    """
+    set_json_mode(json_output)
+    if not should_skip_confirm(yes):
+        typer.confirm(f"Revoke connection {connection_id}?", abort=True)
+
+    resp = _api_request("post", f"{_AGENTIC}/connections/{connection_id}/revoke")
+
+    data = resp.json()
+    if json_output:
+        print_json(data)
+        return
+    rprint(styled("[green]Connection {}:[/green]", data["status"]), as_text(data["id"]))
+
+
+app.add_typer(connections_app, name="connections")
+
+
 limits_app = typer.Typer(help="Agentic organization spend ceilings")
 
 # The one ceiling this deploy enforces. A new kind is a database migration, so a
@@ -1549,6 +1734,92 @@ def limits_clear(
         print_json(data)
         return
     _report_limit(data)
+
+
+class _Window(str, Enum):
+    """The windows a count budget runs over, in UTC."""
+
+    day = "day"
+    week = "week"
+
+
+_BUDGET_FIELDS = [
+    ("budget_class", "Class"),
+    ("time_window", "Window"),
+    ("platform_default", "Platform default"),
+    ("override", "Override"),
+    ("cap", "Cap"),
+    ("used", "Used"),
+]
+
+
+@limits_app.command("budgets")
+def limits_budgets(
+    ctx: typer.Context,
+    json_output: bool = JSON_OPTION,
+) -> None:
+    """Read the action budgets of each connection.
+
+    The cap is the limit now. It is the platform default, halved while the
+    connection is young, or the admin override when that is lower. Used counts
+    the actions held in the current window.
+    """
+    set_json_mode(json_output)
+    resp = _api_request("get", f"{_AGENTIC}/limits/action-budgets")
+
+    data = resp.json()
+    if json_output:
+        print_json(data)
+        return
+    items = data.get("items", [])
+    if not items:
+        rprint("[yellow]No connections:[/yellow] no action budget applies")
+        return
+    for item in items:
+        title = f"{item['provider']} {item.get('display_name') or item['connection_id']}"
+        title += f" ({item['status']})"
+        if item.get("half_rate_until"):
+            title += f", half rate until {item['half_rate_until']}"
+        print_table(item.get("budgets", []), _BUDGET_FIELDS, title=title)
+
+
+@limits_app.command("set-budget")
+def limits_set_budget(
+    ctx: typer.Context,
+    connection_id: str = typer.Option(..., "--connection", help="Connection ID"),
+    budget_class: str = typer.Option(
+        ..., "--class", help="The budget class, e.g. linkedin.invitations"
+    ),
+    window: _Window = typer.Option(..., "--window", help="day or week"),
+    max_count: int | None = typer.Option(
+        None, "--max", min=0, help="The override. It must not be above the platform default."
+    ),
+    clear: bool = typer.Option(False, "--clear", help="Remove the override"),
+    json_output: bool = JSON_OPTION,
+) -> None:
+    """Set or remove the admin override of one action budget.
+
+    An override can only lower the platform default. Give exactly one of
+    --max and --clear.
+    """
+    set_json_mode(json_output)
+    if (max_count is not None) == clear:
+        rprint("[red]Error:[/red] give exactly one of --max and --clear")
+        raise typer.Exit(code=2)
+
+    body = {
+        "connection_id": connection_id,
+        "budget_class": budget_class,
+        "time_window": window.value,
+        "max_count": None if clear else max_count,
+    }
+    resp = _api_request("put", f"{_AGENTIC}/limits/action-budgets", json=body)
+
+    data = resp.json()
+    if json_output:
+        print_json(data)
+        return
+    print_detail(data, _BUDGET_FIELDS)
 
 
 app.add_typer(limits_app, name="limits")
