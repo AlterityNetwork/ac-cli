@@ -2,13 +2,18 @@
 
 `ac settings framework` reads, saves and publishes the copilot approval
 framework of the active organization. `ac settings dossier` prints Memory:
-what the apps know about the organization and about you.
+what the apps know about the organization and about you. `ac settings memory`
+lists and changes your memory lines. The email writer reads the `all` and
+`email` lines. The chat reads the `all` lines. `ac settings memory suggestions`
+lists the lines that the app learns from your edits to email drafts. Accept
+one to add it as an `email` memory line.
 """
 
 from __future__ import annotations
 
 import json
 import re
+from enum import Enum
 from pathlib import Path
 from typing import NoReturn
 
@@ -24,8 +29,9 @@ from ac_cli.commands._helpers import (
     _get_org_id,
     refuse_local,
     set_json_mode,
+    should_skip_confirm,
 )
-from ac_cli.formatting import print_json
+from ac_cli.formatting import print_detail, print_json, print_table, styled
 
 app = typer.Typer(help="Organization settings")
 
@@ -246,3 +252,193 @@ def dossier_pdf(
         print_json({"path": str(output), "bytes": len(response.content)})
         return
     typer.echo(f"Saved {output}")
+
+
+memory_app = typer.Typer(help="Your memory lines: standing instructions that the apps read")
+app.add_typer(memory_app, name="memory")
+
+
+class _AppliesTo(str, Enum):
+    """The apps that read a memory line."""
+
+    all = "all"
+    email = "email"
+
+
+APPLIES_TO_HELP = "all: every app reads the line. email: only the email writer reads it"
+
+_MEMORY_FIELDS = [
+    ("id", "ID"),
+    ("text", "Text"),
+    ("applies_to", "Applies to"),
+    ("source", "Source"),
+    ("updated_at", "Updated"),
+]
+
+
+@memory_app.command("list")
+def memory_list(json_output: bool = JSON_OPTION) -> None:
+    """List your memory lines in the active organization, oldest first."""
+    set_json_mode(json_output)
+    data = _api_request("get", f"{_SETTINGS}/memory").json()
+    if json_output:
+        print_json(data)
+        return
+    lines = data.get("data", [])
+    if not lines:
+        rprint("[yellow]No memories[/yellow]")
+        return
+    title = f"Memory ({data.get('total', '?')} of {data.get('max_lines', '?')})"
+    print_table(lines, _MEMORY_FIELDS, title=title)
+
+
+@memory_app.command("add")
+def memory_add(
+    text: str = typer.Option(..., "--text", help="One line of 1 to 1000 characters"),
+    applies_to: _AppliesTo | None = typer.Option(
+        None, "--applies-to", case_sensitive=False, help=f"{APPLIES_TO_HELP}. Default: all"
+    ),
+    json_output: bool = JSON_OPTION,
+) -> None:
+    """Add a memory line."""
+    set_json_mode(json_output)
+    body = _build_body(text=text, applies_to=applies_to.value if applies_to else None)
+    data = _api_request("post", f"{_SETTINGS}/memory", json=body).json()
+    if json_output:
+        print_json(data)
+        return
+    rprint(styled("[green]Added memory {}[/green]", data.get("id")))
+    print_detail(data, _MEMORY_FIELDS)
+
+
+@memory_app.command("edit")
+def memory_edit(
+    line_id: str = typer.Argument(..., help="Memory line ID"),
+    text: str | None = typer.Option(None, "--text", help="One line of 1 to 1000 characters"),
+    applies_to: _AppliesTo | None = typer.Option(
+        None, "--applies-to", case_sensitive=False, help=APPLIES_TO_HELP
+    ),
+    json_output: bool = JSON_OPTION,
+) -> None:
+    """Change the text or the apps of a memory line."""
+    set_json_mode(json_output)
+    body = _build_body(text=text, applies_to=applies_to.value if applies_to else None)
+    if not body:
+        refuse_local("Provide --text or --applies-to")
+    data = _api_request("patch", f"{_SETTINGS}/memory/{line_id}", json=body).json()
+    if json_output:
+        print_json(data)
+        return
+    rprint(styled("[green]Updated memory {}[/green]", data.get("id")))
+    print_detail(data, _MEMORY_FIELDS)
+
+
+@memory_app.command("remove")
+def memory_remove(
+    line_id: str = typer.Argument(..., help="Memory line ID"),
+    yes: bool = typer.Option(False, "--yes", "-y", help="Skip confirmation"),
+    json_output: bool = JSON_OPTION,
+) -> None:
+    """Remove a memory line."""
+    set_json_mode(json_output)
+    if not should_skip_confirm(yes):
+        typer.confirm(f"Remove memory {line_id}?", abort=True)
+    _api_request("delete", f"{_SETTINGS}/memory/{line_id}")
+    if json_output:
+        print_json({"ok": True, "id": line_id, "action": "remove"})
+        return
+    rprint(styled("[green]Removed memory {}[/green]", line_id))
+
+
+suggestions_app = typer.Typer(
+    help="Memory suggestions: lines the app learns from your edits to email drafts"
+)
+memory_app.add_typer(suggestions_app, name="suggestions")
+
+_SUGGESTION_FIELDS = [
+    ("id", "ID"),
+    ("text", "Text"),
+    ("evidence", "Evidence"),
+]
+
+
+@suggestions_app.command("list")
+def suggestions_list(json_output: bool = JSON_OPTION) -> None:
+    """List the proposed suggestions. --json also prints the example edits."""
+    set_json_mode(json_output)
+    data = _api_request("get", f"{_SETTINGS}/memory/suggestions").json()
+    if json_output:
+        print_json(data)
+        return
+    suggestions = data.get("data", [])
+    if not suggestions:
+        rprint("[yellow]No suggestions[/yellow]")
+        return
+    rows = [
+        {
+            **suggestion,
+            "evidence": (
+                f"{suggestion.get('evidence_count', 0)} emails / "
+                f"{suggestion.get('recipient_count', 0)} people"
+            ),
+        }
+        for suggestion in suggestions
+    ]
+    print_table(rows, _SUGGESTION_FIELDS, title=f"Suggestions ({data.get('total', '?')})")
+
+
+@suggestions_app.command("refresh")
+def suggestions_refresh(json_output: bool = JSON_OPTION) -> None:
+    """Read your recent email edits again and propose new suggestions."""
+    set_json_mode(json_output)
+    data = _api_request("post", f"{_SETTINGS}/memory/suggestions/refresh").json()
+    if json_output:
+        print_json(data)
+        return
+    rprint(
+        styled(
+            "Read {} emails. {} new suggestions.",
+            data.get("emails_read", 0),
+            data.get("proposed", 0),
+        )
+    )
+
+
+@suggestions_app.command("accept")
+def suggestions_accept(
+    suggestion_id: str = typer.Argument(..., help="Suggestion ID"),
+    text: str | None = typer.Option(
+        None, "--text", help="Save this text instead of the suggested text"
+    ),
+    json_output: bool = JSON_OPTION,
+) -> None:
+    """Accept a suggestion. The email writer then reads it as a memory line."""
+    set_json_mode(json_output)
+    body = _build_body(text=text)
+    data = _api_request(
+        "post", f"{_SETTINGS}/memory/suggestions/{suggestion_id}/accept", json=body
+    ).json()
+    if json_output:
+        print_json(data)
+        return
+    rprint(
+        styled("[green]Accepted suggestion {} as memory {}[/green]", suggestion_id, data.get("id"))
+    )
+    print_detail(data, _MEMORY_FIELDS)
+
+
+@suggestions_app.command("dismiss")
+def suggestions_dismiss(
+    suggestion_id: str = typer.Argument(..., help="Suggestion ID"),
+    yes: bool = typer.Option(False, "--yes", "-y", help="Skip confirmation"),
+    json_output: bool = JSON_OPTION,
+) -> None:
+    """Dismiss a suggestion. A dismissed suggestion does not come back."""
+    set_json_mode(json_output)
+    if not should_skip_confirm(yes):
+        typer.confirm(f"Dismiss suggestion {suggestion_id}? It does not come back.", abort=True)
+    _api_request("post", f"{_SETTINGS}/memory/suggestions/{suggestion_id}/dismiss")
+    if json_output:
+        print_json({"ok": True, "id": suggestion_id, "action": "dismiss"})
+        return
+    rprint(styled("[green]Dismissed suggestion {}[/green]", suggestion_id))
