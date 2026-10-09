@@ -154,7 +154,7 @@ def run_people_company_search(
     query: str = typer.Option("", "--query", "-q", help="Search query"),
     json_output: bool = JSON_OPTION,
 ) -> None:
-    """Search CRM and Sonar companies by name."""
+    """Search CRM and Sonar (legacy) companies by name."""
     set_json_mode(json_output)
     resp = _api_request("get", f"{_WORKFLOWS}/{workflow_id}/company-search", params={"q": query})
 

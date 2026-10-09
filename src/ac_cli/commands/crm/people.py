@@ -394,7 +394,7 @@ def people_mark_actioned(
 
     Stamps approved_by / approved_at on each person; with --note, also
     writes a crm_activities row (type=note, source_app=manual) per person.
-    Backs the Headhunter Mark done button.
+    Backs the Mark done button in Headhunter (legacy) and People Search.
     """
     set_json_mode(json_output)
     id_list = _split_ids(ids)

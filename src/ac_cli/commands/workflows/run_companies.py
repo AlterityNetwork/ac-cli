@@ -55,7 +55,7 @@ def run_companies_list(
         min=0,
         max=10,
         help=(
-            "Relevance floor (Sonar inbox 'hide low-relevance' toggle). "
+            "Relevance floor (Sonar (legacy) inbox 'hide low-relevance' toggle). "
             "Hides companies whose merged lead_score is below this value; "
             "unscored companies stay visible. Omit to show all scores."
         ),

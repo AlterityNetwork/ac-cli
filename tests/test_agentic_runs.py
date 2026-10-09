@@ -309,7 +309,7 @@ PROSPECT_COUNT_COLUMN = [key for key, _ in _LIST_FIELDS].index("prospect_count")
 
 
 def test_runs_list_names_how_many_prospects_a_run_wrote(invoke, mock_api, table_column):
-    """The Sonar list carries the count. The column reads it as it is."""
+    """The Signals list carries the count. The column reads it as it is."""
     run = {**SAMPLE_RUN, "capability_id": "signals.search", "prospect_count": 12}
     mock_api.get("/api/v1/agentic/runs").respond(200, json={"items": [run], "next_cursor": None})
 
