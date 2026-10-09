@@ -440,6 +440,14 @@ def test_definitions_archive(invoke, mock_api):
     assert "Archived" in result.output
 
 
+def test_definitions_archive_asks_before_it_hides(invoke, mock_api):
+    route = mock_api.post(f"{BASE}/{DEFINITION_ID}/archive").respond(200, json=SAMPLE)
+    result = invoke(["agentic", "definitions", "archive", DEFINITION_ID], input="n\n")
+
+    assert result.exit_code != 0
+    assert route.calls == []
+
+
 def test_definitions_archive_json(invoke, mock_api):
     mock_api.post(f"{BASE}/{DEFINITION_ID}/archive").respond(
         200, json={**SAMPLE, "archived_at": "2026-10-08T10:00:00+00:00"}
@@ -468,6 +476,25 @@ def test_definitions_unarchive(invoke, mock_api):
     assert result.exit_code == 0
     assert route.calls[0].request.content == b""
     assert "Unarchived" in result.output
+
+
+def test_definitions_unarchive_json(invoke, mock_api):
+    mock_api.post(f"{BASE}/{DEFINITION_ID}/unarchive").respond(
+        200, json={**SAMPLE, "archived_at": None}
+    )
+    result = invoke(["agentic", "definitions", "unarchive", DEFINITION_ID, "--json"])
+
+    assert result.exit_code == 0
+    assert json.loads(result.output)["archived_at"] is None
+
+
+def test_definitions_unarchive_not_found(invoke, mock_api):
+    mock_api.post(f"{BASE}/{DEFINITION_ID}/unarchive").respond(
+        404, json={"detail": "definition not found"}
+    )
+    result = invoke(["agentic", "definitions", "unarchive", DEFINITION_ID])
+
+    assert result.exit_code != 0
 
 
 def test_definitions_list_hint_repeats_include_archived(invoke, mock_api):
