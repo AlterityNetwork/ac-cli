@@ -84,6 +84,44 @@ def test_connections_list_refusal_json(invoke, mock_api):
     }
 
 
+# --- providers -------------------------------------------------------------
+
+SAMPLE_PROVIDERS = {"items": [{"provider": "linkedin", "available": False}]}
+
+
+def test_connections_providers(invoke, mock_api, table_column):
+    route = mock_api.get(f"{_BASE}/providers").respond(200, json=SAMPLE_PROVIDERS)
+    result = invoke(["agentic", "connections", "providers"])
+
+    assert result.exit_code == 0
+    assert route.called
+    assert table_column(result.output, 0) == "linkedin"
+    assert table_column(result.output, 1) == "False"
+
+
+def test_connections_providers_json(invoke, mock_api):
+    mock_api.get(f"{_BASE}/providers").respond(200, json=SAMPLE_PROVIDERS)
+    result = invoke(["agentic", "connections", "providers", "--json"])
+
+    assert result.exit_code == 0
+    assert json.loads(result.output) == SAMPLE_PROVIDERS
+
+
+def test_connections_providers_refusal(invoke, mock_api):
+    """An actor that names no person answers 403, which exits 4."""
+    mock_api.get(f"{_BASE}/providers").respond(
+        403, json={"detail": "a connection belongs to a person"}
+    )
+    result = invoke(["agentic", "connections", "providers", "--json"])
+
+    assert result.exit_code == 4
+    assert json.loads(result.output) == {
+        "error": True,
+        "status_code": 403,
+        "detail": "a connection belongs to a person",
+    }
+
+
 # --- get -------------------------------------------------------------------
 
 
