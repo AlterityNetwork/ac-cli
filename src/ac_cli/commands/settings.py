@@ -4,7 +4,9 @@
 framework of the active organization. `ac settings dossier` prints Memory:
 what the apps know about the organization and about you. `ac settings memory`
 lists and changes your memory lines. The email writer reads the `all` and
-`email` lines. The chat reads the `all` lines.
+`email` lines. The chat reads the `all` lines. `ac settings memory suggestions`
+lists the lines that the app learns from your edits to email drafts. Accept
+one to add it as an `email` memory line.
 """
 
 from __future__ import annotations
@@ -346,3 +348,97 @@ def memory_remove(
         print_json({"ok": True, "id": line_id, "action": "remove"})
         return
     rprint(styled("[green]Removed memory {}[/green]", line_id))
+
+
+suggestions_app = typer.Typer(
+    help="Memory suggestions: lines the app learns from your edits to email drafts"
+)
+memory_app.add_typer(suggestions_app, name="suggestions")
+
+_SUGGESTION_FIELDS = [
+    ("id", "ID"),
+    ("text", "Text"),
+    ("evidence", "Evidence"),
+]
+
+
+@suggestions_app.command("list")
+def suggestions_list(json_output: bool = JSON_OPTION) -> None:
+    """List the proposed suggestions. --json also prints the example edits."""
+    set_json_mode(json_output)
+    data = _api_request("get", f"{_SETTINGS}/memory/suggestions").json()
+    if json_output:
+        print_json(data)
+        return
+    suggestions = data.get("data", [])
+    if not suggestions:
+        rprint("[yellow]No suggestions[/yellow]")
+        return
+    rows = [
+        {
+            **suggestion,
+            "evidence": (
+                f"{suggestion.get('evidence_count', 0)} emails / "
+                f"{suggestion.get('recipient_count', 0)} people"
+            ),
+        }
+        for suggestion in suggestions
+    ]
+    print_table(rows, _SUGGESTION_FIELDS, title=f"Suggestions ({data.get('total', '?')})")
+
+
+@suggestions_app.command("refresh")
+def suggestions_refresh(json_output: bool = JSON_OPTION) -> None:
+    """Read your recent email edits again and propose new suggestions."""
+    set_json_mode(json_output)
+    data = _api_request("post", f"{_SETTINGS}/memory/suggestions/refresh").json()
+    if json_output:
+        print_json(data)
+        return
+    rprint(
+        styled(
+            "Read {} emails. {} new suggestions.",
+            data.get("emails_read", 0),
+            data.get("proposed", 0),
+        )
+    )
+
+
+@suggestions_app.command("accept")
+def suggestions_accept(
+    suggestion_id: str = typer.Argument(..., help="Suggestion ID"),
+    text: str | None = typer.Option(
+        None, "--text", help="Save this text instead of the suggested text"
+    ),
+    json_output: bool = JSON_OPTION,
+) -> None:
+    """Accept a suggestion. The email writer then reads it as a memory line."""
+    set_json_mode(json_output)
+    body = _build_body(text=text)
+    data = _api_request(
+        "post", f"{_SETTINGS}/memory/suggestions/{suggestion_id}/accept", json=body
+    ).json()
+    if json_output:
+        print_json(data)
+        return
+    rprint(
+        styled("[green]Accepted suggestion {} as memory {}[/green]", suggestion_id, data.get("id"))
+    )
+    print_detail(data, _MEMORY_FIELDS)
+
+
+@suggestions_app.command("dismiss")
+def suggestions_dismiss(
+    suggestion_id: str = typer.Argument(..., help="Suggestion ID"),
+    yes: bool = typer.Option(False, "--yes", "-y", help="Skip confirmation"),
+    json_output: bool = JSON_OPTION,
+) -> None:
+    """Dismiss a suggestion. A dismissed suggestion does not come back."""
+    set_json_mode(json_output)
+    if not should_skip_confirm(yes):
+        typer.confirm(f"Dismiss suggestion {suggestion_id}? It does not come back.", abort=True)
+    _api_request("post", f"{_SETTINGS}/memory/suggestions/{suggestion_id}/dismiss")
+    if json_output:
+        print_json({"ok": True, "id": suggestion_id, "action": "dismiss"})
+        return
+    rprint(styled("[green]Dismissed suggestion {}[/green]", suggestion_id))
