@@ -185,6 +185,12 @@ OUT_OF_SCOPE: set[tuple[str, str]] = {
     # {id}, so the entry carries the pair. A provider posts here and no person
     # does, so the CLI exposes nothing.
     ("POST", "/api/v1/agentic/webhooks/{id}/{id}"),
+    # LinkedIn hosted sign-in notify: Unipile calls it server-to-server with a
+    # one-time token in the URL. No person calls it, so the CLI exposes nothing.
+    ("POST", "/api/v1/agentic/connections/linkedin/notify"),
+    # Unipile webhooks: Unipile calls them server-to-server with a header secret.
+    # Route is /agentic/webhooks/unipile/{source}. No person calls it.
+    ("POST", "/api/v1/agentic/webhooks/unipile/{id}"),
     # Frontend-only activity logger
     ("POST", "/api/v1/orgs/{id}/activity-events"),
     # Cross-org outputs feed (admin-style, not exposed to CLI today)

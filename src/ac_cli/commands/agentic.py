@@ -1544,6 +1544,33 @@ def connections_list(
     print_table(items, _CONNECTION_LIST_FIELDS, title=f"Connections ({len(items)})")
 
 
+_PROVIDER_FIELDS = [
+    ("provider", "Provider"),
+    ("available", "Available"),
+]
+
+
+@connections_app.command("providers")
+def connections_providers(
+    ctx: typer.Context,
+    json_output: bool = JSON_OPTION,
+) -> None:
+    """List each provider, and whether you can link it on this deploy.
+
+    A provider is available when its rollout gate is on and the deploy has
+    its sign-in flow. `connections link` answers 503 for one that is not.
+    """
+    set_json_mode(json_output)
+    resp = _api_request("get", f"{_AGENTIC}/connections/providers")
+
+    data = resp.json()
+    if json_output:
+        print_json(data)
+        return
+    items = data.get("items", [])
+    print_table(items, _PROVIDER_FIELDS, title=f"Providers ({len(items)})")
+
+
 @connections_app.command("get")
 def connections_get(
     ctx: typer.Context,
