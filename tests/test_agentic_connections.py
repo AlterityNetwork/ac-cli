@@ -21,6 +21,18 @@ SAMPLE_CONNECTION = {
     "created_at": "2026-09-20T10:00:00Z",
     "updated_at": "2026-09-20T10:00:00Z",
     "revoked_at": None,
+    "held_until": None,
+    "hold_reason": None,
+    "send_window_start": None,
+    "send_window_end": None,
+}
+
+HELD_CONNECTION = {
+    **SAMPLE_CONNECTION,
+    "held_until": "2026-10-11T00:00:00Z",
+    "hold_reason": "too_many_requests",
+    "send_window_start": "06:00:00",
+    "send_window_end": "22:30:00",
 }
 
 REVOKED_CONNECTION = {
@@ -47,6 +59,24 @@ def test_connections_list(invoke, mock_api, table_column):
     assert table_column(result.output, 3) == "connected"
     assert table_column(result.output, 4) == "44444444-4444-4444-8444-444444444444"
     assert "provider" not in route.calls[0].request.url.params
+
+
+def test_connections_list_shows_the_hold_and_the_window(invoke, mock_api, table_column):
+    mock_api.get(_BASE).respond(200, json={"items": [HELD_CONNECTION]})
+    result = invoke(["agentic", "connections", "list"])
+
+    assert result.exit_code == 0
+    assert table_column(result.output, 5) == "2026-10-11T00:00:00Z"
+    assert table_column(result.output, 6) == "06:00to22:30"
+
+
+def test_connections_list_shows_the_default_window(invoke, mock_api, table_column):
+    mock_api.get(_BASE).respond(200, json=SAMPLE_PAGE)
+    result = invoke(["agentic", "connections", "list"])
+
+    assert result.exit_code == 0
+    assert table_column(result.output, 5) == ""
+    assert table_column(result.output, 6) == "07:00to20:00(default)"
 
 
 def test_connections_list_sends_the_provider_it_was_given(invoke, mock_api):
@@ -134,6 +164,16 @@ def test_connections_get(invoke, mock_api):
     assert "Sarah Chen" in result.output
     assert "44444444-4444-4444-8444-444444444444" in result.output
     assert "2026-09-20T10:00:00Z" in result.output
+
+
+def test_connections_get_shows_the_hold_and_the_window(invoke, mock_api):
+    mock_api.get(f"{_BASE}/{_CONNECTION_ID}").respond(200, json=HELD_CONNECTION)
+    result = invoke(["agentic", "connections", "get", _CONNECTION_ID])
+
+    assert result.exit_code == 0
+    assert "2026-10-11T00:00:00Z" in result.output
+    assert "too_many_requests" in result.output
+    assert "06:00 to 22:30" in result.output
 
 
 def test_connections_get_json(invoke, mock_api):
@@ -289,5 +329,94 @@ def test_connections_revoke_json(invoke, mock_api):
 def test_connections_revoke_not_found(invoke, mock_api):
     mock_api.post(f"{_BASE}/{_CONNECTION_ID}/revoke").respond(404, json={"detail": "not found"})
     result = invoke(["agentic", "connections", "revoke", _CONNECTION_ID, "--yes"])
+
+    assert result.exit_code == 3
+
+
+# --- set-window --------------------------------------------------------------
+
+
+def _set_window(*extra: str) -> list[str]:
+    return ["agentic", "connections", "set-window", _CONNECTION_ID, *extra]
+
+
+def test_connections_set_window(invoke, mock_api):
+    route = mock_api.patch(f"{_BASE}/{_CONNECTION_ID}").respond(200, json=HELD_CONNECTION)
+    result = invoke(_set_window("--start", "06:00", "--end", "22:30"))
+
+    assert result.exit_code == 0
+    assert json.loads(route.calls[0].request.content) == {
+        "send_window_start": "06:00",
+        "send_window_end": "22:30",
+    }
+    assert "06:00 to 22:30" in result.output
+
+
+def test_connections_set_window_clear_sends_null(invoke, mock_api):
+    route = mock_api.patch(f"{_BASE}/{_CONNECTION_ID}").respond(200, json=SAMPLE_CONNECTION)
+    result = invoke(_set_window("--clear"))
+
+    assert result.exit_code == 0
+    assert json.loads(route.calls[0].request.content) == {
+        "send_window_start": None,
+        "send_window_end": None,
+    }
+    assert "07:00 to 20:00 (default)" in result.output
+
+
+def test_connections_set_window_json(invoke, mock_api):
+    mock_api.patch(f"{_BASE}/{_CONNECTION_ID}").respond(200, json=HELD_CONNECTION)
+    result = invoke(_set_window("--start", "06:00", "--end", "22:30", "--json"))
+
+    assert result.exit_code == 0
+    assert json.loads(result.output) == HELD_CONNECTION
+
+
+@pytest.mark.parametrize(
+    "extra",
+    [
+        (),
+        ("--start", "06:00"),
+        ("--end", "22:00"),
+        ("--start", "06:00", "--end", "22:00", "--clear"),
+    ],
+)
+def test_connections_set_window_needs_both_ends_or_clear(invoke, mock_api, extra):
+    route = mock_api.patch(f"{_BASE}/{_CONNECTION_ID}").respond(200, json=HELD_CONNECTION)
+    result = invoke(_set_window(*extra))
+
+    assert result.exit_code == 2
+    assert not route.called
+
+
+def test_connections_set_window_member_refusal_json(invoke, mock_api):
+    """Only an admin widens a window. A member answers 403 and exits 4."""
+    mock_api.patch(f"{_BASE}/{_CONNECTION_ID}").respond(
+        403, json={"detail": "only an organization admin changes a connection"}
+    )
+    result = invoke(_set_window("--start", "06:00", "--end", "22:00", "--json"))
+
+    assert result.exit_code == 4
+    assert json.loads(result.output) == {
+        "error": True,
+        "status_code": 403,
+        "detail": "only an organization admin changes a connection",
+    }
+
+
+def test_connections_set_window_prints_the_api_detail_on_422(invoke, mock_api):
+    """A window whose start is not before its end answers 422 and exits 2."""
+    mock_api.patch(f"{_BASE}/{_CONNECTION_ID}").respond(
+        422, json={"detail": "the send window must start before it ends"}
+    )
+    result = invoke(_set_window("--start", "22:00", "--end", "06:00"))
+
+    assert result.exit_code == 2
+    assert "must start before it ends" in result.output
+
+
+def test_connections_set_window_not_found(invoke, mock_api):
+    mock_api.patch(f"{_BASE}/{_CONNECTION_ID}").respond(404, json={"detail": "not found"})
+    result = invoke(_set_window("--clear"))
 
     assert result.exit_code == 3
