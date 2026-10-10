@@ -1463,6 +1463,9 @@ _CONNECTION_FIELDS = [
     ("display_name", "Name"),
     ("status", "Status"),
     ("owner_user_id", "Owner"),
+    ("held_until", "Held until"),
+    ("hold_reason", "Hold reason"),
+    ("send_window", "Send window"),
     ("created_at", "Created"),
     ("updated_at", "Updated"),
     ("revoked_at", "Revoked"),
@@ -1474,9 +1477,32 @@ _CONNECTION_LIST_FIELDS = [
     ("display_name", "Name"),
     ("status", "Status"),
     ("owner_user_id", "Owner"),
+    ("held_until", "Held until"),
+    ("send_window", "Send window"),
     ("created_at", "Created"),
     ("revoked_at", "Revoked"),
 ]
+
+# The window the API applies when a connection holds no admin window, in the
+# time zone of the connection owner.
+_DEFAULT_SEND_WINDOW = "07:00 to 20:00 (default)"
+
+
+def _with_send_window(connection: dict) -> dict:
+    """Adds one readable send window field to a connection row.
+
+    The API answers two times, or two nulls for the default window.
+
+    Args:
+        connection: One connection the API answered.
+
+    Returns:
+        A copy of the row with a `send_window` field.
+    """
+    start = connection.get("send_window_start")
+    end = connection.get("send_window_end")
+    window = f"{start[:5]} to {end[:5]}" if start and end else _DEFAULT_SEND_WINDOW
+    return {**connection, "send_window": window}
 
 
 def _report_link_error(exc: httpx.HTTPStatusError, subject: str, json_output: bool) -> None:
@@ -1541,7 +1567,11 @@ def connections_list(
     if not items:
         rprint("[yellow]No connections:[/yellow] you have not connected an account")
         return
-    print_table(items, _CONNECTION_LIST_FIELDS, title=f"Connections ({len(items)})")
+    print_table(
+        [_with_send_window(item) for item in items],
+        _CONNECTION_LIST_FIELDS,
+        title=f"Connections ({len(items)})",
+    )
 
 
 _PROVIDER_FIELDS = [
@@ -1577,7 +1607,7 @@ def connections_get(
     connection_id: str = typer.Argument(..., help="Connection ID"),
     json_output: bool = JSON_OPTION,
 ) -> None:
-    """Read one connection."""
+    """Read one connection, with its day hold and its send window."""
     set_json_mode(json_output)
     resp = _api_request("get", f"{_AGENTIC}/connections/{connection_id}")
 
@@ -1585,7 +1615,41 @@ def connections_get(
     if json_output:
         print_json(data)
         return
-    print_detail(data, _CONNECTION_FIELDS)
+    print_detail(_with_send_window(data), _CONNECTION_FIELDS)
+
+
+@connections_app.command("set-window")
+def connections_set_window(
+    ctx: typer.Context,
+    connection_id: str = typer.Argument(..., help="Connection ID"),
+    start: str | None = typer.Option(None, "--start", help="The first local time, e.g. 06:00"),
+    end: str | None = typer.Option(None, "--end", help="The local time it closes, e.g. 22:00"),
+    clear: bool = typer.Option(False, "--clear", help="Restore the 07:00 to 20:00 default"),
+    json_output: bool = JSON_OPTION,
+) -> None:
+    """Set or clear the send window of one connection. Admin only.
+
+    A send runs only inside the window, in the time zone of the connection
+    owner. Give both --start and --end, or give --clear. The start must come
+    before the end.
+    """
+    set_json_mode(json_output)
+    if clear == (start is not None or end is not None) or (start is None) != (end is None):
+        usage = "give both --start and --end, or give --clear"
+        if json_output:
+            print_json({"error": True, "status_code": 422, "detail": usage})
+        else:
+            rprint(styled("[red]Error:[/red] {}", usage))
+        raise typer.Exit(code=2)
+
+    body = {"send_window_start": start, "send_window_end": end}
+    resp = _api_request("patch", f"{_AGENTIC}/connections/{connection_id}", json=body)
+
+    data = resp.json()
+    if json_output:
+        print_json(data)
+        return
+    print_detail(_with_send_window(data), _CONNECTION_FIELDS)
 
 
 @connections_app.command("link")
