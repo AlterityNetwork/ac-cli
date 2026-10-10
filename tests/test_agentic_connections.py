@@ -389,6 +389,20 @@ def test_connections_set_window_needs_both_ends_or_clear(invoke, mock_api, extra
     assert not route.called
 
 
+def test_connections_set_window_usage_error_json(invoke, mock_api):
+    """An agent with --json reads a usage error as JSON, not as markup."""
+    route = mock_api.patch(f"{_BASE}/{_CONNECTION_ID}").respond(200, json=HELD_CONNECTION)
+    result = invoke(_set_window("--start", "06:00", "--json"))
+
+    assert result.exit_code == 2
+    assert not route.called
+    assert json.loads(result.output) == {
+        "error": True,
+        "status_code": 422,
+        "detail": "give both --start and --end, or give --clear",
+    }
+
+
 def test_connections_set_window_member_refusal_json(invoke, mock_api):
     """Only an admin widens a window. A member answers 403 and exits 4."""
     mock_api.patch(f"{_BASE}/{_CONNECTION_ID}").respond(

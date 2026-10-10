@@ -1635,7 +1635,11 @@ def connections_set_window(
     """
     set_json_mode(json_output)
     if clear == (start is not None or end is not None) or (start is None) != (end is None):
-        rprint("[red]Error:[/red] give both --start and --end, or give --clear")
+        usage = "give both --start and --end, or give --clear"
+        if json_output:
+            print_json({"error": True, "status_code": 422, "detail": usage})
+        else:
+            rprint(styled("[red]Error:[/red] {}", usage))
         raise typer.Exit(code=2)
 
     body = {"send_window_start": start, "send_window_end": end}
