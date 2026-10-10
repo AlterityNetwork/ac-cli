@@ -10,7 +10,7 @@ from ac_cli.commands._helpers import (  # noqa: F401
     set_json_mode,
 )
 
-app = typer.Typer(help="Envoy outreach commands")
+app = typer.Typer(help="Outreach commands")
 
 _ENVOY = "/api/v1/envoy"
 

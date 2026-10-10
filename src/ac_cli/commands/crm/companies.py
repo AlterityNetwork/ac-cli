@@ -275,7 +275,7 @@ def companies_update(
     reset_lead_score_to_auto: bool = typer.Option(
         False,
         "--reset-lead-score-to-auto",
-        help="Clear the manual lead score lock so Sonar can update it",
+        help="Clear the manual lead score lock so automatic scoring can update it",
     ),
     linkedin_url: str | None = typer.Option(None, "--linkedin-url", help="LinkedIn company page"),
     clear_linkedin_url: bool = typer.Option(
@@ -520,7 +520,7 @@ def companies_mark_actioned(
 
     Stamps approved_by / approved_at on each company; with --note, also
     writes a crm_activities row (type=note, source_app=manual) per company.
-    Backs the Sonar / Headhunter Actioned button.
+    Backs the Actioned button in Sonar (legacy) and Company Search.
     """
     set_json_mode(json_output)
     id_list = _split_ids(ids)

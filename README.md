@@ -66,7 +66,7 @@ ac crm lists list
 ac crm import preview --file contacts.json
 ```
 
-## Envoy (Outreach)
+## Outreach (`ac envoy`)
 
 ```bash
 ac envoy sequences list

@@ -1,4 +1,4 @@
-"""Admin Sonar + Headhunter searches monitoring (super admin only)."""
+"""Super admin monitoring of Sonar (legacy) and Headhunter (legacy) searches."""
 
 from __future__ import annotations
 
@@ -11,7 +11,7 @@ from ac_cli.commands._helpers import JSON_OPTION, _api_request, set_json_mode
 from ac_cli.commands.admin import _ADMIN
 from ac_cli.formatting import print_detail, print_json, print_table
 
-searches_app = typer.Typer(help="Sonar + Headhunter searches monitoring")
+searches_app = typer.Typer(help="Sonar (legacy) and Headhunter (legacy) searches monitoring")
 
 
 _BASE = f"{_ADMIN}/searches"
@@ -153,7 +153,7 @@ def searches_runs(
     all_: bool = typer.Option(False, "--all", help="Paginate through every page"),
     json_output: bool = JSON_OPTION,
 ) -> None:
-    """List search runs (Sonar + Headhunter) across organizations."""
+    """List Sonar (legacy) and Headhunter (legacy) search runs across organizations."""
     set_json_mode(json_output)
     params: dict[str, Any] = {}
     _add_filters(
@@ -244,7 +244,7 @@ def searches_companies(
     all_: bool = typer.Option(False, "--all"),
     json_output: bool = JSON_OPTION,
 ) -> None:
-    """List companies discovered by Sonar/Headhunter runs."""
+    """List companies discovered by Sonar (legacy) and Headhunter (legacy) runs."""
     set_json_mode(json_output)
     params: dict[str, Any] = {}
     _add_filters(
