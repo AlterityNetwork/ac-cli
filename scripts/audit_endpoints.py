@@ -206,6 +206,7 @@ OUT_OF_SCOPE: set[tuple[str, str]] = {
     ("POST", "/api/v1/billing/checkout-session"),
     ("POST", "/api/v1/billing/checkout-session/verify"),
     ("POST", "/api/v1/billing/portal-session"),
+    ("GET", "/api/v1/billing/card-on-file"),
     ("POST", "/api/v1/profiles/me/complete-onboarding"),
 }
 

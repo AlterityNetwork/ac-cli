@@ -587,3 +587,58 @@ def test_subscriptions_switch_comped_error_maps_exit_code(invoke, mock_api):
     )
     result = invoke(["admin", "subscriptions", "switch-comped", "sub-1", "--yes", "--json"])
     assert result.exit_code == 4
+
+
+CARD_LINK = {
+    "url": "https://checkout.stripe.test/cs_1",
+    "expires_at": "2026-10-14T09:00:00+00:00",
+    "email_sent": False,
+    "sent_to": None,
+}
+
+
+def test_subscriptions_send_card_link_prints_the_link(invoke, mock_api):
+    route = mock_api.post("/api/v1/admin/subscriptions/sub-1/card-setup-link").respond(
+        200, json=CARD_LINK
+    )
+    result = invoke(["admin", "subscriptions", "send-card-link", "sub-1"])
+    assert result.exit_code == 0
+    assert "https://checkout.stripe.test/cs_1" in result.output
+    assert json.loads(route.calls.last.request.content) == {"send_email": False}
+
+
+def test_subscriptions_send_card_link_emails_with_yes(invoke, mock_api, monkeypatch):
+    monkeypatch.delenv("AC_YES", raising=False)
+    route = mock_api.post("/api/v1/admin/subscriptions/sub-1/card-setup-link").respond(
+        200,
+        json={**CARD_LINK, "url": "", "email_sent": True, "sent_to": "owner@acme.test"},
+    )
+    result = invoke(["admin", "subscriptions", "send-card-link", "sub-1", "--email", "--yes"])
+    assert result.exit_code == 0
+    assert "owner@acme.test" in result.output
+    assert json.loads(route.calls.last.request.content) == {"send_email": True}
+
+
+def test_subscriptions_send_card_link_email_aborted(invoke, mock_api, monkeypatch):
+    monkeypatch.delenv("AC_YES", raising=False)
+    route = mock_api.post("/api/v1/admin/subscriptions/sub-1/card-setup-link").respond(
+        200, json=CARD_LINK
+    )
+    result = invoke(["admin", "subscriptions", "send-card-link", "sub-1", "--email"], input="n\n")
+    assert result.exit_code == 1
+    assert not route.called
+
+
+def test_subscriptions_send_card_link_json(invoke, mock_api):
+    mock_api.post("/api/v1/admin/subscriptions/sub-1/card-setup-link").respond(200, json=CARD_LINK)
+    result = invoke(["admin", "subscriptions", "send-card-link", "sub-1", "--json"])
+    assert result.exit_code == 0
+    assert json.loads(result.output)["url"] == CARD_LINK["url"]
+
+
+def test_subscriptions_send_card_link_error_maps_exit_code(invoke, mock_api):
+    mock_api.post("/api/v1/admin/subscriptions/sub-1/card-setup-link").respond(
+        400, json={"detail": "Organization is comped; it is never billed."}
+    )
+    result = invoke(["admin", "subscriptions", "send-card-link", "sub-1", "--json"])
+    assert result.exit_code != 0

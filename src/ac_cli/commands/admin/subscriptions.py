@@ -384,6 +384,42 @@ def subscriptions_send_reminder(
         )
 
 
+@subscriptions_app.command("send-card-link")
+def subscriptions_send_card_link(
+    ctx: typer.Context,
+    subscription_id: str = typer.Argument(..., help="Subscription ID"),
+    email: bool = typer.Option(False, "--email", help="Email the link to the account owner"),
+    yes: bool = typer.Option(False, "--yes", "-y", help="Skip confirmation"),
+    json_output: bool = JSON_OPTION,
+) -> None:
+    """Create a 24 hour card setup link for the org, and email it when asked.
+
+    The link opens a Stripe-hosted page where the customer saves a card. The
+    customer does not sign in. Each call creates a new link.
+    """
+    set_json_mode(json_output)
+    if email and not should_skip_confirm(yes):
+        typer.confirm(
+            f"Email the account owner a card setup link for {subscription_id}?",
+            abort=True,
+        )
+    resp = _api_request(
+        "post",
+        f"{_ADMIN}/subscriptions/{subscription_id}/card-setup-link",
+        json={"send_email": email},
+    )
+    data = resp.json()
+    if json_output:
+        print_json(data)
+    elif data.get("email_sent"):
+        rprint(styled("[green]Card setup link emailed to {}[/green]", data.get("sent_to")))
+    else:
+        if email:
+            rprint("[yellow]The email was not sent. Copy the link instead.[/yellow]")
+        rprint(styled("[green]Card setup link:[/green] {}", data.get("url", "")))
+        rprint(styled("Expires {}", data.get("expires_at")))
+
+
 @subscriptions_app.command("worklists")
 def subscriptions_worklists(
     ctx: typer.Context,
