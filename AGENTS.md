@@ -46,8 +46,8 @@ uv sync --all-extras       # Install with dev dependencies (pytest, respx)
 | `files` | Image upload/delete |
 | `workflows` | Runs, schedules, presets, csv-parse |
 | `apps` | Organization app install/config |
-| `settings` | Organization settings: the copilot approval framework, targeting, the Company dossier |
-| `agentic` | Agentic platform: capabilities, runs, definitions, tools, approvals, conversations, prospects, saved-searches, triggers, policies, limits |
+| `settings` | Organization settings: the copilot approval framework, targeting, the Company dossier, your memory lines and the suggestions learned from your edits |
+| `agentic` | Agentic platform: capabilities, runs, definitions, tools, approvals, conversations, prospects, saved-searches, triggers, policies, connections, limits |
 | `agents` | Managed agent runs (the live stack the agentic platform sits beside) |
 | `analytics` | Customer-facing organization analytics overview |
 | `admin` | Users, orgs, queues, demo, onboarding, copilots, app-usage, ai-usage, platform-activity, legal-docs, resources, apps, subscriptions, subscription-plans (super admin) |
@@ -124,7 +124,7 @@ nonzero on stale CLI paths or new API endpoints not yet covered.
 
 ## TDD Workflow
 
-For `feat:` and `fix:` changes, write tests first. See parent `agencycore/.claude/rules/06-tdd-workflow.md`.
+For `feat:` and `fix:` changes, write tests first. See parent `agencycore/.claude/rules/tdd.md`.
 
 **Single test run:** `uv run pytest tests/test_<domain>_<group>.py -x`
 
