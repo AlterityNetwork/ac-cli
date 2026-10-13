@@ -673,3 +673,15 @@ def test_subscriptions_get_shows_the_card_on_file(invoke, mock_api):
     assert result.exit_code == 0
     assert "Card Last 4" in result.output
     assert "4242" in result.output
+
+
+def test_subscriptions_send_card_link_email_fallback_prints_link(invoke, mock_api, monkeypatch):
+    # The API returns the link when the email was not sent, so the admin can copy it.
+    monkeypatch.delenv("AC_YES", raising=False)
+    mock_api.post("/api/v1/admin/subscriptions/sub-1/card-setup-link").respond(
+        200, json={**CARD_LINK, "email_sent": False, "sent_to": None}
+    )
+    result = invoke(["admin", "subscriptions", "send-card-link", "sub-1", "--email", "--yes"])
+    assert result.exit_code == 0
+    assert "not sent" in result.output
+    assert CARD_LINK["url"] in result.output
