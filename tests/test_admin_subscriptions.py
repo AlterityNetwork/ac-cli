@@ -641,4 +641,35 @@ def test_subscriptions_send_card_link_error_maps_exit_code(invoke, mock_api):
         400, json={"detail": "Organization is comped; it is never billed."}
     )
     result = invoke(["admin", "subscriptions", "send-card-link", "sub-1", "--json"])
-    assert result.exit_code != 0
+    assert result.exit_code == 1
+
+
+def test_subscriptions_send_card_link_prints_the_link_unbroken(invoke, mock_api):
+    # A hosted Checkout URL is far wider than a terminal. A hard wrap would
+    # paste back as a cut link.
+    long_url = "https://checkout.stripe.com/c/pay/cs_test_" + "a" * 300
+    mock_api.post("/api/v1/admin/subscriptions/sub-1/card-setup-link").respond(
+        200, json={**CARD_LINK, "url": long_url}
+    )
+    result = invoke(["admin", "subscriptions", "send-card-link", "sub-1"])
+    assert result.exit_code == 0
+    assert long_url in result.output
+
+
+def test_subscriptions_send_card_link_omits_a_missing_expiry(invoke, mock_api):
+    mock_api.post("/api/v1/admin/subscriptions/sub-1/card-setup-link").respond(
+        200, json={**CARD_LINK, "expires_at": None}
+    )
+    result = invoke(["admin", "subscriptions", "send-card-link", "sub-1"])
+    assert result.exit_code == 0
+    assert "None" not in result.output
+
+
+def test_subscriptions_get_shows_the_card_on_file(invoke, mock_api):
+    mock_api.get("/api/v1/admin/subscriptions/sub-1").respond(
+        200, json={**SAMPLE_SUB, "has_card": True, "card_brand": "visa", "card_last4": "4242"}
+    )
+    result = invoke(["admin", "subscriptions", "get", "sub-1"])
+    assert result.exit_code == 0
+    assert "Card Last 4" in result.output
+    assert "4242" in result.output
