@@ -24,6 +24,10 @@ _SAVED_SEARCHES = "/api/v1/agentic/saved-searches"
 #: takes the rows it works on, so the API refuses a saved brief for one.
 _CAPABILITIES = ("signals.search", "people.signals", "people.search", "company.search")
 _CAPABILITY_HELP = f"Which product saves the brief: {', '.join(_CAPABILITIES)}"
+_WATCH_LIST_HELP = (
+    "CRM list of companies to watch. The search reads only the list's companies, "
+    "10 per Run in rotation, and finds no new company."
+)
 _PAGE_DEFAULT = 50
 _PAGE_MIN = 1
 _PAGE_MAX = 100
@@ -49,6 +53,7 @@ _DETAIL_FIELDS = [
     ("capability_id", "Capability"),
     ("name", "Name"),
     ("description", "Description"),
+    ("watch_list_id", "Watch list"),
     ("last_run_id", "Last run"),
     ("last_run_at", "Last run at"),
     ("created_at", "Created"),
@@ -145,6 +150,7 @@ def saved_searches_create(
         "--brief",
         help="Brief JSON in the input shape the capability publishes",
     ),
+    watch_list_id: str | None = typer.Option(None, "--watch-list-id", help=_WATCH_LIST_HELP),
     json_output: bool = JSON_OPTION,
 ) -> None:
     """Create one repeatable search brief for one product."""
@@ -154,6 +160,8 @@ def saved_searches_create(
         "name": name,
         "brief": _parse_object(brief, "--brief"),
     }
+    if watch_list_id is not None:
+        body["watch_list_id"] = watch_list_id
     data = _api_request("post", _SAVED_SEARCHES, json=body).json()
     if json_output:
         print_json(data)
@@ -221,17 +229,29 @@ def saved_searches_patch(
         "--brief",
         help="Full replacement brief JSON",
     ),
+    watch_list_id: str | None = typer.Option(None, "--watch-list-id", help=_WATCH_LIST_HELP),
+    clear_watch_list_id: bool = typer.Option(
+        False,
+        "--clear-watch-list-id",
+        help="Stop watching the list. The search finds new companies again.",
+    ),
     json_output: bool = JSON_OPTION,
 ) -> None:
-    """Replace the name, brief, or both under one write token."""
+    """Replace the name, the brief, or the watch list under one write token."""
     set_json_mode(json_output)
-    if name is None and brief is None:
-        refuse_local("provide --name or --brief")
+    if watch_list_id is not None and clear_watch_list_id:
+        refuse_local("use --watch-list-id or --clear-watch-list-id, not both")
+    if name is None and brief is None and watch_list_id is None and not clear_watch_list_id:
+        refuse_local("provide --name, --brief, --watch-list-id or --clear-watch-list-id")
     body: dict = {"expected_updated_at": expected_updated_at}
     if name is not None:
         body["name"] = name
     if brief is not None:
         body["brief"] = _parse_object(brief, "--brief")
+    if watch_list_id is not None:
+        body["watch_list_id"] = watch_list_id
+    if clear_watch_list_id:
+        body["watch_list_id"] = None
     data = _api_request("patch", f"{_SAVED_SEARCHES}/{search_id}", json=body).json()
     if json_output:
         print_json(data)
