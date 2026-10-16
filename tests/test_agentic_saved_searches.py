@@ -429,7 +429,9 @@ def test_patch_refuses_no_change_before_request(invoke, mock_api):
     )
 
     assert result.exit_code == 2
-    assert "--name or --brief" in json.loads(result.output)["detail"]
+    detail = json.loads(result.output)["detail"]
+    for flag in ("--name", "--brief", "--watch-list-id", "--clear-watch-list-id"):
+        assert flag in detail
     assert not route.called
 
 
@@ -749,3 +751,116 @@ def test_patch_sends_a_replacement_brief(invoke, mock_api):
         "expected_updated_at": "opaque",
         "brief": BRIEF,
     }
+
+
+LIST_ID = "55555555-5555-4555-8555-555555555555"
+WATCH_BRIEF = {"icp": "Any recent sales signal at the company"}
+WATCH_DETAIL = {**DETAIL, "brief": WATCH_BRIEF, "watch_list_id": LIST_ID}
+
+
+def test_create_sends_the_watch_list_id(invoke, mock_api):
+    route = mock_api.post(BASE).respond(201, json=WATCH_DETAIL)
+
+    result = invoke(
+        [
+            "agentic",
+            "saved-searches",
+            "create",
+            "--capability",
+            SIGNALS,
+            "--name",
+            "Watched accounts",
+            "--brief",
+            json.dumps(WATCH_BRIEF),
+            "--watch-list-id",
+            LIST_ID,
+        ]
+    )
+
+    assert result.exit_code == 0
+    assert json.loads(route.calls[0].request.content) == {
+        "capability_id": SIGNALS,
+        "name": "Watched accounts",
+        "brief": WATCH_BRIEF,
+        "watch_list_id": LIST_ID,
+    }
+
+
+def test_patch_sends_the_watch_list_id(invoke, mock_api):
+    route = mock_api.patch(f"{BASE}/{SEARCH_ID}").respond(200, json=WATCH_DETAIL)
+
+    result = invoke(
+        [
+            "agentic",
+            "saved-searches",
+            "patch",
+            SEARCH_ID,
+            "--expected-updated-at",
+            "opaque",
+            "--watch-list-id",
+            LIST_ID,
+        ]
+    )
+
+    assert result.exit_code == 0
+    assert json.loads(route.calls[0].request.content) == {
+        "expected_updated_at": "opaque",
+        "watch_list_id": LIST_ID,
+    }
+
+
+def test_patch_clear_sends_a_null_watch_list_id(invoke, mock_api):
+    route = mock_api.patch(f"{BASE}/{SEARCH_ID}").respond(200, json=DETAIL)
+
+    result = invoke(
+        [
+            "agentic",
+            "saved-searches",
+            "patch",
+            SEARCH_ID,
+            "--expected-updated-at",
+            "opaque",
+            "--clear-watch-list-id",
+        ]
+    )
+
+    assert result.exit_code == 0
+    assert json.loads(route.calls[0].request.content) == {
+        "expected_updated_at": "opaque",
+        "watch_list_id": None,
+    }
+
+
+def test_patch_refuses_both_watch_list_flags_before_request(invoke, mock_api):
+    route = mock_api.patch(f"{BASE}/{SEARCH_ID}").respond(200, json=DETAIL)
+
+    result = invoke(
+        [
+            "agentic",
+            "saved-searches",
+            "patch",
+            SEARCH_ID,
+            "--expected-updated-at",
+            "opaque",
+            "--watch-list-id",
+            LIST_ID,
+            "--clear-watch-list-id",
+            "--json",
+        ]
+    )
+
+    assert result.exit_code == 2
+    assert json.loads(result.output)["detail"] == (
+        "use --watch-list-id or --clear-watch-list-id, not both"
+    )
+    assert not route.called
+
+
+def test_get_prints_the_watch_list(invoke, mock_api):
+    mock_api.get(f"{BASE}/{SEARCH_ID}").respond(200, json=WATCH_DETAIL)
+
+    result = invoke(["agentic", "saved-searches", "get", SEARCH_ID])
+
+    assert result.exit_code == 0
+    assert "Watch list:" in result.output
+    assert LIST_ID in result.output
