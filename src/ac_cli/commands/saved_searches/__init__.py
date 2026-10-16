@@ -26,7 +26,7 @@ _CAPABILITIES = ("signals.search", "people.signals", "people.search", "company.s
 _CAPABILITY_HELP = f"Which product saves the brief: {', '.join(_CAPABILITIES)}"
 _WATCH_LIST_HELP = (
     "CRM list of companies to watch. The search reads only the list's companies, "
-    "10 per Run in rotation, and finds no new company."
+    "10 per Run in rotation, and does not discover companies outside the list."
 )
 _PAGE_DEFAULT = 50
 _PAGE_MIN = 1
