@@ -786,6 +786,45 @@ def test_create_sends_the_watch_list_id(invoke, mock_api):
     }
 
 
+def test_the_watch_list_help_says_each_run_checks_the_whole_list():
+    from ac_cli.commands.saved_searches import _WATCH_LIST_HELP
+
+    assert "up to 50" in _WATCH_LIST_HELP
+    assert "Each Run checks every company on the list" in _WATCH_LIST_HELP
+    assert "rotation" not in _WATCH_LIST_HELP
+
+
+def test_create_reports_a_list_too_large_to_watch(invoke, mock_api):
+    mock_api.post(BASE).respond(
+        422,
+        json={
+            "detail": {
+                "code": "watch_list_too_large",
+                "message": "The CRM list holds 57 companies. A saved search watches at most 50.",
+            }
+        },
+    )
+
+    result = invoke(
+        [
+            "agentic",
+            "saved-searches",
+            "create",
+            "--capability",
+            SIGNALS,
+            "--name",
+            "Watched accounts",
+            "--brief",
+            json.dumps(WATCH_BRIEF),
+            "--watch-list-id",
+            LIST_ID,
+        ]
+    )
+
+    assert result.exit_code == 2
+    assert "watch_list_too_large" in result.output
+
+
 def test_patch_sends_the_watch_list_id(invoke, mock_api):
     route = mock_api.patch(f"{BASE}/{SEARCH_ID}").respond(200, json=WATCH_DETAIL)
 

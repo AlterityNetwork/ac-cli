@@ -25,8 +25,8 @@ _SAVED_SEARCHES = "/api/v1/agentic/saved-searches"
 _CAPABILITIES = ("signals.search", "people.signals", "people.search", "company.search")
 _CAPABILITY_HELP = f"Which product saves the brief: {', '.join(_CAPABILITIES)}"
 _WATCH_LIST_HELP = (
-    "CRM list of companies to watch. The search reads only the list's companies, "
-    "10 per Run in rotation, and does not discover companies outside the list."
+    "CRM list of companies to watch, up to 50. Each Run checks every company on "
+    "the list and does not discover companies outside the list."
 )
 _PAGE_DEFAULT = 50
 _PAGE_MIN = 1
