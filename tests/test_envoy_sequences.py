@@ -10,7 +10,6 @@ SAMPLE_SEQUENCE = {
     "name": "Q1 Outreach",
     "description": "Outreach to target companies",
     "status": "draft",
-    "execution_mode": "manual",
     "skip_non_working_days": True,
     "writing_style_id": None,
     "playbook_id": None,
@@ -280,7 +279,7 @@ def test_sequences_generate_drafts(invoke, mock_api):
 def test_sequences_for_prospect(invoke, mock_api):
     mock_api.get("/api/v1/envoy/sequences/by-prospect/p-1").respond(
         200,
-        json=[{"id": "s-1", "name": "Outreach", "status": "active", "execution_mode": "manual"}],
+        json=[{"id": "s-1", "name": "Outreach", "status": "active"}],
     )
     result = invoke(["envoy", "sequences", "for-prospect", "p-1"])
     assert result.exit_code == 0
@@ -290,7 +289,7 @@ def test_sequences_for_prospect(invoke, mock_api):
 def test_sequences_for_prospect_json(invoke, mock_api):
     import json as _json
 
-    payload = [{"id": "s-1", "name": "Outreach", "status": "active", "execution_mode": "manual"}]
+    payload = [{"id": "s-1", "name": "Outreach", "status": "active"}]
     mock_api.get("/api/v1/envoy/sequences/by-prospect/p-1").respond(200, json=payload)
     result = invoke(["envoy", "sequences", "for-prospect", "p-1", "--json"])
     assert result.exit_code == 0
