@@ -222,6 +222,14 @@ def test_orgs_add_user_reports_unsent_email(invoke, mock_api):
     assert "ac admin users reset-password u-new" in result.output
 
 
+def test_orgs_add_user_no_hint_without_email_sent_field(invoke, mock_api):
+    body = {k: v for k, v in SAMPLE_CREATED_USER.items() if k != "email_sent"}
+    mock_api.post("/api/v1/admin/organizations/org-1/users").respond(201, json=body)
+    result = invoke(_ADD_USER_ARGS)
+    assert result.exit_code == 0
+    assert "reset-password" not in result.output
+
+
 def test_orgs_add_user_conflict(invoke, mock_api):
     mock_api.post("/api/v1/admin/organizations/org-1/users").respond(
         409, json={"detail": "A user with this email address already exists"}

@@ -297,7 +297,7 @@ def organizations_add_user(
             data.get("role"),
         )
     )
-    if send_email and not data.get("email_sent"):
+    if send_email and data.get("email_sent") is False:
         rprint(
             styled(
                 "[yellow]Sign-in email not sent. Run: ac admin users reset-password {}[/yellow]",
