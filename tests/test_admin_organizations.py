@@ -154,6 +154,82 @@ def test_orgs_add_member(invoke, mock_api):
     assert "Added" in result.output
 
 
+SAMPLE_CREATED_USER = {
+    "user_id": "u-new",
+    "organization_id": "org-1",
+    "role": "member",
+    "email_sent": True,
+}
+
+_ADD_USER_ARGS = [
+    "admin",
+    "orgs",
+    "add-user",
+    "org-1",
+    "--email",
+    "ada@example.com",
+    "--first-name",
+    "Ada",
+    "--last-name",
+    "Lovelace",
+]
+
+
+def test_orgs_add_user_posts_body(invoke, mock_api):
+    route = mock_api.post("/api/v1/admin/organizations/org-1/users").respond(
+        201, json=SAMPLE_CREATED_USER
+    )
+    result = invoke(_ADD_USER_ARGS)
+    assert result.exit_code == 0
+    assert json.loads(route.calls.last.request.content) == {
+        "email": "ada@example.com",
+        "first_name": "Ada",
+        "last_name": "Lovelace",
+        "role": "member",
+        "send_email": True,
+    }
+    assert "Created user u-new in organization org-1 as member" in result.output
+
+
+def test_orgs_add_user_job_title_and_no_send_email(invoke, mock_api):
+    route = mock_api.post("/api/v1/admin/organizations/org-1/users").respond(
+        201, json={**SAMPLE_CREATED_USER, "role": "admin", "email_sent": False}
+    )
+    result = invoke(
+        [*_ADD_USER_ARGS, "--role", "admin", "--job-title", "Planner", "--no-send-email"]
+    )
+    assert result.exit_code == 0
+    body = json.loads(route.calls.last.request.content)
+    assert body["role"] == "admin"
+    assert body["job_title"] == "Planner"
+    assert body["send_email"] is False
+    assert "reset-password" not in result.output
+
+
+def test_orgs_add_user_json(invoke, mock_api):
+    mock_api.post("/api/v1/admin/organizations/org-1/users").respond(201, json=SAMPLE_CREATED_USER)
+    result = invoke([*_ADD_USER_ARGS, "--json"])
+    assert result.exit_code == 0
+    assert json.loads(result.output) == SAMPLE_CREATED_USER
+
+
+def test_orgs_add_user_reports_unsent_email(invoke, mock_api):
+    mock_api.post("/api/v1/admin/organizations/org-1/users").respond(
+        201, json={**SAMPLE_CREATED_USER, "email_sent": False}
+    )
+    result = invoke(_ADD_USER_ARGS)
+    assert result.exit_code == 0
+    assert "ac admin users reset-password u-new" in result.output
+
+
+def test_orgs_add_user_conflict(invoke, mock_api):
+    mock_api.post("/api/v1/admin/organizations/org-1/users").respond(
+        409, json={"detail": "A user with this email address already exists"}
+    )
+    result = invoke(_ADD_USER_ARGS)
+    assert result.exit_code == 5
+
+
 def test_orgs_update_member(invoke, mock_api):
     updated_member = {**SAMPLE_MEMBER, "role": "member"}
     mock_api.patch("/api/v1/admin/organizations/org-1/members/u-1").respond(
