@@ -2272,9 +2272,9 @@ def triggers_create(
 
     The row is saved stopped. Read it, then `ac agentic triggers enable <id>`.
 
-    A scheduled saved search names `--input-builder saved_search` and
-    `--input-config '{"saved_search_id": "..."}'`. The static builder cannot
-    start one: the baseline changes on every run.
+    This command does not schedule a saved search. Use
+    `ac agentic saved-searches schedule set <search-id> --cron '0 9 * * 1'`.
+    The API refuses a `saved_search` builder here.
     """
     set_json_mode(json_output)
     body: dict = {
