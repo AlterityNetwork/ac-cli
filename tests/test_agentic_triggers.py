@@ -138,9 +138,7 @@ def test_triggers_create_reports_a_row_that_could_never_fire(invoke, mock_api):
 
 
 def test_triggers_create_shows_the_input_config_it_wrote(invoke, mock_api):
-    """Without the field in the detail block there is no way to confirm the
-    input landed, short of reading the list back as JSON.
-    """
+    """The detail block is the one place that confirms the input landed."""
     written = {
         **SAMPLE_TRIGGER,
         "input_builder": "static",
