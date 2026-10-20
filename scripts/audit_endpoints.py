@@ -36,7 +36,6 @@ DEFAULT_API_URL = os.environ.get("AC_AUDIT_API_URL", "http://localhost:8008")
 PATH_CONSTANTS: dict[str, str] = {
     "_ADMIN": "/api/v1/admin",
     "_AGENTIC": "/api/v1/agentic",
-    "_AGENTS": "/api/v1/agents",
     "_ANALYTICS": "/api/v1/analytics",
     "_APPS": "/api/v1/orgs",
     "_CONVERSATIONS": "/api/v1/agentic/conversations",
@@ -83,9 +82,6 @@ OUT_OF_SCOPE: set[tuple[str, str]] = {
     # Frontend-only bridge from selected People Search rows to CRM identities.
     # List and review actions already have their own CLI commands.
     ("POST", "/api/v1/agentic/people/resolve"),
-    # Signature-authenticated FullEnrich provider callbacks (ENG-1733).
-    ("POST", "/api/v1/fullenrich/webhook"),
-    ("POST", "/api/v1/fullenrich/webhook/contact"),
     # ENG-2048: public browser-only redemption of a managed-onboarding link.
     # The customer clicks a mailed URL with no session; the single-use token in
     # the body is the whole credential. Same class as the OAuth callback below.
@@ -125,8 +121,6 @@ OUT_OF_SCOPE: set[tuple[str, str]] = {
     ("POST", "/api/v1/organizations/scrape-website-stream"),
     ("GET", "/api/v1/envoy/sequences/{id}/step-stats/stream"),
     ("GET", "/api/v1/workflows/{id}/runs/{id}/events"),
-    # Managed agents SSE event stream — frontend/live-tail consumer only
-    ("GET", "/api/v1/agents/runs/{id}/events"),
     # Frontend-only per-field invalidation stream (ENG-1733).
     ("GET", "/api/v1/workflows/{id}/runs/{id}/field-updates/stream"),
     # Frontend-only company lead_score invalidation stream (backgrounded judge).
@@ -174,12 +168,6 @@ OUT_OF_SCOPE: set[tuple[str, str]] = {
     ("POST", "/api/v1/nylas/email/unsubscribe"),
     # Resend bounce/complaint webhook (signature-verified server-to-server) [ENG-768]
     ("POST", "/api/v1/webhooks/resend"),
-    # FullEnrich bulk-enrichment completion webhook (URL-token-authed, server-to-server)
-    ("POST", "/api/v1/fullenrich/webhook"),
-    # Anthropic agent-runtime session webhook (signature-verified server-to-server).
-    # Route is /agent-runtime/{provider}/webhook; OUT_OF_SCOPE is matched raw against
-    # normalized API paths, so the param must be the normalized {id} form.
-    ("POST", "/api/v1/agent-runtime/{id}/webhook"),
     # Agentic provider job callback (signature-verified server-to-server) [ENG-2227].
     # Route is /agentic/webhooks/{provider}/{job_id}. Both params normalize to
     # {id}, so the entry carries the pair. A provider posts here and no person
