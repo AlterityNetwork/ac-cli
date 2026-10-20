@@ -1,8 +1,4 @@
-"""Tests for the agentic platform run commands.
-
-`ac agentic runs` sits beside `ac agents runs` and replaces none of it. The two
-stacks are branch isolated until the cutover, so the alias swap is Phase 7.
-"""
+"""Tests for the agentic platform run commands."""
 
 import json
 import uuid
@@ -718,16 +714,6 @@ def test_runs_cancel_not_found(invoke, mock_api):
     )
     result = invoke(["agentic", "runs", "cancel", SAMPLE_RUN["id"], "--yes"])
     assert result.exit_code == 3
-
-
-# --- coexistence -----------------------------------------------------------
-
-
-def test_the_live_agents_commands_are_untouched(invoke, mock_api):
-    """ac agentic runs sits beside ac agents runs. The alias swap is Phase 7."""
-    mock_api.get("/api/v1/agents/runs").respond(200, json=[])
-    result = invoke(["agents", "runs", "list"])
-    assert result.exit_code == 0
 
 
 def test_runs_start_renders_a_close_tag_in_the_definition_name(invoke, mock_api):

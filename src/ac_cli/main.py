@@ -9,7 +9,6 @@ from ac_cli.client import ACT_AS_ENV_VAR
 from ac_cli.commands import (
     admin,
     agentic,
-    agents,
     analytics,
     apps,
     auth,
@@ -74,7 +73,6 @@ def main(
 
 # Register sub-command groups
 app.add_typer(admin.app, name="admin")
-app.add_typer(agents.app, name="agents")
 # The agentic platform sits beside the live agent stack and replaces none of
 # it. The alias swap is Phase 7 of ENG-2068.
 app.add_typer(agentic.app, name="agentic")

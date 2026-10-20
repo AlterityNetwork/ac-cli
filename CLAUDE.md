@@ -22,7 +22,6 @@ uv sync --all-extras       # Install with dev dependencies (pytest, respx)
 | `apps` | Organization app install/config |
 | `settings` | Organization settings: the copilot approval framework, targeting, the Company dossier, your memory lines and the suggestions learned from your edits |
 | `agentic` | Agentic platform: capabilities, runs, definitions, tools, approvals, conversations, prospects, saved-searches, triggers, policies, connections, limits |
-| `agents` | Managed agent runs (the live stack the agentic platform sits beside) |
 | `analytics` | Customer-facing organization analytics overview |
 | `admin` | Users, orgs, queues, demo, onboarding, copilots, app-usage, ai-usage, platform-activity, legal-docs, resources, apps, subscriptions, subscription-plans (super admin) |
 | `profiles` | User profile (incl. set-organization, set-password, subscription) |
@@ -45,8 +44,7 @@ Run `ac <group> --help` for full subcommand listing.
 `tests/test_agent_docs_surface.py` holds this table to the `add_typer` calls in
 `main.py`. Add the row in the same commit as the group.
 
-The table documents the branch it is read on. `agentic` and `agents` exist on
-`agentic-platform` only until the Phase 7 cutover of ENG-2068.
+The table documents the branch it is read on.
 
 ## Agent-Friendly Features
 
