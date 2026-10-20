@@ -254,6 +254,58 @@ def organizations_add_member(
         rprint(styled("[green]Added user {} to organization {}[/green]", user_id, org_id))
 
 
+@organizations_app.command("add-user")
+def organizations_add_user(
+    ctx: typer.Context,
+    org_id: str = typer.Argument(..., help="Organization ID"),
+    email: str = typer.Option(..., "--email", help="Email of the new user"),
+    first_name: str = typer.Option(..., "--first-name", help="First name"),
+    last_name: str = typer.Option(..., "--last-name", help="Last name"),
+    role: str = typer.Option("member", "--role", help="admin, member or guest"),
+    job_title: str | None = typer.Option(None, "--job-title", help="Job title"),
+    send_email: bool = typer.Option(
+        True, "--send-email/--no-send-email", help="Email a set-password link"
+    ),
+    json_output: bool = JSON_OPTION,
+) -> None:
+    """Create a user and add them to an organization that is already active.
+
+    The user skips the organization onboarding. The organization must be
+    active and not suspended. Use transfer-ownership to make the user the owner.
+    """
+    set_json_mode(json_output)
+    body = _build_body(
+        email=email,
+        first_name=first_name,
+        last_name=last_name,
+        role=role,
+        job_title=job_title,
+        send_email=send_email,
+    )
+
+    resp = _api_request("post", f"{_ADMIN}/organizations/{org_id}/users", json=body)
+
+    data = resp.json()
+    if json_output:
+        print_json(data)
+        return
+    rprint(
+        styled(
+            "[green]Created user {} in organization {} as {}[/green]",
+            data.get("user_id"),
+            org_id,
+            data.get("role"),
+        )
+    )
+    if send_email and data.get("email_sent") is False:
+        rprint(
+            styled(
+                "[yellow]Sign-in email not sent. Run: ac admin users reset-password {}[/yellow]",
+                data.get("user_id"),
+            )
+        )
+
+
 @organizations_app.command("update-member")
 def organizations_update_member(
     ctx: typer.Context,
