@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from datetime import datetime
 from enum import Enum
 
 import typer
@@ -12,6 +13,16 @@ from ac_cli.commands.crm import _CRM, _api_request, _build_body
 from ac_cli.formatting import as_text, print_detail, print_json, print_table, styled
 
 communications_app = typer.Typer(help="Communications / email operations")
+
+
+class InboxFolder(str, Enum):
+    """The server-side folders of the CRM Messages area."""
+
+    inbox = "inbox"
+    sent = "sent"
+    drafts = "drafts"
+    archived = "archived"
+    scheduled = "scheduled"
 
 
 @communications_app.command("list")
@@ -38,6 +49,14 @@ def communications_list(
         "--until",
         help="Include only communications on/before this ISO date (YYYY-MM-DD).",
     ),
+    folder: InboxFolder | None = typer.Option(
+        None,
+        "--folder",
+        help=(
+            "Messages folder. Overrides --direction and --status. scheduled lists "
+            "your own scheduled emails in send-time order."
+        ),
+    ),
     limit: int = typer.Option(20, help="Max results"),
     offset: int = typer.Option(0, help="Offset"),
     json_output: bool = JSON_OPTION,
@@ -45,6 +64,8 @@ def communications_list(
     """List communications."""
     set_json_mode(json_output)
     params: dict = {"limit": limit, "offset": offset}
+    if folder:
+        params["folder"] = folder.value
     if company_id:
         params["company_id"] = company_id
     if contact_id:
@@ -545,6 +566,90 @@ def communications_pending_approvals(
         ],
         title=f"Pending approvals ({data.get('total', len(items))} total)",
     )
+
+
+def _require_offset(value: str) -> str:
+    """Refuses a send time with no UTC offset, which the API reads as ambiguous."""
+    try:
+        parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except ValueError as exc:
+        raise typer.BadParameter("Use an ISO 8601 time, e.g. 2030-01-07T09:00:00+01:00") from exc
+    if parsed.tzinfo is None:
+        raise typer.BadParameter("Add a UTC offset, e.g. 2030-01-07T09:00:00+01:00 or ...Z")
+    return value
+
+
+@communications_app.command("schedule")
+def communications_schedule(
+    ctx: typer.Context,
+    communication_id: str = typer.Argument(..., help="Draft email ID"),
+    send_at: str = typer.Option(
+        ...,
+        "--at",
+        callback=_require_offset,
+        help=(
+            "Send time, ISO 8601 with an offset. At least 2 minutes and at most "
+            "12 months from now. Also changes the time of a scheduled email."
+        ),
+    ),
+    json_output: bool = JSON_OPTION,
+) -> None:
+    """Schedule a draft email to send later, or change its send time."""
+    set_json_mode(json_output)
+    resp = _api_request(
+        "post",
+        f"{_CRM}/communications/{communication_id}/schedule",
+        json={"send_at": send_at},
+    )
+    data = resp.json()
+    if json_output:
+        print_json(data)
+    else:
+        rprint(
+            styled(
+                "[green]Scheduled communication {} for {}[/green]",
+                communication_id,
+                data.get("send_scheduled_at"),
+            )
+        )
+
+
+@communications_app.command("unschedule")
+def communications_unschedule(
+    ctx: typer.Context,
+    communication_id: str = typer.Argument(..., help="Scheduled email ID"),
+    json_output: bool = JSON_OPTION,
+) -> None:
+    """Cancel a scheduled email and return it to Drafts."""
+    set_json_mode(json_output)
+    resp = _api_request("post", f"{_CRM}/communications/{communication_id}/unschedule")
+    data = resp.json()
+    if json_output:
+        print_json(data)
+    else:
+        rprint(styled("[green]Cancelled the schedule. {} is in Drafts.[/green]", communication_id))
+
+
+@communications_app.command("send-now")
+def communications_send_now(
+    ctx: typer.Context,
+    communication_id: str = typer.Argument(..., help="Scheduled or failed email ID"),
+    json_output: bool = JSON_OPTION,
+) -> None:
+    """Send a scheduled or failed email immediately."""
+    set_json_mode(json_output)
+    resp = _api_request("post", f"{_CRM}/communications/{communication_id}/send-now")
+    data = resp.json()
+    if json_output:
+        print_json(data)
+    else:
+        rprint(
+            styled(
+                "[green]Sent communication {} (status={})[/green]",
+                communication_id,
+                data.get("status"),
+            )
+        )
 
 
 @communications_app.command("approve")
