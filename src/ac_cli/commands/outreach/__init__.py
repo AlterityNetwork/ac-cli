@@ -301,6 +301,18 @@ def _campaign_body(
     return body
 
 
+_MAX_EMAILS = 20
+_MAX_MIN_DAYS = 30
+
+
+def _check_campaign_bounds(max_emails: int | None, min_days: int | None) -> None:
+    """Refuse a count the API would refuse, before any HTTP call."""
+    if max_emails is not None and not 1 <= max_emails <= _MAX_EMAILS:
+        refuse_local(f"--max-emails is not between 1 and {_MAX_EMAILS}", max_emails)
+    if min_days is not None and not 1 <= min_days <= _MAX_MIN_DAYS:
+        refuse_local(f"--min-days is not between 1 and {_MAX_MIN_DAYS}", min_days)
+
+
 _NAME_OPTION = typer.Option(None, "--name", help="Campaign name")
 _GOAL_OPTION = typer.Option(None, "--goal", help="What a reply should achieve")
 _INSTRUCTIONS_OPTION = typer.Option(None, "--instructions", help="Guidance the planner reads")
@@ -361,6 +373,7 @@ def campaigns_create(
 ) -> None:
     """Create a draft campaign. You own it, and your mailbox sends its emails."""
     set_json_mode(json_output)
+    _check_campaign_bounds(max_emails, min_days)
     body = _campaign_body(
         name=name,
         goal=goal,
@@ -394,6 +407,7 @@ def campaigns_update(
 ) -> None:
     """Edit a campaign. Pass `none` to a link option to clear that link."""
     set_json_mode(json_output)
+    _check_campaign_bounds(max_emails, min_days)
     body = _campaign_body(
         name=name,
         goal=goal,

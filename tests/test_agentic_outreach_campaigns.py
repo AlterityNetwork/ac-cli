@@ -142,6 +142,39 @@ class TestCampaigns:
             assert result.exit_code == 0, result.output
             assert json.loads(route.calls[-1].request.content) == {"status": status}
 
+    def test_each_status_command_prints_json(self, invoke, mock_api):
+        mock_api.post(f"{BASE}/campaigns/{CAMPAIGN_ID}/status").respond(200, json=CAMPAIGN)
+
+        for command in ("activate", "pause", "resume", "archive"):
+            args = ["agentic", "outreach", "campaigns", command, CAMPAIGN_ID, "--json"]
+            result = invoke([*args, "--yes"] if command == "archive" else args)
+            assert json.loads(result.output) == CAMPAIGN
+
+    def test_list_and_create_print_json(self, invoke, mock_api):
+        mock_api.get(f"{BASE}/campaigns").respond(200, json={"items": [CAMPAIGN]})
+        mock_api.post(f"{BASE}/campaigns").respond(201, json=CAMPAIGN)
+
+        listed = invoke(["agentic", "outreach", "campaigns", "list", "--json"])
+        created = invoke(["agentic", "outreach", "campaigns", "create", "--name", "X", "--json"])
+
+        assert json.loads(listed.output) == {"items": [CAMPAIGN]}
+        assert json.loads(created.output) == CAMPAIGN
+
+    def test_counts_out_of_range_are_refused_without_a_call(self, invoke, mock_api):
+        create = mock_api.post(f"{BASE}/campaigns").respond(201, json=CAMPAIGN)
+        update = mock_api.patch(f"{BASE}/campaigns/{CAMPAIGN_ID}").respond(200, json=CAMPAIGN)
+
+        for args in (
+            ["create", "--name", "X", "--max-emails", "21"],
+            ["create", "--name", "X", "--min-days", "0"],
+            ["update", CAMPAIGN_ID, "--max-emails", "0"],
+            ["update", CAMPAIGN_ID, "--min-days", "31", "--json"],
+        ):
+            result = invoke(["agentic", "outreach", "campaigns", *args])
+            assert result.exit_code == 2, args
+        assert not create.called
+        assert not update.called
+
     def test_archive_asks_first(self, invoke, mock_api):
         route = mock_api.post(f"{BASE}/campaigns/{CAMPAIGN_ID}/status").respond(200, json=CAMPAIGN)
 
