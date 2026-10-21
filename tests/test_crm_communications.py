@@ -807,6 +807,25 @@ def test_comms_send_now(invoke, mock_api):
     assert json.loads(result.output)["status"] == "sent"
 
 
+def test_comms_unschedule_json(invoke, mock_api):
+    mock_api.post("/api/v1/crm/communications/c1/unschedule").respond(
+        200, json={"id": "c1", "status": "draft"}
+    )
+    result = invoke(["crm", "comms", "unschedule", "c1", "--json"])
+    assert result.exit_code == 0
+    assert json.loads(result.output)["status"] == "draft"
+
+
+def test_comms_send_now_plain(invoke, mock_api):
+    mock_api.post("/api/v1/crm/communications/c1/send-now").respond(
+        200, json={"id": "c1", "status": "sent"}
+    )
+    result = invoke(["crm", "comms", "send-now", "c1"])
+    assert result.exit_code == 0
+    assert "Sent communication c1" in result.output
+    assert "status=sent" in result.output
+
+
 def test_comms_list_folder_scheduled(invoke, mock_api):
     route = mock_api.get("/api/v1/crm/communications").respond(
         200,
