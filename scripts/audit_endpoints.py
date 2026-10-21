@@ -121,10 +121,6 @@ OUT_OF_SCOPE: set[tuple[str, str]] = {
     ("POST", "/api/v1/organizations/scrape-website-stream"),
     ("GET", "/api/v1/envoy/sequences/{id}/step-stats/stream"),
     ("GET", "/api/v1/workflows/{id}/runs/{id}/events"),
-    # Frontend-only per-field invalidation stream (ENG-1733).
-    ("GET", "/api/v1/workflows/{id}/runs/{id}/field-updates/stream"),
-    # Frontend-only company lead_score invalidation stream (backgrounded judge).
-    ("GET", "/api/v1/workflows/{id}/runs/{id}/companies/field-updates/stream"),
     # SSE stream — frontend-only consumer (ENG-769)
     ("GET", "/api/v1/notifications/stream"),
     # ENG-2124: the agentic run stream. SSE is not a CLI shape — the command
