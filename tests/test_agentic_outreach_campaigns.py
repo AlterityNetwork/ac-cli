@@ -404,3 +404,80 @@ class TestOrganization:
         result = invoke(["agentic", "outreach", "organization", "stop", "--yes"])
 
         assert result.exit_code == 4
+
+
+class TestJsonOutput:
+    """Each command that answers a row prints it unchanged under --json."""
+
+    def test_update_prints_json(self, invoke, mock_api):
+        mock_api.patch(f"{BASE}/campaigns/{CAMPAIGN_ID}").respond(200, json=CAMPAIGN)
+
+        result = invoke(
+            ["agentic", "outreach", "campaigns", "update", CAMPAIGN_ID, "--name", "X", "--json"]
+        )
+
+        assert json.loads(result.output) == CAMPAIGN
+
+    def test_enroll_prints_json(self, invoke, mock_api):
+        mock_api.post(f"{BASE}/campaigns/{CAMPAIGN_ID}/enrollments").respond(201, json=ENROLLMENT)
+
+        result = invoke(
+            [
+                "agentic",
+                "outreach",
+                "campaigns",
+                "enroll",
+                CAMPAIGN_ID,
+                "--person-kind",
+                "crm.person",
+                "--person-id",
+                PERSON_ID,
+                "--json",
+            ]
+        )
+
+        assert json.loads(result.output) == ENROLLMENT
+
+    def test_enrollments_get_prints_json(self, invoke, mock_api):
+        mock_api.get(f"{BASE}/enrollments/{ENROLLMENT_ID}").respond(200, json=ENROLLMENT)
+
+        result = invoke(["agentic", "outreach", "enrollments", "get", ENROLLMENT_ID, "--json"])
+
+        assert json.loads(result.output) == ENROLLMENT
+
+    def test_evaluate_prints_json(self, invoke, mock_api):
+        answer = {"enrollment": ENROLLMENT, "event_id": f"manual:{ENROLLMENT_ID}:r1"}
+        mock_api.post(f"{BASE}/enrollments/{ENROLLMENT_ID}/evaluate").respond(200, json=answer)
+
+        result = invoke(["agentic", "outreach", "enrollments", "evaluate", ENROLLMENT_ID, "--json"])
+
+        assert json.loads(result.output) == answer
+
+    def test_organization_stop_and_resume_print_json(self, invoke, mock_api):
+        resumed = {"stopped": False, "stopped_at": None}
+        mock_api.post(f"{BASE}/organization/stop").respond(200, json=STOP)
+        mock_api.post(f"{BASE}/organization/resume").respond(200, json=resumed)
+
+        stopped = invoke(["agentic", "outreach", "organization", "stop", "--yes", "--json"])
+        cleared = invoke(["agentic", "outreach", "organization", "resume", "--json"])
+
+        assert json.loads(stopped.output) == STOP
+        assert json.loads(cleared.output) == resumed
+
+    def test_a_409_under_json_carries_the_code(self, invoke, mock_api):
+        mock_api.post(f"{BASE}/enrollments/{ENROLLMENT_ID}/evaluate").respond(
+            409,
+            json={
+                "error": "Conflict",
+                "message": "The enrollment waits for an email review.",
+                "type": "conflict",
+                "context": {"code": "awaiting_approval"},
+                "code": "awaiting_approval",
+            },
+        )
+
+        result = invoke(["agentic", "outreach", "enrollments", "evaluate", ENROLLMENT_ID, "--json"])
+
+        body = json.loads(result.output)
+        assert result.exit_code == 5
+        assert (body["error"], body["status_code"]) == (True, 409)
