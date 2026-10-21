@@ -481,3 +481,104 @@ class TestJsonOutput:
         body = json.loads(result.output)
         assert result.exit_code == 5
         assert (body["error"], body["status_code"]) == (True, 409)
+
+
+TIMELINE = {
+    "enrollment_id": ENROLLMENT_ID,
+    "campaign_id": CAMPAIGN_ID,
+    "campaign_name": "Q4 intro",
+    "items": [
+        {
+            "kind": "decision",
+            "at": "2026-10-22T09:00:00Z",
+            "id": "44444444-4444-4444-8444-444444444444",
+            "action_type": "send_email",
+            "outcome": "proposed",
+            "reason": "Jane asked for a call.",
+            "reviewer_note": None,
+            "failure_code": None,
+            "subject": "A time for the call",
+            "direction": None,
+            "status": None,
+            "activity_type": None,
+            "title": None,
+            "ended_reason": None,
+        },
+        {
+            "kind": "email",
+            "at": "2026-10-21T15:00:00Z",
+            "id": "55555555-5555-4555-8555-555555555555",
+            "action_type": None,
+            "outcome": None,
+            "reason": None,
+            "reviewer_note": None,
+            "failure_code": None,
+            "subject": "Re: Hello Jane",
+            "direction": "inbound",
+            "status": "received",
+            "activity_type": None,
+            "title": None,
+            "ended_reason": None,
+        },
+        {
+            "kind": "enrolled",
+            "at": "2026-10-21T10:00:00Z",
+            "id": None,
+            "action_type": None,
+            "outcome": None,
+            "reason": None,
+            "reviewer_note": None,
+            "failure_code": None,
+            "subject": None,
+            "direction": None,
+            "status": None,
+            "activity_type": None,
+            "title": None,
+            "ended_reason": None,
+        },
+    ],
+}
+
+
+class TestEnrollmentTimeline:
+    def test_timeline_sends_the_limit_and_prints_each_fact(self, invoke, mock_api):
+        route = mock_api.get(f"{BASE}/enrollments/{ENROLLMENT_ID}/timeline").respond(
+            200, json=TIMELINE
+        )
+
+        result = invoke(
+            ["agentic", "outreach", "enrollments", "timeline", ENROLLMENT_ID, "--limit", "5"]
+        )
+
+        assert result.exit_code == 0, result.output
+        assert route.calls[0].request.url.params["limit"] == "5"
+        assert "Q4 intro" in result.output
+        assert "proposed" in result.output
+        assert "Re: Hello Jane" in result.output
+        assert "enrolled" in result.output
+
+    def test_timeline_prints_json(self, invoke, mock_api):
+        mock_api.get(f"{BASE}/enrollments/{ENROLLMENT_ID}/timeline").respond(200, json=TIMELINE)
+
+        result = invoke(["agentic", "outreach", "enrollments", "timeline", ENROLLMENT_ID, "--json"])
+
+        assert json.loads(result.output) == TIMELINE
+
+    def test_timeline_refuses_a_bad_limit_without_a_call(self, invoke, mock_api):
+        route = mock_api.get(f"{BASE}/enrollments/{ENROLLMENT_ID}/timeline")
+
+        result = invoke(
+            ["agentic", "outreach", "enrollments", "timeline", ENROLLMENT_ID, "--limit", "101"]
+        )
+
+        assert result.exit_code == 2
+        assert not route.called
+
+    def test_timeline_of_an_unknown_enrollment_gets_the_404_exit_code(self, invoke, mock_api):
+        mock_api.get(f"{BASE}/enrollments/{ENROLLMENT_ID}/timeline").respond(
+            404, json={"detail": "Outreach enrollment not found"}
+        )
+
+        result = invoke(["agentic", "outreach", "enrollments", "timeline", ENROLLMENT_ID])
+
+        assert result.exit_code == 3
