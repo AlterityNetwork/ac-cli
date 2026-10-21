@@ -198,7 +198,7 @@ def test_save_after_the_approval_exits_5(invoke, mock_api):
 
 def test_approve_sends_the_version_and_the_hash(invoke, mock_api):
     route = mock_api.post(f"{BASE}/{DECISION_ID}/approve").respond(
-        200, json={**REVIEW, "outcome": "approved", "locked": True}
+        200, json={**REVIEW, "outcome": "approved", "locked": True, "reviewable": False}
     )
 
     result = invoke(
@@ -218,6 +218,7 @@ def test_approve_sends_the_version_and_the_hash(invoke, mock_api):
     assert result.exit_code == 0, result.output
     assert json.loads(route.calls[0].request.content) == {"version": 3, "content_hash": HASH}
     assert "approved" in result.output
+    assert "Approve:" not in result.output
 
 
 def test_approve_refuses_a_malformed_hash_before_the_request(invoke, mock_api):

@@ -69,7 +69,7 @@ def _print_review(data: dict) -> None:
         rprint("[bold]Subject:[/bold]", as_text(draft.get("subject") or ""))
         rprint("[bold]Body:[/bold]")
         rprint(as_text(draft.get("body") or ""))
-    if data.get("reviewable"):
+    if data.get("reviewable") and not data.get("locked"):
         rprint(
             "[dim]Approve:[/dim]",
             as_text(
