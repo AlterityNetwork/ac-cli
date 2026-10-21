@@ -117,7 +117,6 @@ Every new command needs tests for: happy path, `--json` flag, error codes, and `
 The following API domains are intentionally not covered by the CLI:
 
 - `/test` — dev-only email simulation endpoints
-- `/eval/*` — internal eval dashboard endpoints
 - `/admin/demo/*-stream`, `/organizations/scrape-website-stream`,
   `/envoy/sequences/{id}/step-stats/stream`,
   `/workflows/{id}/runs/{id}/events`, `/resources/{id}/stream` — SSE streaming
