@@ -582,3 +582,13 @@ class TestEnrollmentTimeline:
         result = invoke(["agentic", "outreach", "enrollments", "timeline", ENROLLMENT_ID])
 
         assert result.exit_code == 3
+
+    def test_timeline_without_a_campaign_name_prints_no_none(self, invoke, mock_api):
+        mock_api.get(f"{BASE}/enrollments/{ENROLLMENT_ID}/timeline").respond(
+            200, json={**TIMELINE, "campaign_name": None}
+        )
+
+        result = invoke(["agentic", "outreach", "enrollments", "timeline", ENROLLMENT_ID])
+
+        assert result.exit_code == 0, result.output
+        assert "None" not in result.output

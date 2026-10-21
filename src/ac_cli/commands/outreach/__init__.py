@@ -596,7 +596,9 @@ def enrollments_timeline(
         print_json(data)
         return
     rows = [{**item, "what": _timeline_text(item)} for item in data.get("items", [])]
-    print_table(rows, _TIMELINE_FIELDS, title=f"Outreach timeline: {data.get('campaign_name')}")
+    print_table(
+        rows, _TIMELINE_FIELDS, title=f"Outreach timeline: {data.get('campaign_name') or ''}"
+    )
 
 
 @enrollments_app.command("evaluate")
