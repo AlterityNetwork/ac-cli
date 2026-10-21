@@ -54,6 +54,7 @@ PATH_CONSTANTS: dict[str, str] = {
     "_NYLAS": "/api/v1/nylas",
     "_ONBOARDING": "/api/v1/admin/onboarding",
     "_ONBOARD": "/api/v1/managed-onboarding",
+    "_OUTREACH": "/api/v1/agentic/outreach",
     "_PROFILES": "/api/v1/profiles",
     "_PROSPECTS": "/api/v1/agentic/prospects",
     "_SAVED_SEARCHES": "/api/v1/agentic/saved-searches",
