@@ -13,12 +13,30 @@ ITEM = {
     "decision_id": DECISION_ID,
     "enrollment_id": ENROLLMENT_ID,
     "campaign_id": CAMPAIGN_ID,
+    "campaign_name": "Q4 intro",
+    "campaign_status": "active",
+    "person_kind": "crm.person",
+    "person_id": "77777777-7777-4777-8777-777777777777",
+    "person_name": "Jane Doe",
     "enrollment_state": "awaiting_approval",
     "outcome": "proposed",
     "subject": "The deck",
     "to_emails": ["jane@acme.example"],
     "created_at": "2026-10-21T10:00:00Z",
+    "expires_at": "2026-10-28T10:00:00Z",
 }
+
+
+def _page(*items, total=None, offset=0, has_more=False):
+    return {
+        "data": list(items),
+        "total": len(items) if total is None else total,
+        "limit": 50,
+        "offset": offset,
+        "has_more": has_more,
+    }
+
+
 REVIEW = {
     "decision_id": DECISION_ID,
     "enrollment_id": ENROLLMENT_ID,
@@ -58,29 +76,81 @@ CONFLICT = {
 
 
 def test_list_sends_the_filters_and_prints_the_drafts(invoke, mock_api):
-    route = mock_api.get(BASE).respond(200, json={"items": [ITEM]})
+    route = mock_api.get(BASE).respond(200, json=_page(ITEM, total=11, offset=10))
 
     result = invoke(
-        ["agentic", "outreach", "drafts", "list", "--campaign-id", CAMPAIGN_ID, "--limit", "5"]
+        [
+            "agentic",
+            "outreach",
+            "drafts",
+            "list",
+            "--campaign-id",
+            CAMPAIGN_ID,
+            "--limit",
+            "5",
+            "--offset",
+            "10",
+        ]
     )
 
     assert result.exit_code == 0, result.output
     params = route.calls[0].request.url.params
     assert params["campaign_id"] == CAMPAIGN_ID
     assert params["limit"] == "5"
-    assert "The deck" in result.output
+    assert params["offset"] == "10"
+    for shown in ("The deck", "Jane Doe", "Q4 intro", "2026-10-28"):
+        assert shown in result.output
+
+
+def test_list_names_the_page_and_the_next_offset(invoke, mock_api):
+    mock_api.get(BASE).respond(200, json=_page(ITEM, total=3, has_more=True))
+
+    result = invoke(["agentic", "outreach", "drafts", "list", "--limit", "1"])
+
+    assert result.exit_code == 0, result.output
+    assert "1-1 of 3" in result.output
+    assert "--offset 1" in result.output
+
+
+def test_list_names_the_address_when_the_person_is_gone(invoke, mock_api):
+    gone = {**ITEM, "person_name": None, "to_emails": ["ann@x.io"]}
+    mock_api.get(BASE).respond(200, json=_page(gone))
+
+    result = invoke(["agentic", "outreach", "drafts", "list"])
+
+    assert result.exit_code == 0, result.output
+    assert "ann@x.io" in result.output
+
+
+def test_list_of_an_empty_queue_names_the_total(invoke, mock_api):
+    mock_api.get(BASE).respond(200, json=_page(total=4, offset=10))
+
+    result = invoke(["agentic", "outreach", "drafts", "list", "--offset", "10"])
+
+    assert result.exit_code == 0, result.output
+    assert "0 of 4" in result.output
+    assert "--offset" not in result.output
 
 
 def test_list_json_keeps_the_page(invoke, mock_api):
-    mock_api.get(BASE).respond(200, json={"items": [ITEM]})
+    mock_api.get(BASE).respond(200, json=_page(ITEM))
 
     result = invoke(["agentic", "outreach", "drafts", "list", "--json"])
 
-    assert json.loads(result.output) == {"items": [ITEM]}
+    assert json.loads(result.output) == _page(ITEM)
+
+
+def test_list_refuses_a_negative_offset(invoke, mock_api):
+    route = mock_api.get(BASE).respond(200, json=_page())
+
+    result = invoke(["agentic", "outreach", "drafts", "list", "--offset", "-1", "--json"])
+
+    assert result.exit_code == 2
+    assert not route.called
 
 
 def test_list_refuses_a_limit_the_api_refuses(invoke, mock_api):
-    route = mock_api.get(BASE).respond(200, json={"items": []})
+    route = mock_api.get(BASE).respond(200, json=_page())
 
     result = invoke(["agentic", "outreach", "drafts", "list", "--limit", "0", "--json"])
 
