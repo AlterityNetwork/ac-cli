@@ -112,9 +112,11 @@ def test_grants_create_validation_error(invoke, mock_api):
             "chat",
             "--source",
             "trial",
+            "--json",
         ]
     )
     assert result.exit_code == 2
+    assert json.loads(result.output)["error"] is True
 
 
 def test_grants_delete_with_yes(invoke, mock_api):
@@ -134,8 +136,11 @@ def test_grants_delete_aborted(invoke, mock_api):
 
 def test_grants_delete_not_found(invoke, mock_api):
     mock_api.delete(f"{BASE}/missing").respond(404, json={"detail": "Entitlement grant not found"})
-    result = invoke(["admin", "entitlement-grants", "delete", "missing", "--org-id", ORG, "--yes"])
+    result = invoke(
+        ["admin", "entitlement-grants", "delete", "missing", "--org-id", ORG, "--yes", "--json"]
+    )
     assert result.exit_code == 3
+    assert json.loads(result.output)["error"] is True
 
 
 EMPTY_LIST = {
