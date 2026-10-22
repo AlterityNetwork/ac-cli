@@ -745,3 +745,97 @@ def test_comms_regenerate(invoke, mock_api):
     assert result.exit_code == 0
     parsed = json.loads(result.output)
     assert parsed["status"] == "queued"
+
+
+SCHEDULED = {
+    "id": "c1",
+    "status": "scheduled",
+    "subject": "Monday note",
+    "send_scheduled_at": "2030-01-07T09:00:00+00:00",
+}
+
+
+def test_comms_schedule(invoke, mock_api):
+    route = mock_api.post("/api/v1/crm/communications/c1/schedule").respond(200, json=SCHEDULED)
+    result = invoke(["crm", "comms", "schedule", "c1", "--at", "2030-01-07T10:00:00+01:00"])
+    assert result.exit_code == 0, result.output
+    body = json.loads(route.calls.last.request.content)
+    assert body == {"send_at": "2030-01-07T10:00:00+01:00"}
+    assert "Scheduled" in result.output
+    assert "2030-01-07T09:00:00+00:00" in result.output
+
+
+def test_comms_schedule_json(invoke, mock_api):
+    mock_api.post("/api/v1/crm/communications/c1/schedule").respond(200, json=SCHEDULED)
+    result = invoke(["crm", "comms", "schedule", "c1", "--at", "2030-01-07T09:00:00Z", "--json"])
+    assert result.exit_code == 0
+    assert json.loads(result.output)["status"] == "scheduled"
+
+
+def test_comms_schedule_rejects_naive_time(invoke, mock_api):
+    route = mock_api.post("/api/v1/crm/communications/c1/schedule").respond(200, json={})
+    result = invoke(["crm", "comms", "schedule", "c1", "--at", "2030-01-07T09:00:00"])
+    assert result.exit_code != 0
+    assert "offset" in result.output
+    assert not route.called
+
+
+def test_comms_schedule_conflict_exits_nonzero(invoke, mock_api):
+    mock_api.post("/api/v1/crm/communications/c1/schedule").respond(
+        409, json={"detail": "The send of this email started."}
+    )
+    result = invoke(["crm", "comms", "schedule", "c1", "--at", "2030-01-07T09:00:00Z"])
+    assert result.exit_code != 0
+    assert "started" in result.output
+
+
+def test_comms_unschedule(invoke, mock_api):
+    mock_api.post("/api/v1/crm/communications/c1/unschedule").respond(
+        200, json={"id": "c1", "status": "draft"}
+    )
+    result = invoke(["crm", "comms", "unschedule", "c1"])
+    assert result.exit_code == 0
+    assert "Drafts" in result.output
+
+
+def test_comms_send_now(invoke, mock_api):
+    mock_api.post("/api/v1/crm/communications/c1/send-now").respond(
+        200, json={"id": "c1", "status": "sent"}
+    )
+    result = invoke(["crm", "comms", "send-now", "c1", "--json"])
+    assert result.exit_code == 0
+    assert json.loads(result.output)["status"] == "sent"
+
+
+def test_comms_unschedule_json(invoke, mock_api):
+    mock_api.post("/api/v1/crm/communications/c1/unschedule").respond(
+        200, json={"id": "c1", "status": "draft"}
+    )
+    result = invoke(["crm", "comms", "unschedule", "c1", "--json"])
+    assert result.exit_code == 0
+    assert json.loads(result.output)["status"] == "draft"
+
+
+def test_comms_send_now_plain(invoke, mock_api):
+    mock_api.post("/api/v1/crm/communications/c1/send-now").respond(
+        200, json={"id": "c1", "status": "sent"}
+    )
+    result = invoke(["crm", "comms", "send-now", "c1"])
+    assert result.exit_code == 0
+    assert "Sent communication c1" in result.output
+    assert "status=sent" in result.output
+
+
+def test_comms_list_folder_scheduled(invoke, mock_api):
+    route = mock_api.get("/api/v1/crm/communications").respond(
+        200,
+        json={"data": [SCHEDULED], "total": 1, "limit": 20, "offset": 0, "has_more": False},
+    )
+    result = invoke(["crm", "comms", "list", "--folder", "scheduled"])
+    assert result.exit_code == 0
+    assert "folder=scheduled" in str(route.calls.last.request.url)
+
+
+def test_comms_list_rejects_unknown_folder(invoke, mock_api):
+    result = invoke(["crm", "comms", "list", "--folder", "later"])
+    assert result.exit_code != 0
