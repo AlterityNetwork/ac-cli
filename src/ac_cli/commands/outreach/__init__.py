@@ -2,10 +2,10 @@
 
 `ac agentic outreach campaigns` creates, edits, activates, pauses, resumes and
 archives a campaign, and enrolls one person. `ac agentic outreach enrollments`
-reads one enrollment, asks for a Run now (`evaluate`: re-evaluate, retry, or
-retry after an added email) and ends it (`exit`). `ac agentic outreach
-organization` reads, stops and resumes Outreach for the whole organization.
-Only an organization admin stops or resumes.
+reads one enrollment and its timeline, asks for a Run now (`evaluate`:
+re-evaluate, retry, or retry after an added email) and ends it (`exit`).
+`ac agentic outreach organization` reads, stops and resumes Outreach for the
+whole organization. Only an organization admin stops or resumes.
 
 `ac agentic outreach drafts` reads the emails an Outreach Run drafted and that
 wait for a person, then saves, approves or rejects one. The draft is named by
@@ -552,6 +552,53 @@ def enrollments_get(
         print_json(data)
         return
     print_detail(data, _ENROLLMENT_FIELDS)
+
+
+_TIMELINE_FIELDS = [
+    ("at", "When"),
+    ("kind", "Kind"),
+    ("what", "What"),
+]
+
+
+def _timeline_text(item: dict) -> str:
+    """Answers one line that says what a timeline item holds."""
+    kind = item.get("kind")
+    if kind == "decision":
+        parts = [item.get("action_type"), item.get("outcome"), item.get("subject")]
+    elif kind == "email":
+        parts = [item.get("direction"), item.get("status"), item.get("subject")]
+    elif kind == "activity":
+        parts = [item.get("activity_type"), item.get("status"), item.get("title")]
+    elif kind == "ended":
+        parts = [item.get("ended_reason")]
+    else:
+        parts = []
+    return " · ".join(str(part) for part in parts if part)
+
+
+@enrollments_app.command("timeline")
+def enrollments_timeline(
+    enrollment_id: str = typer.Argument(..., help="Enrollment ID"),
+    limit: int = typer.Option(
+        _PAGE_DEFAULT, "--limit", help="Most decisions, emails and activities, each, 1 to 100"
+    ),
+    json_output: bool = JSON_OPTION,
+) -> None:
+    """Read what happened to one enrollment, newest first."""
+    set_json_mode(json_output)
+    if not _PAGE_MIN <= limit <= _PAGE_MAX:
+        refuse_local(f"--limit is not between {_PAGE_MIN} and {_PAGE_MAX}", limit)
+    data = _api_request(
+        "get", f"{_OUTREACH}/enrollments/{enrollment_id}/timeline", params={"limit": limit}
+    ).json()
+    if json_output:
+        print_json(data)
+        return
+    rows = [{**item, "what": _timeline_text(item)} for item in data.get("items", [])]
+    print_table(
+        rows, _TIMELINE_FIELDS, title=f"Outreach timeline: {data.get('campaign_name') or ''}"
+    )
 
 
 @enrollments_app.command("evaluate")
