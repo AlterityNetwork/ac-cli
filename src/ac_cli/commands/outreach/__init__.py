@@ -51,11 +51,11 @@ _HASH = re.compile(r"^[0-9a-f]{64}$")
 
 _LIST_FIELDS = [
     ("decision_id", "Draft ID"),
+    ("person_name", "Person"),
     ("subject", "Subject"),
-    ("to_emails", "To"),
     ("outcome", "Outcome"),
-    ("campaign_id", "Campaign"),
-    ("created_at", "Created"),
+    ("campaign_name", "Campaign"),
+    ("expires_at", "Expires"),
 ]
 _DETAIL_FIELDS = [
     ("decision_id", "Draft ID"),
@@ -96,24 +96,28 @@ def _print_review(data: dict) -> None:
 def drafts_list(
     campaign_id: str | None = typer.Option(None, "--campaign-id", help="Only this campaign"),
     limit: int = typer.Option(_PAGE_DEFAULT, "--limit", help="How many drafts, 1 to 100"),
+    offset: int = typer.Option(0, "--offset", help="How many drafts to skip first"),
     json_output: bool = JSON_OPTION,
 ) -> None:
-    """List the email drafts that wait for review, newest first."""
+    """List the email drafts that wait for review, newest first, with each person and campaign."""
     set_json_mode(json_output)
     if not _PAGE_MIN <= limit <= _PAGE_MAX:
         refuse_local(f"--limit is not between {_PAGE_MIN} and {_PAGE_MAX}", limit)
-    params: dict[str, object] = {"limit": limit}
+    if offset < 0:
+        refuse_local("--offset may not be negative", offset)
+    params: dict[str, object] = {"limit": limit, "offset": offset}
     if campaign_id is not None:
         params["campaign_id"] = campaign_id
     data = _api_request("get", f"{_OUTREACH}/drafts", params=params).json()
     if json_output:
         print_json(data)
         return
-    rows = [
-        {**item, "to_emails": ", ".join(item.get("to_emails") or [])}
-        for item in data.get("items", [])
-    ]
-    print_table(rows, _LIST_FIELDS, title="Outreach drafts")
+    rows = data.get("data", [])
+    total = data.get("total", len(rows))
+    shown = f"{offset + 1}-{offset + len(rows)} of {total}" if rows else f"0 of {total}"
+    print_table(rows, _LIST_FIELDS, title=f"Outreach drafts {shown}")
+    if data.get("has_more"):
+        rprint(styled("[dim]More drafts wait: --offset {}[/dim]", offset + len(rows)))
 
 
 @drafts_app.command("get")
