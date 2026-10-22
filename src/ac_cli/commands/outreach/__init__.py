@@ -1,8 +1,11 @@
 """Commands for Outreach: campaigns, enrollments, the stop and the draft review.
 
 `ac agentic outreach campaigns` creates, edits, activates, pauses, resumes and
-archives a campaign, and enrolls one person. `ac agentic outreach enrollments`
-reads one enrollment and its timeline, asks for a Run now (`evaluate`:
+archives a campaign, and enrolls one person. `list` and `get` print the count
+of live enrollments against the cap and the count per state.
+`ac agentic outreach enrollments` lists the enrollments of a campaign (each row
+names the person, the email and the last decision; `--search` matches the
+name), reads one enrollment and its timeline, asks for a Run now (`evaluate`:
 re-evaluate, retry, or retry after an added email) and ends it (`exit`).
 `ac agentic outreach organization` reads, stops and resumes Outreach for the
 whole organization. Only an organization admin stops or resumes.
@@ -220,6 +223,8 @@ _STATES = ("active", "awaiting_approval", "needs_contact_data", "ended")
 _PERSON_KINDS = ("crm.person", "prospect.person")
 _ENROLLMENT_PAGE_DEFAULT = 100
 _ENROLLMENT_PAGE_MAX = 200
+_SEARCH_MAX = 100
+_ORDERS = ("desc", "asc")
 # The word that clears a link on update.
 _CLEAR = "none"
 
@@ -227,8 +232,10 @@ _CAMPAIGN_LIST_FIELDS = [
     ("id", "Campaign ID"),
     ("name", "Name"),
     ("status", "Status"),
-    ("max_emails", "Max emails"),
-    ("min_days_between_emails", "Min days"),
+    ("people", "People"),
+    ("awaiting", "Awaiting"),
+    ("needs_email", "Needs email"),
+    ("ended", "Ended"),
     ("created_at", "Created"),
 ]
 _CAMPAIGN_FIELDS = [
@@ -245,12 +252,21 @@ _CAMPAIGN_FIELDS = [
     ("created_by", "Owner"),
     ("updated_at", "Updated"),
 ]
+# A write answers no counts, so only the read prints these lines.
+_CAMPAIGN_READ_FIELDS = [
+    *_CAMPAIGN_FIELDS,
+    ("people", "People"),
+    ("active", "Active"),
+    ("awaiting", "Awaiting"),
+    ("needs_email", "Needs email"),
+    ("ended", "Ended"),
+]
 _ENROLLMENT_LIST_FIELDS = [
     ("id", "Enrollment ID"),
-    ("person_kind", "Kind"),
-    ("person_id", "Person"),
+    ("person_name", "Name"),
+    ("email", "Email"),
     ("state", "State"),
-    ("ended_reason", "Ended"),
+    ("last_action", "Last decision"),
     ("next_due_at", "Next look"),
 ]
 _ENROLLMENT_FIELDS = [
@@ -267,6 +283,30 @@ _ENROLLMENT_FIELDS = [
     ("ended_at", "Ended at"),
 ]
 _STOP_FIELDS = [("stopped", "Stopped"), ("stopped_at", "Since")]
+
+
+def _with_counts(campaign: dict) -> dict:
+    """Adds the enrollment count cells to one campaign row."""
+    counts = campaign.get("enrollment_counts")
+    if not isinstance(counts, dict):
+        return campaign
+    return {
+        **campaign,
+        "people": f"{counts.get('live', 0)}/{counts.get('cap', 0)}",
+        "active": counts.get("active"),
+        "awaiting": counts.get("awaiting_approval"),
+        "needs_email": counts.get("needs_contact_data"),
+        "ended": counts.get("ended"),
+    }
+
+
+def _with_last_action(row: dict) -> dict:
+    """Adds one cell that names the last decision of an enrollment row."""
+    last = row.get("last_decision")
+    if not isinstance(last, dict):
+        return row
+    parts = [last.get("action_type"), last.get("outcome")]
+    return {**row, "last_action": " · ".join(str(part) for part in parts if part)}
 
 
 def _campaign_body(
@@ -342,7 +382,8 @@ def campaigns_list(
     if json_output:
         print_json(data)
         return
-    print_table(data.get("items", []), _CAMPAIGN_LIST_FIELDS, title="Outreach campaigns")
+    rows = [_with_counts(item) for item in data.get("items", [])]
+    print_table(rows, _CAMPAIGN_LIST_FIELDS, title="Outreach campaigns")
 
 
 @campaigns_app.command("get")
@@ -350,13 +391,13 @@ def campaigns_get(
     campaign_id: str = typer.Argument(..., help="Campaign ID"),
     json_output: bool = JSON_OPTION,
 ) -> None:
-    """Read one campaign."""
+    """Read one campaign and the count of its enrollments per state."""
     set_json_mode(json_output)
     data = _api_request("get", f"{_OUTREACH}/campaigns/{campaign_id}").json()
     if json_output:
         print_json(data)
         return
-    print_detail(data, _CAMPAIGN_FIELDS)
+    print_detail(_with_counts(data), _CAMPAIGN_READ_FIELDS)
 
 
 @campaigns_app.command("create")
@@ -517,27 +558,42 @@ def enrollments_list(
     state: str | None = typer.Option(
         None, "--state", help="active, awaiting_approval, needs_contact_data or ended"
     ),
+    search: str | None = typer.Option(
+        None, "--search", help="Only the people whose name holds this text, in any case"
+    ),
     limit: int = typer.Option(
         _ENROLLMENT_PAGE_DEFAULT, "--limit", help="How many enrollments, 1 to 200"
     ),
+    offset: int = typer.Option(0, "--offset", help="How many enrollments to skip first"),
     json_output: bool = JSON_OPTION,
 ) -> None:
-    """List the enrollments of one campaign, newest first."""
+    """List the enrollments of one campaign, newest first, with each person and last decision."""
     set_json_mode(json_output)
     if state is not None and state not in _STATES:
         refuse_local(f"--state must be one of: {', '.join(_STATES)}", state)
     if not _PAGE_MIN <= limit <= _ENROLLMENT_PAGE_MAX:
         refuse_local(f"--limit is not between {_PAGE_MIN} and {_ENROLLMENT_PAGE_MAX}", limit)
-    params: dict[str, object] = {"limit": limit}
+    if offset < 0:
+        refuse_local("--offset may not be negative", offset)
+    if search is not None and len(search) > _SEARCH_MAX:
+        refuse_local(f"--search is longer than {_SEARCH_MAX} characters", len(search))
+    params: dict[str, object] = {"limit": limit, "offset": offset}
     if state is not None:
         params["state"] = state
+    if search is not None:
+        params["search"] = search
     data = _api_request(
         "get", f"{_OUTREACH}/campaigns/{campaign_id}/enrollments", params=params
     ).json()
     if json_output:
         print_json(data)
         return
-    print_table(data.get("items", []), _ENROLLMENT_LIST_FIELDS, title="Outreach enrollments")
+    rows = [_with_last_action(row) for row in data.get("data", [])]
+    total = data.get("total", len(rows))
+    shown = f"{offset + 1}-{offset + len(rows)} of {total}" if rows else f"0 of {total}"
+    print_table(rows, _ENROLLMENT_LIST_FIELDS, title=f"Outreach enrollments {shown}")
+    if data.get("has_more"):
+        rprint(styled("[dim]More rows wait: --offset {}[/dim]", offset + len(rows)))
 
 
 @enrollments_app.command("get")
@@ -583,21 +639,29 @@ def enrollments_timeline(
     limit: int = typer.Option(
         _PAGE_DEFAULT, "--limit", help="Most decisions, emails and activities, each, 1 to 100"
     ),
+    order: str = typer.Option("desc", "--order", help="desc: newest first. asc: oldest first"),
     json_output: bool = JSON_OPTION,
 ) -> None:
-    """Read what happened to one enrollment, newest first."""
+    """Read what happened to one enrollment, newest first unless --order asc."""
     set_json_mode(json_output)
     if not _PAGE_MIN <= limit <= _PAGE_MAX:
         refuse_local(f"--limit is not between {_PAGE_MIN} and {_PAGE_MAX}", limit)
+    if order not in _ORDERS:
+        refuse_local(f"--order must be one of: {', '.join(_ORDERS)}", order)
     data = _api_request(
-        "get", f"{_OUTREACH}/enrollments/{enrollment_id}/timeline", params={"limit": limit}
+        "get",
+        f"{_OUTREACH}/enrollments/{enrollment_id}/timeline",
+        params={"limit": limit, "order": order},
     ).json()
     if json_output:
         print_json(data)
         return
     rows = [{**item, "what": _timeline_text(item)} for item in data.get("items", [])]
+    sequence = "oldest first" if order == "asc" else "newest first"
     print_table(
-        rows, _TIMELINE_FIELDS, title=f"Outreach timeline: {data.get('campaign_name') or ''}"
+        rows,
+        _TIMELINE_FIELDS,
+        title=f"Outreach timeline: {data.get('campaign_name') or ''} ({sequence})",
     )
 
 
