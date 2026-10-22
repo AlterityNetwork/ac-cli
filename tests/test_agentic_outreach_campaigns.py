@@ -38,6 +38,27 @@ ENROLLMENT = {
     "updated_at": "2026-10-21T10:00:00Z",
 }
 STOP = {"stopped": True, "stopped_at": "2026-10-21T10:00:00Z"}
+COUNTS = {
+    "active": 125,
+    "awaiting_approval": 12,
+    "needs_contact_data": 3,
+    "ended": 41,
+    "live": 140,
+    "cap": 200,
+}
+ROW = {
+    **ENROLLMENT,
+    "person_name": "Jane Doe",
+    "email": "jane@acme.test",
+    "last_decision": {
+        "id": "66666666-6666-4666-8666-666666666666",
+        "action_type": "send_email",
+        "outcome": "proposed",
+        "executed_at": None,
+        "created_at": "2026-10-21T11:00:00Z",
+    },
+}
+PAGE = {"data": [ROW], "total": 3, "limit": 1, "offset": 1, "has_more": True}
 
 
 def _body(route) -> dict:
@@ -56,6 +77,38 @@ class TestCampaigns:
         params = route.calls[0].request.url.params
         assert (params["status"], params["limit"]) == ("draft", "5")
         assert "Q4 intro" in result.output
+
+    def test_list_and_get_print_the_enrollment_counts(self, invoke, mock_api):
+        counted = {**CAMPAIGN, "enrollment_counts": COUNTS}
+        mock_api.get(f"{BASE}/campaigns").respond(200, json={"items": [counted]})
+        mock_api.get(f"{BASE}/campaigns/{CAMPAIGN_ID}").respond(200, json=counted)
+
+        listed = invoke(["agentic", "outreach", "campaigns", "list"])
+        read = invoke(["agentic", "outreach", "campaigns", "get", CAMPAIGN_ID])
+
+        assert listed.exit_code == 0, listed.output
+        assert read.exit_code == 0, read.output
+        for output in (listed.output, read.output):
+            for text in ("140/200", "12", "41"):
+                assert text in output
+        assert "Needs email" in read.output
+
+    def test_create_prints_no_count_lines(self, invoke, mock_api):
+        mock_api.post(f"{BASE}/campaigns").respond(201, json=CAMPAIGN)
+
+        result = invoke(["agentic", "outreach", "campaigns", "create", "--name", "Q4 intro"])
+
+        assert result.exit_code == 0, result.output
+        assert "Needs email" not in result.output
+        assert "People" not in result.output
+
+    def test_a_campaign_without_counts_prints_no_none(self, invoke, mock_api):
+        mock_api.get(f"{BASE}/campaigns").respond(200, json={"items": [CAMPAIGN]})
+
+        result = invoke(["agentic", "outreach", "campaigns", "list"])
+
+        assert result.exit_code == 0, result.output
+        assert "None" not in result.output
 
     def test_list_refuses_a_bad_status_without_a_call(self, invoke, mock_api):
         route = mock_api.get(f"{BASE}/campaigns").respond(200, json={"items": []})
@@ -258,10 +311,8 @@ class TestCampaigns:
 
 
 class TestEnrollments:
-    def test_list_reads_one_campaign(self, invoke, mock_api):
-        route = mock_api.get(f"{BASE}/campaigns/{CAMPAIGN_ID}/enrollments").respond(
-            200, json={"items": [ENROLLMENT]}
-        )
+    def test_list_reads_one_campaign(self, invoke, mock_api, table_column):
+        route = mock_api.get(f"{BASE}/campaigns/{CAMPAIGN_ID}/enrollments").respond(200, json=PAGE)
 
         result = invoke(
             [
@@ -273,27 +324,68 @@ class TestEnrollments:
                 CAMPAIGN_ID,
                 "--state",
                 "active",
+                "--search",
+                "jane",
+                "--limit",
+                "1",
+                "--offset",
+                "1",
             ]
         )
 
         assert result.exit_code == 0, result.output
-        assert route.calls[0].request.url.params["state"] == "active"
-        assert "Outreach enrollments" in result.output
+        params = route.calls[0].request.url.params
+        assert (params["state"], params["search"], params["limit"], params["offset"]) == (
+            "active",
+            "jane",
+            "1",
+            "1",
+        )
+        assert "Outreach enrollments 2-2 of 3" in result.output
+        assert table_column(result.output, 1) == "Jane Doe"
+        assert table_column(result.output, 2) == "jane@acme.test"
+        # The fold drops the space at the end of a line part.
+        assert table_column(result.output, 4).replace(" ", "") == "send_email·proposed"
+        assert "--offset 2" in result.output
+
+    def test_list_without_a_search_sends_no_search(self, invoke, mock_api):
+        route = mock_api.get(f"{BASE}/campaigns/{CAMPAIGN_ID}/enrollments").respond(
+            200, json={"data": [], "total": 0, "limit": 100, "offset": 0, "has_more": False}
+        )
+
+        result = invoke(
+            ["agentic", "outreach", "enrollments", "list", "--campaign-id", CAMPAIGN_ID]
+        )
+
+        assert result.exit_code == 0, result.output
+        params = route.calls[0].request.url.params
+        assert "search" not in params
+        assert params["offset"] == "0"
+        assert "0 of 0" in result.output
+        assert "--offset" not in result.output
+
+    def test_list_refuses_a_bad_offset_or_search_without_a_call(self, invoke, mock_api):
+        route = mock_api.get(f"{BASE}/campaigns/{CAMPAIGN_ID}/enrollments")
+        base = ["agentic", "outreach", "enrollments", "list", "--campaign-id", CAMPAIGN_ID]
+
+        negative = invoke([*base, "--offset", "-1"])
+        long = invoke([*base, "--search", "x" * 101])
+
+        assert (negative.exit_code, long.exit_code) == (2, 2)
+        assert not route.called
 
     def test_list_json_keeps_the_page(self, invoke, mock_api):
-        mock_api.get(f"{BASE}/campaigns/{CAMPAIGN_ID}/enrollments").respond(
-            200, json={"items": [ENROLLMENT]}
-        )
+        mock_api.get(f"{BASE}/campaigns/{CAMPAIGN_ID}/enrollments").respond(200, json=PAGE)
 
         result = invoke(
             ["agentic", "outreach", "enrollments", "list", "--campaign-id", CAMPAIGN_ID, "--json"]
         )
 
-        assert json.loads(result.output) == {"items": [ENROLLMENT]}
+        assert json.loads(result.output) == PAGE
 
     def test_list_refuses_a_bad_limit_without_a_call(self, invoke, mock_api):
         route = mock_api.get(f"{BASE}/campaigns/{CAMPAIGN_ID}/enrollments").respond(
-            200, json={"items": []}
+            200, json={"data": [], "total": 0, "limit": 1, "offset": 0, "has_more": False}
         )
 
         result = invoke(
@@ -556,6 +648,29 @@ class TestEnrollmentTimeline:
         assert "proposed" in result.output
         assert "Re: Hello Jane" in result.output
         assert "enrolled" in result.output
+
+    def test_timeline_sends_the_order(self, invoke, mock_api):
+        route = mock_api.get(f"{BASE}/enrollments/{ENROLLMENT_ID}/timeline").respond(
+            200, json=TIMELINE
+        )
+
+        result = invoke(
+            ["agentic", "outreach", "enrollments", "timeline", ENROLLMENT_ID, "--order", "asc"]
+        )
+
+        assert result.exit_code == 0, result.output
+        assert route.calls[0].request.url.params["order"] == "asc"
+        assert "oldest first" in result.output
+
+    def test_timeline_refuses_a_bad_order_without_a_call(self, invoke, mock_api):
+        route = mock_api.get(f"{BASE}/enrollments/{ENROLLMENT_ID}/timeline")
+
+        result = invoke(
+            ["agentic", "outreach", "enrollments", "timeline", ENROLLMENT_ID, "--order", "up"]
+        )
+
+        assert result.exit_code == 2
+        assert not route.called
 
     def test_timeline_prints_json(self, invoke, mock_api):
         mock_api.get(f"{BASE}/enrollments/{ENROLLMENT_ID}/timeline").respond(200, json=TIMELINE)
