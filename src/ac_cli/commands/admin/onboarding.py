@@ -53,6 +53,11 @@ def onboarding_create(
     show_calendly: bool | None = typer.Option(
         None, "--show-calendly/--no-show-calendly", help="Show Calendly widget"
     ),
+    comped: bool = typer.Option(
+        False,
+        "--comped",
+        help="Mark the organization comped: no card step in the setup wizard, never billed",
+    ),
     json_output: bool = JSON_OPTION,
 ) -> None:
     """Create a new managed onboarding account."""
@@ -81,6 +86,8 @@ def onboarding_create(
     onboarding_config = _build_body(calendly_url=calendly_url, show_calendly=show_calendly)
     if onboarding_config:
         body["onboarding_config"] = onboarding_config
+    if comped:
+        body["is_comped"] = True
 
     resp = _api_request("post", f"{_ONBOARDING}/accounts", json=body)
 

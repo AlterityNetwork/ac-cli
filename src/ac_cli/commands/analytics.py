@@ -14,11 +14,11 @@ _ANALYTICS = "/api/v1/analytics"
 
 # (response key, display label) for the MetricDelta KPI rows, in display order.
 _DELTA_METRICS = [
-    ("sonar_companies", "Sonar companies"),
-    ("sonar_signals", "Sonar signals"),
-    ("sonar_searches", "Sonar searches"),
-    ("headhunter_people", "Headhunter people"),
-    ("headhunter_searches", "Headhunter searches"),
+    ("sonar_companies", "Sonar (legacy) companies"),
+    ("sonar_signals", "Sonar (legacy) signals"),
+    ("sonar_searches", "Sonar (legacy) searches"),
+    ("headhunter_people", "Headhunter (legacy) people"),
+    ("headhunter_searches", "Headhunter (legacy) searches"),
     ("sequences_launched", "Sequences launched"),
     ("emails_sent", "Emails sent"),
     ("email_replies", "Email replies"),

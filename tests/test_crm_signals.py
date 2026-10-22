@@ -14,6 +14,18 @@ SIGNAL = {
     "created_at": "2026-05-10T00:00:00Z",
 }
 
+PROJECTED_SIGNAL = {
+    **SIGNAL,
+    "evidence_origin": "intelligence",
+    "intel_signal_id": "intel-sig-1",
+    "prospect_id": "prospect-1",
+    "signal_score": 86,
+    "signal_reason": "Recent funding supports expansion",
+    "opportunity_score": 91,
+    "opportunity_reason": "Strong fit and timely need",
+    "citations": [{"url": "https://example.com/funding"}],
+}
+
 
 def test_signals_list(invoke, mock_api):
     mock_api.get("/api/v1/crm/signals").respond(
@@ -71,23 +83,51 @@ def test_signals_list_workflow_run_company_id(invoke, mock_api):
     assert qs["workflow_run_company_id"] == "wrc-123"
 
 
-def test_signals_list_exclude_dismissed(invoke, mock_api):
-    """--exclude-dismissed forwards to /crm/signals so cleared companies drop out."""
-    route = mock_api.get("/api/v1/crm/signals").respond(
-        200, json={"data": [], "total": 0, "limit": 50, "offset": 0, "has_more": False}
-    )
-    result = invoke(["crm", "signals", "list", "--exclude-dismissed", "--json"])
-    assert result.exit_code == 0
-    assert route.called
-    qs = route.calls.last.request.url.params
-    assert qs["exclude_dismissed"] == "true"
-
-
 def test_signals_get(invoke, mock_api):
     mock_api.get("/api/v1/crm/signals/sig-1").respond(200, json=SIGNAL)
     result = invoke(["crm", "signals", "get", "sig-1", "--json"])
     assert result.exit_code == 0
     assert json.loads(result.output)["id"] == "sig-1"
+
+
+def test_projected_signals_list_shows_origin_and_score(invoke, mock_api, table_column):
+    mock_api.get("/api/v1/crm/signals").respond(
+        200,
+        json={"data": [PROJECTED_SIGNAL], "total": 1, "limit": 50, "offset": 0, "has_more": False},
+    )
+    result = invoke(["crm", "signals", "list"])
+    assert result.exit_code == 0
+    assert table_column(result.output, 2) == "intelligence"
+    assert table_column(result.output, 3) == "86"
+
+
+def test_projected_signal_get_shows_evidence_and_scores(invoke, mock_api):
+    mock_api.get("/api/v1/crm/signals/sig-1").respond(200, json=PROJECTED_SIGNAL)
+    result = invoke(["crm", "signals", "get", "sig-1"])
+    assert result.exit_code == 0
+    for value in (
+        "intel-sig-1",
+        "prospect-1",
+        "Recent funding supports expansion",
+        "Strong fit and timely need",
+        "https://example.com/funding",
+    ):
+        assert value in result.output
+    assert "[{'url':" not in result.output
+
+
+def test_projected_signal_get_shows_citation_source_refs(invoke, mock_api):
+    signal = {
+        **PROJECTED_SIGNAL,
+        "citations": [{"source": {"provider": "news", "source_ref": "https://example.com/story"}}],
+    }
+    mock_api.get("/api/v1/crm/signals/sig-1").respond(200, json=signal)
+
+    result = invoke(["crm", "signals", "get", "sig-1"])
+
+    assert result.exit_code == 0
+    assert "https://example.com/story" in result.output
+    assert "'source':" not in result.output
 
 
 def test_signals_create_company(invoke, mock_api):

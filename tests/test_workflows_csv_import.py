@@ -85,3 +85,92 @@ def test_csv_parse_api_error_json(invoke, mock_api, tmp_path):
     parsed = json.loads(result.output)
     assert parsed["error"] is True
     assert parsed["status_code"] == 400
+
+
+SAMPLE_PEOPLE_RESPONSE = {
+    "people": [
+        {
+            "row": 1,
+            "full_name": "Ada Lovelace",
+            "first_name": "Ada",
+            "last_name": "Lovelace",
+            "email": "ada@acme.com",
+            "linkedin_url": None,
+            "title": "CTO",
+            "company_name": "Acme",
+            "domain": "acme.com",
+            "website": None,
+        },
+        {
+            "row": 2,
+            "full_name": None,
+            "first_name": None,
+            "last_name": None,
+            "email": "invoices@acme.com",
+            "linkedin_url": None,
+            "title": None,
+            "company_name": None,
+            "domain": "acme.com",
+            "website": None,
+        },
+    ],
+    "total_rows": 2,
+    "truncated": False,
+}
+
+
+def test_csv_parse_people(invoke, mock_api, tmp_path):
+    mock_api.post("/api/v1/workflows/csv/parse-people").respond(200, json=SAMPLE_PEOPLE_RESPONSE)
+    csv_file = tmp_path / "contacts.csv"
+    csv_file.write_text(
+        "First Name,Last Name,Email\nAda,Lovelace,ada@acme.com\n,,invoices@acme.com\n"
+    )
+    result = invoke(["workflows", "csv-parse-people", str(csv_file)])
+    assert result.exit_code == 0
+    assert "Ada Lovelace" in result.output
+    assert "Parsed 2 rows" in result.output
+
+
+def test_csv_parse_people_json(invoke, mock_api, tmp_path):
+    mock_api.post("/api/v1/workflows/csv/parse-people").respond(200, json=SAMPLE_PEOPLE_RESPONSE)
+    csv_file = tmp_path / "contacts.csv"
+    csv_file.write_text("First Name,Last Name,Email\nAda,Lovelace,ada@acme.com\n")
+    result = invoke(["workflows", "csv-parse-people", str(csv_file), "--json"])
+    assert result.exit_code == 0
+    parsed = json.loads(result.output)
+    assert len(parsed["people"]) == 2
+    assert parsed["people"][0]["domain"] == "acme.com"
+
+
+def test_csv_parse_people_not_csv(invoke, mock_api, tmp_path):
+    txt_file = tmp_path / "data.txt"
+    txt_file.write_text("some data")
+    result = invoke(["workflows", "csv-parse-people", str(txt_file)])
+    assert result.exit_code == 1
+    assert ".csv" in result.output
+
+
+def test_csv_parse_people_api_error_json(invoke, mock_api, tmp_path):
+    """A companies file gets the API's 400 back as structured JSON."""
+    mock_api.post("/api/v1/workflows/csv/parse-people").respond(
+        400, json={"message": "This file lists companies. Choose Companies and upload it again."}
+    )
+    csv_file = tmp_path / "companies.csv"
+    csv_file.write_text("name,website\nAcme,acme.com\n")
+    result = invoke(["workflows", "csv-parse-people", str(csv_file), "--json"])
+    assert result.exit_code == 1
+    parsed = json.loads(result.output)
+    assert parsed["error"] is True
+    assert parsed["status_code"] == 400
+
+
+def test_csv_parse_people_api_error(invoke, mock_api, tmp_path):
+    """A companies file gets exit code 1 and the 400 in the plain output."""
+    mock_api.post("/api/v1/workflows/csv/parse-people").respond(
+        400, json={"message": "This file lists companies. Choose Companies and upload it again."}
+    )
+    csv_file = tmp_path / "companies.csv"
+    csv_file.write_text("name,website\nAcme,acme.com\n")
+    result = invoke(["workflows", "csv-parse-people", str(csv_file)])
+    assert result.exit_code == 1
+    assert "400" in result.output

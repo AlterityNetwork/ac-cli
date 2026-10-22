@@ -36,7 +36,6 @@ DEFAULT_API_URL = os.environ.get("AC_AUDIT_API_URL", "http://localhost:8008")
 PATH_CONSTANTS: dict[str, str] = {
     "_ADMIN": "/api/v1/admin",
     "_AGENTIC": "/api/v1/agentic",
-    "_AGENTS": "/api/v1/agents",
     "_ANALYTICS": "/api/v1/analytics",
     "_APPS": "/api/v1/orgs",
     "_CONVERSATIONS": "/api/v1/agentic/conversations",
@@ -70,16 +69,19 @@ PATH_CONSTANTS: dict[str, str] = {
 
 # API endpoints intentionally not covered by the CLI.
 OUT_OF_SCOPE: set[tuple[str, str]] = {
+    # Frontend-only selection bridge: resolves frozen Company Search rows to
+    # CRM ids before the existing list and mark-actioned routes are called.
+    ("POST", "/api/v1/agentic/runs/companies/materialize"),
     # Frontend-only UI state: CRM surfaces poll this for the per-company
     # "Headhunter search in progress" indicator; not a CLI workflow.
     ("GET", "/api/v1/workflows/headhunter/active-runs"),
     # Frontend-only widget composition: batches the Launchpad's per-saved-search
-    # company windows into one request. `runs/companies?preset_id=` covers the
-    # same data one preset at a time, which is the CLI-shaped call.
-    ("GET", "/api/v1/workflows/{id}/runs/companies/by-preset"),
-    # Signature-authenticated FullEnrich provider callbacks (ENG-1733).
-    ("POST", "/api/v1/fullenrich/webhook"),
-    ("POST", "/api/v1/fullenrich/webhook/contact"),
+    # prospect windows into one request. `agentic prospects list
+    # --saved-search-id` covers the same data one search at a time.
+    ("GET", "/api/v1/agentic/prospects/by-saved-search"),
+    # Frontend-only bridge from selected People Search rows to CRM identities.
+    # List and review actions already have their own CLI commands.
+    ("POST", "/api/v1/agentic/people/resolve"),
     # ENG-2048: public browser-only redemption of a managed-onboarding link.
     # The customer clicks a mailed URL with no session; the single-use token in
     # the body is the whole credential. Same class as the OAuth callback below.
@@ -108,10 +110,6 @@ OUT_OF_SCOPE: set[tuple[str, str]] = {
     ("POST", "/api/v1/test/cleanup-envoy"),
     # ENG-1763: QA-only stale artifact cleanup for nightly staging runs.
     ("POST", "/api/v1/test/cleanup-qa-artifacts"),
-    ("POST", "/api/v1/eval/run"),
-    ("PATCH", "/api/v1/eval/runs/{id}"),
-    ("DELETE", "/api/v1/eval/run/live/{id}"),
-    ("PUT", "/api/v1/eval/fixtures/{id}"),
     ("POST", "/api/v1/admin/demo/scrape-website-stream"),
     ("POST", "/api/v1/admin/demo/generate-random-org-stream"),
     ("POST", "/api/v1/admin/demo/generate-random-profile-stream"),
@@ -119,12 +117,6 @@ OUT_OF_SCOPE: set[tuple[str, str]] = {
     ("POST", "/api/v1/organizations/scrape-website-stream"),
     ("GET", "/api/v1/envoy/sequences/{id}/step-stats/stream"),
     ("GET", "/api/v1/workflows/{id}/runs/{id}/events"),
-    # Managed agents SSE event stream — frontend/live-tail consumer only
-    ("GET", "/api/v1/agents/runs/{id}/events"),
-    # Frontend-only per-field invalidation stream (ENG-1733).
-    ("GET", "/api/v1/workflows/{id}/runs/{id}/field-updates/stream"),
-    # Frontend-only company lead_score invalidation stream (backgrounded judge).
-    ("GET", "/api/v1/workflows/{id}/runs/{id}/companies/field-updates/stream"),
     # SSE stream — frontend-only consumer (ENG-769)
     ("GET", "/api/v1/notifications/stream"),
     # ENG-2124: the agentic run stream. SSE is not a CLI shape — the command
@@ -140,6 +132,10 @@ OUT_OF_SCOPE: set[tuple[str, str]] = {
     # wrote, whatever the stream delivered. This one never closes on content
     # either, so a CLI command would hold until the connection bound.
     ("GET", "/api/v1/agentic/conversations/{id}/stream"),
+    # Frontend-only UI state: the buttons the empty Sonar chat shows. A CLI
+    # user types the request, so a list of suggested requests serves no
+    # command.
+    ("GET", "/api/v1/agentic/conversations/draft-suggestions"),
     ("GET", "/api/v1/resources/{id}/stream"),
     ("GET", "/api/v1/resources/{id}/preview-url"),
     ("PATCH", "/api/v1/resources/{id}"),
@@ -164,17 +160,17 @@ OUT_OF_SCOPE: set[tuple[str, str]] = {
     ("POST", "/api/v1/nylas/email/unsubscribe"),
     # Resend bounce/complaint webhook (signature-verified server-to-server) [ENG-768]
     ("POST", "/api/v1/webhooks/resend"),
-    # FullEnrich bulk-enrichment completion webhook (URL-token-authed, server-to-server)
-    ("POST", "/api/v1/fullenrich/webhook"),
-    # Anthropic agent-runtime session webhook (signature-verified server-to-server).
-    # Route is /agent-runtime/{provider}/webhook; OUT_OF_SCOPE is matched raw against
-    # normalized API paths, so the param must be the normalized {id} form.
-    ("POST", "/api/v1/agent-runtime/{id}/webhook"),
     # Agentic provider job callback (signature-verified server-to-server) [ENG-2227].
     # Route is /agentic/webhooks/{provider}/{job_id}. Both params normalize to
     # {id}, so the entry carries the pair. A provider posts here and no person
     # does, so the CLI exposes nothing.
     ("POST", "/api/v1/agentic/webhooks/{id}/{id}"),
+    # LinkedIn hosted sign-in notify: Unipile calls it server-to-server with a
+    # one-time token in the URL. No person calls it, so the CLI exposes nothing.
+    ("POST", "/api/v1/agentic/connections/linkedin/notify"),
+    # Unipile webhooks: Unipile calls them server-to-server with a header secret.
+    # Route is /agentic/webhooks/unipile/{source}. No person calls it.
+    ("POST", "/api/v1/agentic/webhooks/unipile/{id}"),
     # Frontend-only activity logger
     ("POST", "/api/v1/orgs/{id}/activity-events"),
     # Cross-org outputs feed (admin-style, not exposed to CLI today)
@@ -190,6 +186,7 @@ OUT_OF_SCOPE: set[tuple[str, str]] = {
     ("POST", "/api/v1/billing/checkout-session"),
     ("POST", "/api/v1/billing/checkout-session/verify"),
     ("POST", "/api/v1/billing/portal-session"),
+    ("GET", "/api/v1/billing/card-on-file"),
     ("POST", "/api/v1/profiles/me/complete-onboarding"),
 }
 

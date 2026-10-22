@@ -149,12 +149,22 @@ def organizations_update(
     icps_file: Path | None = typer.Option(
         None, "--icps-file", help="JSON file of ideal customer profiles; [] clears the list"
     ),
+    comped: bool | None = typer.Option(
+        None,
+        "--comped/--no-comped",
+        help="Set or clear the comped flag: a comped organization is never billed",
+    ),
     json_output: bool = JSON_OPTION,
 ) -> None:
     """Update an existing organization."""
     set_json_mode(json_output)
     body = _build_body(
-        name=name, slug=slug, plan=plan, logo_url=logo_url, target_customers=target_customers
+        name=name,
+        slug=slug,
+        plan=plan,
+        logo_url=logo_url,
+        target_customers=target_customers,
+        is_comped=comped,
     )
     if target_locations is not None:
         body["target_locations"] = [

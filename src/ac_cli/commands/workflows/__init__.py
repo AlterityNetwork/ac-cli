@@ -1,4 +1,4 @@
-"""Workflow commands: runs, schedules, presets, csv-parse."""
+"""Workflow commands: runs, schedules, presets, csv-parse, csv-parse-people."""
 
 from __future__ import annotations
 
@@ -32,14 +32,8 @@ def workflows_callback(ctx: typer.Context) -> None:
 # -- Standalone commands -------------------------------------------------------
 
 
-@app.command("csv-parse")
-def csv_parse(
-    ctx: typer.Context,
-    file: str = typer.Argument(..., help="Path to CSV file"),
-    json_output: bool = JSON_OPTION,
-) -> None:
-    """Parse a CSV file into structured company data."""
-    set_json_mode(json_output)
+def _csv_path(file: str) -> Path:
+    """Checks that the file exists and is a .csv, and answers its Path."""
     path = Path(file)
     if not path.exists():
         rprint(styled("[red]File not found:[/red] {}", file))
@@ -48,7 +42,18 @@ def csv_parse(
     if not path.suffix.lower() == ".csv":
         rprint("[red]File must be a .csv file[/red]")
         raise typer.Exit(code=1)
+    return path
 
+
+@app.command("csv-parse")
+def csv_parse(
+    ctx: typer.Context,
+    file: str = typer.Argument(..., help="Path to CSV file"),
+    json_output: bool = JSON_OPTION,
+) -> None:
+    """Parse a CSV file into structured company data."""
+    set_json_mode(json_output)
+    path = _csv_path(file)
     # Multipart file upload — _api_request supports files= kwarg
     with open(path, "rb") as f:
         with get_api_client() as client:
@@ -87,6 +92,56 @@ def csv_parse(
             ("source_type", "Source"),
         ],
         title=f"Parsed Companies ({len(companies)})",
+    )
+
+
+@app.command("csv-parse-people")
+def csv_parse_people(
+    ctx: typer.Context,
+    file: str = typer.Argument(..., help="Path to a contacts CSV file"),
+    json_output: bool = JSON_OPTION,
+) -> None:
+    """Parse a contacts CSV file into people rows; the API refuses a company file."""
+    set_json_mode(json_output)
+    path = _csv_path(file)
+    with open(path, "rb") as f:
+        with get_api_client() as client:
+            try:
+                resp = client.post(
+                    f"{_WORKFLOWS}/csv/parse-people",
+                    files={"file": (path.name, f, "text/csv")},
+                )
+                resp.raise_for_status()
+            except httpx.HTTPStatusError as exc:
+                _handle_error(exc)
+            except httpx.HTTPError as exc:
+                _handle_connection_error(exc)
+
+    data = resp.json()
+    if json_output:
+        print_json(data)
+        return
+
+    people = data.get("people", [])
+    rprint(
+        styled(
+            "\n[bold]Parsed {} rows[/bold] (truncated: {})\n",
+            data.get("total_rows", 0),
+            data.get("truncated", False),
+        )
+    )
+    print_table(
+        people,
+        [
+            ("row", "Row"),
+            ("full_name", "Name"),
+            ("email", "Email"),
+            ("title", "Title"),
+            ("company_name", "Company"),
+            ("domain", "Domain"),
+            ("linkedin_url", "LinkedIn"),
+        ],
+        title=f"Parsed People ({len(people)})",
     )
 
 

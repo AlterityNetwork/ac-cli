@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import json
+
 import typer
 from rich import print as rprint
 
@@ -42,11 +44,6 @@ def signals_list(
         "--workflow-run-company-id",
         help="Filter by workflow_run_companies.id (signals produced by a specific run row)",
     ),
-    exclude_dismissed: bool = typer.Option(
-        False,
-        "--exclude-dismissed",
-        help="Drop signals for companies cleared from the Launchpad",
-    ),
     limit: int = typer.Option(50, help="Max results"),
     offset: int = typer.Option(0, help="Offset"),
     json_output: bool = JSON_OPTION,
@@ -64,8 +61,6 @@ def signals_list(
         params["person_id"] = person_id
     if workflow_run_company_id:
         params["workflow_run_company_id"] = workflow_run_company_id
-    if exclude_dismissed:
-        params["exclude_dismissed"] = True
 
     resp = _api_request("get", f"{_CRM}/signals", params=params)
 
@@ -79,6 +74,8 @@ def signals_list(
         [
             ("signal_type", "Type"),
             ("description", "Description"),
+            ("evidence_origin", "Origin"),
+            ("signal_score", "Score"),
             ("signal_date", "Date"),
             ("source_agent", "Source"),
             ("id", "ID"),
@@ -102,6 +99,9 @@ def signals_get(
         print_json(data)
         return
 
+    if data.get("citations"):
+        data = {**data, "citations": json.dumps(data["citations"], indent=2)}
+
     print_detail(
         data,
         [
@@ -112,6 +112,14 @@ def signals_get(
             ("source_url", "Source URL"),
             ("source_agent", "Source Agent"),
             ("snippet", "Snippet"),
+            ("evidence_origin", "Evidence Origin"),
+            ("intel_signal_id", "Intelligence Signal"),
+            ("prospect_id", "Prospect"),
+            ("signal_score", "Signal Score"),
+            ("signal_reason", "Signal Reason"),
+            ("opportunity_score", "Opportunity Score"),
+            ("opportunity_reason", "Opportunity Reason"),
+            ("citations", "Citations"),
             ("workflow_run_id", "Workflow Run"),
             ("created_at", "Created"),
         ],

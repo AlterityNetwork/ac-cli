@@ -30,7 +30,6 @@ paths:
 - Each domain defines its own prefix constant in its `__init__.py` or module file:
   - `_ADMIN = "/api/v1/admin"` in `admin/__init__.py`
   - `_AGENTIC = "/api/v1/agentic"` in `agentic.py`
-  - `_AGENTS = "/api/v1/agents"` in `agents.py`
   - `_ANALYTICS = "/api/v1/analytics"` in `analytics.py`
   - `_APPS = "/api/v1/orgs"` in `apps.py`
   - `_BASE = f"{_ADMIN}/searches"` in `admin/searches.py`

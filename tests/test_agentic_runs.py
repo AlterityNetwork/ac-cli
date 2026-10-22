@@ -1,8 +1,4 @@
-"""Tests for the agentic platform run commands.
-
-`ac agentic runs` sits beside `ac agents runs` and replaces none of it. The two
-stacks are branch isolated until the cutover, so the alias swap is Phase 7.
-"""
+"""Tests for the agentic platform run commands."""
 
 import json
 import uuid
@@ -10,6 +6,7 @@ import uuid
 import pytest
 
 from ac_cli.commands._helpers import HEADER_KEY_MAX_LENGTH
+from ac_cli.commands.agentic import _LIST_FIELDS
 from tests.conftest import UNSENDABLE_KEYS
 
 SAMPLE_RUN = {
@@ -17,6 +14,7 @@ SAMPLE_RUN = {
     "kind": "agent",
     "definition_id": "22222222-2222-4222-8222-222222222222",
     "definition_name": "Weekly digest",
+    "search_query": None,
     "status": "running",
     "waiting_on": None,
     "source": "api",
@@ -277,13 +275,73 @@ def test_runs_get_not_found(invoke, mock_api):
 # --- list ------------------------------------------------------------------
 
 
-def test_runs_list(invoke, mock_api):
+def test_runs_list(invoke, mock_api, table_column):
     mock_api.get("/api/v1/agentic/runs").respond(
         200, json={"items": [SAMPLE_RUN], "next_cursor": None}
     )
     result = invoke(["agentic", "runs", "list"])
     assert result.exit_code == 0
-    assert "Weekly digest" in result.output
+    # The cell folds on a narrow terminal, and the reader drops the fold points.
+    definition = [key for key, _ in _LIST_FIELDS].index("display_name")
+    assert table_column(result.output, definition).replace(" ", "") == "Weeklydigest"
+
+
+def test_runs_list_shows_the_user_search_query(invoke, mock_api, table_column):
+    run = {
+        **SAMPLE_RUN,
+        "definition_name": "People Search",
+        "search_query": "Revenue leaders in London",
+    }
+    mock_api.get("/api/v1/agentic/runs").respond(200, json={"items": [run], "next_cursor": None})
+
+    result = invoke(["agentic", "runs", "list", "--capability", "people.search"])
+
+    assert result.exit_code == 0
+    assert table_column(result.output, 1).replace(" ", "") == "RevenueleadersinLondon"
+
+
+#: The `Prospects` cell, read from the column list itself.
+PROSPECT_COUNT_COLUMN = [key for key, _ in _LIST_FIELDS].index("prospect_count")
+
+
+def test_runs_list_names_how_many_prospects_a_run_wrote(invoke, mock_api, table_column):
+    """The Signals list carries the count. The column reads it as it is."""
+    run = {**SAMPLE_RUN, "capability_id": "signals.search", "prospect_count": 12}
+    mock_api.get("/api/v1/agentic/runs").respond(200, json={"items": [run], "next_cursor": None})
+
+    result = invoke(["agentic", "runs", "list", "--capability", "signals.search"])
+
+    assert result.exit_code == 0
+    assert "Prospects" in result.output
+    assert table_column(result.output, PROSPECT_COUNT_COLUMN) == "12"
+
+
+def test_runs_list_prints_zero_and_never_a_blank_for_an_empty_run(invoke, mock_api, table_column):
+    """Zero is a Run that wrote no prospect. A blank cell is no count at all."""
+    run = {**SAMPLE_RUN, "capability_id": "signals.search", "prospect_count": 0}
+    mock_api.get("/api/v1/agentic/runs").respond(200, json={"items": [run], "next_cursor": None})
+
+    result = invoke(["agentic", "runs", "list", "--capability", "signals.search"])
+
+    assert table_column(result.output, PROSPECT_COUNT_COLUMN) == "0"
+
+
+def test_runs_list_prints_a_blank_prospect_cell_when_nobody_counted(invoke, mock_api, table_column):
+    run = {**SAMPLE_RUN, "prospect_count": None}
+    mock_api.get("/api/v1/agentic/runs").respond(200, json={"items": [run], "next_cursor": None})
+
+    result = invoke(["agentic", "runs", "list"])
+
+    assert table_column(result.output, PROSPECT_COUNT_COLUMN) == ""
+
+
+def test_runs_list_json_passes_the_prospect_count_through(invoke, mock_api):
+    page = {"items": [{**SAMPLE_RUN, "prospect_count": 12}], "next_cursor": None}
+    mock_api.get("/api/v1/agentic/runs").respond(200, json=page)
+
+    result = invoke(["agentic", "runs", "list", "--json"])
+
+    assert json.loads(result.output) == page
 
 
 def test_runs_list_passes_every_filter(invoke, mock_api):
@@ -326,6 +384,50 @@ def test_runs_list_filters_on_the_capability(invoke, mock_api):
     assert route.calls[0].request.url.params["capability_id"] == "company.search"
 
 
+def test_runs_list_filters_on_several_capabilities(invoke, mock_api):
+    """The Signals history reads the company and the people Runs in one page."""
+    route = mock_api.get("/api/v1/agentic/runs").respond(
+        200, json={"items": [], "next_cursor": None}
+    )
+    invoke(
+        [
+            "agentic",
+            "runs",
+            "list",
+            "--capability",
+            "signals.search",
+            "--capability",
+            "people.signals",
+        ]
+    )
+
+    assert route.calls[0].request.url.params.get_list("capability_id") == [
+        "signals.search",
+        "people.signals",
+    ]
+
+
+def test_runs_list_next_page_hint_repeats_each_capability(invoke, mock_api):
+    """A cursor carries no filter, so the hint names every capability again."""
+    mock_api.get("/api/v1/agentic/runs").respond(
+        200, json={"items": [SAMPLE_RUN], "next_cursor": "abc"}
+    )
+    result = invoke(
+        [
+            "agentic",
+            "runs",
+            "list",
+            "--capability",
+            "signals.search",
+            "--capability",
+            "people.signals",
+        ]
+    )
+
+    assert result.exit_code == 0
+    assert "--capability signals.search --capability people.signals" in result.output
+
+
 def test_runs_list_sends_no_capability_by_default(invoke, mock_api):
     route = mock_api.get("/api/v1/agentic/runs").respond(
         200, json={"items": [], "next_cursor": None}
@@ -343,6 +445,30 @@ def test_runs_list_sends_no_root_only_by_default(invoke, mock_api):
     invoke(["agentic", "runs", "list"])
 
     assert "root_only" not in route.calls[0].request.url.params
+
+
+def test_runs_list_sends_no_include_result_by_default(invoke, mock_api):
+    """A list reads no payload column unless the caller asks."""
+    route = mock_api.get("/api/v1/agentic/runs").respond(
+        200, json={"items": [], "next_cursor": None}
+    )
+    invoke(["agentic", "runs", "list"])
+
+    assert "include_result" not in route.calls[0].request.url.params
+
+
+def test_runs_list_include_result_asks_for_each_result(invoke, mock_api):
+    """One list request carries the result of each Run (ENG-2534)."""
+    result_body = {"output": {"company_search": {"items": []}}}
+    route = mock_api.get("/api/v1/agentic/runs").respond(
+        200,
+        json={"items": [{**SAMPLE_RUN, "result": result_body}], "next_cursor": None},
+    )
+    result = invoke(["agentic", "runs", "list", "--include-result", "--json"])
+
+    assert result.exit_code == 0
+    assert route.calls[0].request.url.params["include_result"] == "true"
+    assert json.loads(result.output)["items"][0]["result"] == result_body
 
 
 def test_runs_list_all_asks_for_every_run(invoke, mock_api):
@@ -390,6 +516,62 @@ def test_runs_spans_json(invoke, mock_api):
     assert json.loads(result.output)["items"][0]["name"] == "crm.search"
 
 
+def test_runs_span_detail_json(invoke, mock_api):
+    path = f"/api/v1/agentic/runs/{SAMPLE_RUN['id']}/spans/{SAMPLE_SPAN['span_id']}"
+    mock_api.get(path).respond(200, json={"input": {"query": "growth"}, "output": ["result"]})
+
+    result = invoke(
+        [
+            "agentic",
+            "runs",
+            "span-detail",
+            SAMPLE_RUN["id"],
+            SAMPLE_SPAN["span_id"],
+            "--json",
+        ]
+    )
+
+    assert result.exit_code == 0
+    assert json.loads(result.output) == {
+        "input": {"query": "growth"},
+        "output": ["result"],
+    }
+
+
+def test_runs_span_detail_displays_payload(invoke, mock_api):
+    path = f"/api/v1/agentic/runs/{SAMPLE_RUN['id']}/spans/{SAMPLE_SPAN['span_id']}"
+    mock_api.get(path).respond(200, json={"input": {"query": "growth"}, "output": ["result"]})
+
+    result = invoke(["agentic", "runs", "span-detail", SAMPLE_RUN["id"], SAMPLE_SPAN["span_id"]])
+
+    assert result.exit_code == 0
+    assert '"query": "growth"' in result.output
+    assert '"result"' in result.output
+
+
+def test_runs_span_detail_reports_not_found(invoke, mock_api):
+    path = f"/api/v1/agentic/runs/{SAMPLE_RUN['id']}/spans/{SAMPLE_SPAN['span_id']}"
+    mock_api.get(path).respond(404, json={"detail": "Not found"})
+
+    result = invoke(["agentic", "runs", "span-detail", SAMPLE_RUN["id"], SAMPLE_SPAN["span_id"]])
+
+    assert result.exit_code == 3
+
+
+def test_runs_span_detail_json_error(invoke, mock_api):
+    path = f"/api/v1/agentic/runs/{SAMPLE_RUN['id']}/spans/{SAMPLE_SPAN['span_id']}"
+    mock_api.get(path).respond(404, json={"detail": "Not found"})
+
+    result = invoke(
+        ["agentic", "runs", "span-detail", SAMPLE_RUN["id"], SAMPLE_SPAN["span_id"], "--json"]
+    )
+
+    assert result.exit_code == 3
+    body = json.loads(result.output)
+    assert body["error"] is True
+    assert body["status_code"] == 404
+
+
 def test_runs_spans_pages(invoke, mock_api):
     route = mock_api.get(f"/api/v1/agentic/runs/{SAMPLE_RUN['id']}/spans").respond(
         200, json={"items": [], "next_cursor": None}
@@ -423,6 +605,63 @@ def test_runs_spans_sends_since(invoke, mock_api):
     )
 
     assert route.calls[0].request.url.params["since"] == "2026-08-26T10:00:00+00:00"
+
+
+def test_runs_spans_sends_the_tree_scope(invoke, mock_api):
+    """A node that runs an agent starts a child Run holding its own spans.
+
+    ENG-2559 measured a company.search Run whose default read answered two
+    spans while the tree held five. Without this option the CLI cannot ask
+    the route for the whole tree.
+    """
+    route = mock_api.get(f"/api/v1/agentic/runs/{SAMPLE_RUN['id']}/spans").respond(
+        200, json={"items": [], "next_cursor": None}
+    )
+
+    invoke(["agentic", "runs", "spans", SAMPLE_RUN["id"], "--scope", "tree"])
+
+    assert route.calls[0].request.url.params["scope"] == "tree"
+
+
+def test_runs_spans_omits_the_scope_when_it_is_the_default(invoke, mock_api):
+    """The API defaults to the run, so a plain read sends nothing."""
+    route = mock_api.get(f"/api/v1/agentic/runs/{SAMPLE_RUN['id']}/spans").respond(
+        200, json={"items": [], "next_cursor": None}
+    )
+
+    invoke(["agentic", "runs", "spans", SAMPLE_RUN["id"]])
+
+    assert "scope" not in route.calls[0].request.url.params
+
+
+def test_runs_spans_refuses_an_unknown_scope(invoke, mock_api):
+    """It refuses the value, and not the option.
+
+    Asserting the exit code alone passes before `--scope` exists at all, so
+    the message must name the two the API accepts.
+    """
+    result = invoke(["agentic", "runs", "spans", SAMPLE_RUN["id"], "--scope", "everything"])
+
+    assert result.exit_code != 0
+    # Not "run": the usage line already holds the word "runs". Only the second
+    # value proves the message names the choices.
+    assert "tree" in result.output
+
+
+def test_runs_spans_json_carries_the_capability_report(invoke, mock_api):
+    """The funnel the run recorded, which the table has no column for."""
+    report = {"company.search": {"totals": {"returned": 15, "excluded": 0}}}
+    mock_api.get(f"/api/v1/agentic/runs/{SAMPLE_RUN['id']}/spans").respond(
+        200,
+        json={
+            "items": [{**SAMPLE_SPAN, "reports": report}],
+            "next_cursor": None,
+        },
+    )
+
+    result = invoke(["agentic", "runs", "spans", SAMPLE_RUN["id"], "--json"])
+
+    assert json.loads(result.output)["items"][0]["reports"] == report
 
 
 def test_runs_spans_omits_since_when_absent(invoke, mock_api):
@@ -475,16 +714,6 @@ def test_runs_cancel_not_found(invoke, mock_api):
     )
     result = invoke(["agentic", "runs", "cancel", SAMPLE_RUN["id"], "--yes"])
     assert result.exit_code == 3
-
-
-# --- coexistence -----------------------------------------------------------
-
-
-def test_the_live_agents_commands_are_untouched(invoke, mock_api):
-    """ac agentic runs sits beside ac agents runs. The alias swap is Phase 7."""
-    mock_api.get("/api/v1/agents/runs").respond(200, json=[])
-    result = invoke(["agents", "runs", "list"])
-    assert result.exit_code == 0
 
 
 def test_runs_start_renders_a_close_tag_in_the_definition_name(invoke, mock_api):
@@ -810,6 +1039,63 @@ def test_runs_spans_hint_repeats_a_page_size_the_caller_chose(invoke, mock_api):
     result = invoke(["agentic", "runs", "spans", SAMPLE_RUN["id"], "--limit", "100"])
 
     assert "--limit 100 --cursor abc123" in result.output
+
+
+def test_runs_spans_hint_repeats_the_scope(invoke, mock_api):
+    """Dropped from the pasted line, the next page narrows back to the run.
+
+    The API refuses that cursor, so the drain stops with spans unread rather
+    than reading a different set. Either way the pasted line must carry it.
+    """
+    mock_api.get(f"/api/v1/agentic/runs/{SAMPLE_RUN['id']}/spans").respond(
+        200, json={"items": [SAMPLE_SPAN], "next_cursor": "abc123"}
+    )
+
+    result = invoke(["agentic", "runs", "spans", SAMPLE_RUN["id"], "--scope", "tree"])
+
+    assert "--scope tree" in result.output
+
+
+def test_runs_spans_reconnect_hint_repeats_the_scope(invoke, mock_api):
+    """A poll loop pastes this line every iteration.
+
+    Without the scope the second iteration watches the root run alone, and it
+    never sees a child run's spans close.
+    """
+    mock_api.get(f"/api/v1/agentic/runs/{SAMPLE_RUN['id']}/spans").respond(
+        200,
+        json={
+            "items": [{**SAMPLE_SPAN, "updated_at": "2026-08-26T11:00:00Z"}],
+            "next_cursor": None,
+        },
+    )
+
+    result = invoke(
+        [
+            "agentic",
+            "runs",
+            "spans",
+            SAMPLE_RUN["id"],
+            "--since",
+            "2026-08-26T10:00:00+00:00",
+            "--scope",
+            "tree",
+        ]
+    )
+
+    assert "Reconnect with:" in result.output
+    assert "--scope tree" in result.output
+
+
+def test_runs_spans_hint_omits_the_default_scope(invoke, mock_api):
+    """The API defaults to the run, so the line stays the one it was."""
+    mock_api.get(f"/api/v1/agentic/runs/{SAMPLE_RUN['id']}/spans").respond(
+        200, json={"items": [SAMPLE_SPAN], "next_cursor": "abc123"}
+    )
+
+    result = invoke(["agentic", "runs", "spans", SAMPLE_RUN["id"]])
+
+    assert "--scope" not in result.output
 
 
 def test_runs_spans_hint_omits_the_default_page_size(invoke, mock_api):
@@ -1168,3 +1454,91 @@ def test_runs_start_sends_a_key_at_the_length_bound(invoke, mock_api):
 
     assert result.exit_code == 0, result.output
     assert route.calls[0].request.headers["Idempotency-Key"] == key
+
+
+@pytest.mark.parametrize("json_output", [False, True])
+def test_runs_progress(invoke, mock_api, json_output):
+    data = {
+        "run_id": SAMPLE_RUN["id"],
+        "status": "running",
+        "stages": [
+            {
+                "name": "Finding companies",
+                "status": "running",
+                "updated_at": None,
+                "activity": [
+                    {"id": "tool-1", "kind": "tool", "name": "Web search", "status": "running"}
+                ],
+            }
+        ],
+    }
+    route = mock_api.get(f"/api/v1/agentic/runs/{SAMPLE_RUN['id']}/progress").respond(
+        200, json=data
+    )
+    result = invoke(
+        ["agentic", "runs", "progress", SAMPLE_RUN["id"]] + (["--json"] if json_output else [])
+    )
+    assert result.exit_code == 0
+    assert route.called
+    assert "running" in result.output
+    assert "Web search" in result.output
+    if json_output:
+        assert json.loads(result.output) == data
+
+
+@pytest.mark.parametrize("status,exit_code", [(404, 3), (403, 4), (422, 2)])
+def test_runs_progress_errors(invoke, mock_api, status, exit_code):
+    mock_api.get(f"/api/v1/agentic/runs/{SAMPLE_RUN['id']}/progress").respond(
+        status, json={"detail": "Unavailable"}
+    )
+    result = invoke(["agentic", "runs", "progress", SAMPLE_RUN["id"], "--json"])
+    assert result.exit_code == exit_code
+    assert json.loads(result.output)["status_code"] == status
+
+
+#: The `Title` cell, read from the column list itself.
+TITLE_COLUMN = [key for key, _ in _LIST_FIELDS].index("title")
+
+
+def test_runs_list_names_a_signals_run_by_its_title(invoke, mock_api, table_column):
+    """Every Signals Run shares one definition name, so the title tells them apart."""
+    run = {**SAMPLE_RUN, "capability_id": "signals.search", "title": "UK fintech"}
+    mock_api.get("/api/v1/agentic/runs").respond(200, json={"items": [run], "next_cursor": None})
+
+    result = invoke(["agentic", "runs", "list", "--capability", "signals.search"])
+
+    assert result.exit_code == 0
+    assert "Title" in result.output
+    assert table_column(result.output, TITLE_COLUMN).replace(" ", "") == "UKfintech"
+
+
+def test_runs_list_sends_the_source_it_is_given(invoke, mock_api):
+    """A schedule starts a run with the `trigger` source."""
+    route = mock_api.get("/api/v1/agentic/runs").respond(
+        200, json={"items": [], "next_cursor": None}
+    )
+
+    result = invoke(["agentic", "runs", "list", "--source", "trigger"])
+
+    assert result.exit_code == 0
+    assert route.calls[0].request.url.params["source"] == "trigger"
+
+
+def test_runs_list_sends_no_source_by_default(invoke, mock_api):
+    route = mock_api.get("/api/v1/agentic/runs").respond(
+        200, json={"items": [], "next_cursor": None}
+    )
+
+    invoke(["agentic", "runs", "list"])
+
+    assert "source" not in route.calls[0].request.url.params
+
+
+def test_runs_list_keeps_the_source_in_the_next_page_hint(invoke, mock_api):
+    mock_api.get("/api/v1/agentic/runs").respond(
+        200, json={"items": [SAMPLE_RUN], "next_cursor": "next"}
+    )
+
+    result = invoke(["agentic", "runs", "list", "--source", "trigger"])
+
+    assert "--source trigger" in " ".join(result.output.split())

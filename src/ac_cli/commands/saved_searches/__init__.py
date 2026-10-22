@@ -20,32 +20,40 @@ from ac_cli.formatting import as_text, console, print_detail, print_json, print_
 app = typer.Typer(help="Manage repeatable agentic saved searches")
 
 _SAVED_SEARCHES = "/api/v1/agentic/saved-searches"
-#: The three search capabilities that hold a saved brief. An enrich capability
+#: Search capabilities that hold a saved brief. An enrich capability
 #: takes the rows it works on, so the API refuses a saved brief for one.
-_CAPABILITIES = ("signals.search", "people.search", "company.search")
+_CAPABILITIES = ("signals.search", "people.signals", "people.search", "company.search")
 _CAPABILITY_HELP = f"Which product saves the brief: {', '.join(_CAPABILITIES)}"
-#: The row records the version the caller is serving, never a constant in the
-#: API. A tenant runs the binding its provisioning wrote. Read it from
-#: `ac agentic capabilities get <id>`.
-_VERSION_HELP = "The version the capability publishes to your organization now"
+_WATCH_LIST_HELP = (
+    "CRM list of companies to watch, up to 50. Each Run checks every company on "
+    "the list and does not discover companies outside the list."
+)
 _PAGE_DEFAULT = 50
 _PAGE_MIN = 1
 _PAGE_MAX = 100
 
-# The caller names one capability to list, so a column repeating it on every
-# row carries nothing and costs the width the other five columns need.
 _SUMMARY_FIELDS = [
     ("id", "Saved search ID"),
     ("name", "Name"),
+    ("schedule", "Schedule"),
     ("last_run_id", "Last run"),
+    ("last_run_at", "Last run at"),
+    ("updated_at", "Token"),
+]
+_MULTI_SUMMARY_FIELDS = [
+    ("id", "Saved search ID"),
+    ("name", "Name"),
+    ("capability_id", "Type"),
+    ("schedule", "Schedule"),
     ("last_run_at", "Last run at"),
     ("updated_at", "Token"),
 ]
 _DETAIL_FIELDS = [
     ("id", "Saved search ID"),
     ("capability_id", "Capability"),
-    ("contract_version", "Contract version"),
     ("name", "Name"),
+    ("description", "Description"),
+    ("watch_list_id", "Watch list"),
     ("last_run_id", "Last run"),
     ("last_run_at", "Last run at"),
     ("created_at", "Created"),
@@ -87,13 +95,6 @@ def _checked_capability(capability: str) -> str:
     refuse_local(f"--capability must be one of: {', '.join(_CAPABILITIES)}", capability)
 
 
-def _checked_contract_version(version: int) -> int:
-    """Refuse a version that the stable capability contract refuses."""
-    if version >= 1:
-        return version
-    refuse_local("--contract-version must be positive")
-
-
 def _page_params(limit: int, cursor: str | None) -> dict[str, object]:
     """Build one page query and preserve an explicit empty cursor."""
     params: dict[str, object] = {"limit": _checked_limit(limit)}
@@ -102,17 +103,35 @@ def _page_params(limit: int, cursor: str | None) -> dict[str, object]:
     return params
 
 
-def _print_next_page(next_cursor: str | None, limit: int, capability: str | None = None) -> None:
+def _print_next_page(
+    next_cursor: str | None, limit: int, capability: str | list[str] | None = None
+) -> None:
     """Print the options that continue the same page walk."""
     if not next_cursor:
         return
     parts: list[object] = ["[dim]Next page:[/dim]"]
-    if capability is not None:
-        parts += ["--capability", as_text(capability)]
+    for one in [capability] if isinstance(capability, str) else capability or []:
+        parts += ["--capability", as_text(one)]
     if limit != _PAGE_DEFAULT:
         parts += ["--limit", as_text(limit)]
     parts += ["--cursor", as_text(next_cursor)]
     console.print(*parts, soft_wrap=True)
+
+
+def _schedule_text(schedule: dict | None) -> str | None:
+    """Render one schedule as its cron and zone, or None when there is none."""
+    if not schedule:
+        return None
+    return f"{schedule['cron']} {schedule['timezone']}"
+
+
+def _print_schedule(data: dict) -> None:
+    """Print the schedule one read or write answered."""
+    text = _schedule_text(data.get("schedule"))
+    if text is None:
+        rprint("No schedule. The saved search runs only when someone starts it.")
+        return
+    rprint("[bold]Schedule:[/bold]", as_text(text))
 
 
 def _print_saved_search(data: dict) -> None:
@@ -125,23 +144,24 @@ def _print_saved_search(data: dict) -> None:
 def saved_searches_create(
     ctx: typer.Context,
     capability: str = typer.Option(..., "--capability", help=_CAPABILITY_HELP),
-    contract_version: int = typer.Option(..., "--contract-version", help=_VERSION_HELP),
     name: str = typer.Option(..., "--name", help="What to call the saved search"),
     brief: str = typer.Option(
         ...,
         "--brief",
         help="Brief JSON in the input shape the capability publishes",
     ),
+    watch_list_id: str | None = typer.Option(None, "--watch-list-id", help=_WATCH_LIST_HELP),
     json_output: bool = JSON_OPTION,
 ) -> None:
     """Create one repeatable search brief for one product."""
     set_json_mode(json_output)
     body = {
         "capability_id": _checked_capability(capability),
-        "contract_version": _checked_contract_version(contract_version),
         "name": name,
         "brief": _parse_object(brief, "--brief"),
     }
+    if watch_list_id is not None:
+        body["watch_list_id"] = watch_list_id
     data = _api_request("post", _SAVED_SEARCHES, json=body).json()
     if json_output:
         print_json(data)
@@ -152,14 +172,14 @@ def saved_searches_create(
 @app.command("list")
 def saved_searches_list(
     ctx: typer.Context,
-    capability: str = typer.Option(..., "--capability", help=_CAPABILITY_HELP),
+    capability: list[str] = typer.Option(..., "--capability", help=_CAPABILITY_HELP),
     cursor: str | None = typer.Option(None, "--cursor", help="Page to continue"),
     limit: int = typer.Option(_PAGE_DEFAULT, "--limit", help="Page size, 1 to 100"),
     json_output: bool = JSON_OPTION,
 ) -> None:
-    """List one product's saved-search summaries, newest first."""
+    """List selected products' saved-search summaries, newest first."""
     set_json_mode(json_output)
-    checked = _checked_capability(capability)
+    checked = list(dict.fromkeys(_checked_capability(one) for one in capability))
     data = _api_request(
         "get",
         _SAVED_SEARCHES,
@@ -168,7 +188,14 @@ def saved_searches_list(
     if json_output:
         print_json(data)
         return
-    print_table(data.get("items", []), _SUMMARY_FIELDS, title="Saved searches")
+    rows = [
+        {**item, "schedule": _schedule_text(item.get("schedule"))} for item in data.get("items", [])
+    ]
+    print_table(
+        rows,
+        _MULTI_SUMMARY_FIELDS if len(checked) > 1 else _SUMMARY_FIELDS,
+        title="Saved searches",
+    )
     _print_next_page(data.get("next_cursor"), limit, checked)
 
 
@@ -200,28 +227,31 @@ def saved_searches_patch(
     brief: str | None = typer.Option(
         None,
         "--brief",
-        help="Full replacement brief JSON; it needs --contract-version",
+        help="Full replacement brief JSON",
     ),
-    contract_version: int | None = typer.Option(None, "--contract-version", help=_VERSION_HELP),
+    watch_list_id: str | None = typer.Option(None, "--watch-list-id", help=_WATCH_LIST_HELP),
+    clear_watch_list_id: bool = typer.Option(
+        False,
+        "--clear-watch-list-id",
+        help="Stop watching the list. The search finds new companies again.",
+    ),
     json_output: bool = JSON_OPTION,
 ) -> None:
-    """Replace the name, brief, or both under one write token.
-
-    A replacement brief also records the version it was written under, which
-    is how a start stops refusing a stale one. A rename reads no schema, so it
-    names no version.
-    """
+    """Replace the name, the brief, or the watch list under one write token."""
     set_json_mode(json_output)
-    if name is None and brief is None:
-        refuse_local("provide --name or --brief")
-    if (brief is None) != (contract_version is None):
-        refuse_local("pass --contract-version with --brief, and only with it")
+    if watch_list_id is not None and clear_watch_list_id:
+        refuse_local("use --watch-list-id or --clear-watch-list-id, not both")
+    if name is None and brief is None and watch_list_id is None and not clear_watch_list_id:
+        refuse_local("provide --name, --brief, --watch-list-id or --clear-watch-list-id")
     body: dict = {"expected_updated_at": expected_updated_at}
     if name is not None:
         body["name"] = name
     if brief is not None:
         body["brief"] = _parse_object(brief, "--brief")
-        body["contract_version"] = _checked_contract_version(contract_version or 0)
+    if watch_list_id is not None:
+        body["watch_list_id"] = watch_list_id
+    if clear_watch_list_id:
+        body["watch_list_id"] = None
     data = _api_request("patch", f"{_SAVED_SEARCHES}/{search_id}", json=body).json()
     if json_output:
         print_json(data)
@@ -251,11 +281,6 @@ def saved_searches_delete(
 def saved_searches_start(
     ctx: typer.Context,
     search_id: str = typer.Argument(..., help="Saved search ID"),
-    contract_version: int = typer.Option(
-        ...,
-        "--contract-version",
-        help="The version the capability publishes now",
-    ),
     idempotency_key: str = typer.Option(
         ...,
         "--idempotency-key",
@@ -263,18 +288,13 @@ def saved_searches_start(
     ),
     json_output: bool = JSON_OPTION,
 ) -> None:
-    """Start one Run with the stored brief.
-
-    The API refuses a brief whose stored contract version is no longer the
-    published one. Correct the brief with `patch --brief` to clear that.
-    """
+    """Start one Run with the stored brief and active contract."""
     set_json_mode(json_output)
-    version = _checked_contract_version(contract_version)
     key = checked_header_key(idempotency_key)
     data = _api_request(
         "post",
         f"{_SAVED_SEARCHES}/{search_id}/runs",
-        json={"contract_version": version},
+        json={},
         headers={"Idempotency-Key": key},
     ).json()
     if json_output:
@@ -335,3 +355,61 @@ def saved_searches_diff(
         )
     print_table(rows, _DIFF_FIELDS, title="Latest saved-search diff")
     _print_next_page(data.get("next_cursor"), limit)
+
+
+schedule_app = typer.Typer(help="Run a Signals saved search on a schedule")
+app.add_typer(schedule_app, name="schedule")
+
+
+@schedule_app.command("get")
+def saved_search_schedule_get(
+    ctx: typer.Context,
+    search_id: str = typer.Argument(..., help="Saved search ID"),
+    json_output: bool = JSON_OPTION,
+) -> None:
+    """Show the schedule that starts one saved search."""
+    set_json_mode(json_output)
+    data = _api_request("get", f"{_SAVED_SEARCHES}/{search_id}/schedule").json()
+    if json_output:
+        print_json(data)
+        return
+    _print_schedule(data)
+
+
+@schedule_app.command("set")
+def saved_search_schedule_set(
+    ctx: typer.Context,
+    search_id: str = typer.Argument(..., help="Saved search ID"),
+    cron: str = typer.Option(..., "--cron", help="Five-field cron, such as '0 9 * * 1'"),
+    timezone: str = typer.Option("UTC", "--timezone", help="IANA zone the cron is read in"),
+    json_output: bool = JSON_OPTION,
+) -> None:
+    """Start one Signals saved search on a schedule. You become its author."""
+    set_json_mode(json_output)
+    data = _api_request(
+        "put",
+        f"{_SAVED_SEARCHES}/{search_id}/schedule",
+        json={"cron": cron, "timezone": timezone},
+    ).json()
+    if json_output:
+        print_json(data)
+        return
+    _print_schedule(data)
+
+
+@schedule_app.command("clear")
+def saved_search_schedule_clear(
+    ctx: typer.Context,
+    search_id: str = typer.Argument(..., help="Saved search ID"),
+    yes: bool = typer.Option(False, "--yes", "-y", help="Skip confirmation"),
+    json_output: bool = JSON_OPTION,
+) -> None:
+    """Stop the schedule of one saved search. A Run already started continues."""
+    set_json_mode(json_output)
+    if not should_skip_confirm(yes):
+        typer.confirm(f"Stop the schedule of saved search {search_id}?", abort=True)
+    _api_request("delete", f"{_SAVED_SEARCHES}/{search_id}/schedule")
+    if json_output:
+        print_json({"id": search_id, "schedule": None})
+        return
+    rprint("[green]Schedule stopped:[/green]", as_text(search_id))

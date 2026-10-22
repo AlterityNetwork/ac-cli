@@ -10,7 +10,6 @@ SAMPLE_SEQUENCE = {
     "name": "Q1 Outreach",
     "description": "Outreach to target companies",
     "status": "draft",
-    "execution_mode": "manual",
     "skip_non_working_days": True,
     "writing_style_id": None,
     "playbook_id": None,
@@ -103,6 +102,35 @@ def test_sequences_update_skip_non_working_days(invoke, mock_api):
     assert result.exit_code == 0
     body = json.loads(route.calls.last.request.content)
     assert body["skip_non_working_days"] is False
+
+
+def test_sequences_create_draft_feedback(invoke, mock_api):
+    mock_api.get("/whoami").respond(200, json=WHOAMI_RESPONSE)
+    route = mock_api.post("/api/v1/envoy/sequences").respond(201, json=SAMPLE_SEQUENCE)
+    result = invoke(
+        ["envoy", "sequences", "create", "--name", "Q1", "--draft-feedback", "No questions."]
+    )
+    assert result.exit_code == 0
+    body = json.loads(route.calls.last.request.content)
+    assert body["draft_feedback"] == "No questions."
+
+
+def test_sequences_update_draft_feedback(invoke, mock_api):
+    route = mock_api.patch("/api/v1/envoy/sequences/seq-1").respond(200, json=SAMPLE_SEQUENCE)
+    result = invoke(
+        ["envoy", "sequences", "update", "seq-1", "--draft-feedback", "Write in British English."]
+    )
+    assert result.exit_code == 0
+    body = json.loads(route.calls.last.request.content)
+    assert body == {"draft_feedback": "Write in British English."}
+
+
+def test_sequences_update_clears_draft_feedback(invoke, mock_api):
+    route = mock_api.patch("/api/v1/envoy/sequences/seq-1").respond(200, json=SAMPLE_SEQUENCE)
+    result = invoke(["envoy", "sequences", "update", "seq-1", "--draft-feedback", ""])
+    assert result.exit_code == 0
+    body = json.loads(route.calls.last.request.content)
+    assert body == {"draft_feedback": ""}
 
 
 def test_sequences_delete_with_yes(invoke, mock_api):
@@ -251,7 +279,7 @@ def test_sequences_generate_drafts(invoke, mock_api):
 def test_sequences_for_prospect(invoke, mock_api):
     mock_api.get("/api/v1/envoy/sequences/by-prospect/p-1").respond(
         200,
-        json=[{"id": "s-1", "name": "Outreach", "status": "active", "execution_mode": "manual"}],
+        json=[{"id": "s-1", "name": "Outreach", "status": "active"}],
     )
     result = invoke(["envoy", "sequences", "for-prospect", "p-1"])
     assert result.exit_code == 0
@@ -261,7 +289,7 @@ def test_sequences_for_prospect(invoke, mock_api):
 def test_sequences_for_prospect_json(invoke, mock_api):
     import json as _json
 
-    payload = [{"id": "s-1", "name": "Outreach", "status": "active", "execution_mode": "manual"}]
+    payload = [{"id": "s-1", "name": "Outreach", "status": "active"}]
     mock_api.get("/api/v1/envoy/sequences/by-prospect/p-1").respond(200, json=payload)
     result = invoke(["envoy", "sequences", "for-prospect", "p-1", "--json"])
     assert result.exit_code == 0

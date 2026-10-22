@@ -138,12 +138,48 @@ def test_triggers_create_reports_a_row_that_could_never_fire(invoke, mock_api):
 
 
 def test_triggers_create_shows_the_input_config_it_wrote(invoke, mock_api):
-    """A scheduled saved search is the flagship non-default create.
+    """The detail block is the one place that confirms the input landed."""
+    written = {
+        **SAMPLE_TRIGGER,
+        "input_builder": "static",
+        "input_config": {"brief": {"region": "33333333-3333-4333-8333-333333333333"}},
+    }
+    route = mock_api.post(_BASE).respond(201, json=written)
+    result = invoke(
+        [
+            "agentic",
+            "triggers",
+            "create",
+            "--name",
+            "Weekly signals",
+            "--schedule",
+            "0 9 * * 1",
+            "--definition",
+            _DEFINITION,
+            "--scope",
+            "prospect.upsert",
+            "--input-config",
+            '{"brief": {"region": "33333333-3333-4333-8333-333333333333"}}',
+        ]
+    )
 
-    Without the field in the detail block there is no way to confirm the
-    saved-search id landed, short of reading the list back as JSON.
-    """
-    mock_api.post(_BASE).respond(201, json=SAMPLE_TRIGGER)
+    assert result.exit_code == 0
+    assert "33333333-3333-4333-8333-333333333333" in result.output
+    assert json.loads(route.calls[0].request.content)["input_builder"] == "static"
+
+
+def test_triggers_create_help_sends_a_saved_search_to_its_own_schedule(invoke):
+    """The API refuses a saved_search row from this command (ENG-2687)."""
+    result = invoke(["agentic", "triggers", "create", "--help"])
+
+    assert result.exit_code == 0
+    assert "saved-searches schedule set" in result.output
+    assert "--input-builder saved_search" not in result.output
+
+
+def test_triggers_create_shows_the_saved_search_refusal(invoke, mock_api):
+    detail = "only the schedule of a saved search writes a saved_search trigger"
+    mock_api.post(_BASE).respond(422, json={"detail": detail})
     result = invoke(
         [
             "agentic",
@@ -159,13 +195,11 @@ def test_triggers_create_shows_the_input_config_it_wrote(invoke, mock_api):
             "prospect.upsert",
             "--input-builder",
             "saved_search",
-            "--input-config",
-            '{"saved_search_id": "33333333-3333-4333-8333-333333333333"}',
         ]
     )
 
-    assert result.exit_code == 0
-    assert "33333333-3333-4333-8333-333333333333" in result.output
+    assert result.exit_code != 0
+    assert "only the schedule of a saved search" in result.output
 
 
 def test_triggers_list_shows_the_last_outcome(invoke, mock_api):

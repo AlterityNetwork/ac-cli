@@ -96,6 +96,26 @@ def test_orgs_update_logo_url(invoke, mock_api):
     assert body["logo_url"] == "https://r2.example.com/logo.png"
 
 
+def test_orgs_update_no_comped_clears_the_flag(invoke, mock_api):
+    import json as _json
+
+    route = mock_api.patch("/api/v1/admin/organizations/org-1").respond(200, json=SAMPLE_ORG)
+    result = invoke(["admin", "orgs", "update", "org-1", "--no-comped"])
+    assert result.exit_code == 0
+    body = _json.loads(route.calls.last.request.content)
+    assert body == {"is_comped": False}
+
+
+def test_orgs_update_comped_sets_the_flag(invoke, mock_api):
+    import json as _json
+
+    route = mock_api.patch("/api/v1/admin/organizations/org-1").respond(200, json=SAMPLE_ORG)
+    result = invoke(["admin", "orgs", "update", "org-1", "--comped"])
+    assert result.exit_code == 0
+    body = _json.loads(route.calls.last.request.content)
+    assert body["is_comped"] is True
+
+
 def test_orgs_update_no_fields(invoke, mock_api):
     result = invoke(["admin", "orgs", "update", "org-1"])
     assert result.exit_code == 1

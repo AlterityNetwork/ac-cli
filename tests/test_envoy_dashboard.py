@@ -15,7 +15,7 @@ def test_envoy_dashboard(invoke, mock_api):
     mock_api.get("/api/v1/envoy/dashboard/stats").respond(200, json=SAMPLE_DASHBOARD)
     result = invoke(["envoy", "dashboard"])
     assert result.exit_code == 0
-    assert "Envoy Dashboard" in result.output
+    assert "Outreach Dashboard" in result.output
     assert "150" in result.output
     assert "24" in result.output  # reply rate percentage
 
@@ -57,3 +57,10 @@ def test_envoy_inbox_count_json(invoke, mock_api):
     assert result.exit_code == 0
     parsed = json.loads(result.output)
     assert parsed["count"] == 0
+
+
+def test_envoy_help_names_the_outreach_app(invoke):
+    result = invoke(["envoy", "--help"])
+    assert result.exit_code == 0
+    assert "Outreach commands" in result.output
+    assert "Envoy" not in result.output
