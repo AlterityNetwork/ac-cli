@@ -44,6 +44,12 @@ def test_grants_list_json(invoke, mock_api):
     assert json.loads(result.output)["snapshot"]["access_mode"] == "full"
 
 
+def test_grants_list_not_found(invoke, mock_api):
+    mock_api.get(BASE).respond(404, json={"detail": "Organization not found"})
+    result = invoke(["admin", "entitlement-grants", "list", "--org-id", ORG, "--json"])
+    assert result.exit_code == 3
+
+
 def test_grants_create(invoke, mock_api):
     route = mock_api.post(BASE).respond(201, json=SAMPLE_GRANT)
     result = invoke(
