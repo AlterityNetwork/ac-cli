@@ -12,7 +12,14 @@ from ac_cli.commands._helpers import (
     set_json_mode,
     should_skip_confirm,
 )
-from ac_cli.formatting import as_text, console, print_detail, print_json, print_table
+from ac_cli.formatting import (
+    as_text,
+    console,
+    print_detail,
+    print_json,
+    print_table,
+    styled,
+)
 
 app = typer.Typer(help="Review and curate agentic prospects")
 
@@ -23,7 +30,11 @@ _PAGE_MAX = 100
 
 _SUMMARY_FIELDS = [
     ("id", "Prospect ID"),
+    ("subject_type", "Subject"),
     ("company_name", "Company"),
+    ("person_name", "Person"),
+    ("top_person_name", "Top person"),
+    ("suggested_action_short", "Action"),
     ("company_domain", "Domain"),
     ("review_state", "State"),
     ("opportunity_score", "Score"),
@@ -33,7 +44,9 @@ _SUMMARY_FIELDS = [
 ]
 _DETAIL_FIELDS = [
     ("id", "Prospect ID"),
+    ("subject_type", "Subject"),
     ("company_name", "Company"),
+    ("person_name", "Person"),
     ("company_domain", "Domain"),
     ("review_state", "State"),
     ("opportunity_score", "Score"),
@@ -41,6 +54,9 @@ _DETAIL_FIELDS = [
     ("recommended_action", "Recommended action"),
     ("latest_signal_type", "Signal"),
     ("latest_signal_observed_at", "Signal observed"),
+    ("top_person_name", "Top person"),
+    ("suggested_action_text", "Suggested action"),
+    ("suggested_action_dismissed_at", "Action dismissed"),
     ("people_state", "People"),
     ("people_state_reason", "People reason"),
     ("crm_company_id", "CRM company ID"),
@@ -49,8 +65,20 @@ _DETAIL_FIELDS = [
     ("created_at", "Created"),
     ("updated_at", "Updated"),
 ]
+#: The review states, in the order the inbox shows its tabs.
+_COUNT_FIELDS = [
+    ("new", "New"),
+    ("watching", "Watching"),
+    ("dismissed", "Dismissed"),
+    ("promoted", "Promoted"),
+]
+_SIGNAL_TYPE_FIELDS = [
+    ("signal_type", "Signal type"),
+    ("count", "Prospects"),
+]
 _COMPANY_FIELDS = [
     ("id", "Company ID"),
+    ("description", "Description"),
     ("linkedin_url", "LinkedIn"),
     ("website", "Website"),
     ("industry", "Industry"),
@@ -71,10 +99,24 @@ _PERSON_FIELDS = [
     ("person_id", "Person ID"),
     ("full_name", "Name"),
     ("current_title", "Title"),
-    ("current_company_text", "Company"),
+    ("employer_name", "Company"),
     ("persona_fit_score", "Fit"),
     ("contact_state", "Contact"),
     ("email", "Email"),
+]
+#: The subject of a person prospect, which a People Signals Run writes.
+_SUBJECT_PERSON_FIELDS = [
+    ("id", "Person ID"),
+    ("full_name", "Name"),
+    ("current_title", "Title"),
+    ("employer_name", "Company"),
+    ("location", "Location"),
+    ("country", "Country"),
+    ("linkedin_url", "LinkedIn"),
+    ("personal_website", "Website"),
+    ("social_profile_url", "Social profile"),
+    ("email", "Email"),
+    ("last_enriched_at", "Last enriched"),
 ]
 _SIGNAL_FIELDS = [
     ("signal_type", "Type"),
@@ -106,8 +148,21 @@ def _print_next_page(
     *,
     review_state: str | None = None,
     last_seen_run_id: str | None = None,
+    ids: list[str] | None = None,
+    people_state: str | None = None,
+    signal_type: str | None = None,
+    search: str | None = None,
+    saved_search_id: str | None = None,
+    min_score: int | None = None,
+    max_score: int | None = None,
+    sort: str | None = None,
 ) -> None:
-    """Prints the options that continue the same page walk."""
+    """Prints the options that continue the same page walk.
+
+    ⚠️ The hint always names the sort and the filters. A cursor belongs to
+    one sort, and the API answers 400 to a cursor another sort wrote. Under
+    other filters the cursor names a position in another list.
+    """
     if not next_cursor:
         return
     parts: list[object] = ["[dim]Next page:[/dim]"]
@@ -115,6 +170,22 @@ def _print_next_page(
         parts += ["--review-state", as_text(review_state)]
     if last_seen_run_id is not None:
         parts += ["--last-seen-run-id", as_text(last_seen_run_id)]
+    for one in ids or []:
+        parts += ["--id", as_text(one)]
+    if people_state is not None:
+        parts += ["--people-state", as_text(people_state)]
+    if signal_type is not None:
+        parts += ["--signal-type", as_text(signal_type)]
+    if search is not None:
+        parts += ["--search", as_text(search)]
+    if saved_search_id is not None:
+        parts += ["--saved-search-id", as_text(saved_search_id)]
+    if min_score is not None:
+        parts += ["--min-score", as_text(min_score)]
+    if max_score is not None:
+        parts += ["--max-score", as_text(max_score)]
+    if sort is not None:
+        parts += ["--sort", as_text(sort)]
     if limit != _PAGE_DEFAULT:
         parts += ["--limit", as_text(limit)]
     parts += ["--cursor", as_text(next_cursor)]
@@ -141,11 +212,140 @@ def _flat_latest_signal(item: dict) -> dict:
     }
 
 
+def _flat_top_person(item: dict) -> dict:
+    """Flattens the one person a prospect row names.
+
+    A table cell and a detail row each read the flat key. `top_person` is
+    `null` when the prospect has no people, and the key stays absent. The
+    score of the person stays a `--json` field: a narrow column prints a
+    number the reader cannot act on.
+
+    Args:
+        item: One prospect summary or detail object.
+
+    Returns:
+        The same object plus the flat person key.
+    """
+    person = item.get("top_person") or {}
+    return {
+        **item,
+        "top_person_name": (person.get("person") or {}).get("full_name"),
+    }
+
+
+#: The column form of each kind. Only `create_task` shortens, to `task`. The
+#: widest cell is then seven characters rather than eleven, in a table that is
+#: already wide. `get` prints the kind in full.
+_ACTION_SHORT = {"create_task": "task"}
+
+#: How each kind reads in one line. The value is the argument that names the
+#: move, so a reader sees what the move does and not only its name.
+_ACTION_ARG = {
+    "create_task": "title",
+    "watch": "until",
+    "dismiss": "reason",
+}
+
+
+def _flat_suggested_action(item: dict) -> dict:
+    """Flattens the move a prospect names.
+
+    A table cell reads the short form of the kind. A detail row reads the kind
+    in full, the one argument that names the move, and the due date when the
+    move is a task. Both keys stay absent when no Run scored the prospect.
+
+    Args:
+        item: One prospect summary or detail object.
+
+    Returns:
+        The same object plus the two flat action keys.
+    """
+    action = item.get("suggested_action") or {}
+    kind = action.get("kind")
+    if not kind:
+        return {**item, "suggested_action_short": None, "suggested_action_text": None}
+    args = action.get("args") or {}
+    text = kind
+    named = args.get(_ACTION_ARG.get(kind, ""))
+    if named:
+        text = f"{kind}: {named}"
+    due = args.get("due_in_days")
+    if due is not None:
+        text = f"{text} (due in {due} days)"
+    return {
+        **item,
+        "suggested_action_short": _ACTION_SHORT.get(kind, kind),
+        "suggested_action_text": text,
+    }
+
+
+def _employer_name(person: dict) -> str | None:
+    """Answers the employer a person row shows.
+
+    The linked company names the employer. The free text the research
+    recorded is the fallback for a person with no linked company.
+
+    Args:
+        person: One person object of a prospect read.
+
+    Returns:
+        The employer name, or None.
+    """
+    linked = person.get("current_company") or {}
+    name = str(linked.get("name") or "").strip()
+    return name or str(person.get("current_company_text") or "").strip() or None
+
+
+def _flat_subject(item: dict) -> dict:
+    """Flattens the subject one prospect row names.
+
+    A company prospect names its company in the company fields. A person
+    prospect names its person under `person`, so the table reads the name from
+    there. A row from before the subject field is a company.
+
+    Args:
+        item: One prospect summary or detail object.
+
+    Returns:
+        The same object plus `subject_type` and the flat person name.
+    """
+    person = item.get("person") or {}
+    return {
+        **item,
+        "subject_type": item.get("subject_type") or "company",
+        "person_name": person.get("full_name"),
+    }
+
+
+def _flat_prospect(item: dict) -> dict:
+    """Flattens the subject, the signal and the person one prospect row names.
+
+    Args:
+        item: One prospect summary or detail object.
+
+    Returns:
+        The same object plus the flat subject, signal and person keys.
+    """
+    return _flat_suggested_action(_flat_top_person(_flat_latest_signal(_flat_subject(item))))
+
+
 def _print_prospect(data: dict) -> None:
-    """Prints one prospect and its bounded company facts."""
-    print_detail(_flat_latest_signal(data), _DETAIL_FIELDS)
-    rprint("[bold]Company[/bold]")
-    print_detail(data["company"], _COMPANY_FIELDS)
+    """Prints one prospect and the bounded facts of its subject.
+
+    A company prospect prints its company block. A person prospect prints its
+    person block, and it has no company to print.
+    """
+    print_detail(_flat_prospect(data), _DETAIL_FIELDS)
+    if data.get("person"):
+        rprint("[bold]Person[/bold]")
+        person = data["person"]
+        print_detail(
+            {**person, "employer_name": _employer_name(person)},
+            _SUBJECT_PERSON_FIELDS,
+        )
+    if data.get("company"):
+        rprint("[bold]Company[/bold]")
+        print_detail(data["company"], _COMPANY_FIELDS)
 
 
 @app.command("list")
@@ -157,29 +357,127 @@ def prospects_list(
     last_seen_run_id: str | None = typer.Option(
         None, "--last-seen-run-id", help="Only prospects last written by this Run"
     ),
+    ids: list[str] | None = typer.Option(
+        None, "--id", help="Only this prospect. Repeat for each one, up to 100."
+    ),
+    people_state: str | None = typer.Option(
+        None,
+        "--people-state",
+        help="People state: found, pending or no_matching_people",
+    ),
+    signal_type: str | None = typer.Option(
+        None,
+        "--signal-type",
+        help=(
+            "Only prospects that hold one signal of this type, such as "
+            "product_launch or paid_campaign_launch, including stored older "
+            "types such as agency_review. `signal-types` lists the types a state holds."
+        ),
+    ),
+    search: str | None = typer.Option(
+        None,
+        "--search",
+        help="Text in the company, person or employer name or domain",
+    ),
+    saved_search_id: str | None = typer.Option(
+        None, "--saved-search-id", help="Only prospects this saved search returned"
+    ),
+    min_score: int | None = typer.Option(
+        None, "--min-score", min=0, max=100, help="Lowest opportunity score to keep, 0 to 100"
+    ),
+    max_score: int | None = typer.Option(
+        None, "--max-score", min=0, max=100, help="Highest opportunity score to keep, 0 to 100"
+    ),
+    sort: str | None = typer.Option(
+        None,
+        "--sort",
+        help=(
+            "Order: score, signal_strength or discovered. "
+            "The default is discovered, which is the date this organization "
+            "first saw the company."
+        ),
+    ),
     cursor: str | None = typer.Option(None, "--cursor", help="Page to continue"),
     limit: int = typer.Option(_PAGE_DEFAULT, "--limit", help="Page size, 1 to 100"),
     json_output: bool = JSON_OPTION,
 ) -> None:
-    """List prospects, newest first. Name a review state to read one."""
+    """List prospects. Name a sort to change the order, or a review state to
+    read one."""
     set_json_mode(json_output)
     params = _page_params(limit, cursor)
     if review_state is not None:
         params["review_state"] = review_state
     if last_seen_run_id is not None:
         params["last_seen_run_id"] = last_seen_run_id
+    if ids:
+        params["ids"] = ids
+    if people_state is not None:
+        params["people_state"] = people_state
+    if signal_type is not None:
+        params["signal_type"] = signal_type
+    if search is not None:
+        params["search"] = search
+    if saved_search_id is not None:
+        params["saved_search_id"] = saved_search_id
+    if min_score is not None:
+        params["min_score"] = min_score
+    if max_score is not None:
+        params["max_score"] = max_score
+    # The API owns the default sort, so an omitted option cannot drift from it.
+    if sort is not None:
+        params["sort"] = sort
     data = _api_request("get", _PROSPECTS, params=params).json()
     if json_output:
         print_json(data)
         return
-    rows = [_flat_latest_signal(item) for item in data.get("items", [])]
+    rows = [_flat_prospect(item) for item in data.get("items", [])]
     print_table(rows, _SUMMARY_FIELDS, title="Prospects")
     _print_next_page(
         data.get("next_cursor"),
         limit,
         review_state=review_state,
         last_seen_run_id=last_seen_run_id,
+        ids=ids,
+        people_state=people_state,
+        signal_type=signal_type,
+        search=search,
+        saved_search_id=saved_search_id,
+        min_score=min_score,
+        max_score=max_score,
+        sort=sort,
     )
+
+
+@app.command("counts")
+def prospects_counts(
+    ctx: typer.Context,
+    json_output: bool = JSON_OPTION,
+) -> None:
+    """Count the prospects in each review state."""
+    set_json_mode(json_output)
+    data = _api_request("get", f"{_PROSPECTS}/counts").json()
+    if json_output:
+        print_json(data)
+        return
+    print_detail(data, _COUNT_FIELDS)
+
+
+@app.command("signal-types")
+def prospects_signal_types(
+    ctx: typer.Context,
+    review_state: str = typer.Option("new", "--review-state", help="Review state to count in"),
+    json_output: bool = JSON_OPTION,
+) -> None:
+    """List the signal types the prospects of one review state hold, with a
+    count each."""
+    set_json_mode(json_output)
+    data = _api_request(
+        "get", f"{_PROSPECTS}/signal-types", params={"review_state": review_state}
+    ).json()
+    if json_output:
+        print_json(data)
+        return
+    print_table(data.get("items", []), _SIGNAL_TYPE_FIELDS, title="Signal types")
 
 
 @app.command("get")
@@ -223,6 +521,7 @@ def prospects_people(
                 **item,
                 "person_id": person["id"],
                 **person,
+                "employer_name": _employer_name(person),
             }
         )
     print_table(rows, _PERSON_FIELDS, title="Prospect people")
@@ -294,6 +593,56 @@ def prospects_dismiss(
     _print_curation(data, json_output=json_output)
 
 
+@app.command("restore")
+def prospects_restore(
+    ctx: typer.Context,
+    prospect_id: str = typer.Argument(..., help="Prospect ID"),
+    json_output: bool = JSON_OPTION,
+) -> None:
+    """Return one watched or dismissed prospect to new."""
+    set_json_mode(json_output)
+    data = _api_request("post", f"{_PROSPECTS}/{prospect_id}/restore").json()
+    _print_curation(data, json_output=json_output)
+
+
+@app.command("dismiss-action")
+def prospects_dismiss_action(
+    ctx: typer.Context,
+    prospect_id: str = typer.Argument(..., help="Prospect ID"),
+    json_output: bool = JSON_OPTION,
+) -> None:
+    """Close the suggested action card of one prospect."""
+    set_json_mode(json_output)
+    data = _api_request("post", f"{_PROSPECTS}/{prospect_id}/suggested-action/dismiss").json()
+    if json_output:
+        print_json(data)
+        return
+    _print_prospect(data)
+
+
+_ACT_FIELDS = [
+    ("kind", "Move"),
+    ("task_id", "CRM task ID"),
+]
+
+
+@app.command("act")
+def prospects_act(
+    ctx: typer.Context,
+    prospect_id: str = typer.Argument(..., help="Prospect ID"),
+    json_output: bool = JSON_OPTION,
+) -> None:
+    """Perform the suggested action this prospect carries."""
+    set_json_mode(json_output)
+    data = _api_request("post", f"{_PROSPECTS}/{prospect_id}/act").json()
+    if json_output:
+        print_json(data)
+        return
+    print_detail(data["result"], _ACT_FIELDS)
+    rprint("[bold]Prospect[/bold]")
+    _print_prospect(data["prospect"])
+
+
 _PROMOTION_FIELDS = [
     ("prospect_id", "Prospect ID"),
     ("review_state", "State"),
@@ -307,6 +656,12 @@ _PROMOTED_PERSON_FIELDS = [
 ]
 
 
+_PROMOTED_NAMED_FIELDS = [
+    ("signal_id", "Signal ID"),
+    ("crm_person_id", "CRM person ID"),
+]
+
+
 @app.command("promote")
 def prospects_promote(
     ctx: typer.Context,
@@ -316,7 +671,15 @@ def prospects_promote(
         "--person",
         help="A prospect person ID to promote. Repeat for each person.",
     ),
-    list_id: str = typer.Option(None, "--list", help="A static CRM list the company joins."),
+    signal: list[str] = typer.Option(
+        [],
+        "--signal",
+        help=(
+            "A signal ID whose named person joins CRM by name at the company. "
+            "Repeat for each signal."
+        ),
+    ),
+    list_id: str = typer.Option(None, "--list", help="A static CRM list the prospect joins."),
     yes: bool = typer.Option(False, "--yes", "-y", help="Skip the confirmation."),
     json_output: bool = JSON_OPTION,
 ) -> None:
@@ -324,14 +687,14 @@ def prospects_promote(
     set_json_mode(json_output)
     if not should_skip_confirm(yes):
         typer.confirm(
-            f"Promote prospect {prospect_id} and {len(person)} people into CRM?",
+            f"Promote prospect {prospect_id} and {len(person) + len(signal)} people into CRM?",
             abort=True,
         )
-    data = _api_request(
-        "post",
-        f"{_PROSPECTS}/{prospect_id}/promote",
-        json={"person_ids": list(person), "list_id": list_id},
-    ).json()
+    body: dict[str, object] = {"person_ids": list(person), "list_id": list_id}
+    # An API without the field refuses it, so an empty list is not sent.
+    if signal:
+        body["named_signal_ids"] = list(signal)
+    data = _api_request("post", f"{_PROSPECTS}/{prospect_id}/promote", json=body).json()
     if json_output:
         print_json(data)
         return
@@ -339,3 +702,24 @@ def prospects_promote(
     people = data.get("people") or []
     if people:
         print_table(people, _PROMOTED_PERSON_FIELDS, title="Promoted people")
+    named = data.get("named_people") or []
+    if named:
+        print_table(named, _PROMOTED_NAMED_FIELDS, title="People named in signals")
+
+
+@app.command("delete")
+def prospects_delete(
+    ctx: typer.Context,
+    prospect_id: str = typer.Argument(..., help="Prospect ID"),
+    yes: bool = typer.Option(False, "--yes", "-y", help="Skip the confirmation."),
+    json_output: bool = JSON_OPTION,
+) -> None:
+    """Delete one prospect with its people and its signals."""
+    set_json_mode(json_output)
+    if not should_skip_confirm(yes):
+        typer.confirm(f"Delete prospect {prospect_id}?", abort=True)
+    _api_request("delete", f"{_PROSPECTS}/{prospect_id}")
+    if json_output:
+        print_json({"ok": True, "id": prospect_id, "action": "delete"})
+        return
+    rprint(styled("[green]Deleted prospect {}[/green]", prospect_id))

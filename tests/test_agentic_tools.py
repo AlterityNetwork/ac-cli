@@ -7,6 +7,8 @@ path until the cutover, so the audit for this group runs against a branch API.
 
 import json
 
+import click
+
 BASE = "/api/v1/agentic/tools"
 
 SAMPLE = {
@@ -167,10 +169,13 @@ def test_tools_list_help_names_json_as_the_way_to_read_a_row(monkeypatch, invoke
 
     Pin the width. Typer wraps the prose to the terminal, and a narrow screen
     would break the sentence across two lines.
+
+    Strip the colour codes. Typer forces colour when GITHUB_ACTIONS is set, so
+    in CI the help output holds escape codes between the words.
     """
     monkeypatch.setenv("COLUMNS", "100")
 
     result = invoke(["agentic", "tools", "list", "--help"])
 
     assert result.exit_code == 0
-    assert "Use `--json` to read a whole row." in result.output
+    assert "Use `--json` to read a whole row." in click.unstyle(result.output)

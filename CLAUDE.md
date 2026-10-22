@@ -20,9 +20,8 @@ uv sync --all-extras       # Install with dev dependencies (pytest, respx)
 | `files` | Image upload/delete |
 | `workflows` | Runs, schedules, presets, csv-parse |
 | `apps` | Organization app install/config |
-| `settings` | Organization settings: the copilot approval framework, targeting |
-| `agentic` | Agentic platform: capabilities, runs, definitions, tools, approvals, conversations, prospects, saved-searches, triggers, policies, limits |
-| `agents` | Managed agent runs (the live stack the agentic platform sits beside) |
+| `settings` | Organization settings: the copilot approval framework, targeting, the Company dossier, your memory lines and the suggestions learned from your edits |
+| `agentic` | Agentic platform: capabilities, runs, definitions, tools, approvals, conversations, prospects, saved-searches, triggers, policies, connections, limits |
 | `analytics` | Customer-facing organization analytics overview |
 | `admin` | Users, orgs, queues, demo, onboarding, copilots, app-usage, ai-usage, platform-activity, legal-docs, resources, apps, subscriptions, subscription-plans (super admin) |
 | `profiles` | User profile (incl. set-organization, set-password, subscription) |
@@ -45,8 +44,7 @@ Run `ac <group> --help` for full subcommand listing.
 `tests/test_agent_docs_surface.py` holds this table to the `add_typer` calls in
 `main.py`. Add the row in the same commit as the group.
 
-The table documents the branch it is read on. `agentic` and `agents` exist on
-`agentic-platform` only until the Phase 7 cutover of ENG-2068.
+The table documents the branch it is read on.
 
 ## Agent-Friendly Features
 
@@ -98,7 +96,7 @@ nonzero on stale CLI paths or new API endpoints not yet covered.
 
 ## TDD Workflow
 
-For `feat:` and `fix:` changes, write tests first. See parent `agencycore/.claude/rules/06-tdd-workflow.md`.
+For `feat:` and `fix:` changes, write tests first. See parent `agencycore/.claude/rules/tdd.md`.
 
 **Single test run:** `uv run pytest tests/test_<domain>_<group>.py -x`
 
@@ -119,7 +117,6 @@ Every new command needs tests for: happy path, `--json` flag, error codes, and `
 The following API domains are intentionally not covered by the CLI:
 
 - `/test` — dev-only email simulation endpoints
-- `/eval/*` — internal eval dashboard endpoints
 - `/admin/demo/*-stream`, `/organizations/scrape-website-stream`,
   `/envoy/sequences/{id}/step-stats/stream`,
   `/workflows/{id}/runs/{id}/events`, `/resources/{id}/stream` — SSE streaming

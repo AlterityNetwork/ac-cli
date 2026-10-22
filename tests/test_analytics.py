@@ -40,7 +40,7 @@ def test_analytics_overview(invoke, mock_api):
     mock_api.get("/api/v1/analytics/overview").respond(200, json=OVERVIEW)
     result = invoke(["analytics", "overview"])
     assert result.exit_code == 0
-    assert "Sonar companies" in result.output
+    assert "Sonar (legacy) companies" in result.output
     assert "42" in result.output
     assert "2026-06-21" in result.output
     assert "Reply rate: 5.3%" in result.output
@@ -97,7 +97,7 @@ def test_analytics_overview_renders_null_change_without_crashing(invoke, mock_ap
     result = invoke(["analytics", "overview"])
 
     assert result.exit_code == 0
-    assert "Sonar companies" in result.output
+    assert "Sonar (legacy) companies" in result.output
     # No fabricated percentage for an undefined comparison.
     assert "+100.0%" not in result.output
 

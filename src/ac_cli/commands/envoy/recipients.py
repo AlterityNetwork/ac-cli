@@ -52,6 +52,47 @@ def recipients_list(
     )
 
 
+@recipients_app.command("history")
+def recipients_history(
+    sequence_id: str = typer.Argument(..., help="Sequence ID"),
+    recipient_id: str = typer.Argument(..., help="Recipient ID"),
+    json_output: bool = JSON_OPTION,
+) -> None:
+    """Show every step of a sequence for one recipient, and the email thread."""
+    set_json_mode(json_output)
+    resp = _api_request(
+        "get", f"{_ENVOY}/sequences/{sequence_id}/recipients/{recipient_id}/history"
+    )
+    data = resp.json()
+    if json_output:
+        print_json(data)
+        return
+
+    steps = data.get("steps", [])
+    print_table(
+        steps,
+        [
+            ("step_order", "Step"),
+            ("type", "Type"),
+            ("status", "Status"),
+            ("subject", "Subject"),
+            ("awaiting_approval_count", "Waiting"),
+            ("skip_reason", "Reason"),
+        ],
+        title=f"Steps ({len(steps)})",
+    )
+    messages = data.get("messages", [])
+    print_table(
+        messages,
+        [
+            ("communication_date", "Date"),
+            ("direction", "Direction"),
+            ("subject", "Subject"),
+        ],
+        title=f"Thread ({len(messages)})",
+    )
+
+
 @recipients_app.command("add")
 def recipients_add(
     ctx: typer.Context,

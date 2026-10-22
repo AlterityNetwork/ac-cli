@@ -10,7 +10,9 @@ and starts one of them,
 `ac agentic prospects` reviews discovered companies,
 `ac agentic saved-searches` manages repeatable search briefs,
 `ac agentic policies` writes the rules an organization governs its agents with,
-and `ac agentic limits` reads and writes what it may spend in a day. All ten
+`ac agentic connections` links and revokes the provider accounts its agents act
+through, and `ac agentic limits` reads and writes what it may spend in a day and
+how many actions each connection may take. All eleven
 sit beside the live `ac agents runs` and replace none of it: the two stacks are
 branch isolated until the cutover, so the alias and the deletion of the old
 commands belong to Phase 7.
@@ -29,14 +31,19 @@ import json
 import shlex
 import uuid
 from datetime import datetime
+from enum import Enum
 from urllib.parse import quote
 
+import httpx
 import typer
 from rich import print as rprint
 
+from ac_cli.client import get_api_client
 from ac_cli.commands._helpers import (
     JSON_OPTION,
     _api_request,
+    _handle_connection_error,
+    _handle_error,
     checked_header_key,
     refuse_local,
     set_json_mode,
@@ -107,13 +114,26 @@ _RUN_FIELDS = [
     ("ended_at", "Ended"),
 ]
 
+# `Title` and `Prospects` are blank on every list but a `--capability
+# signals.search` one. The API names and counts a Run on that list alone, and it
+# answers null everywhere else. Zero is a Run that wrote no prospect.
 _LIST_FIELDS = [
     ("id", "Run ID"),
-    ("definition_name", "Definition"),
+    ("display_name", "Definition / Search"),
+    ("title", "Title"),
     ("status", "Status"),
     ("kind", "Kind"),
+    ("prospect_count", "Prospects"),
     ("created_at", "Created"),
 ]
+
+
+class _SpanScope(str, Enum):
+    """Which spans a read answers. It mirrors `SpanScope` in ac-python-api."""
+
+    run = "run"
+    tree = "tree"
+
 
 # ⚠️ **`No call` is what makes the `Status` column readable.** A `tool` span
 # that reads `ok` is not always a call: a call that stopped for a person and a
@@ -140,19 +160,14 @@ _SPAN_FIELDS = [
 @capabilities_app.command("start")
 def capabilities_start(
     capability_id: str = typer.Argument(..., help="Stable capability ID, such as company.search"),
-    contract_version: int = typer.Option(
-        ..., "--contract-version", help="Published contract version"
-    ),
     input_json: str = typer.Option(..., "--input", help="Capability input as a JSON object"),
     idempotency_key: str = typer.Option(
         ..., "--idempotency-key", help="Delivery key; reuse it only for the same request"
     ),
     json_output: bool = JSON_OPTION,
 ) -> None:
-    """Start a capability with an explicit contract version and delivery key."""
+    """Start a capability with the active contract and a delivery key."""
     set_json_mode(json_output)
-    if contract_version < 1:
-        refuse_local("--contract-version must be positive", contract_version)
     idempotency_key = checked_header_key(idempotency_key)
     try:
         value = json.loads(input_json)
@@ -166,7 +181,7 @@ def capabilities_start(
     resp = _api_request(
         "post",
         f"{_AGENTIC}/capabilities/{capability_id}/runs",
-        json={"contract_version": contract_version, "input": value},
+        json={"input": value},
         headers={"Idempotency-Key": idempotency_key},
     )
     data = resp.json()
@@ -257,12 +272,25 @@ def runs_list(
     ctx: typer.Context,
     parent: str | None = typer.Option(None, "--parent", help="Children of one run"),
     definition_id: str | None = typer.Option(None, "--definition", help="Runs of one definition"),
-    capability: str | None = typer.Option(
-        None, "--capability", help="Runs of one capability, e.g. company.search"
+    capability: list[str] | None = typer.Option(
+        None,
+        "--capability",
+        help="Runs of one capability, e.g. company.search. Repeat it to name more than one.",
     ),
     status: str | None = typer.Option(None, "--status", help="Runs in one status"),
+    source: str | None = typer.Option(
+        None,
+        "--source",
+        help="Runs one entry point started: front_door, trigger, api or workflow_step. "
+        "A schedule starts trigger runs.",
+    ),
     every: bool = typer.Option(
         False, "--all", help="Include child runs. The default returns roots only."
+    ),
+    include_result: bool = typer.Option(
+        False,
+        "--include-result",
+        help="Put the result of each run on its row. Read it with --json.",
     ),
     cursor: str | None = typer.Option(None, "--cursor", help="Page to continue"),
     limit: int = typer.Option(_PAGE_DEFAULT, "--limit", help="Page size, 1 to 100"),
@@ -285,6 +313,10 @@ def runs_list(
         params["capability_id"] = capability
     if status:
         params["status"] = status
+    if source:
+        params["source"] = source
+    if include_result:
+        params["include_result"] = "true"
     if cursor:
         params["cursor"] = cursor
 
@@ -296,7 +328,14 @@ def runs_list(
         return
 
     items = data.get("items", [])
-    print_table(items, _LIST_FIELDS, title=f"Runs ({len(items)})")
+    rows = [
+        {
+            **item,
+            "display_name": item.get("search_query") or item.get("definition_name"),
+        }
+        for item in items
+    ]
+    print_table(rows, _LIST_FIELDS, title=f"Runs ({len(items)})")
     if data.get("next_cursor"):
         _print_cursor_hint(
             data["next_cursor"],
@@ -304,8 +343,11 @@ def runs_list(
             filters=[
                 ("--parent", parent),
                 ("--definition", definition_id),
+                *(("--capability", one) for one in capability or []),
                 ("--status", status),
+                ("--source", source),
                 ("--all", every),
+                ("--include-result", include_result),
             ],
         )
 
@@ -413,13 +455,22 @@ def _print_cursor_hint(
 
 
 def _print_spans_hint(
-    items: list[dict], next_cursor: str | None, since: str | None, limit: int
+    items: list[dict],
+    next_cursor: str | None,
+    since: str | None,
+    limit: int,
+    scope: _SpanScope,
 ) -> None:
     """Prints the command that reads the next spans, or reconnects.
 
     ⚠️ **A cursor names the order it was written for.** A `--since` page is
     tagged `updated_at` and a plain page is tagged `started_at`, so the hint
     repeats `--since`. Pasted without it, the same cursor answers `400`.
+
+    ⚠️ **It names the scope for the same reason.** `run` is the default, so a
+    pasted line that drops `--scope` reads another set. The cursor carries the
+    scope too and the API refuses the pair, so the drain stops with spans
+    unread rather than answering a short page in silence.
 
     ⚠️ **The hint prints with `soft_wrap`, so the cursor stays one token.** A
     cursor is about 108 characters, and the console hard wraps a longer line at
@@ -457,6 +508,7 @@ def _print_spans_hint(
         next_cursor: The token of the next page, or None at the end of it.
         since: The value this read carried, or None for a plain read.
         limit: The page size the read carried.
+        scope: The set this read carried.
     """
     if next_cursor:
         page: list[object] = ["[dim]Next page:[/dim]"]
@@ -464,6 +516,8 @@ def _print_spans_hint(
             page += ["--since", as_text(since)]
         if limit != _PAGE_DEFAULT:
             page += ["--limit", as_text(limit)]
+        if scope is not _SpanScope.run:
+            page += ["--scope", as_text(scope.value)]
         page += ["--cursor", as_text(next_cursor)]
         console.print(*page, soft_wrap=True)
         return
@@ -496,7 +550,37 @@ def _print_spans_hint(
     parts: list[object] = ["[dim]Reconnect with:[/dim] --since", as_text(newest or since)]
     if limit != _PAGE_DEFAULT:
         parts += ["--limit", as_text(limit)]
+    if scope is not _SpanScope.run:
+        parts += ["--scope", as_text(scope.value)]
     console.print(*parts, soft_wrap=True)
+
+
+@runs_app.command("progress")
+def runs_progress(
+    ctx: typer.Context,
+    run_id: str = typer.Argument(..., help="Root run ID"),
+    json_output: bool = JSON_OPTION,
+):
+    """Show product milestones across a root run and its child agents."""
+    set_json_mode(json_output)
+    data = _api_request("get", f"{_AGENTIC}/runs/{run_id}/progress").json()
+    if json_output:
+        print_json(data)
+        return
+    print_detail(data, [("run_id", "Run"), ("status", "Status")])
+    print_table(
+        data.get("stages", []),
+        [("name", "Stage"), ("status", "Status"), ("updated_at", "Updated")],
+        title="Search progress",
+    )
+
+    for stage in data.get("stages", []):
+        if stage.get("activity"):
+            print_table(
+                stage["activity"],
+                [("kind", "Kind"), ("name", "Activity"), ("status", "Status")],
+                title=stage["name"],
+            )
 
 
 @runs_app.command("spans")
@@ -509,13 +593,30 @@ def runs_spans(
         help="Read the spans that moved at or after this instant, as ISO 8601 with a time zone",
     ),
     cursor: str | None = typer.Option(None, "--cursor", help="Page to continue"),
+    scope: _SpanScope = typer.Option(
+        _SpanScope.run,
+        "--scope",
+        help="run reads this run alone, tree reads every run of its tree",
+    ),
     limit: int = typer.Option(_PAGE_DEFAULT, "--limit", help="Page size, 1 to 100"),
     json_output: bool = JSON_OPTION,
 ) -> None:
-    """List the spans of one run.
+    """List the spans of one run, or of its whole tree.
 
     It reads the spans of that run alone. A child run holds its own spans, so
-    open the child to read them.
+    open the child to read them, or pass `--scope tree`.
+
+    ⚠️ **`--scope tree` answers the tree of the root, whichever member you
+    name.** A child carries the root's id and never its own, so naming a child
+    answers its parent and its siblings too, not a subtree. Name a child with
+    no scope to read that child alone.
+
+    ⚠️ **A node that runs an agent starts a child run.** That child writes its
+    own spans, so the default read never answers them. A company.search run
+    measured in ENG-2559 answered two spans by default while the tree held
+    five: the planner's run, segment and llm spans were under the child, and
+    they held 3,455 ms of a 6,309 ms run. Pass `--scope tree` to see where a
+    run spent its time.
 
     `--since` is what a client reads after a dropped stream. The run stream
     keeps no backlog, so a reconnecting reader asks for the spans that moved
@@ -551,6 +652,10 @@ def runs_spans(
         params["since"] = since
     if cursor:
         params["cursor"] = cursor
+    # The API defaults to the run, so a default read sends nothing and the
+    # request stays the one every older client wrote.
+    if scope is not _SpanScope.run:
+        params["scope"] = scope.value
 
     resp = _api_request("get", f"{_AGENTIC}/runs/{run_id}/spans", params=params)
 
@@ -571,7 +676,30 @@ def runs_spans(
             " so the No call column is blank on every row and a gated call"
             " cannot be told from a real one."
         )
-    _print_spans_hint(items, data.get("next_cursor"), since, limit)
+    _print_spans_hint(items, data.get("next_cursor"), since, limit, scope)
+
+
+@runs_app.command("span-detail")
+def runs_span_detail(
+    ctx: typer.Context,
+    run_id: str = typer.Argument(..., help="Run ID that wrote the span"),
+    span_id: str = typer.Argument(..., help="Span ID"),
+    json_output: bool = JSON_OPTION,
+) -> None:
+    """Read the stored input and output of one span."""
+    set_json_mode(json_output)
+    resp = _api_request("get", f"{_AGENTIC}/runs/{run_id}/spans/{span_id}")
+    data = resp.json()
+    if json_output:
+        print_json(data)
+        return
+    print_detail(
+        {
+            "input": json.dumps(data.get("input"), indent=2),
+            "output": json.dumps(data.get("output"), indent=2),
+        },
+        [("input", "Input"), ("output", "Output")],
+    )
 
 
 @runs_app.command("cancel")
@@ -613,6 +741,8 @@ _DEFINITION_FIELDS = [
     ("state", "State"),
     ("has_unpublished_changes", "Unpublished edits"),
     ("source_definition_id", "Forked from"),
+    ("capability_id", "Capability"),
+    ("contract_version", "Contract version"),
     ("created_at", "Created"),
     ("published_at", "Published"),
     ("updated_at", "Token"),
@@ -689,6 +819,9 @@ def definitions_list(
     kind: str | None = typer.Option(None, "--kind", help="agent, workflow or skill"),
     origin: str | None = typer.Option(None, "--origin", help="platform or custom"),
     state: str | None = typer.Option(None, "--state", help="draft, active or disabled"),
+    include_archived: bool = typer.Option(
+        False, "--include-archived", help="Also list the archived definitions"
+    ),
     cursor: str | None = typer.Option(None, "--cursor", help="Page to continue"),
     limit: int = typer.Option(_PAGE_DEFAULT, "--limit", help="Page size, 1 to 100"),
     json_output: bool = JSON_OPTION,
@@ -696,7 +829,8 @@ def definitions_list(
     """List the definitions this organization may see.
 
     The page carries your own definitions in every state, plus the platform
-    templates that are active. A fork starts from a template.
+    templates that are active. A fork starts from a template. An archived
+    definition is hidden unless you pass --include-archived.
     """
     set_json_mode(json_output)
     _checked_limit(limit)
@@ -707,6 +841,8 @@ def definitions_list(
         params["origin"] = origin
     if state:
         params["state"] = state
+    if include_archived:
+        params["include_archived"] = "true"
     if cursor:
         params["cursor"] = cursor
 
@@ -723,7 +859,12 @@ def definitions_list(
         _print_cursor_hint(
             data["next_cursor"],
             limit,
-            filters=[("--kind", kind), ("--origin", origin), ("--state", state)],
+            filters=[
+                ("--kind", kind),
+                ("--origin", origin),
+                ("--state", state),
+                ("--include-archived", include_archived),
+            ],
         )
 
 
@@ -766,6 +907,10 @@ def definitions_get(
 
     A platform template answers 404 here. It is visible through `list` and
     through `fork`.
+
+    Only the root workflow of a capability holds a capability contract. The
+    table shows its capability ID and its contract version. Use `--json` to
+    read the two JSON Schemas.
     """
     set_json_mode(json_output)
     resp = _api_request("get", f"{_AGENTIC}/definitions/{definition_id}")
@@ -775,9 +920,21 @@ def definitions_get(
         print_json(data)
         return
 
-    print_detail(data, _DEFINITION_FIELDS)
+    # `print_detail` prints a nested object as a Python repr. The two scalars
+    # of the binding therefore move up to the row before it prints.
+    binding = data.get("capability_binding") or {}
+    print_detail(
+        {
+            **data,
+            "capability_id": binding.get("capability_id"),
+            "contract_version": binding.get("contract_version"),
+        },
+        _DEFINITION_FIELDS,
+    )
     if data.get("has_unpublished_changes"):
         rprint("[dim]The draft differs from what is published.[/dim]")
+    if binding:
+        rprint("[dim]Use --json to read the input and output schemas.[/dim]")
 
 
 @definitions_app.command("patch")
@@ -906,6 +1063,51 @@ def definitions_enable(
     rprint("[green]Enabled:[/green]", as_text(f"{data['id']} (state: {data['state']})"))
 
 
+@definitions_app.command("archive")
+def definitions_archive(
+    ctx: typer.Context,
+    definition_id: str = typer.Argument(..., help="Definition ID"),
+    yes: bool = typer.Option(False, "--yes", "-y", help="Skip confirmation"),
+    json_output: bool = JSON_OPTION,
+) -> None:
+    """Hide one definition from the default list.
+
+    A published definition is never deleted. An active one is disabled first,
+    and the archive is refused while an active definition still references it.
+    """
+    set_json_mode(json_output)
+    if not should_skip_confirm(yes):
+        typer.confirm(f"Archive definition {definition_id}?", abort=True)
+
+    resp = _api_request("post", f"{_AGENTIC}/definitions/{definition_id}/archive")
+
+    data = resp.json()
+    if json_output:
+        print_json(data)
+        return
+    rprint("[green]Archived:[/green]", as_text(f"{data['id']} (state: {data['state']})"))
+
+
+@definitions_app.command("unarchive")
+def definitions_unarchive(
+    ctx: typer.Context,
+    definition_id: str = typer.Argument(..., help="Definition ID"),
+    json_output: bool = JSON_OPTION,
+) -> None:
+    """Return one definition to the default list.
+
+    A published definition stays disabled. Enable it as a separate step.
+    """
+    set_json_mode(json_output)
+    resp = _api_request("post", f"{_AGENTIC}/definitions/{definition_id}/unarchive")
+
+    data = resp.json()
+    if json_output:
+        print_json(data)
+        return
+    rprint("[green]Unarchived:[/green]", as_text(f"{data['id']} (state: {data['state']})"))
+
+
 @definitions_app.command("fork")
 def definitions_fork(
     ctx: typer.Context,
@@ -1000,7 +1202,6 @@ _CAPABILITY_LIST_FIELDS = [
     ("availability", "Availability"),
     ("reason", "Reason"),
     ("name", "Name"),
-    ("contract_version", "Version"),
 ]
 
 _CAPABILITY_FIELDS = [
@@ -1009,7 +1210,6 @@ _CAPABILITY_FIELDS = [
     ("reason", "Reason"),
     ("name", "Name"),
     ("description", "Description"),
-    ("contract_version", "Version"),
     ("executor_type", "Executor"),
 ]
 
@@ -1255,6 +1455,276 @@ app.add_typer(prospects_app, name="prospects")
 app.add_typer(saved_searches_app, name="saved-searches")
 
 
+connections_app = typer.Typer(help="Agentic provider connections")
+
+_CONNECTION_FIELDS = [
+    ("id", "Connection ID"),
+    ("provider", "Provider"),
+    ("display_name", "Name"),
+    ("status", "Status"),
+    ("owner_user_id", "Owner"),
+    ("held_until", "Held until"),
+    ("hold_reason", "Hold reason"),
+    ("send_window", "Send window"),
+    ("created_at", "Created"),
+    ("updated_at", "Updated"),
+    ("revoked_at", "Revoked"),
+]
+
+_CONNECTION_LIST_FIELDS = [
+    ("id", "Connection ID"),
+    ("provider", "Provider"),
+    ("display_name", "Name"),
+    ("status", "Status"),
+    ("owner_user_id", "Owner"),
+    ("held_until", "Held until"),
+    ("send_window", "Send window"),
+    ("created_at", "Created"),
+    ("revoked_at", "Revoked"),
+]
+
+# The window the API applies when a connection holds no admin window, in the
+# time zone of the connection owner.
+_DEFAULT_SEND_WINDOW = "07:00 to 20:00 (default)"
+
+
+def _with_send_window(connection: dict) -> dict:
+    """Adds one readable send window field to a connection row.
+
+    The API answers two times, or two nulls for the default window.
+
+    Args:
+        connection: One connection the API answered.
+
+    Returns:
+        A copy of the row with a `send_window` field.
+    """
+    start = connection.get("send_window_start")
+    end = connection.get("send_window_end")
+    window = f"{start[:5]} to {end[:5]}" if start and end else _DEFAULT_SEND_WINDOW
+    return {**connection, "send_window": window}
+
+
+def _report_link_error(exc: httpx.HTTPStatusError, subject: str, json_output: bool) -> None:
+    """Reports a failed link or reconnect request, then exits.
+
+    A 503 tells the caller that this deploy has no link flow for the
+    provider, or that its rollout gate is off. The command prints that in
+    plain words and exits 1. Every other status takes the shared error path.
+
+    Args:
+        exc: The error httpx raised.
+        subject: The words that name the provider in the message.
+        json_output: True when the caller asked for JSON.
+
+    Raises:
+        typer.Exit: Always.
+    """
+    if exc.response.status_code != 503:
+        _handle_error(exc)
+    detail = f"{subject} is not available on this deploy."
+    if json_output:
+        print_json({"error": True, "status_code": 503, "detail": detail})
+    else:
+        rprint(styled("[red]Not available:[/red] {}", detail))
+    raise typer.Exit(code=1)
+
+
+def _report_link_url(data: dict, json_output: bool) -> None:
+    """Prints the URL that the person opens to finish the link flow.
+
+    Args:
+        data: The body the endpoint answered.
+        json_output: True when the caller asked for JSON.
+    """
+    if json_output:
+        print_json(data)
+        return
+    rprint("[green]Open this URL to finish the link:[/green]")
+    rprint(as_text(data["url"]))
+
+
+@connections_app.command("list")
+def connections_list(
+    ctx: typer.Context,
+    provider: str | None = typer.Option(None, "--provider", help="Read one provider only"),
+    json_output: bool = JSON_OPTION,
+) -> None:
+    """List your own provider connections.
+
+    An organization admin sees every connection of the organization.
+    """
+    set_json_mode(json_output)
+    params = {"provider": provider} if provider else None
+
+    resp = _api_request("get", f"{_AGENTIC}/connections", params=params)
+
+    data = resp.json()
+    if json_output:
+        print_json(data)
+        return
+    items = data.get("items", [])
+    if not items:
+        rprint("[yellow]No connections:[/yellow] you have not connected an account")
+        return
+    print_table(
+        [_with_send_window(item) for item in items],
+        _CONNECTION_LIST_FIELDS,
+        title=f"Connections ({len(items)})",
+    )
+
+
+_PROVIDER_FIELDS = [
+    ("provider", "Provider"),
+    ("available", "Available"),
+]
+
+
+@connections_app.command("providers")
+def connections_providers(
+    ctx: typer.Context,
+    json_output: bool = JSON_OPTION,
+) -> None:
+    """List each provider, and whether you can link it on this deploy.
+
+    A provider is available when its rollout gate is on and the deploy has
+    its sign-in flow. `connections link` answers 503 for one that is not.
+    """
+    set_json_mode(json_output)
+    resp = _api_request("get", f"{_AGENTIC}/connections/providers")
+
+    data = resp.json()
+    if json_output:
+        print_json(data)
+        return
+    items = data.get("items", [])
+    print_table(items, _PROVIDER_FIELDS, title=f"Providers ({len(items)})")
+
+
+@connections_app.command("get")
+def connections_get(
+    ctx: typer.Context,
+    connection_id: str = typer.Argument(..., help="Connection ID"),
+    json_output: bool = JSON_OPTION,
+) -> None:
+    """Read one connection, with its day hold and its send window."""
+    set_json_mode(json_output)
+    resp = _api_request("get", f"{_AGENTIC}/connections/{connection_id}")
+
+    data = resp.json()
+    if json_output:
+        print_json(data)
+        return
+    print_detail(_with_send_window(data), _CONNECTION_FIELDS)
+
+
+@connections_app.command("set-window")
+def connections_set_window(
+    ctx: typer.Context,
+    connection_id: str = typer.Argument(..., help="Connection ID"),
+    start: str | None = typer.Option(None, "--start", help="The first local time, e.g. 06:00"),
+    end: str | None = typer.Option(None, "--end", help="The local time it closes, e.g. 22:00"),
+    clear: bool = typer.Option(False, "--clear", help="Restore the 07:00 to 20:00 default"),
+    json_output: bool = JSON_OPTION,
+) -> None:
+    """Set or clear the send window of one connection. Admin only.
+
+    A send runs only inside the window, in the time zone of the connection
+    owner. Give both --start and --end, or give --clear. The start must come
+    before the end.
+    """
+    set_json_mode(json_output)
+    if clear == (start is not None or end is not None) or (start is None) != (end is None):
+        usage = "give both --start and --end, or give --clear"
+        if json_output:
+            print_json({"error": True, "status_code": 422, "detail": usage})
+        else:
+            rprint(styled("[red]Error:[/red] {}", usage))
+        raise typer.Exit(code=2)
+
+    body = {"send_window_start": start, "send_window_end": end}
+    resp = _api_request("patch", f"{_AGENTIC}/connections/{connection_id}", json=body)
+
+    data = resp.json()
+    if json_output:
+        print_json(data)
+        return
+    print_detail(_with_send_window(data), _CONNECTION_FIELDS)
+
+
+@connections_app.command("link")
+def connections_link(
+    ctx: typer.Context,
+    provider: str = typer.Option(..., "--provider", help="The provider to link, e.g. linkedin"),
+    json_output: bool = JSON_OPTION,
+) -> None:
+    """Start the link flow for your own account, and print its URL.
+
+    Open the URL in a browser to finish the link. The connection appears in
+    `connections list` when the provider confirms it.
+    """
+    set_json_mode(json_output)
+    with get_api_client() as client:
+        try:
+            resp = client.post(f"{_AGENTIC}/connections/link", json={"provider": provider})
+            resp.raise_for_status()
+        except httpx.HTTPStatusError as exc:
+            _report_link_error(exc, f"The {provider} provider", json_output)
+        except httpx.HTTPError as exc:
+            _handle_connection_error(exc)
+    _report_link_url(resp.json(), json_output)
+
+
+@connections_app.command("reconnect")
+def connections_reconnect(
+    ctx: typer.Context,
+    connection_id: str = typer.Argument(..., help="Connection ID"),
+    json_output: bool = JSON_OPTION,
+) -> None:
+    """Start the link flow again for one connection, and print its URL.
+
+    Use it when the connection reads needs_reauth. A revoked connection
+    cannot reconnect, so the API answers 409.
+    """
+    set_json_mode(json_output)
+    with get_api_client() as client:
+        try:
+            resp = client.post(f"{_AGENTIC}/connections/{connection_id}/reconnect")
+            resp.raise_for_status()
+        except httpx.HTTPStatusError as exc:
+            _report_link_error(exc, "The provider of this connection", json_output)
+        except httpx.HTTPError as exc:
+            _handle_connection_error(exc)
+    _report_link_url(resp.json(), json_output)
+
+
+@connections_app.command("revoke")
+def connections_revoke(
+    ctx: typer.Context,
+    connection_id: str = typer.Argument(..., help="Connection ID"),
+    yes: bool = typer.Option(False, "--yes", "-y", help="Skip confirmation"),
+    json_output: bool = JSON_OPTION,
+) -> None:
+    """Revoke one connection, so no agent acts through it again.
+
+    A revoked connection cannot reconnect. Link the account again to use it.
+    """
+    set_json_mode(json_output)
+    if not should_skip_confirm(yes):
+        typer.confirm(f"Revoke connection {connection_id}?", abort=True)
+
+    resp = _api_request("post", f"{_AGENTIC}/connections/{connection_id}/revoke")
+
+    data = resp.json()
+    if json_output:
+        print_json(data)
+        return
+    rprint(styled("[green]Connection {}:[/green]", data["status"]), as_text(data["id"]))
+
+
+app.add_typer(connections_app, name="connections")
+
+
 limits_app = typer.Typer(help="Agentic organization spend ceilings")
 
 # The one ceiling this deploy enforces. A new kind is a database migration, so a
@@ -1355,6 +1825,92 @@ def limits_clear(
         print_json(data)
         return
     _report_limit(data)
+
+
+class _Window(str, Enum):
+    """The windows a count budget runs over, in UTC."""
+
+    day = "day"
+    week = "week"
+
+
+_BUDGET_FIELDS = [
+    ("budget_class", "Class"),
+    ("time_window", "Window"),
+    ("platform_default", "Platform default"),
+    ("override", "Override"),
+    ("cap", "Cap"),
+    ("used", "Used"),
+]
+
+
+@limits_app.command("budgets")
+def limits_budgets(
+    ctx: typer.Context,
+    json_output: bool = JSON_OPTION,
+) -> None:
+    """Read the action budgets of each connection.
+
+    The cap is the limit now. It is the platform default, halved while the
+    connection is young, or the admin override when that is lower. Used counts
+    the actions held in the current window.
+    """
+    set_json_mode(json_output)
+    resp = _api_request("get", f"{_AGENTIC}/limits/action-budgets")
+
+    data = resp.json()
+    if json_output:
+        print_json(data)
+        return
+    items = data.get("items", [])
+    if not items:
+        rprint("[yellow]No connections:[/yellow] no action budget applies")
+        return
+    for item in items:
+        title = f"{item['provider']} {item.get('display_name') or item['connection_id']}"
+        title += f" ({item['status']})"
+        if item.get("half_rate_until"):
+            title += f", half rate until {item['half_rate_until']}"
+        print_table(item.get("budgets", []), _BUDGET_FIELDS, title=title)
+
+
+@limits_app.command("set-budget")
+def limits_set_budget(
+    ctx: typer.Context,
+    connection_id: str = typer.Option(..., "--connection", help="Connection ID"),
+    budget_class: str = typer.Option(
+        ..., "--class", help="The budget class, e.g. linkedin.invitations"
+    ),
+    window: _Window = typer.Option(..., "--window", help="day or week"),
+    max_count: int | None = typer.Option(
+        None, "--max", min=0, help="The override. It must not be above the platform default."
+    ),
+    clear: bool = typer.Option(False, "--clear", help="Remove the override"),
+    json_output: bool = JSON_OPTION,
+) -> None:
+    """Set or remove the admin override of one action budget.
+
+    An override can only lower the platform default. Give exactly one of
+    --max and --clear.
+    """
+    set_json_mode(json_output)
+    if (max_count is not None) == clear:
+        rprint("[red]Error:[/red] give exactly one of --max and --clear")
+        raise typer.Exit(code=2)
+
+    body = {
+        "connection_id": connection_id,
+        "budget_class": budget_class,
+        "time_window": window.value,
+        "max_count": None if clear else max_count,
+    }
+    resp = _api_request("put", f"{_AGENTIC}/limits/action-budgets", json=body)
+
+    data = resp.json()
+    if json_output:
+        print_json(data)
+        return
+    print_detail(data, _BUDGET_FIELDS)
 
 
 app.add_typer(limits_app, name="limits")
@@ -1716,9 +2272,9 @@ def triggers_create(
 
     The row is saved stopped. Read it, then `ac agentic triggers enable <id>`.
 
-    A scheduled saved search names `--input-builder saved_search` and
-    `--input-config '{"saved_search_id": "..."}'`. The static builder cannot
-    start one: the baseline changes on every run.
+    This command does not schedule a saved search. Use
+    `ac agentic saved-searches schedule set <search-id> --cron '0 9 * * 1'`.
+    The API refuses a `saved_search` builder here.
     """
     set_json_mode(json_output)
     body: dict = {

@@ -284,3 +284,10 @@ def test_summary_403_returns_exit_4(invoke, mock_api):
     parsed = json.loads(result.output)
     assert parsed["error"] is True
     assert parsed["status_code"] == 403
+
+
+def test_searches_help_names_the_legacy_apps(invoke):
+    result = invoke(["admin", "searches", "--help"])
+    assert result.exit_code == 0
+    assert "Sonar (legacy)" in result.output
+    assert "Headhunter (legacy)" in result.output

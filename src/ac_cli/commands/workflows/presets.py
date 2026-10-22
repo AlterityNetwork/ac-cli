@@ -24,25 +24,37 @@ presets_app = typer.Typer(help="Workflow preset operations")
 def presets_list(
     ctx: typer.Context,
     workflow_id: str = typer.Argument(..., help="Workflow ID"),
+    limit: int = typer.Option(50, "--limit", min=1, max=100, help="Page size, 1 to 100"),
+    offset: int = typer.Option(0, "--offset", min=0, help="Row offset"),
     json_output: bool = JSON_OPTION,
 ) -> None:
-    """List presets for a workflow."""
+    """List one page of presets with aggregate run statistics."""
     set_json_mode(json_output)
-    resp = _api_request("get", f"{_WORKFLOWS}/{workflow_id}/presets")
+    resp = _api_request(
+        "get",
+        f"{_WORKFLOWS}/{workflow_id}/presets",
+        params={"limit": limit, "offset": offset},
+    )
 
     data = resp.json()
     if json_output:
         print_json(data)
         return
 
-    items = data if isinstance(data, list) else data.get("data", [])
+    items = data.get("items", [])
+    rows = [{**item, **item.get("stats", {})} for item in items]
     print_table(
-        items,
+        rows,
         [
-            ("name", "Name"),
+            ("preset_name", "Name"),
+            ("last_run_at", "Last run"),
+            ("run_count", "Runs"),
+            ("companies_total", "Companies"),
+            ("signals_total", "Signals"),
+            ("people_total", "People"),
             ("id", "ID"),
         ],
-        title=f"Presets ({len(items)})",
+        title=f"Presets ({data.get('total', len(items))} total)",
     )
 
 
@@ -66,9 +78,9 @@ def presets_get(
         data,
         [
             ("id", "ID"),
-            ("name", "Name"),
+            ("preset_name", "Name"),
             ("description", "Description"),
-            ("config", "Config"),
+            ("settings", "Settings"),
             ("created_at", "Created"),
         ],
     )
@@ -85,10 +97,10 @@ def presets_create(
 ) -> None:
     """Create a workflow preset."""
     set_json_mode(json_output)
-    body = _build_body(name=name, description=description)
+    body = _build_body(preset_name=name, description=description)
     if config_json:
         try:
-            body["config"] = json.loads(config_json)
+            body["settings"] = json.loads(config_json)
         except json.JSONDecodeError:
             rprint("[red]Invalid JSON for --config[/red]")
             raise typer.Exit(code=1)
@@ -99,7 +111,13 @@ def presets_create(
     if json_output:
         print_json(data)
     else:
-        rprint(styled("[green]Created preset:[/green] {} ({})", data["name"], data["id"]))
+        rprint(
+            styled(
+                "[green]Created preset:[/green] {} ({})",
+                data["preset_name"],
+                data["id"],
+            )
+        )
 
 
 @presets_app.command("update")
@@ -114,10 +132,10 @@ def presets_update(
 ) -> None:
     """Update a workflow preset."""
     set_json_mode(json_output)
-    body = _build_body(name=name, description=description)
+    body = _build_body(preset_name=name, description=description)
     if config_json:
         try:
-            body["config"] = json.loads(config_json)
+            body["settings"] = json.loads(config_json)
         except json.JSONDecodeError:
             rprint("[red]Invalid JSON for --config[/red]")
             raise typer.Exit(code=1)

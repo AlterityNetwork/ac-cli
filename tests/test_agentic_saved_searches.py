@@ -21,7 +21,11 @@ SUMMARY = {
     "last_run_at": "2026-08-28T10:00:00Z",
     "created_at": "2026-08-28T09:00:00Z",
     "updated_at": "2026-08-28T10:00:00.123456Z",
+    "description": "Hiring a head of RevOps",
 }
+SCHEDULE = {"cron": "0 9 * * 1", "timezone": "Europe/London"}
+#: A list item also carries the schedule an enabled trigger gives the search.
+LIST_ITEM = {**SUMMARY, "schedule": SCHEDULE}
 BRIEF = {
     "icp": "UK fintech",
     "region": "UK",
@@ -69,8 +73,6 @@ def test_create_sends_name_and_full_brief(invoke, mock_api):
             "create",
             "--capability",
             SIGNALS,
-            "--contract-version",
-            "3",
             "--name",
             "UK fintech",
             "--brief",
@@ -81,7 +83,6 @@ def test_create_sends_name_and_full_brief(invoke, mock_api):
     assert result.exit_code == 0
     assert json.loads(route.calls[0].request.content) == {
         "capability_id": SIGNALS,
-        "contract_version": 3,
         "name": "UK fintech",
         "brief": BRIEF,
     }
@@ -99,8 +100,6 @@ def test_create_json_keeps_the_detail(invoke, mock_api):
             "create",
             "--capability",
             SIGNALS,
-            "--contract-version",
-            "3",
             "--name",
             "UK fintech",
             "--brief",
@@ -122,8 +121,6 @@ def test_create_refuses_non_object_brief_before_request(invoke, mock_api):
             "create",
             "--capability",
             SIGNALS,
-            "--contract-version",
-            "3",
             "--name",
             "UK fintech",
             "--brief",
@@ -147,8 +144,6 @@ def test_create_refuses_invalid_json_before_request(invoke, mock_api):
             "create",
             "--capability",
             SIGNALS,
-            "--contract-version",
-            "3",
             "--name",
             "UK fintech",
             "--brief",
@@ -235,6 +230,33 @@ def test_list_without_a_next_cursor_prints_no_hint(invoke, mock_api):
     assert "Next page" not in result.output
 
 
+def test_list_combines_multiple_capabilities(invoke, mock_api, table_column):
+    people = {**SUMMARY, "id": RUN_ID, "capability_id": "people.signals", "name": "Leaders"}
+    route = mock_api.get(BASE).respond(
+        200, json={"items": [SUMMARY, people], "next_cursor": "next"}
+    )
+
+    result = invoke(
+        [
+            "agentic",
+            "saved-searches",
+            "list",
+            "--capability",
+            SIGNALS,
+            "--capability",
+            "people.signals",
+        ]
+    )
+
+    assert result.exit_code == 0
+    request = route.calls[-1].request
+    assert request.url.params.get_list("capability") == [SIGNALS, "people.signals"]
+    assert "--capability signals.search --capability people.signals" in result.output
+    assert "Type" in result.output
+    assert "signals.search" in table_column(result.output, 2)
+    assert "people.signals" in table_column(result.output, 2)
+
+
 def test_get_prints_detail_and_full_brief(invoke, mock_api):
     mock_api.get(f"{BASE}/{SEARCH_ID}").respond(200, json=DETAIL)
 
@@ -243,6 +265,88 @@ def test_get_prints_detail_and_full_brief(invoke, mock_api):
     assert result.exit_code == 0
     assert "UK fintech" in result.output
     assert "region" in result.output
+
+
+@pytest.mark.parametrize(("schedule", "cell"), [(SCHEDULE, "09**1Europe/London"), (None, "")])
+def test_list_shows_the_schedule_of_each_search(invoke, mock_api, table_column, schedule, cell):
+    item = {**SUMMARY, "schedule": schedule}
+    mock_api.get(BASE).respond(200, json={"items": [item], "next_cursor": None})
+
+    result = invoke(["agentic", "saved-searches", "list", "--capability", SIGNALS])
+
+    assert result.exit_code == 0
+    # The cell folds, and the reader drops the fold points and their spaces.
+    assert table_column(result.output, 2).replace(" ", "") == cell
+
+
+def test_schedule_get_prints_the_schedule_or_none(invoke, mock_api):
+    route = mock_api.get(f"{BASE}/{SEARCH_ID}/schedule")
+    route.respond(200, json={"schedule": SCHEDULE})
+
+    result = invoke(["agentic", "saved-searches", "schedule", "get", SEARCH_ID])
+    assert result.exit_code == 0
+    assert "0 9 * * 1" in result.output
+    assert "Europe/London" in result.output
+
+    route.respond(200, json={"schedule": None})
+    result = invoke(["agentic", "saved-searches", "schedule", "get", SEARCH_ID])
+    assert "No schedule" in result.output
+
+
+def test_schedule_set_sends_the_cron_and_zone(invoke, mock_api):
+    route = mock_api.put(f"{BASE}/{SEARCH_ID}/schedule").respond(200, json={"schedule": SCHEDULE})
+
+    result = invoke(
+        [
+            "agentic",
+            "saved-searches",
+            "schedule",
+            "set",
+            SEARCH_ID,
+            "--cron",
+            "0 9 * * 1",
+            "--timezone",
+            "Europe/London",
+            "--json",
+        ]
+    )
+
+    assert result.exit_code == 0
+    assert json.loads(route.calls[0].request.content) == SCHEDULE
+    assert json.loads(result.output) == {"schedule": SCHEDULE}
+
+
+def test_schedule_set_maps_an_unrunnable_schedule_to_exit_one(invoke, mock_api):
+    mock_api.put(f"{BASE}/{SEARCH_ID}/schedule").respond(
+        422, json={"detail": {"code": "schedule_invalid", "message": "never fires"}}
+    )
+
+    result = invoke(
+        ["agentic", "saved-searches", "schedule", "set", SEARCH_ID, "--cron", "0 0 30 2 *"]
+    )
+
+    assert result.exit_code != 0
+
+
+def test_schedule_clear_confirms_then_deletes(invoke, mock_api):
+    route = mock_api.delete(f"{BASE}/{SEARCH_ID}/schedule").respond(204)
+
+    refused = invoke(["agentic", "saved-searches", "schedule", "clear", SEARCH_ID], input="n\n")
+    assert refused.exit_code != 0
+    assert not route.called
+
+    result = invoke(["agentic", "saved-searches", "schedule", "clear", SEARCH_ID, "--yes"])
+    assert result.exit_code == 0
+    assert route.called
+
+
+def test_get_prints_the_description(invoke, mock_api):
+    mock_api.get(f"{BASE}/{SEARCH_ID}").respond(200, json=DETAIL)
+
+    result = invoke(["agentic", "saved-searches", "get", SEARCH_ID])
+
+    assert "Description:" in result.output
+    assert "Hiring a head of RevOps" in result.output
 
 
 def test_get_json_keeps_detail(invoke, mock_api):
@@ -274,8 +378,6 @@ def test_patch_sends_only_named_fields_and_opaque_token(invoke, mock_api):
             "opaque-token",
             "--brief",
             '{"company_criteria":["fintech"]}',
-            "--contract-version",
-            "3",
         ]
     )
 
@@ -283,7 +385,6 @@ def test_patch_sends_only_named_fields_and_opaque_token(invoke, mock_api):
     assert json.loads(route.calls[0].request.content) == {
         "expected_updated_at": "opaque-token",
         "brief": {"company_criteria": ["fintech"]},
-        "contract_version": 3,
     }
 
 
@@ -328,7 +429,9 @@ def test_patch_refuses_no_change_before_request(invoke, mock_api):
     )
 
     assert result.exit_code == 2
-    assert "--name or --brief" in json.loads(result.output)["detail"]
+    detail = json.loads(result.output)["detail"]
+    for flag in ("--name", "--brief", "--watch-list-id", "--clear-watch-list-id"):
+        assert flag in detail
     assert not route.called
 
 
@@ -359,7 +462,7 @@ def test_delete_with_yes_prints_success(invoke, mock_api):
     assert "Saved search deleted" in result.output
 
 
-def test_start_sends_contract_version_and_given_key(invoke, mock_api):
+def test_start_uses_active_contract_and_given_key(invoke, mock_api):
     route = mock_api.post(f"{BASE}/{SEARCH_ID}/runs").respond(200, json=RUN)
 
     result = invoke(
@@ -368,54 +471,23 @@ def test_start_sends_contract_version_and_given_key(invoke, mock_api):
             "saved-searches",
             "start",
             SEARCH_ID,
-            "--contract-version",
-            "1",
             "--idempotency-key",
             "delivery-1",
         ]
     )
 
     assert result.exit_code == 0
-    assert json.loads(route.calls[0].request.content) == {"contract_version": 1}
+    assert json.loads(route.calls[0].request.content) == {}
     assert route.calls[0].request.headers["Idempotency-Key"] == "delivery-1"
     assert RUN_ID in result.output
 
 
-def test_start_requires_version_and_key(invoke, mock_api):
+def test_start_requires_key(invoke, mock_api):
     route = mock_api.post(f"{BASE}/{SEARCH_ID}/runs").respond(200, json=RUN)
 
-    missing_version = invoke(
-        ["agentic", "saved-searches", "start", SEARCH_ID, "--idempotency-key", "key"]
-    )
-    missing_key = invoke(
-        ["agentic", "saved-searches", "start", SEARCH_ID, "--contract-version", "1"]
-    )
+    missing_key = invoke(["agentic", "saved-searches", "start", SEARCH_ID])
 
-    assert missing_version.exit_code == 2
     assert missing_key.exit_code == 2
-    assert not route.called
-
-
-def test_start_refuses_an_invalid_version_before_request(invoke, mock_api):
-    """A version the contract refuses never reaches the API."""
-    route = mock_api.post(f"{BASE}/{SEARCH_ID}/runs").respond(200, json=RUN)
-
-    result = invoke(
-        [
-            "agentic",
-            "saved-searches",
-            "start",
-            SEARCH_ID,
-            "--contract-version",
-            "0",
-            "--idempotency-key",
-            "delivery-1",
-            "--json",
-        ]
-    )
-
-    assert result.exit_code == 2
-    assert json.loads(result.output)["error"] is True
     assert not route.called
 
 
@@ -428,8 +500,6 @@ def test_start_json_keeps_run_detail(invoke, mock_api):
             "saved-searches",
             "start",
             SEARCH_ID,
-            "--contract-version",
-            "1",
             "--idempotency-key",
             "delivery-1",
             "--json",
@@ -448,8 +518,6 @@ def test_start_reports_duplicate_run(invoke, mock_api):
             "saved-searches",
             "start",
             SEARCH_ID,
-            "--contract-version",
-            "1",
             "--idempotency-key",
             "delivery-1",
         ]
@@ -469,8 +537,6 @@ def test_start_maps_in_progress_to_conflict_exit(invoke, mock_api):
             "saved-searches",
             "start",
             SEARCH_ID,
-            "--contract-version",
-            "1",
             "--idempotency-key",
             "delivery-1",
             "--json",
@@ -549,8 +615,6 @@ def test_start_refuses_a_key_the_header_refuses(invoke, mock_api, key):
             "saved-searches",
             "start",
             SEARCH_ID,
-            "--contract-version",
-            "1",
             "--idempotency-key",
             key,
             "--json",
@@ -572,8 +636,6 @@ def test_a_capability_that_holds_no_saved_search_is_refused_locally(invoke, mock
     arguments = ["agentic", "saved-searches", command, "--capability", "people.enrich"]
     if command == "create":
         arguments += [
-            "--contract-version",
-            "3",
             "--name",
             "One",
             "--brief",
@@ -613,8 +675,6 @@ def test_create_sends_another_capability_and_its_brief(invoke, mock_api):
             "create",
             "--capability",
             "people.search",
-            "--contract-version",
-            "4",
             "--name",
             "EU engineers",
             "--brief",
@@ -626,9 +686,36 @@ def test_create_sends_another_capability_and_its_brief(invoke, mock_api):
     assert result.exit_code == 0
     assert json.loads(route.calls[0].request.content) == {
         "capability_id": "people.search",
-        "contract_version": 4,
         "name": "EU engineers",
         "brief": people_brief,
+    }
+
+
+def test_create_accepts_people_signals_input(invoke, mock_api):
+    brief = {"signal_recency": "1m", "brief": {"icp": "New marketing leaders"}}
+    detail = {**DETAIL, "capability_id": "people.signals", "brief": brief}
+    route = mock_api.post(BASE).respond(201, json=detail)
+
+    result = invoke(
+        [
+            "agentic",
+            "saved-searches",
+            "create",
+            "--capability",
+            "people.signals",
+            "--name",
+            "Marketing leaders",
+            "--brief",
+            json.dumps(brief),
+            "--json",
+        ]
+    )
+
+    assert result.exit_code == 0
+    assert json.loads(route.calls[0].request.content) == {
+        "capability_id": "people.signals",
+        "name": "Marketing leaders",
+        "brief": brief,
     }
 
 
@@ -643,36 +730,7 @@ def test_diff_reports_the_refusal_of_a_product_that_publishes_none(invoke, mock_
     assert "no diff" in result.output
 
 
-def test_start_reports_a_stale_stored_contract_version(invoke, mock_api):
-    mock_api.post(f"{BASE}/{SEARCH_ID}/runs").respond(
-        409,
-        json={
-            "detail": {
-                "code": "contract_version_stale",
-                "saved_contract_version": 2,
-                "published_contract_version": 3,
-            }
-        },
-    )
-
-    result = invoke(
-        [
-            "agentic",
-            "saved-searches",
-            "start",
-            SEARCH_ID,
-            "--contract-version",
-            "3",
-            "--idempotency-key",
-            "delivery",
-        ]
-    )
-
-    assert result.exit_code != 0
-    assert "contract_version_stale" in result.output
-
-
-def test_patch_sends_the_version_a_replacement_brief_was_written_under(invoke, mock_api):
+def test_patch_sends_a_replacement_brief(invoke, mock_api):
     route = mock_api.patch(f"{BASE}/{SEARCH_ID}").respond(200, json=DETAIL)
 
     result = invoke(
@@ -685,8 +743,6 @@ def test_patch_sends_the_version_a_replacement_brief_was_written_under(invoke, m
             "opaque",
             "--brief",
             json.dumps(BRIEF),
-            "--contract-version",
-            "3",
         ]
     )
 
@@ -694,19 +750,105 @@ def test_patch_sends_the_version_a_replacement_brief_was_written_under(invoke, m
     assert json.loads(route.calls[0].request.content) == {
         "expected_updated_at": "opaque",
         "brief": BRIEF,
-        "contract_version": 3,
     }
 
 
-@pytest.mark.parametrize(
-    "extra",
-    [
-        ["--brief", json.dumps(BRIEF)],
-        ["--name", "Renamed", "--contract-version", "3"],
-    ],
-    ids=["brief-without-version", "version-without-brief"],
-)
-def test_patch_pairs_the_version_with_the_brief_before_it_sends(invoke, mock_api, extra):
+LIST_ID = "55555555-5555-4555-8555-555555555555"
+WATCH_BRIEF = {"icp": "Any recent sales signal at the company"}
+WATCH_DETAIL = {**DETAIL, "brief": WATCH_BRIEF, "watch_list_id": LIST_ID}
+
+
+def test_create_sends_the_watch_list_id(invoke, mock_api):
+    route = mock_api.post(BASE).respond(201, json=WATCH_DETAIL)
+
+    result = invoke(
+        [
+            "agentic",
+            "saved-searches",
+            "create",
+            "--capability",
+            SIGNALS,
+            "--name",
+            "Watched accounts",
+            "--brief",
+            json.dumps(WATCH_BRIEF),
+            "--watch-list-id",
+            LIST_ID,
+        ]
+    )
+
+    assert result.exit_code == 0
+    assert json.loads(route.calls[0].request.content) == {
+        "capability_id": SIGNALS,
+        "name": "Watched accounts",
+        "brief": WATCH_BRIEF,
+        "watch_list_id": LIST_ID,
+    }
+
+
+def test_the_watch_list_help_says_each_run_checks_the_whole_list():
+    from ac_cli.commands.saved_searches import _WATCH_LIST_HELP
+
+    assert "up to 50" in _WATCH_LIST_HELP
+    assert "Each Run checks every company on the list" in _WATCH_LIST_HELP
+    assert "rotation" not in _WATCH_LIST_HELP
+
+
+def test_create_reports_a_list_too_large_to_watch(invoke, mock_api):
+    mock_api.post(BASE).respond(
+        422,
+        json={
+            "detail": {
+                "code": "watch_list_too_large",
+                "message": "The CRM list holds 57 companies. A saved search watches at most 50.",
+            }
+        },
+    )
+
+    result = invoke(
+        [
+            "agentic",
+            "saved-searches",
+            "create",
+            "--capability",
+            SIGNALS,
+            "--name",
+            "Watched accounts",
+            "--brief",
+            json.dumps(WATCH_BRIEF),
+            "--watch-list-id",
+            LIST_ID,
+        ]
+    )
+
+    assert result.exit_code == 2
+    assert "watch_list_too_large" in result.output
+
+
+def test_patch_sends_the_watch_list_id(invoke, mock_api):
+    route = mock_api.patch(f"{BASE}/{SEARCH_ID}").respond(200, json=WATCH_DETAIL)
+
+    result = invoke(
+        [
+            "agentic",
+            "saved-searches",
+            "patch",
+            SEARCH_ID,
+            "--expected-updated-at",
+            "opaque",
+            "--watch-list-id",
+            LIST_ID,
+        ]
+    )
+
+    assert result.exit_code == 0
+    assert json.loads(route.calls[0].request.content) == {
+        "expected_updated_at": "opaque",
+        "watch_list_id": LIST_ID,
+    }
+
+
+def test_patch_clear_sends_a_null_watch_list_id(invoke, mock_api):
     route = mock_api.patch(f"{BASE}/{SEARCH_ID}").respond(200, json=DETAIL)
 
     result = invoke(
@@ -717,10 +859,47 @@ def test_patch_pairs_the_version_with_the_brief_before_it_sends(invoke, mock_api
             SEARCH_ID,
             "--expected-updated-at",
             "opaque",
-            *extra,
+            "--clear-watch-list-id",
         ]
     )
 
-    assert result.exit_code != 0
-    assert "--contract-version" in result.output
-    assert not route.calls
+    assert result.exit_code == 0
+    assert json.loads(route.calls[0].request.content) == {
+        "expected_updated_at": "opaque",
+        "watch_list_id": None,
+    }
+
+
+def test_patch_refuses_both_watch_list_flags_before_request(invoke, mock_api):
+    route = mock_api.patch(f"{BASE}/{SEARCH_ID}").respond(200, json=DETAIL)
+
+    result = invoke(
+        [
+            "agentic",
+            "saved-searches",
+            "patch",
+            SEARCH_ID,
+            "--expected-updated-at",
+            "opaque",
+            "--watch-list-id",
+            LIST_ID,
+            "--clear-watch-list-id",
+            "--json",
+        ]
+    )
+
+    assert result.exit_code == 2
+    assert json.loads(result.output)["detail"] == (
+        "use --watch-list-id or --clear-watch-list-id, not both"
+    )
+    assert not route.called
+
+
+def test_get_prints_the_watch_list(invoke, mock_api):
+    mock_api.get(f"{BASE}/{SEARCH_ID}").respond(200, json=WATCH_DETAIL)
+
+    result = invoke(["agentic", "saved-searches", "get", SEARCH_ID])
+
+    assert result.exit_code == 0
+    assert "Watch list:" in result.output
+    assert LIST_ID in result.output

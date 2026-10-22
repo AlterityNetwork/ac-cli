@@ -38,7 +38,6 @@ def sequences_list(
         [
             ("name", "Name"),
             ("status", "Status"),
-            ("execution_mode", "Mode"),
             ("id", "ID"),
         ],
         title=f"Sequences ({len(items)})",
@@ -67,7 +66,6 @@ def sequences_get(
             ("name", "Name"),
             ("description", "Description"),
             ("status", "Status"),
-            ("execution_mode", "Execution Mode"),
             ("skip_non_working_days", "Skip Non-Working Days"),
             ("writing_style_id", "Writing Style ID"),
             ("playbook_id", "Playbook ID"),
@@ -98,9 +96,13 @@ def sequences_create(
     writing_style_id: str | None = typer.Option(
         None, "--writing-style-id", help="Writing style ID"
     ),
+    draft_feedback: str | None = typer.Option(
+        None,
+        "--draft-feedback",
+        help="Reviewer feedback that every draft of the sequence applies. Pass '' to clear it.",
+    ),
     playbook_id: str | None = typer.Option(None, "--playbook-id", help="Playbook ID"),
     crm_list_id: str | None = typer.Option(None, "--crm-list-id", help="CRM list ID"),
-    execution_mode: str | None = typer.Option(None, "--execution-mode", help="Execution mode"),
     skip_non_working_days: bool | None = typer.Option(
         None,
         "--skip-non-working-days/--no-skip-non-working-days",
@@ -114,9 +116,9 @@ def sequences_create(
         name=name,
         description=description,
         writing_style_id=writing_style_id,
+        draft_feedback=draft_feedback,
         playbook_id=playbook_id,
         crm_list_id=crm_list_id,
-        execution_mode=execution_mode,
         skip_non_working_days=skip_non_working_days,
     )
 
@@ -140,9 +142,13 @@ def sequences_update(
     writing_style_id: str | None = typer.Option(
         None, "--writing-style-id", help="Writing style ID"
     ),
+    draft_feedback: str | None = typer.Option(
+        None,
+        "--draft-feedback",
+        help="Reviewer feedback that every draft of the sequence applies. Pass '' to clear it.",
+    ),
     playbook_id: str | None = typer.Option(None, "--playbook-id", help="Playbook ID"),
     crm_list_id: str | None = typer.Option(None, "--crm-list-id", help="CRM list ID"),
-    execution_mode: str | None = typer.Option(None, "--execution-mode", help="Execution mode"),
     skip_non_working_days: bool | None = typer.Option(
         None,
         "--skip-non-working-days/--no-skip-non-working-days",
@@ -156,9 +162,9 @@ def sequences_update(
         name=name,
         description=description,
         writing_style_id=writing_style_id,
+        draft_feedback=draft_feedback,
         playbook_id=playbook_id,
         crm_list_id=crm_list_id,
-        execution_mode=execution_mode,
         skip_non_working_days=skip_non_working_days,
     )
 
@@ -427,7 +433,6 @@ def sequences_for_prospect(
         [
             ("name", "Name"),
             ("status", "Status"),
-            ("execution_mode", "Mode"),
             ("id", "ID"),
         ],
         title=f"Sequences for prospect {prospect_id} ({len(items)})",

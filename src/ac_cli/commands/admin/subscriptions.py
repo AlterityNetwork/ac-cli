@@ -13,7 +13,7 @@ from ac_cli.commands._helpers import (
     should_skip_confirm,
 )
 from ac_cli.commands.admin import _ADMIN
-from ac_cli.formatting import print_detail, print_json, print_table, styled
+from ac_cli.formatting import as_text, console, print_detail, print_json, print_table, styled
 
 subscriptions_app = typer.Typer(help="Manage org subscriptions (super admin)")
 
@@ -92,6 +92,9 @@ def subscriptions_get(
             ("dunning_next_attempt_at", "Next Retry"),
             ("payment_reminder_count", "Manual Reminders"),
             ("last_payment_reminder_at", "Last Reminder"),
+            ("has_card", "Card On File"),
+            ("card_brand", "Card Brand"),
+            ("card_last4", "Card Last 4"),
             ("custom_price_cents", "Custom Price (net)"),
             ("unit_amount_cents", "Stripe Amount (net)"),
         ],
@@ -382,6 +385,46 @@ def subscriptions_send_reminder(
         rprint(
             styled("[green]Reminder sent (total {})[/green]", data.get("payment_reminder_count"))
         )
+
+
+@subscriptions_app.command("send-card-link")
+def subscriptions_send_card_link(
+    ctx: typer.Context,
+    subscription_id: str = typer.Argument(..., help="Subscription ID"),
+    email: bool = typer.Option(False, "--email", help="Email the link to the account owner"),
+    yes: bool = typer.Option(False, "--yes", "-y", help="Skip confirmation"),
+    json_output: bool = JSON_OPTION,
+) -> None:
+    """Create a 24 hour card setup link for the org, and email it when asked.
+
+    The link opens a Stripe-hosted page where the customer saves a card. The
+    customer does not sign in. Each call creates a new link.
+    """
+    set_json_mode(json_output)
+    if email and not should_skip_confirm(yes):
+        typer.confirm(
+            f"Email the account owner a card setup link for {subscription_id}?",
+            abort=True,
+        )
+    resp = _api_request(
+        "post",
+        f"{_ADMIN}/subscriptions/{subscription_id}/card-setup-link",
+        json={"send_email": email},
+    )
+    data = resp.json()
+    if json_output:
+        print_json(data)
+    elif data.get("email_sent"):
+        rprint(styled("[green]Card setup link emailed to {}[/green]", data.get("sent_to")))
+    else:
+        if email:
+            rprint("[yellow]The email was not sent. Copy the link instead.[/yellow]")
+        rprint(styled("[green]Card setup link:[/green]"))
+        # soft_wrap keeps the URL one token. A hard wrap at the terminal width
+        # pastes back as a cut link.
+        console.print(as_text(data.get("url", "")), soft_wrap=True)
+        if data.get("expires_at"):
+            rprint(styled("Expires {}", data["expires_at"]))
 
 
 @subscriptions_app.command("worklists")

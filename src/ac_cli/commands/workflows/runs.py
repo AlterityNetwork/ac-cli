@@ -69,13 +69,18 @@ def runs_list(
     include_archived: bool = typer.Option(
         False, "--include-archived", help="Include archived runs"
     ),
+    archived_only: bool = typer.Option(False, "--archived-only", help="Return only archived runs"),
     json_output: bool = JSON_OPTION,
 ) -> None:
     """List runs for a workflow."""
     set_json_mode(json_output)
+    if include_archived and archived_only:
+        refuse_local("--include-archived and --archived-only cannot be used together")
     params: dict = {"limit": limit, "offset": offset}
     if include_archived:
         params["include_archived"] = "true"
+    if archived_only:
+        params["archived_only"] = "true"
     resp = _api_request("get", f"{_WORKFLOWS}/{workflow_id}/runs", params=params)
 
     data = resp.json()
@@ -91,7 +96,7 @@ def runs_list(
             ("status", "Status"),
             ("created_at", "Created"),
         ],
-        title=f"Runs ({len(items)})",
+        title=f"Runs ({data.get('total', len(items)) if isinstance(data, dict) else len(items)} total)",
     )
 
 

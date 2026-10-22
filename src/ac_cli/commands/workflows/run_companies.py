@@ -55,7 +55,7 @@ def run_companies_list(
         min=0,
         max=10,
         help=(
-            "Relevance floor (Sonar inbox 'hide low-relevance' toggle). "
+            "Relevance floor (Sonar (legacy) inbox 'hide low-relevance' toggle). "
             "Hides companies whose merged lead_score is below this value; "
             "unscored companies stay visible. Omit to show all scores."
         ),
@@ -66,6 +66,14 @@ def run_companies_list(
         help=(
             "Comma-separated CRM company ids. Only returns companies linked "
             "to one of these, to resolve the envelopes behind a set of signals."
+        ),
+    ),
+    workflow_run_company_ids: str | None = typer.Option(
+        None,
+        "--workflow-run-company-ids",
+        help=(
+            "Comma-separated workflow run company ids. Only returns these "
+            "rows, one per id, to name the staged companies behind signals."
         ),
     ),
     json_output: bool = JSON_OPTION,
@@ -81,6 +89,8 @@ def run_companies_list(
         params["min_lead_score"] = min_lead_score
     if crm_company_ids:
         params["crm_company_ids"] = crm_company_ids
+    if workflow_run_company_ids:
+        params["workflow_run_company_ids"] = workflow_run_company_ids
     resp = _api_request("get", f"{_WORKFLOWS}/{workflow_id}/runs/companies", params=params)
 
     data = resp.json()

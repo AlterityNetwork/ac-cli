@@ -13,7 +13,7 @@ def dashboard_command(
     ctx: typer.Context,
     json_output: bool = JSON_OPTION,
 ) -> None:
-    """Show envoy outreach dashboard stats."""
+    """Show Outreach dashboard stats."""
     set_json_mode(json_output)
     resp = _api_request("get", f"{_ENVOY}/dashboard/stats")
 
@@ -22,7 +22,7 @@ def dashboard_command(
         print_json(data)
         return
 
-    rprint("\n[bold]Envoy Dashboard[/bold]\n")
+    rprint("\n[bold]Outreach Dashboard[/bold]\n")
     rprint(as_text(f"  Reply rate: {data.get('reply_rate', 0):.1%}"))
     rprint(as_text(f"  Emails sent: {data.get('emails_sent', 0)}"))
     rprint(as_text(f"  Meetings booked: {data.get('meetings_booked', 0)}"))
