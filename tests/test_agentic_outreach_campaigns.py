@@ -707,3 +707,77 @@ class TestEnrollmentTimeline:
 
         assert result.exit_code == 0, result.output
         assert "None" not in result.output
+
+
+LIST = ["agentic", "outreach", "enrollments", "list", "--campaign-id", CAMPAIGN_ID]
+
+
+def _page(rows, *, total, offset, has_more, limit=100):
+    return {"data": rows, "total": total, "limit": limit, "offset": offset, "has_more": has_more}
+
+
+def test_list_prints_a_row_with_no_decision_and_no_name_as_blank(invoke, mock_api, table_column):
+    """`_with_last_action` returns the row as it is when last_decision is None."""
+    bare = {**ENROLLMENT, "person_name": None, "email": None, "last_decision": None}
+    mock_api.get(f"{BASE}/campaigns/{CAMPAIGN_ID}/enrollments").respond(
+        200, json=_page([bare], total=1, offset=0, has_more=False)
+    )
+
+    result = invoke(LIST)
+
+    assert result.exit_code == 0, result.output
+    assert "None" not in result.output
+    assert table_column(result.output, 1) == ""
+    assert table_column(result.output, 4) == ""
+    assert "Outreach enrollments 1-1 of 1" in result.output
+    assert "--offset" not in result.output
+
+
+def test_list_names_only_the_outcome_of_a_decision_without_an_action(
+    invoke, mock_api, table_column
+):
+    row = {
+        **ROW,
+        "last_decision": {**ROW["last_decision"], "action_type": None, "outcome": "failed"},
+    }
+    mock_api.get(f"{BASE}/campaigns/{CAMPAIGN_ID}/enrollments").respond(
+        200, json=_page([row], total=1, offset=0, has_more=False)
+    )
+
+    result = invoke(LIST)
+
+    assert result.exit_code == 0, result.output
+    assert table_column(result.output, 4) == "failed"
+    assert "·" not in result.output
+
+
+def test_list_past_the_end_prints_zero_of_the_total_and_no_next_offset(invoke, mock_api):
+    mock_api.get(f"{BASE}/campaigns/{CAMPAIGN_ID}/enrollments").respond(
+        200, json=_page([], total=3, offset=10, has_more=False)
+    )
+
+    result = invoke([*LIST, "--offset", "10"])
+
+    assert result.exit_code == 0, result.output
+    assert "Outreach enrollments 0 of 3" in result.output
+    assert "--offset" not in result.output
+
+
+def test_timeline_sends_desc_by_default_and_says_newest_first(invoke, mock_api):
+    route = mock_api.get(f"{BASE}/enrollments/{ENROLLMENT_ID}/timeline").respond(200, json=TIMELINE)
+
+    result = invoke(["agentic", "outreach", "enrollments", "timeline", ENROLLMENT_ID])
+
+    assert result.exit_code == 0, result.output
+    assert route.calls[0].request.url.params["order"] == "desc"
+    assert "newest first" in result.output
+
+
+def test_get_of_a_campaign_without_counts_prints_no_none(invoke, mock_api):
+    mock_api.get(f"{BASE}/campaigns/{CAMPAIGN_ID}").respond(200, json=CAMPAIGN)
+
+    result = invoke(["agentic", "outreach", "campaigns", "get", CAMPAIGN_ID])
+
+    assert result.exit_code == 0, result.output
+    assert "None" not in result.output
+    assert "Q4 intro" in result.output
