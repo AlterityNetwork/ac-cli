@@ -48,6 +48,7 @@ def test_grants_list_not_found(invoke, mock_api):
     mock_api.get(BASE).respond(404, json={"detail": "Organization not found"})
     result = invoke(["admin", "entitlement-grants", "list", "--org-id", ORG, "--json"])
     assert result.exit_code == 3
+    assert json.loads(result.output)["error"] is True
 
 
 def test_grants_create(invoke, mock_api):
