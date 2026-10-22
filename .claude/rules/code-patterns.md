@@ -50,6 +50,7 @@ paths:
   - `_NYLAS = "/api/v1/nylas"` in `nylas.py`
   - `_ONBOARD = "/api/v1/managed-onboarding"` in `managed_onboarding.py`
   - `_ONBOARDING = f"{_ADMIN}/onboarding"` in `admin/onboarding.py`
+  - `_OUTREACH = "/api/v1/agentic/outreach"` in `outreach/__init__.py`
   - `_PLAYBOOKS = "/api/v1/playbooks"` in `envoy/playbooks.py` (top-level since ENG-592)
   - `_PROFILES = "/api/v1/profiles"` in `profiles.py`
   - `_PROSPECTS = "/api/v1/agentic/prospects"` in `prospects/__init__.py`
