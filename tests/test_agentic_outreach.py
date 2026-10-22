@@ -112,6 +112,16 @@ def test_list_names_the_page_and_the_next_offset(invoke, mock_api):
     assert "--offset 1" in result.output
 
 
+def test_list_names_the_address_when_the_person_is_gone(invoke, mock_api):
+    gone = {**ITEM, "person_name": None, "to_emails": ["ann@x.io"]}
+    mock_api.get(BASE).respond(200, json=_page(gone))
+
+    result = invoke(["agentic", "outreach", "drafts", "list"])
+
+    assert result.exit_code == 0, result.output
+    assert "ann@x.io" in result.output
+
+
 def test_list_of_an_empty_queue_names_the_total(invoke, mock_api):
     mock_api.get(BASE).respond(200, json=_page(total=4, offset=10))
 

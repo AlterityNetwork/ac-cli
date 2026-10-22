@@ -112,7 +112,11 @@ def drafts_list(
     if json_output:
         print_json(data)
         return
-    rows = data.get("data", [])
+    # A deleted person has no name; the address still names the recipient.
+    rows = [
+        {**item, "person_name": item.get("person_name") or ", ".join(item.get("to_emails") or [])}
+        for item in data.get("data", [])
+    ]
     total = data.get("total", len(rows))
     shown = f"{offset + 1}-{offset + len(rows)} of {total}" if rows else f"0 of {total}"
     print_table(rows, _LIST_FIELDS, title=f"Outreach drafts {shown}")
