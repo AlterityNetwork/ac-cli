@@ -141,6 +141,41 @@ def profiles_subscription(
     )
 
 
+@app.command("usage")
+def profiles_usage(
+    ctx: typer.Context,
+    json_output: bool = JSON_OPTION,
+) -> None:
+    """Show the current organization's usage in its billing period, per action."""
+    set_json_mode(json_output)
+    resp = _api_request("get", "/api/v1/subscriptions/me/usage")
+    data = resp.json()
+    if json_output:
+        print_json(data)
+        return
+    rprint(
+        styled(
+            "Period: {} to {}",
+            str(data.get("period_start") or "")[:10],
+            str(data.get("period_end") or "")[:10],
+        )
+    )
+    actions = data.get("actions", [])
+    if not actions:
+        rprint("[yellow]No usage recorded in this period.[/yellow]")
+        return
+    print_table(
+        actions,
+        [
+            ("action_key", "Action"),
+            ("calls", "Calls"),
+            ("total_tokens", "Tokens"),
+        ],
+        title="Usage by action",
+    )
+    rprint(styled("Total: {} calls", str(data.get("total_calls") or 0)))
+
+
 @app.command("members")
 def profiles_members(
     ctx: typer.Context,
