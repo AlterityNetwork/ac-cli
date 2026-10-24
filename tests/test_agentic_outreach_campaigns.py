@@ -78,6 +78,37 @@ class TestCampaigns:
         assert (params["status"], params["limit"]) == ("draft", "5")
         assert "Q4 intro" in result.output
 
+    def test_list_sends_the_offset_and_names_the_page(self, invoke, mock_api):
+        page = {"items": [CAMPAIGN], "total": 3, "limit": 1, "offset": 1, "has_more": True}
+        route = mock_api.get(f"{BASE}/campaigns").respond(200, json=page)
+
+        result = invoke(
+            ["agentic", "outreach", "campaigns", "list", "--limit", "1", "--offset", "1"]
+        )
+
+        assert result.exit_code == 0, result.output
+        assert route.calls[0].request.url.params["offset"] == "1"
+        assert "2-2 of 3" in result.output
+        assert "--offset 2" in result.output
+
+    def test_a_list_past_the_end_names_the_total_and_no_next_offset(self, invoke, mock_api):
+        page = {"items": [], "total": 3, "limit": 50, "offset": 10, "has_more": False}
+        mock_api.get(f"{BASE}/campaigns").respond(200, json=page)
+
+        result = invoke(["agentic", "outreach", "campaigns", "list", "--offset", "10"])
+
+        assert result.exit_code == 0, result.output
+        assert "0 of 3" in result.output
+        assert "--offset" not in result.output
+
+    def test_list_refuses_a_negative_offset_without_a_call(self, invoke, mock_api):
+        route = mock_api.get(f"{BASE}/campaigns").respond(200, json={"items": []})
+
+        result = invoke(["agentic", "outreach", "campaigns", "list", "--offset", "-1"])
+
+        assert result.exit_code == 2
+        assert not route.called
+
     def test_list_and_get_print_the_enrollment_counts(self, invoke, mock_api):
         counted = {**CAMPAIGN, "enrollment_counts": COUNTS}
         mock_api.get(f"{BASE}/campaigns").respond(200, json={"items": [counted]})
