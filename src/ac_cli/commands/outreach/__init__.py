@@ -375,15 +375,18 @@ _BATTLECARD_OPTION = typer.Option(None, "--battlecard-id", help="Battlecard ID, 
 def campaigns_list(
     status: str | None = typer.Option(None, "--status", help="draft, active, paused or archived"),
     limit: int = typer.Option(_PAGE_DEFAULT, "--limit", help="How many campaigns, 1 to 100"),
+    offset: int = typer.Option(0, "--offset", help="How many campaigns to skip first"),
     json_output: bool = JSON_OPTION,
 ) -> None:
-    """List the campaigns, newest first."""
+    """List the campaigns, newest first, one page at a time."""
     set_json_mode(json_output)
     if status is not None and status not in _STATUSES:
         refuse_local(f"--status must be one of: {', '.join(_STATUSES)}", status)
     if not _PAGE_MIN <= limit <= _PAGE_MAX:
         refuse_local(f"--limit is not between {_PAGE_MIN} and {_PAGE_MAX}", limit)
-    params: dict[str, object] = {"limit": limit}
+    if offset < 0:
+        refuse_local("--offset may not be negative", offset)
+    params: dict[str, object] = {"limit": limit, "offset": offset}
     if status is not None:
         params["status"] = status
     data = _api_request("get", f"{_OUTREACH}/campaigns", params=params).json()
@@ -391,7 +394,11 @@ def campaigns_list(
         print_json(data)
         return
     rows = [_with_counts(item) for item in data.get("items", [])]
-    print_table(rows, _CAMPAIGN_LIST_FIELDS, title="Outreach campaigns")
+    total = data.get("total", len(rows))
+    shown = f"{offset + 1}-{offset + len(rows)} of {total}" if rows else f"0 of {total}"
+    print_table(rows, _CAMPAIGN_LIST_FIELDS, title=f"Outreach campaigns {shown}")
+    if data.get("has_more"):
+        rprint(styled("[dim]More campaigns wait: --offset {}[/dim]", offset + len(rows)))
 
 
 @campaigns_app.command("get")
