@@ -699,7 +699,7 @@ def enrollments_exit(
     yes: bool = typer.Option(False, "--yes", "-y", help="Skip confirmation"),
     json_output: bool = JSON_OPTION,
 ) -> None:
-    """End the enrollment. A draft that waits for review is cancelled."""
+    """End the enrollment. You reject a draft that waits for review."""
     set_json_mode(json_output)
     if not should_skip_confirm(yes):
         typer.confirm("End this person's enrollment in the campaign?", abort=True)
