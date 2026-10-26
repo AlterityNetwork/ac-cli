@@ -16,7 +16,7 @@ uv sync --all-extras       # Install with dev dependencies (pytest, respx)
 | Group | Domain |
 |-------|--------|
 | `crm` | Companies, people, deals, activities, comms (incl. approvals), lists, imports |
-| `envoy` | Sequences (incl. lifecycle), campaigns, steps, recipients, outbox, playbooks, battlecards, inbox |
+| `envoy` | Sequences (incl. lifecycle), steps, recipients, outbox, playbooks, battlecards, inbox |
 | `files` | Image upload/delete |
 | `workflows` | Runs, schedules, presets, csv-parse |
 | `apps` | Organization app install/config |
