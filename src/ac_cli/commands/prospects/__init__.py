@@ -585,8 +585,9 @@ def prospects_add_person(
     """Add one person you name to a company prospect.
 
     The name is the one required option. A person with a LinkedIn profile
-    joins global Intelligence, and a typed value fills only an empty field of
-    the stored person. A person with no profile stays on the prospect.
+    joins global Intelligence by that profile. The title and the email stay on
+    the prospect, and each fills only a value the profile does not have. A
+    person with no profile stays on the prospect.
     """
     set_json_mode(json_output)
     body: dict[str, object] = {"full_name": name}
