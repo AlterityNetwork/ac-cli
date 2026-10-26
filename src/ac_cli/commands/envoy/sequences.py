@@ -19,7 +19,7 @@ def sequences_list(
     status: str | None = typer.Option(None, help="Filter by status"),
     json_output: bool = JSON_OPTION,
 ) -> None:
-    """List outreach sequences."""
+    """List sequences."""
     set_json_mode(json_output)
     params: dict = {}
     if status:
@@ -115,7 +115,7 @@ def sequences_create(
     ),
     json_output: bool = JSON_OPTION,
 ) -> None:
-    """Create a new outreach sequence."""
+    """Create a new sequence."""
     set_json_mode(json_output)
     body = _build_body(
         name=name,
