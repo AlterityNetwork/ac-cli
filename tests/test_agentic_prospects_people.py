@@ -97,10 +97,21 @@ def test_add_person_json_keeps_the_row(invoke, mock_api):
     assert json.loads(result.output) == PERSON
 
 
-def test_add_person_needs_a_name_and_a_profile(invoke, mock_api):
-    route = mock_api.post(f"{BASE}/{PROSPECT_ID}/people").respond(200, json=PERSON)
+def test_add_person_takes_a_name_alone(invoke, mock_api):
+    route = mock_api.post(f"{BASE}/{PROSPECT_ID}/people").respond(
+        200, json={**PERSON, "person": {**PERSON["person"], "linkedin_url": None}}
+    )
 
     result = invoke(["agentic", "prospects", "add-person", PROSPECT_ID, "--name", "Alice Doe"])
+
+    assert result.exit_code == 0
+    assert json.loads(route.calls[0].request.content) == {"full_name": "Alice Doe"}
+
+
+def test_add_person_needs_a_name(invoke, mock_api):
+    route = mock_api.post(f"{BASE}/{PROSPECT_ID}/people").respond(200, json=PERSON)
+
+    result = invoke(["agentic", "prospects", "add-person", PROSPECT_ID, "--linkedin-url", LINKEDIN])
 
     assert result.exit_code == 2
     assert not route.calls

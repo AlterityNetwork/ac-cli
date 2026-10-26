@@ -575,8 +575,8 @@ def prospects_add_person(
     ctx: typer.Context,
     prospect_id: str = typer.Argument(..., help="Prospect ID"),
     name: str = typer.Option(..., "--name", help="Full name of the person"),
-    linkedin_url: str = typer.Option(
-        ..., "--linkedin-url", help="LinkedIn profile URL of the person (/in/)"
+    linkedin_url: str | None = typer.Option(
+        None, "--linkedin-url", help="LinkedIn profile URL of the person (/in/)"
     ),
     title: str | None = typer.Option(None, "--title", help="Current job title"),
     email: str | None = typer.Option(None, "--email", help="Work email address"),
@@ -584,12 +584,15 @@ def prospects_add_person(
 ) -> None:
     """Add one person you name to a company prospect.
 
-    A typed value fills only an empty field of the stored person. It does not
-    replace a value that a provider wrote.
+    The name is the one required option. A person with a LinkedIn profile
+    joins global Intelligence, and a typed value fills only an empty field of
+    the stored person. A person with no profile stays on the prospect.
     """
     set_json_mode(json_output)
-    body: dict[str, object] = {"full_name": name, "linkedin_url": linkedin_url}
+    body: dict[str, object] = {"full_name": name}
     # The API refuses an empty optional field, so an omitted one is not sent.
+    if linkedin_url is not None:
+        body["linkedin_url"] = linkedin_url
     if title is not None:
         body["current_title"] = title
     if email is not None:
