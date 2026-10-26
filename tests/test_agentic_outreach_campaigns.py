@@ -203,6 +203,39 @@ class TestCampaigns:
         assert result.exit_code == 2
         assert not route.called
 
+    def test_a_too_long_description_is_refused_without_a_call(self, invoke, mock_api):
+        created = mock_api.post(f"{BASE}/campaigns").respond(201, json=CAMPAIGN)
+        updated = mock_api.patch(f"{BASE}/campaigns/{CAMPAIGN_ID}").respond(200, json=CAMPAIGN)
+        too_long = "x" * 2001
+
+        for args in (
+            ["create", "--name", "Q3", "--description", too_long],
+            ["update", CAMPAIGN_ID, "--description", too_long],
+        ):
+            result = invoke(["agentic", "outreach", "campaigns", *args])
+            assert result.exit_code == 2, args
+        assert not created.called
+        assert not updated.called
+
+    def test_a_description_of_the_maximum_length_is_sent(self, invoke, mock_api):
+        route = mock_api.post(f"{BASE}/campaigns").respond(201, json=CAMPAIGN)
+
+        result = invoke(
+            [
+                "agentic",
+                "outreach",
+                "campaigns",
+                "create",
+                "--name",
+                "Q3",
+                "--description",
+                "x" * 2000,
+            ]
+        )
+
+        assert result.exit_code == 0, result.output
+        assert route.called
+
     def test_each_status_command_posts_its_status(self, invoke, mock_api):
         route = mock_api.post(f"{BASE}/campaigns/{CAMPAIGN_ID}/status").respond(200, json=CAMPAIGN)
 

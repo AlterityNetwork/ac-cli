@@ -232,6 +232,7 @@ _PERSON_KINDS = ("crm.person", "prospect.person")
 _ENROLLMENT_PAGE_DEFAULT = 100
 _ENROLLMENT_PAGE_MAX = 200
 _SEARCH_MAX = 100
+_DESCRIPTION_MAX = 2000
 _ORDERS = ("desc", "asc")
 
 _CAMPAIGN_LIST_FIELDS = [
@@ -311,6 +312,10 @@ def _with_last_action(row: dict) -> dict:
 
 def _campaign_body(*, name: str | None, description: str | None) -> dict[str, object]:
     """Build a campaign body from the given options. An empty description clears it."""
+    if description is not None and len(description) > _DESCRIPTION_MAX:
+        refuse_local(
+            f"--description is longer than {_DESCRIPTION_MAX} characters", len(description)
+        )
     return {
         key: value
         for key, value in (("name", name), ("description", description))
@@ -322,7 +327,7 @@ _NAME_OPTION = typer.Option(None, "--name", help="Campaign name")
 _DESCRIPTION_OPTION = typer.Option(
     None,
     "--description",
-    help="Who the campaign is for and what you want from it, at most 2000 characters",
+    help=f"Who the campaign is for and what you want from it, at most {_DESCRIPTION_MAX} characters",
 )
 
 
