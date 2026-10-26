@@ -15,7 +15,9 @@ _json_output: contextvars.ContextVar[bool] = contextvars.ContextVar("json_output
 
 JSON_OPTION = typer.Option(False, "--json", help="Output raw JSON")
 
-_EXIT_CODES = {401: 4, 403: 4, 404: 3, 409: 5, 422: 2}
+# 402 is a plan refusal: a module the plan does not hold, a lapsed
+# subscription, a full seat count, or spent credits.
+_EXIT_CODES = {401: 4, 402: 6, 403: 4, 404: 3, 409: 5, 422: 2}
 
 _KEY_FLAG = "--idempotency-key"
 
@@ -51,6 +53,16 @@ def _handle_error(exc: httpx.HTTPStatusError) -> None:
         detail = body.get("detail") or body.get("message") or exc.response.text
     except (ValueError, KeyError):
         detail = exc.response.text
+    if (
+        exc.response.status_code == 402
+        and isinstance(detail, dict)
+        and isinstance(detail.get("message"), str)
+    ):
+        # A plan refusal carries a sentence and a remedy. Print both, not
+        # the raw object.
+        detail = " ".join(
+            part for part in (detail["message"], detail.get("remedy")) if isinstance(part, str)
+        )
     exit_code = _EXIT_CODES.get(exc.response.status_code, 1)
     if _json_output.get():
         error = {"error": True, "status_code": exc.response.status_code, "detail": detail}

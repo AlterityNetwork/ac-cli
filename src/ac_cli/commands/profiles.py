@@ -6,7 +6,13 @@ import typer
 from rich import print as rprint
 
 from ac_cli.commands._helpers import JSON_OPTION, _api_request, _build_body, set_json_mode
-from ac_cli.formatting import print_detail, print_json, print_table, styled
+from ac_cli.formatting import (
+    print_detail,
+    print_entitlement_summary,
+    print_json,
+    print_table,
+    styled,
+)
 
 app = typer.Typer(help="User profile management")
 
@@ -139,6 +145,9 @@ def profiles_subscription(
             ("trial_ends_at", "Trial Ends"),
         ],
     )
+    entitlements = data.get("entitlements")
+    if entitlements:
+        print_entitlement_summary(entitlements)
 
 
 @app.command("usage")

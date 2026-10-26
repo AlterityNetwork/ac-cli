@@ -163,6 +163,54 @@ def test_profiles_subscription(invoke, mock_api):
     assert "sub-1" in result.output
 
 
+def test_profiles_subscription_shows_the_entitlements(invoke, mock_api):
+    mock_api.get("/api/v1/subscriptions/me").respond(
+        200,
+        json={
+            "id": "sub-1",
+            "plan_id": "pro",
+            "billing_period": "monthly",
+            "status": "past_due",
+            "started_at": "2026-04-01",
+            "ended_at": None,
+            "trial_ends_at": None,
+            "entitlements": {
+                "keys": ["crm", "people"],
+                "credits": {"allowance": 10000},
+                "limits": {"seats": None, "email_sends_per_day": None},
+                "trials": [],
+                "access_mode": "read_only",
+                "enforced": True,
+                "seats_used": 4,
+            },
+        },
+    )
+    result = invoke(["profiles", "subscription"])
+    assert result.exit_code == 0
+    assert "crm, people" in result.output
+    assert "read_only" in result.output
+    assert "Enforced: yes" in result.output
+    assert "Seats: 4 (no cap)" in result.output
+
+
+def test_a_plan_refusal_exits_6_with_the_message_and_remedy(invoke, mock_api):
+    mock_api.get("/api/v1/subscriptions/me").respond(
+        402,
+        json={
+            "detail": {
+                "code": "not_entitled",
+                "key": "crm",
+                "message": "CRM is not on your plan.",
+                "remedy": "Ask an owner to add CRM to your plan.",
+            }
+        },
+    )
+    result = invoke(["profiles", "subscription"])
+    assert result.exit_code == 6
+    assert "CRM is not on your plan." in result.output
+    assert "Ask an owner to add CRM to your plan." in result.output
+
+
 SAMPLE_USAGE = {
     "period_start": "2026-09-01T00:00:00+00:00",
     "period_end": "2026-10-01T00:00:00+00:00",

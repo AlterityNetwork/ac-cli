@@ -72,7 +72,7 @@ paths:
 - `_api_request()` catches both `httpx.HTTPStatusError` (API errors) and `httpx.HTTPError` (connection errors)
 - `_handle_error()` extracts detail from API error responses. It checks both `"detail"` (FastAPI HTTPException format) and `"message"` (domain error format) fields
 - When JSON mode is active (`_json_output` context var), errors emit structured JSON: `{"error": true, "status_code": <int>, "detail": <str>}`. Otherwise, errors print Rich-formatted text.
-- **Semantic exit codes** via `_EXIT_CODES` mapping: `{401: 4, 403: 4, 404: 3, 409: 5, 422: 2}`. Unmapped status codes and connection errors exit with code 1. Success is always 0.
+- **Semantic exit codes** via `_EXIT_CODES` mapping: `{401: 4, 402: 6, 403: 4, 404: 3, 409: 5, 422: 2}`. Unmapped status codes and connection errors exit with code 1. Success is always 0.
 - Auth and health commands handle errors directly in the command function — use the same `body.get("detail") or body.get("message")` pattern, and should also respect JSON mode and semantic exit codes
 - `httpx.Client.delete()` does not support `json` kwarg — for DELETE requests with a JSON body, use `client.request("DELETE", url, json=...)` directly (see `inbox.py` remove-tags)
 
