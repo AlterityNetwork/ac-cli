@@ -155,6 +155,81 @@ def test_find_people_posts_no_body_and_prints_the_run(invoke, mock_api):
     assert f"ac agentic prospects people {PROSPECT_ID}" in result.output
 
 
+def test_find_people_sends_the_persona_the_options_name(invoke, mock_api):
+    route = mock_api.post(f"{BASE}/{PROSPECT_ID}/people/search").respond(200, json=RUN)
+
+    result = invoke(
+        [
+            "agentic",
+            "prospects",
+            "find-people",
+            PROSPECT_ID,
+            "--title",
+            "Head of Growth",
+            "--title",
+            "CMO",
+            "--department",
+            "marketing",
+            "--seniority",
+            "director",
+            "--country",
+            "GB",
+        ]
+    )
+
+    assert result.exit_code == 0
+    assert json.loads(route.calls[0].request.content) == {
+        "persona": {
+            "titles": ["Head of Growth", "CMO"],
+            "departments": ["marketing"],
+            "seniority": ["director"],
+            "country_codes": ["GB"],
+        }
+    }
+
+
+def test_find_people_maps_an_unusable_persona_to_exit_two(invoke, mock_api):
+    mock_api.post(f"{BASE}/{PROSPECT_ID}/people/search").respond(
+        422, json={"detail": "persona values must be unique"}
+    )
+
+    result = invoke(["agentic", "prospects", "find-people", PROSPECT_ID, "--title", "CMO"])
+
+    assert result.exit_code == 2
+
+
+PERSONA = {"persona": {"seniority": ["owner", "c-suite"], "departments": ["marketing"]}}
+
+
+def test_search_persona_prints_the_default_persona(invoke, mock_api):
+    mock_api.get(f"{BASE}/{PROSPECT_ID}/people/search/persona").respond(200, json=PERSONA)
+
+    result = invoke(["agentic", "prospects", "search-persona", PROSPECT_ID])
+
+    assert result.exit_code == 0
+    assert "owner, c-suite" in result.output
+    assert "marketing" in result.output
+
+
+def test_search_persona_json_keeps_the_persona(invoke, mock_api):
+    mock_api.get(f"{BASE}/{PROSPECT_ID}/people/search/persona").respond(200, json=PERSONA)
+
+    result = invoke(["agentic", "prospects", "search-persona", PROSPECT_ID, "--json"])
+
+    assert result.exit_code == 0
+    assert json.loads(result.output) == PERSONA
+
+
+def test_search_persona_maps_not_found_to_exit_three(invoke, mock_api):
+    mock_api.get(f"{BASE}/{PROSPECT_ID}/people/search/persona").respond(
+        404, json={"detail": "Prospect not found"}
+    )
+
+    result = invoke(["agentic", "prospects", "search-persona", PROSPECT_ID])
+
+    assert result.exit_code == 3
+
+
 def test_find_people_names_a_replayed_run(invoke, mock_api):
     mock_api.post(f"{BASE}/{PROSPECT_ID}/people/search").respond(
         200, json={**RUN, "outcome": "duplicate", "status": "running"}

@@ -601,19 +601,76 @@ def prospects_add_person(
     print_table([_person_row(data)], _PERSON_FIELDS, title="Added person")
 
 
-@app.command("find-people")
-def prospects_find_people(
+_PERSONA_FIELDS = [
+    ("titles", "Job titles"),
+    ("departments", "Departments"),
+    ("seniority", "Seniority"),
+    ("country_codes", "Countries"),
+]
+
+
+@app.command("search-persona")
+def prospects_search_persona(
     ctx: typer.Context,
     prospect_id: str = typer.Argument(..., help="Prospect ID"),
     json_output: bool = JSON_OPTION,
 ) -> None:
-    """Start one People Search Run for the company of a prospect.
+    """Show the persona that find-people uses when you name no option.
 
-    The Run looks for the decision makers of the company. The people it finds
-    attach to the prospect when the Run ends.
+    The persona is the decision makers of the company, with the functions that
+    the brief of the Signals Run that found the prospect names.
     """
     set_json_mode(json_output)
-    data = _api_request("post", f"{_PROSPECTS}/{prospect_id}/people/search").json()
+    data = _api_request("get", f"{_PROSPECTS}/{prospect_id}/people/search/persona").json()
+    if json_output:
+        print_json(data)
+        return
+    persona = data.get("persona") or {}
+    print_detail(
+        {name: ", ".join(persona.get(name) or []) for name, _ in _PERSONA_FIELDS},
+        _PERSONA_FIELDS,
+    )
+
+
+@app.command("find-people")
+def prospects_find_people(
+    ctx: typer.Context,
+    prospect_id: str = typer.Argument(..., help="Prospect ID"),
+    titles: list[str] | None = typer.Option(
+        None, "--title", help="Job title to look for. Repeat for more."
+    ),
+    departments: list[str] | None = typer.Option(
+        None, "--department", help="Department to look for. Repeat for more."
+    ),
+    seniority: list[str] | None = typer.Option(
+        None, "--seniority", help="Seniority to look for. Repeat for more."
+    ),
+    countries: list[str] | None = typer.Option(
+        None, "--country", help="ISO country code to look for. Repeat for more."
+    ),
+    json_output: bool = JSON_OPTION,
+) -> None:
+    """Start one People Search Run for the company of a prospect.
+
+    With no option, the Run looks for the decision makers of the company (see
+    search-persona). Each option you name replaces that persona, and each list
+    you fill narrows the search. The people it finds attach to the prospect
+    when the Run ends.
+    """
+    set_json_mode(json_output)
+    persona = {
+        name: values
+        for name, values in (
+            ("titles", titles),
+            ("departments", departments),
+            ("seniority", seniority),
+            ("country_codes", countries),
+        )
+        if values
+    }
+    # No option sends no body, and the API then uses the default persona.
+    body = {"persona": persona} if persona else None
+    data = _api_request("post", f"{_PROSPECTS}/{prospect_id}/people/search", json=body).json()
     if json_output:
         print_json(data)
         return
