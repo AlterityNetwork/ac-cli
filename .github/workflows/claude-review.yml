@@ -11,17 +11,28 @@ on:
 
 jobs:
   review:
-    # pull_request events (open/reopen/ready/push) always run; comment events
-    # only re-review when a human writes "@claude" on an OPEN pull request
-    # (ignores the bot's own comments and skips stray mentions on
-    # merged/closed PRs, whose refs/pull/N/merge no longer resolves).
+    # pull_request events review non-draft PRs only; ready_for_review starts
+    # the first review. Comment events re-review only when a repo collaborator
+    # writes "@claude" on an OPEN pull request. This ignores the bot's own
+    # comments, skips merged/closed PRs whose refs/pull/N/merge no longer
+    # resolves, and stops outside users from starting a secrets-bearing run.
     if: >
-      github.event_name == 'pull_request' ||
+      (github.event_name == 'pull_request' &&
+       !github.event.pull_request.draft) ||
       (github.event.issue.pull_request != null &&
        github.event.issue.state == 'open' &&
-       contains(github.event.comment.body, '@claude'))
+       contains(github.event.comment.body, '@claude') &&
+       contains(fromJSON('["OWNER", "MEMBER", "COLLABORATOR"]'), github.event.comment.author_association))
+    # A new push cancels the review of the previous push. The group is set on
+    # the job, not the workflow, so a skipped comment run does not cancel a
+    # review. The event name keeps a "@claude" run from cancelling a push
+    # review: ship-await-verdict.sh reads a cancelled check on the head as red.
+    concurrency:
+      group: claude-review-${{ github.event_name }}-${{ github.event.pull_request.number || github.event.issue.number }}
+      cancel-in-progress: true
     runs-on: ubuntu-latest
-    # Hard ceiling so a hung run still reaches a terminal status.
+    # Hard ceiling so a hung run still reaches a terminal status; the slowest
+    # observed submodule review is ~14m, so 20m is comfortable headroom.
     timeout-minutes: 20
     permissions:
       contents: read
@@ -34,7 +45,7 @@ jobs:
           # issue_comment events default to the default branch; pin to the PR
           # merge ref so the review always runs against the PR diff.
           ref: refs/pull/${{ github.event.pull_request.number || github.event.issue.number }}/merge
-      - uses: anthropics/claude-code-action@787c5a0ce96a9a6cfb050ea0c8f4c05f2447c251 # v1
+      - uses: anthropics/claude-code-action@925afb53776cf1a2b738c6bdbed37b4d4000ef13 # v1.0.262
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           track_progress: true
@@ -46,6 +57,21 @@ jobs:
             repository. Flag only what matters: correctness, security,
             performance, and real maintainability problems. Skip nitpicks and
             style preferences.
+
+            ## Earlier review threads
+
+            Before you review, read the existing inline comments:
+            `gh api repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number || github.event.issue.number }}/comments --paginate`
+            Do not post a finding that an existing comment already holds.
+            Do not post again a finding that the current code fixes. Read the
+            file to decide; the comment's commit id does not prove it.
+
+            ## Verify before you post
+
+            Post a finding only when you can name the input or state that
+            causes the failure and point to the code path that reaches it.
+            Drop a finding that depends on an assumption you cannot check in
+            the repository.
 
             ## Output format — concise, structured, skimmable
 
@@ -79,4 +105,5 @@ jobs:
                 `### ⚠️ N issue(s) found`
                 `🐛 1 · 🔒 0 · ⚡ 0 · 🧹 2 — see inline comments.`
           claude_args: |
-            --allowed-tools "mcp__github_inline_comment__create_inline_comment,Bash(gh pr diff:*),Bash(gh pr view:*),Bash(gh pr comment:*),Read,Grep,Glob"
+            --model claude-opus-5-5
+            --allowed-tools "mcp__github_inline_comment__create_inline_comment,Bash(gh pr diff:*),Bash(gh pr view:*),Bash(gh pr comment:*),Bash(gh api repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number || github.event.issue.number }}/comments:*),Read,Grep,Glob"
