@@ -364,10 +364,13 @@ def test_runs_list_passes_every_filter(invoke, mock_api):
             "10",
             "--cursor",
             "abc",
+            "--saved-search-id",
+            SEARCH_ID,
         ]
     )
     params = route.calls[0].request.url.params
     assert params["parent_run_id"] == parent
+    assert params["saved_search_id"] == SEARCH_ID
     assert params["definition_id"] == SAMPLE_RUN["definition_id"]
     assert params["status"] == "running"
     assert params["limit"] == "10"
@@ -435,6 +438,39 @@ def test_runs_list_sends_no_capability_by_default(invoke, mock_api):
     invoke(["agentic", "runs", "list"])
 
     assert "capability_id" not in route.calls[0].request.url.params
+
+
+SEARCH_ID = "77777777-7777-4777-8777-777777777777"
+
+
+def test_runs_list_filters_on_the_saved_search(invoke, mock_api):
+    """A saved search page lists the runs that this one search started."""
+    route = mock_api.get("/api/v1/agentic/runs").respond(
+        200, json={"items": [], "next_cursor": None}
+    )
+    invoke(["agentic", "runs", "list", "--saved-search-id", SEARCH_ID])
+
+    assert route.calls[0].request.url.params["saved_search_id"] == SEARCH_ID
+
+
+def test_runs_list_sends_no_saved_search_by_default(invoke, mock_api):
+    route = mock_api.get("/api/v1/agentic/runs").respond(
+        200, json={"items": [], "next_cursor": None}
+    )
+    invoke(["agentic", "runs", "list"])
+
+    assert "saved_search_id" not in route.calls[0].request.url.params
+
+
+def test_runs_list_next_page_hint_repeats_the_saved_search(invoke, mock_api):
+    """A cursor carries no filter, so the hint names the saved search again."""
+    mock_api.get("/api/v1/agentic/runs").respond(
+        200, json={"items": [SAMPLE_RUN], "next_cursor": "abc"}
+    )
+    result = invoke(["agentic", "runs", "list", "--saved-search-id", SEARCH_ID])
+
+    assert result.exit_code == 0
+    assert f"--saved-search-id {SEARCH_ID}" in result.output
 
 
 def test_runs_list_sends_no_root_only_by_default(invoke, mock_api):
