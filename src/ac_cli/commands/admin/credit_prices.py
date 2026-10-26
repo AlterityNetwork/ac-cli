@@ -63,7 +63,7 @@ def credit_prices_list(
 def credit_prices_create(
     ctx: typer.Context,
     action_key: str = typer.Option(
-        ..., "--action-key", help="Action key, for example people_search"
+        ..., "--action-key", help="Action key, for example people.search"
     ),
     unit: str = typer.Option(..., help=f"What one charge counts: {_UNITS}"),
     credits: int = typer.Option(..., help="Credits per unit"),
@@ -71,7 +71,12 @@ def credit_prices_create(
         None, "--minimum-credits", help="Smallest charge for one run; 0 sets no minimum"
     ),
     effective_from: str | None = typer.Option(
-        None, "--effective-from", help="ISO 8601 date or instant; the API uses now when not given"
+        None,
+        "--effective-from",
+        help=(
+            "ISO 8601 instant with a timezone, at least a minute from now, "
+            "for example 2026-12-01T00:00:00+00:00; defaults to a minute from now"
+        ),
     ),
     json_output: bool = JSON_OPTION,
 ) -> None:

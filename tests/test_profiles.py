@@ -288,7 +288,7 @@ def test_profiles_usage_with_no_allowance(invoke, mock_api):
 
 def test_profiles_usage_with_credits_running_low(invoke, mock_api):
     mock_api.get("/api/v1/subscriptions/me/usage").respond(
-        200, json=_usage_with_credits(state="warning", warning_at="2026-09-20T00:00:00+00:00")
+        200, json=_usage_with_credits(state="warning", warning_at=8000)
     )
     result = invoke(["profiles", "usage"])
     assert result.exit_code == 0

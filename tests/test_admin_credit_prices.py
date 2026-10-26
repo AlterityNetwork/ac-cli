@@ -6,7 +6,7 @@ BASE = "/api/v1/admin/credit-prices"
 
 SAMPLE_PRICE = {
     "id": "price-1",
-    "action_key": "people_search",
+    "action_key": "people.search",
     "unit": "company",
     "credits": 35,
     "minimum_credits": 150,
@@ -24,7 +24,7 @@ def test_credit_prices_list(invoke, mock_api):
     route = mock_api.get(BASE).respond(200, json=[SAMPLE_PRICE])
     result = invoke(["admin", "credit-prices", "list"])
     assert result.exit_code == 0
-    assert "people_search" in result.output
+    assert "people.search" in result.output
     assert "company" in result.output
     assert "150" in result.output
     params = route.calls[0].request.url.params
@@ -34,9 +34,9 @@ def test_credit_prices_list(invoke, mock_api):
 
 def test_credit_prices_list_filters_by_action_key(invoke, mock_api):
     route = mock_api.get(BASE).respond(200, json=[SAMPLE_PRICE])
-    result = invoke(["admin", "credit-prices", "list", "--action-key", "people_search"])
+    result = invoke(["admin", "credit-prices", "list", "--action-key", "people.search"])
     assert result.exit_code == 0
-    assert route.calls[0].request.url.params["action_key"] == "people_search"
+    assert route.calls[0].request.url.params["action_key"] == "people.search"
 
 
 def test_credit_prices_list_all_versions(invoke, mock_api):
@@ -77,7 +77,7 @@ def _create(invoke, *extra: str):
             "credit-prices",
             "create",
             "--action-key",
-            "people_search",
+            "people.search",
             "--unit",
             "company",
             *extra,
@@ -91,9 +91,9 @@ def test_credit_prices_create_minimal(invoke, mock_api):
     )
     result = _create(invoke, "--credits", "30")
     assert result.exit_code == 0
-    assert "Created people_search version 2: 30 credits per company" in result.output
+    assert "Created people.search version 2: 30 credits per company" in result.output
     body = json.loads(route.calls[0].request.content)
-    assert body == {"action_key": "people_search", "unit": "company", "credits": 30}
+    assert body == {"action_key": "people.search", "unit": "company", "credits": 30}
 
 
 def test_credit_prices_create_with_minimum_and_date(invoke, mock_api):
@@ -105,16 +105,16 @@ def test_credit_prices_create_with_minimum_and_date(invoke, mock_api):
         "--minimum-credits",
         "150",
         "--effective-from",
-        "2026-12-01",
+        "2026-12-01T00:00:00+00:00",
     )
     assert result.exit_code == 0
     body = json.loads(route.calls[0].request.content)
     assert body == {
-        "action_key": "people_search",
+        "action_key": "people.search",
         "unit": "company",
         "credits": 35,
         "minimum_credits": 150,
-        "effective_from": "2026-12-01",
+        "effective_from": "2026-12-01T00:00:00+00:00",
     }
 
 
@@ -144,7 +144,13 @@ def test_credit_prices_create_conflict(invoke, mock_api):
 
 def test_credit_prices_create_validation_error(invoke, mock_api):
     mock_api.post(BASE).respond(
-        422, json={"detail": [{"loc": ["body", "unit"], "msg": "unknown unit"}]}
+        422,
+        json={
+            "error": "Validation Error",
+            "message": "The request contains invalid data.",
+            "type": "request_validation_error",
+            "details": [{"loc": ["body", "effective_from"], "msg": "too soon"}],
+        },
     )
     result = _create(invoke, "--credits", "35", "--json")
     assert result.exit_code == 2
