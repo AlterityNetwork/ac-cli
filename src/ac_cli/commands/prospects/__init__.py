@@ -59,6 +59,7 @@ _DETAIL_FIELDS = [
     ("suggested_action_dismissed_at", "Action dismissed"),
     ("people_state", "People"),
     ("people_state_reason", "People reason"),
+    ("people_search_run_id", "People search Run"),
     ("crm_company_id", "CRM company ID"),
     ("first_seen_at", "First seen"),
     ("last_seen_at", "Last seen"),
@@ -495,6 +496,24 @@ def prospects_get(
     _print_prospect(data)
 
 
+def _person_row(item: dict) -> dict:
+    """Flattens one prospect person into the row the people table reads.
+
+    Args:
+        item: One prospect person object.
+
+    Returns:
+        The same object plus the flat person keys and the employer name.
+    """
+    person = item["person"]
+    return {
+        **item,
+        "person_id": person["id"],
+        **person,
+        "employer_name": _employer_name(person),
+    }
+
+
 @app.command("people")
 def prospects_people(
     ctx: typer.Context,
@@ -513,17 +532,7 @@ def prospects_people(
     if json_output:
         print_json(data)
         return
-    rows = []
-    for item in data.get("items", []):
-        person = item["person"]
-        rows.append(
-            {
-                **item,
-                "person_id": person["id"],
-                **person,
-                "employer_name": _employer_name(person),
-            }
-        )
+    rows = [_person_row(item) for item in data.get("items", [])]
     print_table(rows, _PERSON_FIELDS, title="Prospect people")
     _print_next_page(data.get("next_cursor"), limit)
 
@@ -559,6 +568,141 @@ def prospects_signals(
         )
     print_table(rows, _SIGNAL_FIELDS, title="Prospect signals")
     _print_next_page(data.get("next_cursor"), limit)
+
+
+@app.command("add-person")
+def prospects_add_person(
+    ctx: typer.Context,
+    prospect_id: str = typer.Argument(..., help="Prospect ID"),
+    name: str = typer.Option(..., "--name", help="Full name of the person"),
+    linkedin_url: str | None = typer.Option(
+        None, "--linkedin-url", help="LinkedIn profile URL of the person (/in/)"
+    ),
+    title: str | None = typer.Option(None, "--title", help="Current job title"),
+    email: str | None = typer.Option(None, "--email", help="Work email address"),
+    json_output: bool = JSON_OPTION,
+) -> None:
+    """Add one person you name to a company prospect.
+
+    The name is the one required option. A person with a LinkedIn profile
+    joins global Intelligence by that profile. The title and the email stay on
+    the prospect, and each fills only a value the profile does not have. A
+    person with no profile stays on the prospect.
+    """
+    set_json_mode(json_output)
+    body: dict[str, object] = {"full_name": name}
+    # The API refuses an empty optional field, so an omitted one is not sent.
+    if linkedin_url is not None:
+        body["linkedin_url"] = linkedin_url
+    if title is not None:
+        body["current_title"] = title
+    if email is not None:
+        body["email"] = email
+    data = _api_request("post", f"{_PROSPECTS}/{prospect_id}/people", json=body).json()
+    if json_output:
+        print_json(data)
+        return
+    print_table([_person_row(data)], _PERSON_FIELDS, title="Added person")
+
+
+_PERSONA_FIELDS = [
+    ("titles", "Job titles"),
+    ("departments", "Departments"),
+    ("seniority", "Seniority"),
+    ("country_codes", "Countries"),
+]
+
+
+@app.command("search-persona")
+def prospects_search_persona(
+    ctx: typer.Context,
+    prospect_id: str = typer.Argument(..., help="Prospect ID"),
+    json_output: bool = JSON_OPTION,
+) -> None:
+    """Show the persona that find-people uses when you name no option.
+
+    The persona is the decision makers of the company, with the functions that
+    the brief of the Signals Run that found the prospect names.
+    """
+    set_json_mode(json_output)
+    data = _api_request("get", f"{_PROSPECTS}/{prospect_id}/people/search/persona").json()
+    if json_output:
+        print_json(data)
+        return
+    persona = data.get("persona") or {}
+    print_detail(
+        {name: ", ".join(persona.get(name) or []) for name, _ in _PERSONA_FIELDS},
+        _PERSONA_FIELDS,
+    )
+
+
+@app.command("find-people")
+def prospects_find_people(
+    ctx: typer.Context,
+    prospect_id: str = typer.Argument(..., help="Prospect ID"),
+    titles: list[str] | None = typer.Option(
+        None, "--title", help="Job title to look for. Repeat for more."
+    ),
+    departments: list[str] | None = typer.Option(
+        None, "--department", help="Department to look for. Repeat for more."
+    ),
+    seniority: list[str] | None = typer.Option(
+        None, "--seniority", help="Seniority to look for. Repeat for more."
+    ),
+    countries: list[str] | None = typer.Option(
+        None, "--country", help="ISO country code to look for. Repeat for more."
+    ),
+    describe: str | None = typer.Option(
+        None,
+        "--describe",
+        help="Describe the people to find in free text, in place of the lists.",
+    ),
+    json_output: bool = JSON_OPTION,
+) -> None:
+    """Start one People Search Run for the company of a prospect.
+
+    With no option, the Run looks for the decision makers of the company (see
+    search-persona). Each option you name replaces that persona, and each list
+    you fill narrows the search. --describe takes free text instead, and People
+    Search plans the lists from it. The people it finds attach to the prospect
+    when the Run ends.
+    """
+    set_json_mode(json_output)
+    persona = {
+        name: values
+        for name, values in (
+            ("titles", titles),
+            ("departments", departments),
+            ("seniority", seniority),
+            ("country_codes", countries),
+        )
+        if values
+    }
+    if describe is not None and persona:
+        raise typer.BadParameter(
+            "Use --describe or the list options, not both.", param_hint="--describe"
+        )
+    # No option sends no body, and the API then uses the default persona.
+    body: dict[str, object] | None = None
+    if describe is not None:
+        body = {"persona_description": describe}
+    elif persona:
+        body = {"persona": persona}
+    data = _api_request("post", f"{_PROSPECTS}/{prospect_id}/people/search", json=body).json()
+    if json_output:
+        print_json(data)
+        return
+    label = "[green]People search started:[/green]"
+    if data.get("outcome") == "duplicate":
+        label = "[yellow]People search already started:[/yellow]"
+    rprint(label, as_text(f"{data['id']} (status: {data['status']})"))
+    rprint("The people attach to the prospect when the Run ends.")
+    # A wrapped line splits the command, so the reader cannot copy it whole.
+    console.print(
+        "[dim]Read them:[/dim]",
+        as_text(f"ac agentic prospects people {prospect_id}"),
+        soft_wrap=True,
+    )
 
 
 def _print_curation(data: dict, *, json_output: bool) -> None:
