@@ -6,19 +6,12 @@ BASE = "/api/v1/agentic/outreach"
 CAMPAIGN_ID = "33333333-3333-4333-8333-333333333333"
 ENROLLMENT_ID = "22222222-2222-4222-8222-222222222222"
 PERSON_ID = "77777777-7777-4777-8777-777777777777"
-PLAYBOOK_ID = "88888888-8888-4888-8888-888888888888"
 
 CAMPAIGN = {
     "id": CAMPAIGN_ID,
     "name": "Q4 intro",
     "status": "draft",
-    "goal": "Book a call",
-    "instructions": "",
-    "max_emails": 3,
-    "min_days_between_emails": 3,
-    "writing_style_id": None,
-    "playbook_id": None,
-    "battlecard_id": None,
+    "description": "Heads of growth at Series A SaaS companies",
     "created_by": "99999999-9999-4999-8999-999999999999",
     "created_at": "2026-10-21T10:00:00Z",
     "updated_at": "2026-10-21T10:00:00Z",
@@ -167,24 +160,24 @@ class TestCampaigns:
                 "create",
                 "--name",
                 "Q4 intro",
-                "--goal",
-                "Book a call",
-                "--max-emails",
-                "2",
-                "--playbook-id",
-                PLAYBOOK_ID,
+                "--description",
+                "Heads of growth",
             ]
         )
 
         assert result.exit_code == 0, result.output
-        assert _body(route) == {
-            "name": "Q4 intro",
-            "goal": "Book a call",
-            "max_emails": 2,
-            "playbook_id": PLAYBOOK_ID,
-        }
+        assert _body(route) == {"name": "Q4 intro", "description": "Heads of growth"}
+        assert "Heads of growth at Series A SaaS companies" in result.output
 
-    def test_update_clears_a_link_with_none(self, invoke, mock_api):
+    def test_create_without_a_description_sends_only_the_name(self, invoke, mock_api):
+        route = mock_api.post(f"{BASE}/campaigns").respond(201, json=CAMPAIGN)
+
+        result = invoke(["agentic", "outreach", "campaigns", "create", "--name", "Q4 intro"])
+
+        assert result.exit_code == 0, result.output
+        assert _body(route) == {"name": "Q4 intro"}
+
+    def test_update_clears_the_description_with_an_empty_value(self, invoke, mock_api):
         route = mock_api.patch(f"{BASE}/campaigns/{CAMPAIGN_ID}").respond(200, json=CAMPAIGN)
 
         result = invoke(
@@ -194,15 +187,13 @@ class TestCampaigns:
                 "campaigns",
                 "update",
                 CAMPAIGN_ID,
-                "--min-days",
-                "5",
-                "--writing-style-id",
-                "none",
+                "--description",
+                "",
             ]
         )
 
         assert result.exit_code == 0, result.output
-        assert _body(route) == {"min_days_between_emails": 5, "writing_style_id": None}
+        assert _body(route) == {"description": ""}
 
     def test_update_with_nothing_refuses_without_a_call(self, invoke, mock_api):
         route = mock_api.patch(f"{BASE}/campaigns/{CAMPAIGN_ID}").respond(200, json=CAMPAIGN)
@@ -211,6 +202,39 @@ class TestCampaigns:
 
         assert result.exit_code == 2
         assert not route.called
+
+    def test_a_too_long_description_is_refused_without_a_call(self, invoke, mock_api):
+        created = mock_api.post(f"{BASE}/campaigns").respond(201, json=CAMPAIGN)
+        updated = mock_api.patch(f"{BASE}/campaigns/{CAMPAIGN_ID}").respond(200, json=CAMPAIGN)
+        too_long = "x" * 2001
+
+        for args in (
+            ["create", "--name", "Q3", "--description", too_long],
+            ["update", CAMPAIGN_ID, "--description", too_long],
+        ):
+            result = invoke(["agentic", "outreach", "campaigns", *args])
+            assert result.exit_code == 2, args
+        assert not created.called
+        assert not updated.called
+
+    def test_a_description_of_the_maximum_length_is_sent(self, invoke, mock_api):
+        route = mock_api.post(f"{BASE}/campaigns").respond(201, json=CAMPAIGN)
+
+        result = invoke(
+            [
+                "agentic",
+                "outreach",
+                "campaigns",
+                "create",
+                "--name",
+                "Q3",
+                "--description",
+                "x" * 2000,
+            ]
+        )
+
+        assert result.exit_code == 0, result.output
+        assert route.called
 
     def test_each_status_command_posts_its_status(self, invoke, mock_api):
         route = mock_api.post(f"{BASE}/campaigns/{CAMPAIGN_ID}/status").respond(200, json=CAMPAIGN)
@@ -244,20 +268,38 @@ class TestCampaigns:
         assert json.loads(listed.output) == {"items": [CAMPAIGN]}
         assert json.loads(created.output) == CAMPAIGN
 
-    def test_counts_out_of_range_are_refused_without_a_call(self, invoke, mock_api):
+    def test_the_removed_campaign_options_are_refused_without_a_call(self, invoke, mock_api):
         create = mock_api.post(f"{BASE}/campaigns").respond(201, json=CAMPAIGN)
         update = mock_api.patch(f"{BASE}/campaigns/{CAMPAIGN_ID}").respond(200, json=CAMPAIGN)
 
-        for args in (
-            ["create", "--name", "X", "--max-emails", "21"],
-            ["create", "--name", "X", "--min-days", "0"],
-            ["update", CAMPAIGN_ID, "--max-emails", "0"],
-            ["update", CAMPAIGN_ID, "--min-days", "31", "--json"],
+        for option, value in (
+            ("--goal", "Book a call"),
+            ("--instructions", "Be brief"),
+            ("--max-emails", "3"),
+            ("--min-days", "3"),
+            ("--writing-style-id", "none"),
+            ("--playbook-id", "none"),
+            ("--battlecard-id", "none"),
         ):
-            result = invoke(["agentic", "outreach", "campaigns", *args])
-            assert result.exit_code == 2, args
+            for args in (
+                ["create", "--name", "X", option, value],
+                ["update", CAMPAIGN_ID, option, value],
+            ):
+                result = invoke(["agentic", "outreach", "campaigns", *args])
+                assert result.exit_code == 2, args
         assert not create.called
         assert not update.called
+
+    def test_get_prints_the_description_and_no_removed_field(self, invoke, mock_api):
+        mock_api.get(f"{BASE}/campaigns/{CAMPAIGN_ID}").respond(200, json=CAMPAIGN)
+
+        result = invoke(["agentic", "outreach", "campaigns", "get", CAMPAIGN_ID])
+
+        assert result.exit_code == 0, result.output
+        assert "Description" in result.output
+        assert "Heads of growth at Series A SaaS companies" in result.output
+        for label in ("Goal", "Instructions", "Max emails", "Writing style", "Playbook"):
+            assert label not in result.output
 
     def test_archive_asks_first(self, invoke, mock_api):
         route = mock_api.post(f"{BASE}/campaigns/{CAMPAIGN_ID}/status").respond(200, json=CAMPAIGN)

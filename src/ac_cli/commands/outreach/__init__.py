@@ -232,9 +232,8 @@ _PERSON_KINDS = ("crm.person", "prospect.person")
 _ENROLLMENT_PAGE_DEFAULT = 100
 _ENROLLMENT_PAGE_MAX = 200
 _SEARCH_MAX = 100
+_DESCRIPTION_MAX = 2000
 _ORDERS = ("desc", "asc")
-# The word that clears a link on update.
-_CLEAR = "none"
 
 _CAMPAIGN_LIST_FIELDS = [
     ("id", "Campaign ID"),
@@ -250,13 +249,7 @@ _CAMPAIGN_FIELDS = [
     ("id", "Campaign ID"),
     ("name", "Name"),
     ("status", "Status"),
-    ("goal", "Goal"),
-    ("instructions", "Instructions"),
-    ("max_emails", "Max emails"),
-    ("min_days_between_emails", "Min days between emails"),
-    ("writing_style_id", "Writing style"),
-    ("playbook_id", "Playbook"),
-    ("battlecard_id", "Battlecard"),
+    ("description", "Description"),
     ("created_by", "Owner"),
     ("updated_at", "Updated"),
 ]
@@ -317,58 +310,25 @@ def _with_last_action(row: dict) -> dict:
     return {**row, "last_action": " · ".join(str(part) for part in parts if part)}
 
 
-def _campaign_body(
-    *,
-    name: str | None,
-    goal: str | None,
-    instructions: str | None,
-    max_emails: int | None,
-    min_days: int | None,
-    writing_style_id: str | None,
-    playbook_id: str | None,
-    battlecard_id: str | None,
-) -> dict[str, object]:
-    """Build a campaign body from the given options. A link of `none` clears it."""
-    body: dict[str, object] = {}
-    for key, value in (
-        ("name", name),
-        ("goal", goal),
-        ("instructions", instructions),
-        ("max_emails", max_emails),
-        ("min_days_between_emails", min_days),
-    ):
-        if value is not None:
-            body[key] = value
-    for key, link in (
-        ("writing_style_id", writing_style_id),
-        ("playbook_id", playbook_id),
-        ("battlecard_id", battlecard_id),
-    ):
-        if link is not None:
-            body[key] = None if link.lower() == _CLEAR else link
-    return body
-
-
-_MAX_EMAILS = 20
-_MAX_MIN_DAYS = 30
-
-
-def _check_campaign_bounds(max_emails: int | None, min_days: int | None) -> None:
-    """Refuse a count the API would refuse, before any HTTP call."""
-    if max_emails is not None and not 1 <= max_emails <= _MAX_EMAILS:
-        refuse_local(f"--max-emails is not between 1 and {_MAX_EMAILS}", max_emails)
-    if min_days is not None and not 1 <= min_days <= _MAX_MIN_DAYS:
-        refuse_local(f"--min-days is not between 1 and {_MAX_MIN_DAYS}", min_days)
+def _campaign_body(*, name: str | None, description: str | None) -> dict[str, object]:
+    """Build a campaign body from the given options. An empty description clears it."""
+    if description is not None and len(description) > _DESCRIPTION_MAX:
+        refuse_local(
+            f"--description is longer than {_DESCRIPTION_MAX} characters", len(description)
+        )
+    return {
+        key: value
+        for key, value in (("name", name), ("description", description))
+        if value is not None
+    }
 
 
 _NAME_OPTION = typer.Option(None, "--name", help="Campaign name")
-_GOAL_OPTION = typer.Option(None, "--goal", help="What a reply should achieve")
-_INSTRUCTIONS_OPTION = typer.Option(None, "--instructions", help="Guidance the planner reads")
-_MAX_EMAILS_OPTION = typer.Option(None, "--max-emails", help="Most emails per person, 1 to 20")
-_MIN_DAYS_OPTION = typer.Option(None, "--min-days", help="Fewest days between emails, 1 to 30")
-_STYLE_OPTION = typer.Option(None, "--writing-style-id", help="Writing style ID, or none")
-_PLAYBOOK_OPTION = typer.Option(None, "--playbook-id", help="Playbook ID, or none")
-_BATTLECARD_OPTION = typer.Option(None, "--battlecard-id", help="Battlecard ID, or none")
+_DESCRIPTION_OPTION = typer.Option(
+    None,
+    "--description",
+    help=f"Who the campaign is for and what you want from it, at most {_DESCRIPTION_MAX} characters",
+)
 
 
 @campaigns_app.command("list")
@@ -418,28 +378,12 @@ def campaigns_get(
 @campaigns_app.command("create")
 def campaigns_create(
     name: str = typer.Option(..., "--name", help="Campaign name"),
-    goal: str | None = _GOAL_OPTION,
-    instructions: str | None = _INSTRUCTIONS_OPTION,
-    max_emails: int | None = _MAX_EMAILS_OPTION,
-    min_days: int | None = _MIN_DAYS_OPTION,
-    writing_style_id: str | None = _STYLE_OPTION,
-    playbook_id: str | None = _PLAYBOOK_OPTION,
-    battlecard_id: str | None = _BATTLECARD_OPTION,
+    description: str | None = _DESCRIPTION_OPTION,
     json_output: bool = JSON_OPTION,
 ) -> None:
     """Create a draft campaign. You own it, and your mailbox sends its emails."""
     set_json_mode(json_output)
-    _check_campaign_bounds(max_emails, min_days)
-    body = _campaign_body(
-        name=name,
-        goal=goal,
-        instructions=instructions,
-        max_emails=max_emails,
-        min_days=min_days,
-        writing_style_id=writing_style_id,
-        playbook_id=playbook_id,
-        battlecard_id=battlecard_id,
-    )
+    body = _campaign_body(name=name, description=description)
     data = _api_request("post", f"{_OUTREACH}/campaigns", json=body).json()
     if json_output:
         print_json(data)
@@ -452,28 +396,12 @@ def campaigns_create(
 def campaigns_update(
     campaign_id: str = typer.Argument(..., help="Campaign ID"),
     name: str | None = _NAME_OPTION,
-    goal: str | None = _GOAL_OPTION,
-    instructions: str | None = _INSTRUCTIONS_OPTION,
-    max_emails: int | None = _MAX_EMAILS_OPTION,
-    min_days: int | None = _MIN_DAYS_OPTION,
-    writing_style_id: str | None = _STYLE_OPTION,
-    playbook_id: str | None = _PLAYBOOK_OPTION,
-    battlecard_id: str | None = _BATTLECARD_OPTION,
+    description: str | None = _DESCRIPTION_OPTION,
     json_output: bool = JSON_OPTION,
 ) -> None:
-    """Edit a campaign. Pass `none` to a link option to clear that link."""
+    """Edit a campaign. Pass an empty `--description` to clear the description."""
     set_json_mode(json_output)
-    _check_campaign_bounds(max_emails, min_days)
-    body = _campaign_body(
-        name=name,
-        goal=goal,
-        instructions=instructions,
-        max_emails=max_emails,
-        min_days=min_days,
-        writing_style_id=writing_style_id,
-        playbook_id=playbook_id,
-        battlecard_id=battlecard_id,
-    )
+    body = _campaign_body(name=name, description=description)
     if not body:
         refuse_local("nothing to update: give at least one option")
     data = _api_request("patch", f"{_OUTREACH}/campaigns/{campaign_id}", json=body).json()
