@@ -648,13 +648,19 @@ def prospects_find_people(
     countries: list[str] | None = typer.Option(
         None, "--country", help="ISO country code to look for. Repeat for more."
     ),
+    describe: str | None = typer.Option(
+        None,
+        "--describe",
+        help="Describe the people to find in free text, in place of the lists.",
+    ),
     json_output: bool = JSON_OPTION,
 ) -> None:
     """Start one People Search Run for the company of a prospect.
 
     With no option, the Run looks for the decision makers of the company (see
     search-persona). Each option you name replaces that persona, and each list
-    you fill narrows the search. The people it finds attach to the prospect
+    you fill narrows the search. --describe takes free text instead, and People
+    Search plans the lists from it. The people it finds attach to the prospect
     when the Run ends.
     """
     set_json_mode(json_output)
@@ -668,8 +674,16 @@ def prospects_find_people(
         )
         if values
     }
+    if describe is not None and persona:
+        raise typer.BadParameter(
+            "Use --describe or the list options, not both.", param_hint="--describe"
+        )
     # No option sends no body, and the API then uses the default persona.
-    body = {"persona": persona} if persona else None
+    body: dict[str, object] | None = None
+    if describe is not None:
+        body = {"persona_description": describe}
+    elif persona:
+        body = {"persona": persona}
     data = _api_request("post", f"{_PROSPECTS}/{prospect_id}/people/search", json=body).json()
     if json_output:
         print_json(data)

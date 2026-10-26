@@ -198,6 +198,46 @@ def test_find_people_maps_an_unusable_persona_to_exit_two(invoke, mock_api):
     assert result.exit_code == 2
 
 
+def test_find_people_sends_the_description(invoke, mock_api):
+    route = mock_api.post(f"{BASE}/{PROSPECT_ID}/people/search").respond(200, json=RUN)
+
+    result = invoke(
+        [
+            "agentic",
+            "prospects",
+            "find-people",
+            PROSPECT_ID,
+            "--describe",
+            "Heads of marketing in the UK",
+        ]
+    )
+
+    assert result.exit_code == 0
+    assert json.loads(route.calls[0].request.content) == {
+        "persona_description": "Heads of marketing in the UK"
+    }
+
+
+def test_find_people_refuses_a_description_beside_the_lists(invoke, mock_api):
+    route = mock_api.post(f"{BASE}/{PROSPECT_ID}/people/search").respond(200, json=RUN)
+
+    result = invoke(
+        [
+            "agentic",
+            "prospects",
+            "find-people",
+            PROSPECT_ID,
+            "--describe",
+            "CMOs",
+            "--title",
+            "CMO",
+        ]
+    )
+
+    assert result.exit_code == 2
+    assert not route.called
+
+
 PERSONA = {"persona": {"seniority": ["owner", "c-suite"], "departments": ["marketing"]}}
 
 
