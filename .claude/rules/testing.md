@@ -19,7 +19,7 @@ paths:
 ## What to Test Per Command
 - **Happy path**: correct API call made, response rendered (table or JSON)
 - **`--json` flag**: output is valid JSON (parse with `json.loads`)
-- **Error handling with semantic exit codes**: API returns 404 → exit code 3, 403 → exit code 4, 422 → exit code 2, 409 → exit code 5, 500 → exit code 1. Map: `{401: 4, 403: 4, 404: 3, 409: 5, 422: 2}`, default 1
+- **Error handling with semantic exit codes**: API returns 404 → exit code 3, 403 → exit code 4, 422 → exit code 2, 409 → exit code 5, 402 → exit code 6, 500 → exit code 1. Map: `{401: 4, 402: 6, 403: 4, 404: 3, 409: 5, 422: 2}`, default 1
 - **JSON error output**: with `--json`, errors return `{"error": true, "status_code": ..., "detail": ...}` — parse with `json.loads` and assert fields
 - **`--yes` on delete**: skips confirmation prompt
 - **Abort on delete**: `input="n\n"` → exits code 1

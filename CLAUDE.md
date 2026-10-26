@@ -23,7 +23,7 @@ uv sync --all-extras       # Install with dev dependencies (pytest, respx)
 | `settings` | Organization settings: the copilot approval framework, targeting, the Company dossier, your memory lines and the suggestions learned from your edits |
 | `agentic` | Agentic platform: capabilities, runs, definitions, tools, approvals, conversations, prospects, saved-searches, outreach, triggers, policies, connections, limits |
 | `analytics` | Customer-facing organization analytics overview |
-| `admin` | Users, orgs, queues, demo, onboarding, copilots, app-usage, ai-usage, platform-activity, legal-docs, resources, apps, subscriptions, subscription-plans (super admin) |
+| `admin` | Users, orgs, queues, demo, onboarding, copilots, app-usage, ai-usage, platform-activity, legal-docs, resources, apps, subscriptions, subscription-plans, entitlement-grants, credit-prices (super admin) |
 | `profiles` | User profile (incl. set-organization, set-password, subscription) |
 | `resources` | Knowledge base resource management |
 | `styles` | Writing styles |
@@ -51,7 +51,7 @@ The table documents the branch it is read on.
 The CLI is designed to be consumed by AI agents and scripts:
 
 - **Structured JSON errors**: When `--json` is active, errors return `{"error": true, "status_code": ..., "detail": ...}` instead of Rich text
-- **Semantic exit codes**: `0`=success, `1`=general error, `2`=validation (422), `3`=not found (404), `4`=auth/permission (401/403), `5`=conflict (409)
+- **Semantic exit codes**: `0`=success, `1`=general error, `2`=validation (422), `3`=not found (404), `4`=auth/permission (401/403), `5`=conflict (409), `6`=payment required (402)
 - **`AC_YES=1` env var**: Skips all `typer.confirm()` prompts for non-interactive use
 - **`--json` on all groups**: Every group callback calls `set_json_mode()` so errors also respect JSON mode
 

@@ -103,6 +103,7 @@ from ac_cli.commands.admin.ai_usage import ai_usage_app  # noqa: E402
 from ac_cli.commands.admin.app_usage import app_usage_app  # noqa: E402
 from ac_cli.commands.admin.billing import billing_app  # noqa: E402
 from ac_cli.commands.admin.copilots import copilots_app  # noqa: E402
+from ac_cli.commands.admin.credit_prices import credit_prices_app  # noqa: E402
 from ac_cli.commands.admin.crm import admin_crm_app  # noqa: E402
 from ac_cli.commands.admin.demo import demo_app  # noqa: E402
 from ac_cli.commands.admin.entitlement_grants import entitlement_grants_app  # noqa: E402
@@ -134,5 +135,6 @@ app.add_typer(subscriptions_app, name="subscriptions")
 app.add_typer(billing_app, name="billing")
 app.add_typer(subscription_plans_app, name="subscription-plans")
 app.add_typer(entitlement_grants_app, name="entitlement-grants")
+app.add_typer(credit_prices_app, name="credit-prices")
 app.add_typer(admin_crm_app, name="crm")
 app.add_typer(intelligence_app, name="intelligence")

@@ -6,7 +6,7 @@ import typer
 from rich import print as rprint
 
 from ac_cli.commands._helpers import JSON_OPTION, _api_request, _build_body, set_json_mode
-from ac_cli.formatting import print_detail, print_json, print_table, styled
+from ac_cli.formatting import as_text, print_detail, print_json, print_table, styled
 
 app = typer.Typer(help="User profile management")
 
@@ -141,6 +141,28 @@ def profiles_subscription(
     )
 
 
+_CREDIT_STATE_SUFFIX = {"warning": " (running low)", "exhausted": " (used up)"}
+
+
+def _credits_line(credits: dict | None, period_end: str) -> str | None:
+    """Returns the credits line of `ac profiles usage`, or None with no block.
+
+    The total is spent plus balance, which is the allowance, the top-ups and
+    the adjustments of the period. The balance can be negative.
+    """
+    if not credits:
+        return None
+    spent = credits.get("spent") or 0
+    if credits.get("state") == "no_allowance":
+        return f"Credits: {spent:,} spent, no allowance set"
+    balance = credits.get("balance") or 0
+    suffix = _CREDIT_STATE_SUFFIX.get(credits.get("state") or "", "")
+    return (
+        f"Credits: {spent:,} spent of {spent + balance:,}, balance {balance:,}, "
+        f"period ends {period_end}{suffix}"
+    )
+
+
 @app.command("usage")
 def profiles_usage(
     ctx: typer.Context,
@@ -160,6 +182,9 @@ def profiles_usage(
             str(data.get("period_end") or "")[:10],
         )
     )
+    credits_line = _credits_line(data.get("credits"), str(data.get("period_end") or "")[:10])
+    if credits_line:
+        rprint(as_text(credits_line))
     actions = data.get("actions", [])
     if not actions:
         rprint("[yellow]No usage recorded in this period.[/yellow]")
