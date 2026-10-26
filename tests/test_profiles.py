@@ -211,6 +211,28 @@ def test_a_plan_refusal_exits_6_with_the_message_and_remedy(invoke, mock_api):
     assert "Ask an owner to add CRM to your plan." in result.output
 
 
+def test_a_route_plan_refusal_prints_the_remedy_from_the_context(invoke, mock_api):
+    mock_api.get("/api/v1/subscriptions/me").respond(
+        402,
+        json={
+            "error": "Plan Limit",
+            "message": "Your subscription has lapsed, so this organization is read-only.",
+            "type": "entitlement",
+            "code": "subscription_lapsed",
+            "context": {
+                "code": "subscription_lapsed",
+                "key": "crm",
+                "message": "Your subscription has lapsed, so this organization is read-only.",
+                "remedy": "Update the payment method in Settings > Billing to make changes again.",
+            },
+        },
+    )
+    result = invoke(["profiles", "subscription"])
+    assert result.exit_code == 6
+    assert "read-only." in result.output
+    assert "Update the payment method" in result.output
+
+
 SAMPLE_USAGE = {
     "period_start": "2026-09-01T00:00:00+00:00",
     "period_end": "2026-10-01T00:00:00+00:00",

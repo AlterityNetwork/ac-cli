@@ -53,16 +53,16 @@ def _handle_error(exc: httpx.HTTPStatusError) -> None:
         detail = body.get("detail") or body.get("message") or exc.response.text
     except (ValueError, KeyError):
         detail = exc.response.text
-    if (
-        exc.response.status_code == 402
-        and isinstance(detail, dict)
-        and isinstance(detail.get("message"), str)
-    ):
-        # A plan refusal carries a sentence and a remedy. Print both, not
-        # the raw object.
-        detail = " ".join(
-            part for part in (detail["message"], detail.get("remedy")) if isinstance(part, str)
-        )
+    if exc.response.status_code == 402:
+        # A plan refusal carries a sentence and a remedy. A run start puts
+        # both in `detail`; a gated route puts the remedy in `context`.
+        refusal = detail if isinstance(detail, dict) else context
+        message = detail if isinstance(detail, str) else None
+        if isinstance(refusal, dict):
+            message = refusal.get("message") if isinstance(refusal.get("message"), str) else message
+            remedy = refusal.get("remedy")
+            if isinstance(message, str):
+                detail = " ".join(part for part in (message, remedy) if isinstance(part, str))
     exit_code = _EXIT_CODES.get(exc.response.status_code, 1)
     if _json_output.get():
         error = {"error": True, "status_code": exc.response.status_code, "detail": detail}
