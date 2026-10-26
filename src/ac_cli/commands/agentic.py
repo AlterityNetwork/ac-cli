@@ -286,6 +286,11 @@ def runs_list(
         help="Runs one entry point started: front_door, trigger, api or workflow_step. "
         "A schedule starts trigger runs.",
     ),
+    saved_search_id: str | None = typer.Option(
+        None,
+        "--saved-search-id",
+        help="Runs one saved search started, from Run now or from its schedule.",
+    ),
     every: bool = typer.Option(
         False, "--all", help="Include child runs. The default returns roots only."
     ),
@@ -317,6 +322,8 @@ def runs_list(
         params["status"] = status
     if source:
         params["source"] = source
+    if saved_search_id:
+        params["saved_search_id"] = saved_search_id
     if include_result:
         params["include_result"] = "true"
     if cursor:
@@ -348,6 +355,7 @@ def runs_list(
                 *(("--capability", one) for one in capability or []),
                 ("--status", status),
                 ("--source", source),
+                ("--saved-search-id", saved_search_id),
                 ("--all", every),
                 ("--include-result", include_result),
             ],
