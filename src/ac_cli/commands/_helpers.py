@@ -57,6 +57,10 @@ def _handle_error(exc: httpx.HTTPStatusError) -> None:
         # A plan refusal carries a sentence and a remedy. A run start puts
         # both in `detail`; a gated route puts the remedy in `context`.
         refusal = detail if isinstance(detail, dict) else context
+        if isinstance(detail, dict) and not isinstance(context, dict):
+            # JSON mode forwards the refusal as context, so a script still
+            # reads its code and key after the detail becomes one sentence.
+            context = detail
         message = detail if isinstance(detail, str) else None
         if isinstance(refusal, dict):
             message = refusal.get("message") if isinstance(refusal.get("message"), str) else message

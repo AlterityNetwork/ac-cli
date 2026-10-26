@@ -186,3 +186,104 @@ def test_ac_yes_unset_prompts(invoke, mock_api):
         os.environ.pop("AC_YES", None)
         result = invoke(["crm", "companies", "delete", "c1"], input="n\n")
     assert result.exit_code == 1
+
+
+# The two 402 shapes the API answers. A route that raises HTTPException puts the
+# refusal under "detail". A gated router raises EntitlementError, and the
+# shared handler answers "message", "code" and "context" with no "detail".
+_REFUSAL = {
+    "code": "not_entitled",
+    "key": "companies",
+    "message": "Company Search is not on your plan.",
+    "remedy": "Ask an owner to add Company Search to your plan.",
+}
+_DETAIL_402 = {"detail": _REFUSAL}
+_HANDLER_402 = {
+    "error": "Plan Limit",
+    "message": "CRM is not on your plan.",
+    "type": "entitlement",
+    "code": "not_entitled",
+    "context": {
+        "code": "not_entitled",
+        "key": "crm",
+        "message": "CRM is not on your plan.",
+        "remedy": "Ask an owner to add CRM to your plan.",
+    },
+}
+
+
+def _start_capability(invoke, *extra):
+    return invoke(
+        [
+            "agentic",
+            "capabilities",
+            "start",
+            "company.search",
+            "--input",
+            "{}",
+            "--idempotency-key",
+            "key-1",
+            *extra,
+        ]
+    )
+
+
+def test_json_error_402_from_a_route_detail(invoke, mock_api):
+    """A detail-shaped plan refusal exits 6 with the sentence and the remedy."""
+    mock_api.post("/api/v1/agentic/capabilities/company.search/runs").respond(402, json=_DETAIL_402)
+    result = _start_capability(invoke, "--json")
+    assert result.exit_code == 6
+    parsed = json.loads(result.output)
+    assert parsed["error"] is True
+    assert parsed["status_code"] == 402
+    assert parsed["detail"] == (
+        "Company Search is not on your plan. Ask an owner to add Company Search to your plan."
+    )
+
+
+def test_json_error_402_from_a_gated_router(invoke, mock_api):
+    """A handler-shaped plan refusal keeps the code and remedy in context."""
+    mock_api.get("/api/v1/crm/companies").respond(402, json=_HANDLER_402)
+    result = invoke(["crm", "companies", "list", "--json"])
+    assert result.exit_code == 6
+    parsed = json.loads(result.output)
+    assert parsed["status_code"] == 402
+    assert parsed["detail"] == "CRM is not on your plan. Ask an owner to add CRM to your plan."
+    assert parsed["context"]["code"] == "not_entitled"
+    assert parsed["context"]["remedy"] == "Ask an owner to add CRM to your plan."
+
+
+def test_exit_code_402_for_a_bare_detail(invoke, mock_api):
+    mock_api.get("/api/v1/crm/companies").respond(402, json={"detail": "Payment Required"})
+    result = invoke(["crm", "companies", "list"])
+    assert result.exit_code == 6
+    assert "Payment Required" in result.output
+
+
+def test_a_402_detail_without_a_message_is_not_flattened(invoke, mock_api):
+    """Only a refusal with a sentence is joined. Another object prints as it is."""
+    mock_api.get("/api/v1/crm/companies").respond(
+        402, json={"detail": {"code": "credits_exhausted"}}
+    )
+    result = invoke(["crm", "companies", "list", "--json"])
+    assert result.exit_code == 6
+    assert json.loads(result.output)["detail"] == {"code": "credits_exhausted"}
+
+
+def test_a_non_402_detail_with_a_message_is_not_flattened(invoke, mock_api):
+    """The join is for a plan refusal only. A 409 object keeps its fields."""
+    detail = {"code": "idempotency_conflict", "message": "This key belongs to another start."}
+    mock_api.post("/api/v1/agentic/capabilities/company.search/runs").respond(
+        409, json={"detail": detail}
+    )
+    result = _start_capability(invoke, "--json")
+    assert result.exit_code == 5
+    assert json.loads(result.output)["detail"] == detail
+
+
+def test_json_error_402_from_a_route_detail_keeps_the_code(invoke, mock_api):
+    """A script must tell a missing module from a lapsed plan."""
+    mock_api.post("/api/v1/agentic/capabilities/company.search/runs").respond(402, json=_DETAIL_402)
+    result = _start_capability(invoke, "--json")
+    parsed = json.loads(result.output)
+    assert (parsed.get("context") or {}).get("code") == "not_entitled"
