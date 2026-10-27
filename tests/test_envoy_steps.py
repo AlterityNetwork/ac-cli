@@ -161,3 +161,54 @@ def test_steps_retry_not_found(invoke, mock_api):
     )
     result = invoke(["envoy", "steps", "retry", "seq-1", "step-x"])
     assert result.exit_code == 3
+
+
+def test_steps_create_sends_the_linkedin_execution_fields(invoke, mock_api):
+    """An automated LinkedIn step names its subtype, its execution and how
+    long it waits for the acceptance."""
+    route = mock_api.post("/api/v1/envoy/sequences/seq-1/steps").respond(
+        201, json={**SAMPLE_STEP, "step_type": "task"}
+    )
+    result = invoke(
+        [
+            "envoy",
+            "steps",
+            "create",
+            "seq-1",
+            "--type",
+            "task",
+            "--step-subtype",
+            "linkedin_connection",
+            "--execution",
+            "automated",
+            "--accept-wait-days",
+            "10",
+        ]
+    )
+    assert result.exit_code == 0
+    body = json.loads(route.calls.last.request.content)
+    assert body["step_subtype"] == "linkedin_connection"
+    assert body["execution"] == "automated"
+    assert body["accept_wait_days"] == 10
+
+
+def test_steps_update_sends_the_linkedin_execution_fields(invoke, mock_api):
+    route = mock_api.patch("/api/v1/envoy/sequences/seq-1/steps/step-1").respond(
+        200, json=SAMPLE_STEP
+    )
+    result = invoke(
+        [
+            "envoy",
+            "steps",
+            "update",
+            "seq-1",
+            "step-1",
+            "--execution",
+            "manual",
+            "--accept-wait-days",
+            "3",
+        ]
+    )
+    assert result.exit_code == 0
+    body = json.loads(route.calls.last.request.content)
+    assert body == {"execution": "manual", "accept_wait_days": 3}
