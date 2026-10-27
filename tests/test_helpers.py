@@ -182,6 +182,62 @@ def test_handle_error_renders_a_list_detail(invoke, mock_api):
     assert "not [valid]" in result.output
 
 
+# A refused run start answers `detail` as a dict of code, message and remedy.
+# Without a branch for it, the reader reads the repr of a Python dict.
+
+_REFUSAL = {
+    "code": "credits_exhausted",
+    "message": "This organization has no credits left [this period].",
+    "remedy": "Buy a top-up or wait for the next period.",
+}
+
+
+def test_handle_error_renders_a_credits_refusal_as_one_sentence(invoke, mock_api):
+    mock_api.get("/api/v1/crm/companies").respond(402, json={"detail": _REFUSAL})
+    result = invoke(["crm", "companies", "list"])
+
+    assert result.exit_code == 6
+    assert (
+        "Error 402: This organization has no credits left [this period]. "
+        "Buy a top-up or wait for the next period."
+    ) in " ".join(result.output.split())
+    assert "{" not in result.output
+
+
+def test_handle_error_renders_a_dict_detail_with_no_remedy(invoke, mock_api):
+    detail = {"code": "day_cap_exhausted", "message": "The daily cap is used."}
+    mock_api.get("/api/v1/crm/companies").respond(429, json={"detail": detail})
+    result = invoke(["crm", "companies", "list"])
+
+    assert result.exit_code == 1
+    assert "Error 429: The daily cap is used. (day_cap_exhausted)" in result.output
+    assert "None" not in result.output
+
+
+def test_handle_error_forwards_a_credits_refusal_as_context_in_json_mode(invoke, mock_api):
+    """A script reads the credits code from the context of a 402."""
+    mock_api.get("/api/v1/crm/companies").respond(402, json={"detail": _REFUSAL})
+    result = invoke(["crm", "companies", "list", "--json"])
+
+    assert result.exit_code == 6
+    parsed = json.loads(result.output)
+    assert parsed["status_code"] == 402
+    assert parsed["detail"] == (
+        "This organization has no credits left [this period]. "
+        "Buy a top-up or wait for the next period."
+    )
+    assert parsed["context"] == _REFUSAL
+
+
+def test_handle_error_keeps_a_day_cap_dict_detail_in_json_mode(invoke, mock_api):
+    detail = {**_REFUSAL, "code": "day_cap_exhausted"}
+    mock_api.get("/api/v1/crm/companies").respond(429, json={"detail": detail})
+    result = invoke(["crm", "companies", "list", "--json"])
+
+    assert result.exit_code == 1
+    assert json.loads(result.output)["detail"] == detail
+
+
 def test_resolve_entity_renders_a_close_tag_in_a_match_name(mock_config, mock_api, capsys):
     """The server writes each name, so one holding `[/beta]` broke the list."""
     import pytest

@@ -38,6 +38,25 @@ def should_skip_confirm(yes_flag: bool) -> bool:
     return yes_flag or os.environ.get("AC_YES", "").lower() in ("1", "true", "yes")
 
 
+def _refusal_text(detail: object) -> object:
+    """Returns one line for a refusal detail, or the detail as it is.
+
+    A refused run start answers `detail` as a dict of `code`, `message` and
+    `remedy`. The line is the message, the remedy, then the code in
+    parentheses. A dict without a str message stays as it is.
+    """
+    if not isinstance(detail, dict) or not isinstance(detail.get("message"), str):
+        return detail
+    parts = [detail["message"]]
+    remedy = detail.get("remedy")
+    if isinstance(remedy, str) and remedy:
+        parts.append(remedy)
+    code = detail.get("code")
+    if code:
+        parts.append(f"({code})")
+    return " ".join(parts)
+
+
 def _handle_error(exc: httpx.HTTPStatusError) -> None:
     """Print API error detail and exit.
 
@@ -45,6 +64,10 @@ def _handle_error(exc: httpx.HTTPStatusError) -> None:
     holds `[/urgent]` raises MarkupError, and the command then exits 1 with no
     reason. Print the detail through as_text, which never reaches the markup
     parser. See as_text in formatting.py.
+
+    A 402 refusal becomes one sentence, and JSON mode forwards its dict as
+    `context`. Any other dict detail stays as the API wrote it in JSON mode,
+    and _refusal_text writes its line in text mode.
     """
     context = None
     try:
@@ -76,7 +99,10 @@ def _handle_error(exc: httpx.HTTPStatusError) -> None:
             error["context"] = context
         print_json(error)
     else:
-        rprint(styled("[red]Error {}:[/red]", exc.response.status_code), as_text(detail))
+        rprint(
+            styled("[red]Error {}:[/red]", exc.response.status_code),
+            as_text(_refusal_text(detail)),
+        )
     raise typer.Exit(code=exit_code)
 
 

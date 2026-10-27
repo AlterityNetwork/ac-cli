@@ -305,6 +305,96 @@ def test_profiles_usage_prints_an_action_key_literally(invoke, mock_api):
     assert "[bold]" in result.output
 
 
+SAMPLE_CREDITS = {
+    "allowance": 1000,
+    "top_ups": 200,
+    "adjustments": 0,
+    "spent": 1150,
+    "balance": 50,
+    "enforced": True,
+    "state": "ok",
+    "warning_at": None,
+}
+
+
+def _usage_with_credits(**credits: object) -> dict:
+    return {**SAMPLE_USAGE, "credits": {**SAMPLE_CREDITS, **credits}}
+
+
+def test_profiles_usage_prints_the_credits_line(invoke, mock_api):
+    mock_api.get("/api/v1/subscriptions/me/usage").respond(200, json=_usage_with_credits())
+    result = invoke(["profiles", "usage"])
+    assert result.exit_code == 0
+    assert "Credits: 1,150 spent of 1,200, balance 50, period ends 2026-10-01\n" in result.output
+
+
+def test_profiles_usage_prints_no_credits_line_without_a_block(invoke, mock_api):
+    mock_api.get("/api/v1/subscriptions/me/usage").respond(200, json=SAMPLE_USAGE)
+    result = invoke(["profiles", "usage"])
+    assert result.exit_code == 0
+    assert "Credits" not in result.output
+
+
+def test_profiles_usage_prints_no_credits_line_for_a_null_block(invoke, mock_api):
+    mock_api.get("/api/v1/subscriptions/me/usage").respond(
+        200, json={**SAMPLE_USAGE, "credits": None}
+    )
+    result = invoke(["profiles", "usage"])
+    assert result.exit_code == 0
+    assert "Credits" not in result.output
+
+
+def test_profiles_usage_with_no_allowance(invoke, mock_api):
+    mock_api.get("/api/v1/subscriptions/me/usage").respond(
+        200,
+        json=_usage_with_credits(
+            allowance=0, top_ups=0, spent=1234, balance=-1234, state="no_allowance"
+        ),
+    )
+    result = invoke(["profiles", "usage"])
+    assert result.exit_code == 0
+    assert "Credits: 1,234 spent, no allowance set" in result.output
+
+
+def test_profiles_usage_with_credits_running_low(invoke, mock_api):
+    mock_api.get("/api/v1/subscriptions/me/usage").respond(
+        200, json=_usage_with_credits(state="warning", warning_at=8000)
+    )
+    result = invoke(["profiles", "usage"])
+    assert result.exit_code == 0
+    assert "period ends 2026-10-01 (running low)" in result.output
+
+
+def test_profiles_usage_with_credits_used_up(invoke, mock_api):
+    """A balance can go negative, and the line prints the sign."""
+    mock_api.get("/api/v1/subscriptions/me/usage").respond(
+        200, json=_usage_with_credits(spent=1300, balance=-100, state="exhausted")
+    )
+    result = invoke(["profiles", "usage"])
+    assert result.exit_code == 0
+    assert (
+        "Credits: 1,300 spent of 1,200, balance -100, period ends 2026-10-01 (used up)"
+        in result.output
+    )
+
+
+def test_profiles_usage_prints_the_credits_line_with_no_rows(invoke, mock_api):
+    mock_api.get("/api/v1/subscriptions/me/usage").respond(
+        200, json={**_usage_with_credits(), "actions": [], "total_calls": 0}
+    )
+    result = invoke(["profiles", "usage"])
+    assert result.exit_code == 0
+    assert "Credits: 1,150 spent" in result.output
+    assert "No usage" in result.output
+
+
+def test_profiles_usage_json_passes_the_credits_block(invoke, mock_api):
+    mock_api.get("/api/v1/subscriptions/me/usage").respond(200, json=_usage_with_credits())
+    result = invoke(["profiles", "usage", "--json"])
+    assert result.exit_code == 0
+    assert json.loads(result.output)["credits"] == SAMPLE_CREDITS
+
+
 def test_profiles_usage_error(invoke, mock_api):
     mock_api.get("/api/v1/subscriptions/me/usage").respond(404, json={"detail": "no usage"})
     result = invoke(["profiles", "usage"])
