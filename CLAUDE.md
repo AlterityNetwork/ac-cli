@@ -51,7 +51,7 @@ The table documents the branch it is read on.
 The CLI is designed to be consumed by AI agents and scripts:
 
 - **Structured JSON errors**: When `--json` is active, errors return `{"error": true, "status_code": ..., "detail": ...}` instead of Rich text
-- **Semantic exit codes**: `0`=success, `1`=general error, `2`=validation (422), `3`=not found (404), `4`=auth/permission (401/403), `5`=conflict (409)
+- **Semantic exit codes**: `0`=success, `1`=general error, `2`=validation (422), `3`=not found (404), `4`=auth/permission (401/403), `5`=conflict (409), `6`=plan refusal (402)
 - **`AC_YES=1` env var**: Skips all `typer.confirm()` prompts for non-interactive use
 - **`--json` on all groups**: Every group callback calls `set_json_mode()` so errors also respect JSON mode
 

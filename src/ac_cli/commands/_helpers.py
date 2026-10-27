@@ -15,7 +15,9 @@ _json_output: contextvars.ContextVar[bool] = contextvars.ContextVar("json_output
 
 JSON_OPTION = typer.Option(False, "--json", help="Output raw JSON")
 
-_EXIT_CODES = {401: 4, 403: 4, 404: 3, 409: 5, 422: 2}
+# 402 is a plan refusal: a module the plan does not hold, a lapsed
+# subscription, a full seat count, or spent credits.
+_EXIT_CODES = {401: 4, 402: 6, 403: 4, 404: 3, 409: 5, 422: 2}
 
 _KEY_FLAG = "--idempotency-key"
 
@@ -51,6 +53,20 @@ def _handle_error(exc: httpx.HTTPStatusError) -> None:
         detail = body.get("detail") or body.get("message") or exc.response.text
     except (ValueError, KeyError):
         detail = exc.response.text
+    if exc.response.status_code == 402:
+        # A plan refusal carries a sentence and a remedy. A run start puts
+        # both in `detail`; a gated route puts the remedy in `context`.
+        refusal = detail if isinstance(detail, dict) else context
+        if isinstance(detail, dict) and not isinstance(context, dict):
+            # JSON mode forwards the refusal as context, so a script still
+            # reads its code and key after the detail becomes one sentence.
+            context = detail
+        message = detail if isinstance(detail, str) else None
+        if isinstance(refusal, dict):
+            message = refusal.get("message") if isinstance(refusal.get("message"), str) else message
+            remedy = refusal.get("remedy")
+            if isinstance(message, str):
+                detail = " ".join(part for part in (message, remedy) if isinstance(part, str))
     exit_code = _EXIT_CODES.get(exc.response.status_code, 1)
     if _json_output.get():
         error = {"error": True, "status_code": exc.response.status_code, "detail": detail}

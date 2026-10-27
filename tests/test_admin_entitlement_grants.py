@@ -24,6 +24,8 @@ SAMPLE_LIST = {
         "limits": {"seats": 3, "email_sends_per_day": None},
         "trials": [],
         "access_mode": "full",
+        "enforced": True,
+        "seats_used": 2,
     },
 }
 
@@ -193,3 +195,23 @@ def test_grants_delete_json(invoke, mock_api):
     )
     assert result.exit_code == 0
     assert json.loads(result.output) == {"deleted": "grant-1"}
+
+
+def test_grants_list_shows_enforcement_and_seats(invoke, mock_api):
+    mock_api.get(BASE).respond(200, json=SAMPLE_LIST)
+    result = invoke(["admin", "entitlement-grants", "list", "--org-id", ORG])
+    assert result.exit_code == 0
+    assert "Enforced: yes" in result.output
+    assert "Seats: 2 / 3" in result.output
+
+
+def test_grants_list_reads_a_snapshot_without_the_new_fields(invoke, mock_api):
+    # An API that predates the flag answers neither field. It reads as not
+    # enforced, with no seat count.
+    snapshot = {
+        k: v for k, v in SAMPLE_LIST["snapshot"].items() if k not in ("enforced", "seats_used")
+    }
+    mock_api.get(BASE).respond(200, json={**SAMPLE_LIST, "snapshot": snapshot})
+    result = invoke(["admin", "entitlement-grants", "list", "--org-id", ORG])
+    assert result.exit_code == 0
+    assert "Enforced: no" in result.output
