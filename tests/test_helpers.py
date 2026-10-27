@@ -192,14 +192,14 @@ _REFUSAL = {
 }
 
 
-def test_handle_error_renders_a_dict_detail(invoke, mock_api):
+def test_handle_error_renders_a_credits_refusal_as_one_sentence(invoke, mock_api):
     mock_api.get("/api/v1/crm/companies").respond(402, json={"detail": _REFUSAL})
     result = invoke(["crm", "companies", "list"])
 
     assert result.exit_code == 6
     assert (
         "Error 402: This organization has no credits left [this period]. "
-        "Buy a top-up or wait for the next period. (credits_exhausted)"
+        "Buy a top-up or wait for the next period."
     ) in " ".join(result.output.split())
     assert "{" not in result.output
 
@@ -214,22 +214,28 @@ def test_handle_error_renders_a_dict_detail_with_no_remedy(invoke, mock_api):
     assert "None" not in result.output
 
 
-def test_handle_error_keeps_a_dict_detail_in_json_mode(invoke, mock_api):
+def test_handle_error_forwards_a_credits_refusal_as_context_in_json_mode(invoke, mock_api):
+    """A script reads the credits code from the context of a 402."""
     mock_api.get("/api/v1/crm/companies").respond(402, json={"detail": _REFUSAL})
     result = invoke(["crm", "companies", "list", "--json"])
 
     assert result.exit_code == 6
     parsed = json.loads(result.output)
     assert parsed["status_code"] == 402
-    assert parsed["detail"] == _REFUSAL
+    assert parsed["detail"] == (
+        "This organization has no credits left [this period]. "
+        "Buy a top-up or wait for the next period."
+    )
+    assert parsed["context"] == _REFUSAL
 
 
-def test_payment_required_exits_six(invoke, mock_api):
-    mock_api.get("/api/v1/crm/companies").respond(402, json={"detail": "Not on your plan"})
-    result = invoke(["crm", "companies", "list"])
+def test_handle_error_keeps_a_day_cap_dict_detail_in_json_mode(invoke, mock_api):
+    detail = {**_REFUSAL, "code": "day_cap_exhausted"}
+    mock_api.get("/api/v1/crm/companies").respond(429, json={"detail": detail})
+    result = invoke(["crm", "companies", "list", "--json"])
 
-    assert result.exit_code == 6
-    assert "Not on your plan" in result.output
+    assert result.exit_code == 1
+    assert json.loads(result.output)["detail"] == detail
 
 
 def test_resolve_entity_renders_a_close_tag_in_a_match_name(mock_config, mock_api, capsys):

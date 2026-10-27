@@ -234,6 +234,30 @@ def print_detail(data: dict, fields: list[tuple[str, str]]) -> None:
         console.print(styled("[bold]{}:[/bold]", label), as_text(_blank_if_null(data.get(key))))
 
 
+def enforcement_parts(snapshot: dict) -> tuple[str, str]:
+    """The enforcement flag and the seat line of an entitlement snapshot.
+
+    A snapshot from an API that predates the flag holds neither field. It
+    reads as not enforced, and the seat count reads as unknown.
+    """
+    enforced = "yes" if snapshot.get("enforced") else "no"
+    used = snapshot.get("seats_used")
+    limit = (snapshot.get("limits") or {}).get("seats")
+    if used is None:
+        return enforced, "unknown"
+    return enforced, f"{used} / {limit}" if limit is not None else f"{used} (no cap)"
+
+
+def print_entitlement_summary(snapshot: dict) -> None:
+    """Render the resolved plan of an organization: keys, access, flag, seats."""
+    console.print(
+        styled("[bold]Modules:[/bold] {}", ", ".join(snapshot.get("keys") or []) or "none")
+    )
+    console.print(styled("[bold]Access:[/bold] {}", snapshot.get("access_mode")))
+    enforced, seats = enforcement_parts(snapshot)
+    console.print(styled("[bold]Enforced:[/bold] {}   [bold]Seats:[/bold] {}", enforced, seats))
+
+
 def print_json(data: object) -> None:
     """Dump data as JSON to stdout (for piping/scripting)."""
     sys.stdout.write(json.dumps(data, indent=2, default=str) + "\n")

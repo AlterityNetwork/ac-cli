@@ -13,7 +13,7 @@ from ac_cli.commands._helpers import (
     should_skip_confirm,
 )
 from ac_cli.commands.admin import _ADMIN
-from ac_cli.formatting import print_json, print_table, styled
+from ac_cli.formatting import enforcement_parts, print_json, print_table, styled
 
 entitlement_grants_app = typer.Typer(
     help="Per-organization entitlement grants and the resolved snapshot (super admin)"
@@ -44,6 +44,8 @@ def grants_list(
             (snapshot.get("credits") or {}).get("allowance"),
         )
     )
+    enforced, seats = enforcement_parts(snapshot)
+    rprint(styled("[bold]Enforced:[/bold] {}   [bold]Seats:[/bold] {}", enforced, seats))
     items = data.get("grants") or []
     print_table(
         items,

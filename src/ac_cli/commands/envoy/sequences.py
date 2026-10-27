@@ -19,7 +19,7 @@ def sequences_list(
     status: str | None = typer.Option(None, help="Filter by status"),
     json_output: bool = JSON_OPTION,
 ) -> None:
-    """List outreach sequences."""
+    """List sequences."""
     set_json_mode(json_output)
     params: dict = {}
     if status:
@@ -108,9 +108,14 @@ def sequences_create(
         "--skip-non-working-days/--no-skip-non-working-days",
         help="Roll sends forward off weekends and bank holidays (org timezone)",
     ),
+    auto_enrich: bool | None = typer.Option(
+        None,
+        "--auto-enrich/--no-auto-enrich",
+        help="Look up a missing email or phone before a step that needs it (default on)",
+    ),
     json_output: bool = JSON_OPTION,
 ) -> None:
-    """Create a new outreach sequence."""
+    """Create a new sequence."""
     set_json_mode(json_output)
     body = _build_body(
         name=name,
@@ -120,6 +125,7 @@ def sequences_create(
         playbook_id=playbook_id,
         crm_list_id=crm_list_id,
         skip_non_working_days=skip_non_working_days,
+        auto_enrich_recipients=auto_enrich,
     )
 
     body["organization_id"] = _get_org_id()
@@ -154,6 +160,11 @@ def sequences_update(
         "--skip-non-working-days/--no-skip-non-working-days",
         help="Roll sends forward off weekends and bank holidays (org timezone)",
     ),
+    auto_enrich: bool | None = typer.Option(
+        None,
+        "--auto-enrich/--no-auto-enrich",
+        help="Look up a missing email or phone before a step that needs it (default on)",
+    ),
     json_output: bool = JSON_OPTION,
 ) -> None:
     """Update a sequence."""
@@ -166,6 +177,7 @@ def sequences_update(
         playbook_id=playbook_id,
         crm_list_id=crm_list_id,
         skip_non_working_days=skip_non_working_days,
+        auto_enrich_recipients=auto_enrich,
     )
 
     if not body:

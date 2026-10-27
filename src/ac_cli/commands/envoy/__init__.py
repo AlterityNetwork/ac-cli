@@ -10,7 +10,7 @@ from ac_cli.commands._helpers import (  # noqa: F401
     set_json_mode,
 )
 
-app = typer.Typer(help="Outreach commands")
+app = typer.Typer(help="Sequences commands")
 
 _ENVOY = "/api/v1/envoy"
 
@@ -23,7 +23,6 @@ def envoy_callback(ctx: typer.Context) -> None:
 # -- Register sub-command groups from submodules ------------------------------
 
 from ac_cli.commands.envoy.battlecards import battlecards_app  # noqa: E402
-from ac_cli.commands.envoy.campaigns import campaigns_app  # noqa: E402
 from ac_cli.commands.envoy.dashboard import dashboard_command  # noqa: E402
 from ac_cli.commands.envoy.inbox import inbox_app  # noqa: E402
 from ac_cli.commands.envoy.outbox import outbox_app  # noqa: E402
@@ -34,7 +33,6 @@ from ac_cli.commands.envoy.signals import signals_app  # noqa: E402
 from ac_cli.commands.envoy.steps import steps_app  # noqa: E402
 
 app.add_typer(sequences_app, name="sequences")
-app.add_typer(campaigns_app, name="campaigns")
 app.add_typer(battlecards_app, name="battlecards")
 app.add_typer(playbooks_app, name="playbooks")
 app.add_typer(steps_app, name="steps")
