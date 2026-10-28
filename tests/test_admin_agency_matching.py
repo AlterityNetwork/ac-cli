@@ -311,3 +311,30 @@ def test_agencies_passes_weights(invoke, mock_api):
     result = invoke(["admin", "matching", "agencies", "--w-size", "1", "--json"])
     assert result.exit_code == 0
     assert "w_size=1" in str(route.calls.last.request.url)
+
+
+def test_every_weighted_command_passes_the_search_weight(invoke, mock_api):
+    org = "00000000-0000-0000-0000-00000000000a"
+    other = "00000000-0000-0000-0000-00000000000b"
+    base = "/api/v1/admin/agency-matching"
+    routes = {
+        "agencies": mock_api.get(f"{base}/agencies").respond(
+            200, json={"data": [], "total": 0, "source": "database"}
+        ),
+        "pairs": mock_api.get(f"{base}/pairs").respond(
+            200, json={"data": [], "source": "database"}
+        ),
+        "agency": mock_api.get(f"{base}/agencies/{org}").respond(200, json={}),
+        "pair": mock_api.get(f"{base}/pairs/{org}/{other}").respond(200, json={}),
+    }
+    commands = {
+        "agencies": ["agencies"],
+        "pairs": ["pairs"],
+        "agency": ["agency", org],
+        "pair": ["pair", org, other],
+    }
+
+    for name, args in commands.items():
+        result = invoke(["admin", "matching", *args, "--w-searches", "0.4", "--json"])
+        assert result.exit_code == 0, name
+        assert "w_searches=0.4" in str(routes[name].calls.last.request.url), name

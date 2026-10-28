@@ -30,6 +30,7 @@ def _weight_params(
     services: float | None,
     accounts: float | None,
     size: float | None = None,
+    searches: float | None = None,
 ) -> dict:
     """Returns the weight query params that the user set."""
     params: dict = {}
@@ -39,6 +40,7 @@ def _weight_params(
         ("w_services", services),
         ("w_accounts", accounts),
         ("w_size", size),
+        ("w_searches", searches),
     ):
         if value is not None:
             params[key] = value
@@ -80,6 +82,9 @@ def agencies(
     w_size: float | None = typer.Option(
         None, "--w-size", help="Weight of the client size factor (0-1)"
     ),
+    w_searches: float | None = typer.Option(
+        None, "--w-searches", help="Weight of the search target factor (0-1)"
+    ),
     json_output: bool = JSON_OPTION,
 ) -> None:
     """List agencies with their best complementary and best similar match."""
@@ -89,7 +94,7 @@ def agencies(
         f"{_ADMIN}/agency-matching/agencies",
         params={
             "include_demo": str(include_demo).lower(),
-            **_weight_params(w_market, w_geography, w_services, w_accounts, w_size),
+            **_weight_params(w_market, w_geography, w_services, w_accounts, w_size, w_searches),
         },
     )
     data = resp.json()
@@ -138,12 +143,15 @@ def pairs(
     w_size: float | None = typer.Option(
         None, "--w-size", help="Weight of the client size factor (0-1)"
     ),
+    w_searches: float | None = typer.Option(
+        None, "--w-searches", help="Weight of the search target factor (0-1)"
+    ),
     json_output: bool = JSON_OPTION,
 ) -> None:
     """List every pair of agencies with both scores, best complementary first."""
     set_json_mode(json_output)
     params: dict = {"include_demo": str(include_demo).lower()}
-    params.update(_weight_params(w_market, w_geography, w_services, w_accounts, w_size))
+    params.update(_weight_params(w_market, w_geography, w_services, w_accounts, w_size, w_searches))
     resp = _api_request("get", f"{_ADMIN}/agency-matching/pairs", params=params)
     data = resp.json()
     if json_output:
@@ -193,12 +201,15 @@ def agency(
     w_size: float | None = typer.Option(
         None, "--w-size", help="Weight of the client size factor (0-1)"
     ),
+    w_searches: float | None = typer.Option(
+        None, "--w-searches", help="Weight of the search target factor (0-1)"
+    ),
     json_output: bool = JSON_OPTION,
 ) -> None:
     """Show one agency profile and its ranked matches."""
     set_json_mode(json_output)
     params = {"include_demo": str(include_demo).lower(), "lens": lens}
-    params.update(_weight_params(w_market, w_geography, w_services, w_accounts, w_size))
+    params.update(_weight_params(w_market, w_geography, w_services, w_accounts, w_size, w_searches))
     resp = _api_request("get", f"{_ADMIN}/agency-matching/agencies/{org_id}", params=params)
     data = resp.json()
     if json_output:
@@ -221,6 +232,7 @@ def agency(
                 "complementary": _pct(match.get("complementary_score")),
                 "similar": _pct(match.get("similar_score")),
                 "overlap": _pct(factors.get("service_overlap")),
+                "searches": _pct(factors.get("search_overlap")),
                 "id": match.get("organization_id"),
             }
         )
@@ -231,6 +243,7 @@ def agency(
             ("complementary", "Complementary"),
             ("similar", "Similar"),
             ("overlap", "Service overlap"),
+            ("searches", "Search targets"),
             ("id", "ID"),
         ],
         title=f"Matches (sorted by {data.get('lens')}, source {data.get('source')})",
@@ -258,12 +271,15 @@ def pair(
     w_size: float | None = typer.Option(
         None, "--w-size", help="Weight of the client size factor (0-1)"
     ),
+    w_searches: float | None = typer.Option(
+        None, "--w-searches", help="Weight of the search target factor (0-1)"
+    ),
     json_output: bool = JSON_OPTION,
 ) -> None:
     """Show the factor breakdown of one pair of agencies."""
     set_json_mode(json_output)
     params = {"lens": lens}
-    params.update(_weight_params(w_market, w_geography, w_services, w_accounts, w_size))
+    params.update(_weight_params(w_market, w_geography, w_services, w_accounts, w_size, w_searches))
     resp = _api_request("get", f"{_ADMIN}/agency-matching/pairs/{org_a}/{org_b}", params=params)
     data = resp.json()
     if json_output:
