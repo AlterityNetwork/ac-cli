@@ -268,3 +268,46 @@ def test_weight_flags_include_client_size(invoke, mock_api):
     result = invoke(["admin", "matching", "pairs", "--w-size", "0.5", "--json"])
     assert result.exit_code == 0
     assert "w_size=0.5" in str(route.calls.last.request.url)
+
+
+ALGORITHM = {
+    "factors": [
+        {
+            "key": "market",
+            "label": "Same industries",
+            "description": "How alike the target industries are.",
+            "sources": ["CRM company industries"],
+            "complementary": "Rewards the same industries.",
+            "similar": "Rewards the same industries.",
+        }
+    ],
+    "default_weights": {**WEIGHTS, "size": 0.15},
+    "competitor_threshold": 0.5,
+    "size_tiers": [{"key": "startup", "label": "Under 50 staff"}],
+    "service_tags": [{"tag": "seo", "label": "SEO"}],
+    "excluded": ["Corbel's own organisations."],
+}
+
+
+def test_algorithm_shows_the_factors_and_weights(invoke, mock_api):
+    mock_api.get("/api/v1/admin/agency-matching/algorithm").respond(200, json=ALGORITHM)
+    result = invoke(["admin", "matching", "algorithm"])
+    assert result.exit_code == 0
+    assert "Same industries" in result.output
+    assert "Under 50 staff" in result.output
+
+
+def test_algorithm_json(invoke, mock_api):
+    mock_api.get("/api/v1/admin/agency-matching/algorithm").respond(200, json=ALGORITHM)
+    result = invoke(["admin", "matching", "algorithm", "--json"])
+    assert result.exit_code == 0
+    assert json.loads(result.output)["competitor_threshold"] == 0.5
+
+
+def test_agencies_passes_weights(invoke, mock_api):
+    route = mock_api.get("/api/v1/admin/agency-matching/agencies").respond(
+        200, json={"data": [], "total": 0, "source": "database"}
+    )
+    result = invoke(["admin", "matching", "agencies", "--w-size", "1", "--json"])
+    assert result.exit_code == 0
+    assert "w_size=1" in str(route.calls.last.request.url)

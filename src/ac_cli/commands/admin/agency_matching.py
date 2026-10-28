@@ -65,6 +65,21 @@ def _best(match: dict | None) -> str:
 def agencies(
     ctx: typer.Context,
     include_demo: bool = typer.Option(False, "--include-demo", help="Include demo organisations"),
+    w_market: float | None = typer.Option(
+        None, "--w-market", help="Weight of market overlap (0-1)"
+    ),
+    w_geography: float | None = typer.Option(
+        None, "--w-geography", help="Weight of geography (0-1)"
+    ),
+    w_services: float | None = typer.Option(
+        None, "--w-services", help="Weight of the service factor (0-1)"
+    ),
+    w_accounts: float | None = typer.Option(
+        None, "--w-accounts", help="Weight of shared accounts (0-1)"
+    ),
+    w_size: float | None = typer.Option(
+        None, "--w-size", help="Weight of the client size factor (0-1)"
+    ),
     json_output: bool = JSON_OPTION,
 ) -> None:
     """List agencies with their best complementary and best similar match."""
@@ -72,7 +87,10 @@ def agencies(
     resp = _api_request(
         "get",
         f"{_ADMIN}/agency-matching/agencies",
-        params={"include_demo": str(include_demo).lower()},
+        params={
+            "include_demo": str(include_demo).lower(),
+            **_weight_params(w_market, w_geography, w_services, w_accounts, w_size),
+        },
     )
     data = resp.json()
     if json_output:
@@ -354,3 +372,41 @@ def scan_websites(
         [("name", "Agency"), ("status", "Scan"), ("website", "Website")],
         title=f"Website scans ({len(results)})",
     )
+
+
+@agency_matching_app.command("algorithm")
+def algorithm(ctx: typer.Context, json_output: bool = JSON_OPTION) -> None:
+    """Show the factors, the default weights and the fixed parameters of matching."""
+    set_json_mode(json_output)
+    data = _api_request("get", f"{_ADMIN}/agency-matching/algorithm").json()
+    if json_output:
+        print_json(data)
+        return
+    weights = data.get("default_weights", {})
+    print_table(
+        [
+            {
+                "factor": f.get("label"),
+                "weight": weights.get(f.get("key")),
+                "complementary": f.get("complementary"),
+                "similar": f.get("similar"),
+            }
+            for f in data.get("factors", [])
+        ],
+        [
+            ("factor", "Factor"),
+            ("weight", "Default weight"),
+            ("complementary", "Complementary"),
+            ("similar", "Similar"),
+        ],
+        title="Agency matching factors",
+    )
+    rprint(
+        styled(
+            "Competitor: service and market overlap both at least {}",
+            data.get("competitor_threshold"),
+        )
+    )
+    rprint(styled("Client sizes: {}", ", ".join(t["label"] for t in data.get("size_tiers", []))))
+    for line in data.get("excluded", []):
+        rprint(styled("Left out: {}", line))
