@@ -395,7 +395,7 @@ def collaboration(
     org_b: str = typer.Argument(..., help="Second organisation ID"),
     json_output: bool = JSON_OPTION,
 ) -> None:
-    """Show a note on how two agencies could work together, written by a model."""
+    """Show points on how two agencies could work together, written by a model."""
     set_json_mode(json_output)
     data = _api_request(
         "get", f"{_ADMIN}/agency-matching/pairs/{org_a}/{org_b}/collaboration"
@@ -403,7 +403,11 @@ def collaboration(
     if json_output:
         print_json(data)
         return
-    rprint(as_text(data.get("text") or "No note could be written for this pair."))
+    points = data.get("points") or []
+    if not points:
+        rprint(as_text("No note could be written for this pair."))
+    for point in points:
+        rprint(as_text(f"- {point}"))
 
 
 @agency_matching_app.command("profile")

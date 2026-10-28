@@ -394,23 +394,28 @@ def test_collaboration_prints_the_note(invoke, mock_api):
     org = "00000000-0000-0000-0000-00000000000a"
     other = "00000000-0000-0000-0000-00000000000b"
     mock_api.get(f"/api/v1/admin/agency-matching/pairs/{org}/{other}/collaboration").respond(
-        200, json={"text": "They could pitch together [as one].", "source": "database"}
+        200,
+        json={
+            "points": ["Joint pitch: they could pitch together [as one].", "Referrals: both ways."],
+            "source": "database",
+        },
     )
 
     result = invoke(["admin", "matching", "collaboration", org, other])
 
     assert result.exit_code == 0
-    assert "They could pitch together [as one]." in result.output
+    assert "- Joint pitch: they could pitch together [as one]." in result.output
+    assert "- Referrals: both ways." in result.output
 
 
 def test_collaboration_without_a_note_says_so(invoke, mock_api):
     org = "00000000-0000-0000-0000-00000000000a"
     other = "00000000-0000-0000-0000-00000000000b"
     mock_api.get(f"/api/v1/admin/agency-matching/pairs/{org}/{other}/collaboration").respond(
-        200, json={"text": None, "source": "database"}
+        200, json={"points": [], "source": "database"}
     )
 
     result = invoke(["admin", "matching", "collaboration", org, other, "--json"])
 
     assert result.exit_code == 0
-    assert json.loads(result.output)["text"] is None
+    assert json.loads(result.output)["points"] == []
