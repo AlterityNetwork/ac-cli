@@ -44,46 +44,99 @@ def _pct(value: float | None) -> str:
     return "-" if value is None else f"{value * 100:.0f}%"
 
 
+def _best(match: dict | None) -> str:
+    if not match:
+        return "-"
+    return f"{match.get('name')} {_pct(match.get('score'))}"
+
+
 @agency_matching_app.command("agencies")
 def agencies(
     ctx: typer.Context,
     include_demo: bool = typer.Option(False, "--include-demo", help="Include demo organisations"),
-    lens: str = LENS_OPTION,
     json_output: bool = JSON_OPTION,
 ) -> None:
-    """List agencies with their data coverage and their best match."""
+    """List agencies with their best complementary and best similar match."""
     set_json_mode(json_output)
     resp = _api_request(
         "get",
         f"{_ADMIN}/agency-matching/agencies",
-        params={"include_demo": str(include_demo).lower(), "lens": lens},
+        params={"include_demo": str(include_demo).lower()},
     )
     data = resp.json()
     if json_output:
         print_json(data)
         return
-    rows = []
-    for agency in data.get("data", []):
-        top = agency.get("top_match") or {}
-        rows.append(
-            {
-                "name": agency.get("name"),
-                "services": _tags(agency.get("service_tags")),
-                "top_match": top.get("name", "-"),
-                "score": _pct(top.get("score")),
-                "id": agency.get("organization_id"),
-            }
-        )
+    rows = [
+        {
+            "name": agency.get("name"),
+            "services": _tags(agency.get("service_tags")),
+            "complementary": _best(agency.get("top_complementary")),
+            "similar": _best(agency.get("top_similar")),
+            "id": agency.get("organization_id"),
+        }
+        for agency in data.get("data", [])
+    ]
     print_table(
         rows,
         [
             ("name", "Agency"),
             ("services", "Services"),
-            ("top_match", "Top match"),
-            ("score", "Score"),
+            ("complementary", "Best complementary"),
+            ("similar", "Best similar"),
             ("id", "ID"),
         ],
-        title=f"Agencies ({data.get('total', '?')}, lens {data.get('lens')}, source {data.get('source')})",
+        title=f"Agencies ({data.get('total', '?')}, source {data.get('source')})",
+    )
+
+
+@agency_matching_app.command("pairs")
+def pairs(
+    ctx: typer.Context,
+    include_demo: bool = typer.Option(False, "--include-demo", help="Include demo organisations"),
+    w_market: float | None = typer.Option(
+        None, "--w-market", help="Weight of market overlap (0-1)"
+    ),
+    w_geography: float | None = typer.Option(
+        None, "--w-geography", help="Weight of geography (0-1)"
+    ),
+    w_services: float | None = typer.Option(
+        None, "--w-services", help="Weight of the service factor (0-1)"
+    ),
+    w_accounts: float | None = typer.Option(
+        None, "--w-accounts", help="Weight of shared accounts (0-1)"
+    ),
+    json_output: bool = JSON_OPTION,
+) -> None:
+    """List every pair of agencies with both scores, best complementary first."""
+    set_json_mode(json_output)
+    params: dict = {"include_demo": str(include_demo).lower()}
+    params.update(_weight_params(w_market, w_geography, w_services, w_accounts))
+    resp = _api_request("get", f"{_ADMIN}/agency-matching/pairs", params=params)
+    data = resp.json()
+    if json_output:
+        print_json(data)
+        return
+    points = sorted(data.get("data", []), key=lambda p: -p.get("complementary_score", 0))
+    rows = [
+        {
+            "pair": f"{p.get('agency_a_name')} and {p.get('agency_b_name')}"
+            + (" (competitor)" if p.get("competitor") else ""),
+            "complementary": _pct(p.get("complementary_score")),
+            "similar": _pct(p.get("similar_score")),
+            "shared": p.get("shared_account_count", 0),
+        }
+        for p in points
+    ]
+    print_table(
+        rows,
+        [
+            ("pair", "Pair"),
+            ("complementary", "Complementary"),
+            ("similar", "Similar"),
+            ("shared", "Shared CRM"),
+        ],
+        title=f"Pairs ({len(rows)}, source {data.get('source')})",
     )
 
 
@@ -130,13 +183,9 @@ def agency(
                 "name": f"{match.get('name')} (competitor)"
                 if match.get("competitor")
                 else match.get("name"),
-                "score": _pct(match.get("score")),
-                "market": _pct(factors.get("market")),
-                "services": _pct(
-                    factors.get("complementarity")
-                    if lens == "complementary"
-                    else factors.get("service_overlap")
-                ),
+                "complementary": _pct(match.get("complementary_score")),
+                "similar": _pct(match.get("similar_score")),
+                "overlap": _pct(factors.get("service_overlap")),
                 "id": match.get("organization_id"),
             }
         )
@@ -144,12 +193,12 @@ def agency(
         rows,
         [
             ("name", "Match"),
-            ("score", "Score"),
-            ("market", "Market"),
-            ("services", "Services"),
+            ("complementary", "Complementary"),
+            ("similar", "Similar"),
+            ("overlap", "Service overlap"),
             ("id", "ID"),
         ],
-        title=f"Matches (lens {data.get('lens')}, source {data.get('source')})",
+        title=f"Matches (sorted by {data.get('lens')}, source {data.get('source')})",
     )
 
 

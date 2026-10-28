@@ -30,7 +30,8 @@ SUMMARY = {
     "top_industries": [{"value": "Retail", "share": 0.6}],
     "top_countries": [{"value": "GB", "share": 1.0}],
     "coverage": COVERAGE,
-    "top_match": {"organization_id": OTHER, "name": "Beta Studio", "score": 0.71},
+    "top_complementary": {"organization_id": OTHER, "name": "Beta Studio", "score": 0.71},
+    "top_similar": {"organization_id": OTHER, "name": "Gamma Works", "score": 0.52},
 }
 
 MATCH = {
@@ -38,6 +39,8 @@ MATCH = {
     "name": "Beta Studio",
     "is_demo": False,
     "score": 0.71,
+    "complementary_score": 0.71,
+    "similar_score": 0.4,
     "competitor": False,
     "factors": {
         "market": 0.8,
@@ -58,29 +61,26 @@ WEIGHTS = {"market": 0.4, "geography": 0.2, "services": 0.3, "accounts": 0.1}
 def test_agencies_lists_summaries(invoke, mock_api):
     route = mock_api.get("/api/v1/admin/agency-matching/agencies").respond(
         200,
-        json={"data": [SUMMARY], "total": 1, "lens": "complementary", "source": "database"},
+        json={"data": [SUMMARY], "total": 1, "source": "database"},
     )
     result = invoke(["admin", "matching", "agencies"])
     assert result.exit_code == 0
     assert "Alpha Agency" in result.output
     assert "Beta Studio" in result.output
+    assert "Gamma Works" in result.output
     url = str(route.calls.last.request.url)
     assert "include_demo=false" in url
-    assert "lens=complementary" in url
+    assert "lens" not in url
 
 
-def test_agencies_passes_demo_and_lens(invoke, mock_api):
+def test_agencies_passes_the_demo_flag(invoke, mock_api):
     route = mock_api.get("/api/v1/admin/agency-matching/agencies").respond(
-        200, json={"data": [], "total": 0, "lens": "similar", "source": "database"}
+        200, json={"data": [], "total": 0, "source": "database"}
     )
-    result = invoke(
-        ["admin", "matching", "agencies", "--include-demo", "--lens", "similar", "--json"]
-    )
+    result = invoke(["admin", "matching", "agencies", "--include-demo", "--json"])
     assert result.exit_code == 0
-    url = str(route.calls.last.request.url)
-    assert "include_demo=true" in url
-    assert "lens=similar" in url
-    assert json.loads(result.output)["lens"] == "similar"
+    assert "include_demo=true" in str(route.calls.last.request.url)
+    assert json.loads(result.output)["total"] == 0
 
 
 def test_agency_shows_ranked_matches(invoke, mock_api):
@@ -149,3 +149,42 @@ def test_pair_json(invoke, mock_api):
     result = invoke(["admin", "matching", "pair", ORG, OTHER, "--json"])
     assert result.exit_code == 0
     assert json.loads(result.output)["match"]["name"] == "Beta Studio"
+
+
+PAIR_POINT = {
+    "agency_a_id": ORG,
+    "agency_a_name": "Alpha Agency",
+    "agency_b_id": OTHER,
+    "agency_b_name": "Beta Studio",
+    "complementary_score": 0.71,
+    "similar_score": 0.4,
+    "competitor": True,
+    "shared_account_count": 3,
+}
+
+
+def test_pairs_lists_every_pair_best_first(invoke, mock_api):
+    route = mock_api.get("/api/v1/admin/agency-matching/pairs").respond(
+        200,
+        json={
+            "data": [
+                {**PAIR_POINT, "agency_b_name": "Low Pair", "complementary_score": 0.2},
+                PAIR_POINT,
+            ],
+            "weights": WEIGHTS,
+            "source": "database",
+        },
+    )
+    result = invoke(["admin", "matching", "pairs", "--w-services", "0.5"])
+    assert result.exit_code == 0
+    assert result.output.index("Beta Studio") < result.output.index("Low Pair")
+    assert "w_services=0.5" in str(route.calls.last.request.url)
+
+
+def test_pairs_json(invoke, mock_api):
+    mock_api.get("/api/v1/admin/agency-matching/pairs").respond(
+        200, json={"data": [PAIR_POINT], "weights": WEIGHTS, "source": "database"}
+    )
+    result = invoke(["admin", "matching", "pairs", "--include-demo", "--json"])
+    assert result.exit_code == 0
+    assert json.loads(result.output)["data"][0]["competitor"] is True
