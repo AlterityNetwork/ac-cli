@@ -231,7 +231,6 @@ def agency(
                 else match.get("name"),
                 "complementary": _pct(match.get("complementary_score")),
                 "similar": _pct(match.get("similar_score")),
-                "competitor": _pct(match.get("competitor_score")),
                 "searches": _pct(factors.get("search_overlap")),
                 "id": match.get("organization_id"),
             }
@@ -242,7 +241,6 @@ def agency(
             ("name", "Match"),
             ("complementary", "Complementary"),
             ("similar", "Similar"),
-            ("competitor", "Competitor"),
             ("searches", "Search targets"),
             ("id", "ID"),
         ],
@@ -437,7 +435,7 @@ def algorithm(ctx: typer.Context, json_output: bool = JSON_OPTION) -> None:
     )
     rprint(
         styled(
-            "Competitor: a competitor score (same industries, services and client size) of at least {}",
+            "Competitor: a similar score of at least {}",
             data.get("competitor_threshold"),
         )
     )
