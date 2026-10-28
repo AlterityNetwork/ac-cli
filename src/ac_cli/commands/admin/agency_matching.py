@@ -388,6 +388,24 @@ def scan_websites(
     )
 
 
+@agency_matching_app.command("collaboration")
+def collaboration(
+    ctx: typer.Context,
+    org_a: str = typer.Argument(..., help="First organisation ID"),
+    org_b: str = typer.Argument(..., help="Second organisation ID"),
+    json_output: bool = JSON_OPTION,
+) -> None:
+    """Show a note on how two agencies could work together, written by a model."""
+    set_json_mode(json_output)
+    data = _api_request(
+        "get", f"{_ADMIN}/agency-matching/pairs/{org_a}/{org_b}/collaboration"
+    ).json()
+    if json_output:
+        print_json(data)
+        return
+    rprint(as_text(data.get("text") or "No note could be written for this pair."))
+
+
 @agency_matching_app.command("profile")
 def profile(
     ctx: typer.Context,

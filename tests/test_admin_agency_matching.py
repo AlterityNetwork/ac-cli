@@ -388,3 +388,29 @@ def test_algorithm_names_the_competitor_rule(invoke, mock_api):
     result = invoke(["admin", "matching", "algorithm"])
 
     assert "Competitor: a similar score of at least 0.7" in result.output
+
+
+def test_collaboration_prints_the_note(invoke, mock_api):
+    org = "00000000-0000-0000-0000-00000000000a"
+    other = "00000000-0000-0000-0000-00000000000b"
+    mock_api.get(f"/api/v1/admin/agency-matching/pairs/{org}/{other}/collaboration").respond(
+        200, json={"text": "They could pitch together [as one].", "source": "database"}
+    )
+
+    result = invoke(["admin", "matching", "collaboration", org, other])
+
+    assert result.exit_code == 0
+    assert "They could pitch together [as one]." in result.output
+
+
+def test_collaboration_without_a_note_says_so(invoke, mock_api):
+    org = "00000000-0000-0000-0000-00000000000a"
+    other = "00000000-0000-0000-0000-00000000000b"
+    mock_api.get(f"/api/v1/admin/agency-matching/pairs/{org}/{other}/collaboration").respond(
+        200, json={"text": None, "source": "database"}
+    )
+
+    result = invoke(["admin", "matching", "collaboration", org, other, "--json"])
+
+    assert result.exit_code == 0
+    assert json.loads(result.output)["text"] is None
