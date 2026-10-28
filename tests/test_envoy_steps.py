@@ -212,3 +212,35 @@ def test_steps_update_sends_the_linkedin_execution_fields(invoke, mock_api):
     assert result.exit_code == 0
     body = json.loads(route.calls.last.request.content)
     assert body == {"execution": "manual", "accept_wait_days": 3}
+
+
+def test_steps_create_sends_the_hold_for_the_acceptance(invoke, mock_api):
+    route = mock_api.post("/api/v1/envoy/sequences/seq-1/steps").respond(
+        201, json={**SAMPLE_STEP, "step_type": "task"}
+    )
+    result = invoke(
+        [
+            "envoy",
+            "steps",
+            "create",
+            "seq-1",
+            "--type",
+            "task",
+            "--step-subtype",
+            "linkedin_connection",
+            "--wait-for-acceptance",
+        ]
+    )
+    assert result.exit_code == 0
+    body = json.loads(route.calls.last.request.content)
+    assert body["wait_for_acceptance"] is True
+
+
+def test_steps_update_can_lift_the_hold(invoke, mock_api):
+    route = mock_api.patch("/api/v1/envoy/sequences/seq-1/steps/step-1").respond(
+        200, json=SAMPLE_STEP
+    )
+    result = invoke(["envoy", "steps", "update", "seq-1", "step-1", "--no-wait-for-acceptance"])
+    assert result.exit_code == 0
+    body = json.loads(route.calls.last.request.content)
+    assert body == {"wait_for_acceptance": False}

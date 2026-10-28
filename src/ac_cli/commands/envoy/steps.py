@@ -36,6 +36,11 @@ def steps_create(
     accept_wait_days: int | None = typer.Option(
         None, "--accept-wait-days", help="Days an automated connection request waits (1 to 14)"
     ),
+    wait_for_acceptance: bool | None = typer.Option(
+        None,
+        "--wait-for-acceptance/--no-wait-for-acceptance",
+        help="Hold the recipient at the request step until the person accepts",
+    ),
     json_output: bool = JSON_OPTION,
 ) -> None:
     """Create a step in a sequence."""
@@ -50,6 +55,7 @@ def steps_create(
         step_subtype=step_subtype,
         execution=execution,
         accept_wait_days=accept_wait_days,
+        wait_for_acceptance=wait_for_acceptance,
     )
 
     resp = _api_request("post", f"{_ENVOY}/sequences/{sequence_id}/steps", json=body)
@@ -87,6 +93,11 @@ def steps_update(
     accept_wait_days: int | None = typer.Option(
         None, "--accept-wait-days", help="Days an automated connection request waits (1 to 14)"
     ),
+    wait_for_acceptance: bool | None = typer.Option(
+        None,
+        "--wait-for-acceptance/--no-wait-for-acceptance",
+        help="Hold the recipient at the request step until the person accepts",
+    ),
     json_output: bool = JSON_OPTION,
 ) -> None:
     """Update a sequence step."""
@@ -99,6 +110,7 @@ def steps_update(
         step_subtype=step_subtype,
         execution=execution,
         accept_wait_days=accept_wait_days,
+        wait_for_acceptance=wait_for_acceptance,
     )
 
     if not body:
