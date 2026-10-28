@@ -99,6 +99,7 @@ def cache_stats(
 
 from ac_cli.commands.admin.admin_apps import admin_apps_app  # noqa: E402
 from ac_cli.commands.admin.admin_resources import admin_resources_app  # noqa: E402
+from ac_cli.commands.admin.agency_matching import agency_matching_app  # noqa: E402
 from ac_cli.commands.admin.ai_usage import ai_usage_app  # noqa: E402
 from ac_cli.commands.admin.app_usage import app_usage_app  # noqa: E402
 from ac_cli.commands.admin.billing import billing_app  # noqa: E402
@@ -138,3 +139,4 @@ app.add_typer(entitlement_grants_app, name="entitlement-grants")
 app.add_typer(credit_prices_app, name="credit-prices")
 app.add_typer(admin_crm_app, name="crm")
 app.add_typer(intelligence_app, name="intelligence")
+app.add_typer(agency_matching_app, name="matching")
