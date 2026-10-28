@@ -277,8 +277,8 @@ ALGORITHM = {
             "label": "Same industries",
             "description": "How alike the target industries are.",
             "sources": ["CRM company industries"],
-            "complementary": "Rewards the same industries.",
-            "similar": "Rewards the same industries.",
+            "complementary": "Same industries",
+            "similar": "Same industries",
         }
     ],
     "default_weights": {**WEIGHTS, "size": 0.15},
