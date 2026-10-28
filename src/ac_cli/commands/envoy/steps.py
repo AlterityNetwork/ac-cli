@@ -25,6 +25,22 @@ def steps_create(
     prompt: str | None = typer.Option(None, help="AI prompt for message generation"),
     delay_value: int | None = typer.Option(None, "--delay-value", help="Delay value"),
     delay_unit: str | None = typer.Option(None, "--delay-unit", help="Delay unit (hours, days)"),
+    step_subtype: str | None = typer.Option(
+        None, "--step-subtype", help="Task subtype (linkedin_connection, linkedin_message, ...)"
+    ),
+    execution: str | None = typer.Option(
+        None,
+        "--execution",
+        help="manual creates the CRM task; automated sends through the sender's LinkedIn",
+    ),
+    accept_wait_days: int | None = typer.Option(
+        None, "--accept-wait-days", help="Days an automated connection request waits (1 to 14)"
+    ),
+    wait_for_acceptance: bool | None = typer.Option(
+        None,
+        "--wait-for-acceptance/--no-wait-for-acceptance",
+        help="Hold the recipient at the request step until the person accepts",
+    ),
     json_output: bool = JSON_OPTION,
 ) -> None:
     """Create a step in a sequence."""
@@ -36,6 +52,10 @@ def steps_create(
         prompt=prompt,
         delay_value=delay_value,
         delay_unit=delay_unit,
+        step_subtype=step_subtype,
+        execution=execution,
+        accept_wait_days=accept_wait_days,
+        wait_for_acceptance=wait_for_acceptance,
     )
 
     resp = _api_request("post", f"{_ENVOY}/sequences/{sequence_id}/steps", json=body)
@@ -62,6 +82,22 @@ def steps_update(
     prompt: str | None = typer.Option(None, help="AI prompt"),
     delay_value: int | None = typer.Option(None, "--delay-value", help="Delay value"),
     delay_unit: str | None = typer.Option(None, "--delay-unit", help="Delay unit"),
+    step_subtype: str | None = typer.Option(
+        None, "--step-subtype", help="Task subtype (linkedin_connection, linkedin_message, ...)"
+    ),
+    execution: str | None = typer.Option(
+        None,
+        "--execution",
+        help="manual creates the CRM task; automated sends through the sender's LinkedIn",
+    ),
+    accept_wait_days: int | None = typer.Option(
+        None, "--accept-wait-days", help="Days an automated connection request waits (1 to 14)"
+    ),
+    wait_for_acceptance: bool | None = typer.Option(
+        None,
+        "--wait-for-acceptance/--no-wait-for-acceptance",
+        help="Hold the recipient at the request step until the person accepts",
+    ),
     json_output: bool = JSON_OPTION,
 ) -> None:
     """Update a sequence step."""
@@ -71,6 +107,10 @@ def steps_update(
         prompt=prompt,
         delay_value=delay_value,
         delay_unit=delay_unit,
+        step_subtype=step_subtype,
+        execution=execution,
+        accept_wait_days=accept_wait_days,
+        wait_for_acceptance=wait_for_acceptance,
     )
 
     if not body:
