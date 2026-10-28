@@ -338,3 +338,44 @@ def test_every_weighted_command_passes_the_search_weight(invoke, mock_api):
         result = invoke(["admin", "matching", *args, "--w-searches", "0.4", "--json"])
         assert result.exit_code == 0, name
         assert "w_searches=0.4" in str(routes[name].calls.last.request.url), name
+
+
+PROFILE = {
+    "organization_id": "00000000-0000-0000-0000-00000000000a",
+    "name": "Alpha",
+    "markdown": "## Company\n\nBrand agency [beta].",
+    "gaps": ["Upload a document about your company."],
+    "source": "database",
+}
+
+
+def test_profile_prints_the_company_profile(invoke, mock_api):
+    org = PROFILE["organization_id"]
+    mock_api.get(f"/api/v1/admin/agency-matching/agencies/{org}/profile").respond(200, json=PROFILE)
+
+    result = invoke(["admin", "matching", "profile", org])
+
+    assert result.exit_code == 0
+    assert "Brand agency [beta]." in result.output
+    assert "Upload a document about your company." in result.output
+
+
+def test_profile_json(invoke, mock_api):
+    org = PROFILE["organization_id"]
+    mock_api.get(f"/api/v1/admin/agency-matching/agencies/{org}/profile").respond(200, json=PROFILE)
+
+    result = invoke(["admin", "matching", "profile", org, "--json"])
+
+    assert result.exit_code == 0
+    assert json.loads(result.output)["name"] == "Alpha"
+
+
+def test_profile_of_an_unknown_agency_exits_3(invoke, mock_api):
+    org = PROFILE["organization_id"]
+    mock_api.get(f"/api/v1/admin/agency-matching/agencies/{org}/profile").respond(
+        404, json={"detail": "No agency"}
+    )
+
+    result = invoke(["admin", "matching", "profile", org])
+
+    assert result.exit_code == 3

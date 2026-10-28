@@ -9,7 +9,7 @@ from rich import print as rprint
 
 from ac_cli.commands._helpers import JSON_OPTION, _api_request, set_json_mode
 from ac_cli.commands.admin import _ADMIN
-from ac_cli.formatting import print_json, print_table, styled
+from ac_cli.formatting import as_text, print_json, print_table, styled
 
 agency_matching_app = typer.Typer(help="Agency matching: profiles and ranked matches")
 
@@ -388,6 +388,24 @@ def scan_websites(
         [("name", "Agency"), ("status", "Scan"), ("website", "Website")],
         title=f"Website scans ({len(results)})",
     )
+
+
+@agency_matching_app.command("profile")
+def profile(
+    ctx: typer.Context,
+    org_id: str = typer.Argument(..., help="Organisation ID"),
+    json_output: bool = JSON_OPTION,
+) -> None:
+    """Show the Company profile of an agency, as its Memory page shows it."""
+    set_json_mode(json_output)
+    data = _api_request("get", f"{_ADMIN}/agency-matching/agencies/{org_id}/profile").json()
+    if json_output:
+        print_json(data)
+        return
+    rprint(styled("[bold]{}[/bold]  source {}", data.get("name"), data.get("source")))
+    for gap in data.get("gaps", []):
+        rprint(styled("[yellow]Gap:[/yellow] {}", gap))
+    rprint(as_text(data.get("markdown") or ""))
 
 
 @agency_matching_app.command("algorithm")
