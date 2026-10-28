@@ -2,6 +2,8 @@
 
 import json
 
+import httpx
+
 ORG = "00000000-0000-0000-0000-00000000000a"
 OTHER = "00000000-0000-0000-0000-00000000000b"
 
@@ -188,3 +190,81 @@ def test_pairs_json(invoke, mock_api):
     result = invoke(["admin", "matching", "pairs", "--include-demo", "--json"])
     assert result.exit_code == 0
     assert json.loads(result.output)["data"][0]["competitor"] is True
+
+
+SCAN = {
+    "organization_id": ORG,
+    "name": "Alpha Agency",
+    "website_url": "https://alpha.example",
+    "status": "scanned",
+    "description": "We grow brands.",
+    "services": ["SEO", "Brand"],
+    "industry": "Marketing",
+    "logo_url": None,
+}
+
+
+import pytest  # noqa: E402
+
+from ac_cli.commands.admin import agency_matching as agency_matching_module  # noqa: E402
+
+
+@pytest.fixture(autouse=True)
+def no_poll_wait(monkeypatch):
+    monkeypatch.setattr(agency_matching_module, "POLL_SECONDS", 0)
+
+
+def test_scan_website_starts_then_waits_for_the_result(invoke, mock_api):
+    start = mock_api.post(f"/api/v1/admin/agency-matching/agencies/{ORG}/website-scan").respond(
+        202, json={**SCAN, "status": "pending", "services": []}
+    )
+    status = mock_api.get(f"/api/v1/admin/agency-matching/agencies/{ORG}/website-scan")
+    status.side_effect = [
+        httpx.Response(200, json={**SCAN, "status": "pending", "services": []}),
+        httpx.Response(200, json=SCAN),
+    ]
+    result = invoke(["admin", "matching", "scan-website", ORG])
+    assert result.exit_code == 0
+    assert start.called
+    assert status.call_count == 2
+    assert "scanned" in result.output
+    assert "SEO" in result.output
+
+
+def test_scan_status_reads_one_agency(invoke, mock_api):
+    mock_api.get(f"/api/v1/admin/agency-matching/agencies/{ORG}/website-scan").respond(
+        200, json=SCAN
+    )
+    result = invoke(["admin", "matching", "scan-status", ORG, "--json"])
+    assert result.exit_code == 0
+    assert json.loads(result.output)["status"] == "scanned"
+
+
+def test_scan_websites_starts_each_scan_then_waits(invoke, mock_api):
+    mock_api.get("/api/v1/admin/agency-matching/agencies").respond(
+        200,
+        json={
+            "data": [SUMMARY, {**SUMMARY, "organization_id": OTHER, "name": "Beta Studio"}],
+            "total": 2,
+            "source": "database",
+        },
+    )
+    for org_id, final in ((ORG, "scanned"), (OTHER, "empty")):
+        mock_api.post(f"/api/v1/admin/agency-matching/agencies/{org_id}/website-scan").respond(
+            202, json={**SCAN, "organization_id": org_id, "status": "pending"}
+        )
+        mock_api.get(f"/api/v1/admin/agency-matching/agencies/{org_id}/website-scan").respond(
+            200, json={**SCAN, "organization_id": org_id, "status": final}
+        )
+    result = invoke(["admin", "matching", "scan-websites", "--json"])
+    assert result.exit_code == 0
+    assert [r["status"] for r in json.loads(result.output)] == ["scanned", "empty"]
+
+
+def test_weight_flags_include_client_size(invoke, mock_api):
+    route = mock_api.get("/api/v1/admin/agency-matching/pairs").respond(
+        200, json={"data": [], "weights": WEIGHTS, "source": "database"}
+    )
+    result = invoke(["admin", "matching", "pairs", "--w-size", "0.5", "--json"])
+    assert result.exit_code == 0
+    assert "w_size=0.5" in str(route.calls.last.request.url)

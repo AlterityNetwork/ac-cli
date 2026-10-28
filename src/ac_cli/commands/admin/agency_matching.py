@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import time
+
 import typer
 from rich import print as rprint
 
@@ -11,6 +13,10 @@ from ac_cli.formatting import print_json, print_table, styled
 
 agency_matching_app = typer.Typer(help="Agency matching: profiles and ranked matches")
 
+# A website scan runs on the server after the request that starts it.
+POLL_SECONDS = 3
+POLL_LIMIT_SECONDS = 180
+
 LENS_OPTION = typer.Option(
     "complementary",
     "--lens",
@@ -19,7 +25,11 @@ LENS_OPTION = typer.Option(
 
 
 def _weight_params(
-    market: float | None, geography: float | None, services: float | None, accounts: float | None
+    market: float | None,
+    geography: float | None,
+    services: float | None,
+    accounts: float | None,
+    size: float | None = None,
 ) -> dict:
     """Returns the weight query params that the user set."""
     params: dict = {}
@@ -28,6 +38,7 @@ def _weight_params(
         ("w_geography", geography),
         ("w_services", services),
         ("w_accounts", accounts),
+        ("w_size", size),
     ):
         if value is not None:
             params[key] = value
@@ -106,12 +117,15 @@ def pairs(
     w_accounts: float | None = typer.Option(
         None, "--w-accounts", help="Weight of shared accounts (0-1)"
     ),
+    w_size: float | None = typer.Option(
+        None, "--w-size", help="Weight of the client size factor (0-1)"
+    ),
     json_output: bool = JSON_OPTION,
 ) -> None:
     """List every pair of agencies with both scores, best complementary first."""
     set_json_mode(json_output)
     params: dict = {"include_demo": str(include_demo).lower()}
-    params.update(_weight_params(w_market, w_geography, w_services, w_accounts))
+    params.update(_weight_params(w_market, w_geography, w_services, w_accounts, w_size))
     resp = _api_request("get", f"{_ADMIN}/agency-matching/pairs", params=params)
     data = resp.json()
     if json_output:
@@ -158,12 +172,15 @@ def agency(
     w_accounts: float | None = typer.Option(
         None, "--w-accounts", help="Weight of shared accounts (0-1)"
     ),
+    w_size: float | None = typer.Option(
+        None, "--w-size", help="Weight of the client size factor (0-1)"
+    ),
     json_output: bool = JSON_OPTION,
 ) -> None:
     """Show one agency profile and its ranked matches."""
     set_json_mode(json_output)
     params = {"include_demo": str(include_demo).lower(), "lens": lens}
-    params.update(_weight_params(w_market, w_geography, w_services, w_accounts))
+    params.update(_weight_params(w_market, w_geography, w_services, w_accounts, w_size))
     resp = _api_request("get", f"{_ADMIN}/agency-matching/agencies/{org_id}", params=params)
     data = resp.json()
     if json_output:
@@ -220,12 +237,15 @@ def pair(
     w_accounts: float | None = typer.Option(
         None, "--w-accounts", help="Weight of shared accounts (0-1)"
     ),
+    w_size: float | None = typer.Option(
+        None, "--w-size", help="Weight of the client size factor (0-1)"
+    ),
     json_output: bool = JSON_OPTION,
 ) -> None:
     """Show the factor breakdown of one pair of agencies."""
     set_json_mode(json_output)
     params = {"lens": lens}
-    params.update(_weight_params(w_market, w_geography, w_services, w_accounts))
+    params.update(_weight_params(w_market, w_geography, w_services, w_accounts, w_size))
     resp = _api_request("get", f"{_ADMIN}/agency-matching/pairs/{org_a}/{org_b}", params=params)
     data = resp.json()
     if json_output:
@@ -248,4 +268,89 @@ def pair(
         data.get("shared_domains", []),
         [("domain", "Shared CRM domain"), ("a_stage", a or "A"), ("b_stage", b or "B")],
         title=f"Shared CRM companies ({data.get('shared_domain_total', 0)} total)",
+    )
+
+
+def _wait_for_scan(org_id: str) -> dict:
+    """Reads the scan status until the scan is no longer pending."""
+    deadline = time.monotonic() + POLL_LIMIT_SECONDS
+    while True:
+        data = _api_request(
+            "get", f"{_ADMIN}/agency-matching/agencies/{org_id}/website-scan"
+        ).json()
+        if data.get("status") != "pending" or time.monotonic() >= deadline:
+            return data
+        time.sleep(POLL_SECONDS)
+
+
+def _print_scan(data: dict) -> None:
+    rprint(
+        styled(
+            "[bold]{}[/bold]  {}  {}", data.get("name"), data.get("website_url"), data.get("status")
+        )
+    )
+    if data.get("services"):
+        rprint(styled("  services: {}", ", ".join(data["services"])))
+    if data.get("description"):
+        rprint(styled("  {}", data["description"]))
+
+
+@agency_matching_app.command("scan-website")
+def scan_website(
+    ctx: typer.Context,
+    org_id: str = typer.Argument(..., help="Organisation ID"),
+    json_output: bool = JSON_OPTION,
+) -> None:
+    """Scan the homepage of one agency and wait for the result (kept 30 days)."""
+    set_json_mode(json_output)
+    _api_request("post", f"{_ADMIN}/agency-matching/agencies/{org_id}/website-scan")
+    data = _wait_for_scan(org_id)
+    if json_output:
+        print_json(data)
+        return
+    _print_scan(data)
+
+
+@agency_matching_app.command("scan-status")
+def scan_status(
+    ctx: typer.Context,
+    org_id: str = typer.Argument(..., help="Organisation ID"),
+    json_output: bool = JSON_OPTION,
+) -> None:
+    """Show the status and the result of the website scan of one agency."""
+    set_json_mode(json_output)
+    data = _api_request("get", f"{_ADMIN}/agency-matching/agencies/{org_id}/website-scan").json()
+    if json_output:
+        print_json(data)
+        return
+    _print_scan(data)
+
+
+@agency_matching_app.command("scan-websites")
+def scan_websites(
+    ctx: typer.Context,
+    include_demo: bool = typer.Option(False, "--include-demo", help="Include demo organisations"),
+    json_output: bool = JSON_OPTION,
+) -> None:
+    """Scan the homepage of every listed agency, then wait for every result."""
+    set_json_mode(json_output)
+    listing = _api_request(
+        "get",
+        f"{_ADMIN}/agency-matching/agencies",
+        params={"include_demo": str(include_demo).lower()},
+    ).json()
+    org_ids = [a["organization_id"] for a in listing.get("data", []) if a.get("website_url")]
+    for org_id in org_ids:
+        _api_request("post", f"{_ADMIN}/agency-matching/agencies/{org_id}/website-scan")
+    results = [_wait_for_scan(org_id) for org_id in org_ids]
+    if json_output:
+        print_json(results)
+        return
+    print_table(
+        [
+            {"name": r.get("name"), "status": r.get("status"), "website": r.get("website_url")}
+            for r in results
+        ],
+        [("name", "Agency"), ("status", "Scan"), ("website", "Website")],
+        title=f"Website scans ({len(results)})",
     )
