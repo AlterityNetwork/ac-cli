@@ -43,6 +43,7 @@ MATCH = {
     "score": 0.71,
     "complementary_score": 0.71,
     "similar_score": 0.4,
+    "competitor_score": 0.37,
     "competitor": False,
     "factors": {
         "market": 0.8,
@@ -104,6 +105,8 @@ def test_agency_shows_ranked_matches(invoke, mock_api):
     result = invoke(["admin", "matching", "agency", ORG, "--w-market", "1", "--w-accounts", "0"])
     assert result.exit_code == 0
     assert "Beta Studio" in result.output
+    assert "Competitor" in result.output
+    assert "37%" in result.output
     url = str(route.calls.last.request.url)
     assert "w_market=1" in url
     assert "w_accounts=0" in url
@@ -282,7 +285,7 @@ ALGORITHM = {
         }
     ],
     "default_weights": {**WEIGHTS, "size": 0.15},
-    "competitor_threshold": 0.5,
+    "competitor_threshold": 0.7,
     "size_tiers": [{"key": "startup", "label": "Under 50 staff"}],
     "service_tags": [{"tag": "seo", "label": "SEO"}],
     "excluded": ["Corbel's own organisations."],
@@ -301,7 +304,7 @@ def test_algorithm_json(invoke, mock_api):
     mock_api.get("/api/v1/admin/agency-matching/algorithm").respond(200, json=ALGORITHM)
     result = invoke(["admin", "matching", "algorithm", "--json"])
     assert result.exit_code == 0
-    assert json.loads(result.output)["competitor_threshold"] == 0.5
+    assert json.loads(result.output)["competitor_threshold"] == 0.7
 
 
 def test_agencies_passes_weights(invoke, mock_api):
