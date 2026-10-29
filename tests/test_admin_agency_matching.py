@@ -146,6 +146,26 @@ def test_pair_shows_the_breakdown(invoke, mock_api):
     assert "shop.example" in result.output
 
 
+def test_pair_prints_agency_names_with_brackets_as_written(invoke, mock_api):
+    mock_api.get(f"/api/v1/admin/agency-matching/pairs/{ORG}/{OTHER}").respond(
+        200,
+        json={
+            "agency_a": {**SUMMARY, "name": "Acme [/beta]"},
+            "agency_b": {**SUMMARY, "organization_id": OTHER, "name": "Bee [urgent]"},
+            "match": MATCH,
+            "shared_industries": [{"value": "Retail", "a_share": 0.6, "b_share": 0.5}],
+            "shared_domains": [],
+            "shared_domain_total": 0,
+        },
+    )
+
+    result = invoke(["admin", "matching", "pair", ORG, OTHER])
+
+    assert result.exit_code == 0
+    assert "[/beta]" in result.output
+    assert "[urgent]" in result.output
+
+
 def test_pair_json(invoke, mock_api):
     payload = {"match": MATCH}
     mock_api.get(f"/api/v1/admin/agency-matching/pairs/{ORG}/{OTHER}").respond(200, json=payload)

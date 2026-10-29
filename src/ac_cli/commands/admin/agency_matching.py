@@ -289,16 +289,20 @@ def pair(
     rprint(styled("[bold]{} and {}[/bold]  score {}", a, b, _pct(match.get("score"))))
     for reason in match.get("reasons", []):
         rprint(styled("  - {}", reason))
+    # The agency names head two columns. A header reads markup, so each name
+    # goes in as Text.
+    a_header = as_text(a or "A")
+    b_header = as_text(b or "B")
     print_table(
         [
             {"value": v["value"], "a": _pct(v.get("a_share")), "b": _pct(v.get("b_share"))}
             for v in data.get("shared_industries", [])
         ],
-        [("value", "Shared industry"), ("a", a or "A"), ("b", b or "B")],
+        [("value", "Shared industry"), ("a", a_header), ("b", b_header)],
     )
     print_table(
         data.get("shared_domains", []),
-        [("domain", "Shared CRM domain"), ("a_stage", a or "A"), ("b_stage", b or "B")],
+        [("domain", "Shared CRM domain"), ("a_stage", a_header), ("b_stage", b_header)],
         title=f"Shared CRM companies ({data.get('shared_domain_total', 0)} total)",
     )
 
