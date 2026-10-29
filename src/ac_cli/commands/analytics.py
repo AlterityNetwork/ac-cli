@@ -14,14 +14,15 @@ _ANALYTICS = "/api/v1/analytics"
 
 # (response key, display label) for the MetricDelta KPI rows, in display order.
 _DELTA_METRICS = [
-    ("sonar_companies", "Sonar (legacy) companies"),
-    ("sonar_signals", "Sonar (legacy) signals"),
-    ("sonar_searches", "Sonar (legacy) searches"),
-    ("headhunter_people", "Headhunter (legacy) people"),
-    ("headhunter_searches", "Headhunter (legacy) searches"),
-    ("sequences_launched", "Sequences launched"),
-    ("emails_sent", "Emails sent"),
-    ("email_replies", "Email replies"),
+    ("prospects_found", "Prospects found"),
+    ("prospects_watched", "Prospects watched"),
+    ("prospects_dismissed", "Prospects dismissed"),
+    ("signals_companies_added", "Signals companies added to CRM"),
+    ("signals_people_added", "Signals people added to CRM"),
+    ("prospects_pursued", "Prospects pursued"),
+    ("sequence_prospects_added", "Prospects added to sequences"),
+    ("outbound_touches", "Outbound touches"),
+    ("replies", "Replies"),
     ("companies_new", "New companies"),
     ("people", "New people"),
     ("tasks_created", "Tasks created"),
@@ -91,8 +92,31 @@ def analytics_overview(
         ],
         title="Period metrics",
     )
-    rprint(as_text(f"  Reply rate: {data.get('reply_rate', 0.0):.1f}%"))
+    rprint(as_text(f"  Watching now: {data.get('prospects_watching_total', 0)}"))
+    rprint(as_text(f"  Live sequences: {data.get('sequences_active', 0)}"))
     rprint(as_text(f"  Task completion rate: {data.get('task_completion_rate', 0.0):.1f}%"))
-    rprint(as_text(f"  Active sequences: {data.get('sequences_active', 0)}"))
     rprint(as_text(f"  Companies total: {data.get('companies_total', 0)}"))
     rprint(as_text(f"  People total: {data.get('people_total', 0)}"))
+
+    ranking = data.get("sequences_by_reply_rate") or []
+    if ranking:
+        print_table(
+            [
+                {
+                    "name": row.get("name", ""),
+                    "status": row.get("status", ""),
+                    "prospects": row.get("prospects", 0),
+                    "replies": row.get("replies", 0),
+                    "reply_rate": f"{row.get('reply_rate') or 0.0:.1f}%",
+                }
+                for row in ranking
+            ],
+            [
+                ("name", "Sequence"),
+                ("status", "Status"),
+                ("prospects", "Prospects"),
+                ("replies", "Replies"),
+                ("reply_rate", "Reply rate"),
+            ],
+            title="Sequences by reply rate (all time)",
+        )

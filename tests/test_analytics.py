@@ -6,21 +6,29 @@ OVERVIEW = {
     "start_date": "2026-06-21",
     "end_date": "2026-07-21",
     "period_days": 30,
-    "sonar_companies": {"current": 42, "previous": 30, "change_pct": 40.0},
-    "sonar_signals": {"current": 120, "previous": 100, "change_pct": 20.0},
-    "sonar_searches": {"current": 5, "previous": 4, "change_pct": 25.0},
-    "sonar_searches_scheduled": 2,
-    "headhunter_people": {"current": 88, "previous": 70, "change_pct": 25.7},
-    "headhunter_searches": {"current": 3, "previous": 3, "change_pct": 0.0},
-    "headhunter_searches_scheduled": 1,
-    "headhunter_people_with_email": 61,
-    "sequences_launched": {"current": 6, "previous": 2, "change_pct": 200.0},
+    "prospects_found": {"current": 42, "previous": 30, "change_pct": 40.0},
+    "prospects_watched": {"current": 9, "previous": 6, "change_pct": 50.0},
+    "prospects_watching_total": 14,
+    "prospects_dismissed": {"current": 11, "previous": 8, "change_pct": 37.5},
+    "signals_companies_added": {"current": 5, "previous": 3, "change_pct": 66.7},
+    "signals_people_added": {"current": 7, "previous": 4, "change_pct": 75.0},
+    "prospects_pursued": {"current": 6, "previous": 2, "change_pct": 200.0},
     "sequences_active": 4,
-    "emails_sent": {"current": 240, "previous": 180, "change_pct": 33.3},
-    "email_replies": {"current": 12, "previous": 9, "change_pct": 33.3},
-    "reply_rate": 5.333333,
+    "sequence_prospects_added": {"current": 50, "previous": 40, "change_pct": 25.0},
+    "outbound_touches": {"current": 240, "previous": 180, "change_pct": 33.3},
+    "replies": {"current": 12, "previous": 9, "change_pct": 33.3},
+    "sequences_by_reply_rate": [
+        {
+            "id": "s1",
+            "name": "Q4 founders",
+            "status": "active",
+            "prospects": 40,
+            "replies": 5,
+            "reply_rate": 12.5,
+        }
+    ],
     "sequences_processed_by_day": [],
-    "outputs_by_type": [{"type": "email", "count": 240}],
+    "outputs_by_type": [{"type": "Email", "count": 240}],
     "companies_new": {"current": 15, "previous": 10, "change_pct": 50.0},
     "companies_total": 300,
     "people": {"current": 40, "previous": 35, "change_pct": 14.3},
@@ -40,11 +48,19 @@ def test_analytics_overview(invoke, mock_api):
     mock_api.get("/api/v1/analytics/overview").respond(200, json=OVERVIEW)
     result = invoke(["analytics", "overview"])
     assert result.exit_code == 0
-    assert "Sonar (legacy) companies" in result.output
+    assert "Prospects found" in result.output
+    assert "Outbound touches" in result.output
     assert "42" in result.output
     assert "2026-06-21" in result.output
-    assert "Reply rate: 5.3%" in result.output
+    assert "Live sequences: 4" in result.output
+    assert "Watching now: 14" in result.output
     assert "Task completion rate: 70.6%" in result.output
+    assert "Sequences by reply rate" in result.output
+    assert "Q4 founders" in result.output
+    assert "12.5%" in result.output
+    assert "Sonar" not in result.output
+    assert "Headhunter" not in result.output
+    assert "Reply rate:" not in result.output
 
 
 def test_analytics_overview_period_days(invoke, mock_api):
@@ -91,23 +107,34 @@ def test_analytics_overview_renders_null_change_without_crashing(invoke, mock_ap
     whose metric grew from nothing.
     """
     payload = dict(OVERVIEW)
-    payload["sonar_companies"] = {"current": 42, "previous": 0, "change_pct": None}
+    payload["prospects_found"] = {"current": 42, "previous": 0, "change_pct": None}
 
     mock_api.get("/api/v1/analytics/overview").respond(200, json=payload)
     result = invoke(["analytics", "overview"])
 
     assert result.exit_code == 0
-    assert "Sonar (legacy) companies" in result.output
+    assert "Prospects found" in result.output
     # No fabricated percentage for an undefined comparison.
     assert "+100.0%" not in result.output
 
 
 def test_analytics_overview_json_passes_null_change_through(invoke, mock_api):
     payload = dict(OVERVIEW)
-    payload["sonar_companies"] = {"current": 42, "previous": 0, "change_pct": None}
+    payload["prospects_found"] = {"current": 42, "previous": 0, "change_pct": None}
 
     mock_api.get("/api/v1/analytics/overview").respond(200, json=payload)
     result = invoke(["analytics", "overview", "--json"])
 
     assert result.exit_code == 0
-    assert json.loads(result.output)["sonar_companies"]["change_pct"] is None
+    assert json.loads(result.output)["prospects_found"]["change_pct"] is None
+
+
+def test_analytics_overview_with_no_sequences_prints_no_ranking(invoke, mock_api):
+    payload = dict(OVERVIEW)
+    payload["sequences_by_reply_rate"] = []
+
+    mock_api.get("/api/v1/analytics/overview").respond(200, json=payload)
+    result = invoke(["analytics", "overview"])
+
+    assert result.exit_code == 0
+    assert "Sequences by reply rate" not in result.output
