@@ -87,3 +87,30 @@ def test_nylas_validate_signature(invoke, mock_api):
     )
     result = invoke(["nylas", "validate-signature", "--signature", "<b>My Sig</b>"])
     assert result.exit_code == 0
+
+
+def test_nylas_send_cap(invoke, mock_api):
+    mock_api.get("/api/v1/nylas/email/send-cap").respond(
+        200, json={"limit": 30, "used": 4, "resets_at": "2026-10-30T00:00:00Z"}
+    )
+    result = invoke(["nylas", "send-cap"])
+    assert result.exit_code == 0
+    assert "4 of 30" in result.output
+    assert "midnight UTC" in result.output
+
+
+def test_nylas_send_cap_without_a_cap(invoke, mock_api):
+    mock_api.get("/api/v1/nylas/email/send-cap").respond(
+        200, json={"limit": None, "used": 2, "resets_at": "2026-10-30T00:00:00Z"}
+    )
+    result = invoke(["nylas", "send-cap"])
+    assert result.exit_code == 0
+    assert "No daily cap" in result.output
+
+
+def test_nylas_send_cap_json(invoke, mock_api):
+    status = {"limit": 30, "used": 4, "resets_at": "2026-10-30T00:00:00Z"}
+    mock_api.get("/api/v1/nylas/email/send-cap").respond(200, json=status)
+    result = invoke(["nylas", "send-cap", "--json"])
+    assert result.exit_code == 0
+    assert json.loads(result.output) == status
