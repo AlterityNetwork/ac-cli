@@ -6,21 +6,35 @@ OVERVIEW = {
     "start_date": "2026-06-21",
     "end_date": "2026-07-21",
     "period_days": 30,
-    "sonar_companies": {"current": 42, "previous": 30, "change_pct": 40.0},
-    "sonar_signals": {"current": 120, "previous": 100, "change_pct": 20.0},
-    "sonar_searches": {"current": 5, "previous": 4, "change_pct": 25.0},
-    "sonar_searches_scheduled": 2,
-    "headhunter_people": {"current": 88, "previous": 70, "change_pct": 25.7},
-    "headhunter_searches": {"current": 3, "previous": 3, "change_pct": 0.0},
-    "headhunter_searches_scheduled": 1,
-    "headhunter_people_with_email": 61,
-    "sequences_launched": {"current": 6, "previous": 2, "change_pct": 200.0},
+    "prospects_found": {"current": 42, "previous": 30, "change_pct": 40.0},
+    "prospects_watched": {"current": 9, "previous": 6, "change_pct": 50.0},
+    "prospects_watching_total": 14,
+    "prospects_dismissed": {"current": 11, "previous": 8, "change_pct": 37.5},
+    "signals_searches": {"current": 12, "previous": 9, "change_pct": 33.3},
+    "signals_searches_saved": 9,
+    "prospects_pursued_rate": {"current": 14.3, "previous": 10.0, "change_pct": 43.0},
+    "prospects_pursued": {"current": 6, "previous": 2, "change_pct": 200.0},
     "sequences_active": 4,
-    "emails_sent": {"current": 240, "previous": 180, "change_pct": 33.3},
-    "email_replies": {"current": 12, "previous": 9, "change_pct": 33.3},
-    "reply_rate": 5.333333,
+    "sequence_prospects_added": {"current": 50, "previous": 40, "change_pct": 25.0},
+    "outbound_touches": {"current": 240, "previous": 180, "change_pct": 33.3},
+    "replies": {"current": 12, "previous": 9, "change_pct": 33.3},
+    "avg_reply_hours": {"current": 30.5, "previous": 40.0, "change_pct": -23.8},
+    "sequence_emails_sent": {"current": 80, "previous": 60, "change_pct": 33.3},
+    "email_reply_rate": {"current": 8.5, "previous": 6.0, "change_pct": 41.7},
+    "email_positive_reply_rate": {"current": 3.0, "previous": 2.0, "change_pct": 50.0},
+    "email_bounce_rate": {"current": 1.2, "previous": 2.4, "change_pct": -50.0},
+    "sequences_by_reply_rate": [
+        {
+            "id": "s1",
+            "name": "Q4 founders",
+            "status": "active",
+            "prospects": 40,
+            "replies": 5,
+            "reply_rate": 12.5,
+        }
+    ],
     "sequences_processed_by_day": [],
-    "outputs_by_type": [{"type": "email", "count": 240}],
+    "outputs_by_type": [{"type": "Email", "count": 240}],
     "companies_new": {"current": 15, "previous": 10, "change_pct": 50.0},
     "companies_total": 300,
     "people": {"current": 40, "previous": 35, "change_pct": 14.3},
@@ -40,11 +54,28 @@ def test_analytics_overview(invoke, mock_api):
     mock_api.get("/api/v1/analytics/overview").respond(200, json=OVERVIEW)
     result = invoke(["analytics", "overview"])
     assert result.exit_code == 0
-    assert "Sonar (legacy) companies" in result.output
+    assert "Prospects found" in result.output
+    assert "Outbound touches" in result.output
     assert "42" in result.output
     assert "2026-06-21" in result.output
-    assert "Reply rate: 5.3%" in result.output
+    assert "Live sequences: 4" in result.output
+    assert "Watching now: 14" in result.output
     assert "Task completion rate: 70.6%" in result.output
+    assert "Sequences by reply rate" in result.output
+    assert "Q4 founders" in result.output
+    assert "12.5%" in result.output
+    assert "Sonar" not in result.output
+    assert "Headhunter" not in result.output
+    assert "Reply rate:" not in result.output
+    assert "Signals searches" in result.output
+    assert "Saved searches: 9 of 12 (75.0%)" in result.output
+    assert "Prospects pursued: 14.3% of the prospects found" in result.output
+    assert "Average time to reply: 30.5 hours" in result.output
+    assert "Sequence emails sent" in result.output
+    assert "Email reply rate: 8.5%" in result.output
+    assert "Positive reply rate: 3.0%" in result.output
+    assert "Bounce rate: 1.2%" in result.output
+    assert "added to CRM" not in result.output
 
 
 def test_analytics_overview_period_days(invoke, mock_api):
@@ -91,23 +122,52 @@ def test_analytics_overview_renders_null_change_without_crashing(invoke, mock_ap
     whose metric grew from nothing.
     """
     payload = dict(OVERVIEW)
-    payload["sonar_companies"] = {"current": 42, "previous": 0, "change_pct": None}
+    payload["prospects_found"] = {"current": 42, "previous": 0, "change_pct": None}
 
     mock_api.get("/api/v1/analytics/overview").respond(200, json=payload)
     result = invoke(["analytics", "overview"])
 
     assert result.exit_code == 0
-    assert "Sonar (legacy) companies" in result.output
+    assert "Prospects found" in result.output
     # No fabricated percentage for an undefined comparison.
     assert "+100.0%" not in result.output
 
 
 def test_analytics_overview_json_passes_null_change_through(invoke, mock_api):
     payload = dict(OVERVIEW)
-    payload["sonar_companies"] = {"current": 42, "previous": 0, "change_pct": None}
+    payload["prospects_found"] = {"current": 42, "previous": 0, "change_pct": None}
 
     mock_api.get("/api/v1/analytics/overview").respond(200, json=payload)
     result = invoke(["analytics", "overview", "--json"])
 
     assert result.exit_code == 0
-    assert json.loads(result.output)["sonar_companies"]["change_pct"] is None
+    assert json.loads(result.output)["prospects_found"]["change_pct"] is None
+
+
+def test_analytics_overview_with_no_sequences_prints_no_ranking(invoke, mock_api):
+    payload = dict(OVERVIEW)
+    payload["sequences_by_reply_rate"] = []
+
+    mock_api.get("/api/v1/analytics/overview").respond(200, json=payload)
+    result = invoke(["analytics", "overview"])
+
+    assert result.exit_code == 0
+    assert "Sequences by reply rate" not in result.output
+
+
+def test_analytics_overview_without_searches_or_replies(invoke, mock_api):
+    empty = {
+        **OVERVIEW,
+        "signals_searches": {"current": 0, "previous": 0, "change_pct": 0.0},
+        "signals_searches_saved": 0,
+        "prospects_pursued_rate": {"current": None, "previous": None, "change_pct": None},
+        "avg_reply_hours": {"current": None, "previous": None, "change_pct": None},
+        "email_reply_rate": {"current": None, "previous": None, "change_pct": None},
+    }
+    mock_api.get("/api/v1/analytics/overview").respond(200, json=empty)
+    result = invoke(["analytics", "overview"])
+    assert result.exit_code == 0
+    assert "Saved searches: 0 of 0" in result.output
+    assert "Prospects pursued: -" in result.output
+    assert "Average time to reply: -" in result.output
+    assert "Email reply rate: -" in result.output
