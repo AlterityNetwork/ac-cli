@@ -22,6 +22,7 @@ _DELTA_METRICS = [
     ("sequence_prospects_added", "Prospects added to sequences"),
     ("outbound_touches", "Outbound touches"),
     ("replies", "Replies"),
+    ("sequence_emails_sent", "Sequence emails sent"),
     ("companies_new", "New companies"),
     ("people", "New people"),
     ("tasks_created", "Tasks created"),
@@ -106,6 +107,13 @@ def analytics_overview(
     rprint(as_text(f"  Prospects pursued: {pursued}{found_note}"))
     reply = _rate_text((data.get("avg_reply_hours") or {}).get("current"), " hours")
     rprint(as_text(f"  Average time to reply: {reply}"))
+    for key, label in (
+        ("email_reply_rate", "Email reply rate"),
+        ("email_positive_reply_rate", "Positive reply rate"),
+        ("email_bounce_rate", "Bounce rate"),
+    ):
+        rate = _rate_text((data.get(key) or {}).get("current"), "%")
+        rprint(as_text(f"  {label}: {rate}"))
     rprint(as_text(f"  Live sequences: {data.get('sequences_active', 0)}"))
     rprint(as_text(f"  Task completion rate: {data.get('task_completion_rate', 0.0):.1f}%"))
     rprint(as_text(f"  Companies total: {data.get('companies_total', 0)}"))

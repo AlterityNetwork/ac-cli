@@ -19,6 +19,10 @@ OVERVIEW = {
     "outbound_touches": {"current": 240, "previous": 180, "change_pct": 33.3},
     "replies": {"current": 12, "previous": 9, "change_pct": 33.3},
     "avg_reply_hours": {"current": 30.5, "previous": 40.0, "change_pct": -23.8},
+    "sequence_emails_sent": {"current": 80, "previous": 60, "change_pct": 33.3},
+    "email_reply_rate": {"current": 8.5, "previous": 6.0, "change_pct": 41.7},
+    "email_positive_reply_rate": {"current": 3.0, "previous": 2.0, "change_pct": 50.0},
+    "email_bounce_rate": {"current": 1.2, "previous": 2.4, "change_pct": -50.0},
     "sequences_by_reply_rate": [
         {
             "id": "s1",
@@ -67,6 +71,10 @@ def test_analytics_overview(invoke, mock_api):
     assert "Saved searches: 9 of 12 (75.0%)" in result.output
     assert "Prospects pursued: 14.3% of the prospects found" in result.output
     assert "Average time to reply: 30.5 hours" in result.output
+    assert "Sequence emails sent" in result.output
+    assert "Email reply rate: 8.5%" in result.output
+    assert "Positive reply rate: 3.0%" in result.output
+    assert "Bounce rate: 1.2%" in result.output
     assert "added to CRM" not in result.output
 
 
@@ -154,6 +162,7 @@ def test_analytics_overview_without_searches_or_replies(invoke, mock_api):
         "signals_searches_saved": 0,
         "prospects_pursued_rate": {"current": None, "previous": None, "change_pct": None},
         "avg_reply_hours": {"current": None, "previous": None, "change_pct": None},
+        "email_reply_rate": {"current": None, "previous": None, "change_pct": None},
     }
     mock_api.get("/api/v1/analytics/overview").respond(200, json=empty)
     result = invoke(["analytics", "overview"])
@@ -161,3 +170,4 @@ def test_analytics_overview_without_searches_or_replies(invoke, mock_api):
     assert "Saved searches: 0 of 0" in result.output
     assert "Prospects pursued: -" in result.output
     assert "Average time to reply: -" in result.output
+    assert "Email reply rate: -" in result.output
