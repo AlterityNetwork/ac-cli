@@ -10,13 +10,15 @@ OVERVIEW = {
     "prospects_watched": {"current": 9, "previous": 6, "change_pct": 50.0},
     "prospects_watching_total": 14,
     "prospects_dismissed": {"current": 11, "previous": 8, "change_pct": 37.5},
-    "signals_companies_added": {"current": 5, "previous": 3, "change_pct": 66.7},
-    "signals_people_added": {"current": 7, "previous": 4, "change_pct": 75.0},
+    "signals_searches": {"current": 12, "previous": 9, "change_pct": 33.3},
+    "signals_searches_saved": 9,
+    "prospects_pursued_rate": {"current": 14.3, "previous": 10.0, "change_pct": 43.0},
     "prospects_pursued": {"current": 6, "previous": 2, "change_pct": 200.0},
     "sequences_active": 4,
     "sequence_prospects_added": {"current": 50, "previous": 40, "change_pct": 25.0},
     "outbound_touches": {"current": 240, "previous": 180, "change_pct": 33.3},
     "replies": {"current": 12, "previous": 9, "change_pct": 33.3},
+    "avg_reply_hours": {"current": 30.5, "previous": 40.0, "change_pct": -23.8},
     "sequences_by_reply_rate": [
         {
             "id": "s1",
@@ -61,6 +63,11 @@ def test_analytics_overview(invoke, mock_api):
     assert "Sonar" not in result.output
     assert "Headhunter" not in result.output
     assert "Reply rate:" not in result.output
+    assert "Signals searches" in result.output
+    assert "Saved searches: 9 of 12 (75.0%)" in result.output
+    assert "Prospects pursued: 14.3% of the prospects found" in result.output
+    assert "Average time to reply: 30.5 hours" in result.output
+    assert "added to CRM" not in result.output
 
 
 def test_analytics_overview_period_days(invoke, mock_api):
@@ -138,3 +145,19 @@ def test_analytics_overview_with_no_sequences_prints_no_ranking(invoke, mock_api
 
     assert result.exit_code == 0
     assert "Sequences by reply rate" not in result.output
+
+
+def test_analytics_overview_without_searches_or_replies(invoke, mock_api):
+    empty = {
+        **OVERVIEW,
+        "signals_searches": {"current": 0, "previous": 0, "change_pct": 0.0},
+        "signals_searches_saved": 0,
+        "prospects_pursued_rate": {"current": None, "previous": None, "change_pct": None},
+        "avg_reply_hours": {"current": None, "previous": None, "change_pct": None},
+    }
+    mock_api.get("/api/v1/analytics/overview").respond(200, json=empty)
+    result = invoke(["analytics", "overview"])
+    assert result.exit_code == 0
+    assert "Saved searches: 0 of 0" in result.output
+    assert "Prospects pursued: -" in result.output
+    assert "Average time to reply: -" in result.output

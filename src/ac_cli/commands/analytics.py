@@ -17,9 +17,8 @@ _DELTA_METRICS = [
     ("prospects_found", "Prospects found"),
     ("prospects_watched", "Prospects watched"),
     ("prospects_dismissed", "Prospects dismissed"),
-    ("signals_companies_added", "Signals companies added to CRM"),
-    ("signals_people_added", "Signals people added to CRM"),
     ("prospects_pursued", "Prospects pursued"),
+    ("signals_searches", "Signals searches"),
     ("sequence_prospects_added", "Prospects added to sequences"),
     ("outbound_touches", "Outbound touches"),
     ("replies", "Replies"),
@@ -31,6 +30,11 @@ _DELTA_METRICS = [
     ("logins", "Logins"),
     ("active_users", "Active users"),
 ]
+
+
+def _rate_text(value: float | None, suffix: str) -> str:
+    """Format a rate or an average, or a dash when the period has none."""
+    return "-" if value is None else f"{value:.1f}{suffix}"
 
 
 @app.callback()
@@ -93,6 +97,15 @@ def analytics_overview(
         title="Period metrics",
     )
     rprint(as_text(f"  Watching now: {data.get('prospects_watching_total', 0)}"))
+    searches = (data.get("signals_searches") or {}).get("current", 0)
+    saved = data.get("signals_searches_saved", 0)
+    saved_share = f" ({saved / searches * 100:.1f}%)" if searches else ""
+    rprint(as_text(f"  Saved searches: {saved} of {searches}{saved_share}"))
+    pursued = _rate_text((data.get("prospects_pursued_rate") or {}).get("current"), "%")
+    found_note = " of the prospects found" if pursued != "-" else ""
+    rprint(as_text(f"  Prospects pursued: {pursued}{found_note}"))
+    reply = _rate_text((data.get("avg_reply_hours") or {}).get("current"), " hours")
+    rprint(as_text(f"  Average time to reply: {reply}"))
     rprint(as_text(f"  Live sequences: {data.get('sequences_active', 0)}"))
     rprint(as_text(f"  Task completion rate: {data.get('task_completion_rate', 0.0):.1f}%"))
     rprint(as_text(f"  Companies total: {data.get('companies_total', 0)}"))
