@@ -161,16 +161,24 @@ def billing_top_up(
     current credit period only.
     """
     set_json_mode(json_output)
+    request_id = request_id or str(uuid.uuid4())
     if not should_skip_confirm(yes):
         typer.confirm(
-            f"Charge £{credits / 100:,.2f} plus tax for {credits:,} credits to "
+            f"Charge £{credits / 100:,.2f} plus any VAT for {credits:,} credits to "
             f"organization {organization_id}?",
             abort=True,
         )
+    # Printed before the call: after a lost answer the same id retries the
+    # same invoice, and a new run without it would charge a second time.
+    typer.echo(
+        f"Request id {request_id}. To retry without a second charge, run the "
+        f"command again with --request-id {request_id}.",
+        err=True,
+    )
     body = {
         "organization_id": organization_id,
         "credits": credits,
-        "request_id": request_id or str(uuid.uuid4()),
+        "request_id": request_id,
     }
     resp = _api_request("post", f"{_ADMIN}/billing/top-ups", json=body)
     data = resp.json()
@@ -231,3 +239,6 @@ def billing_credit_usage(
         ],
         title=f"Credit usage ({len(items)})",
     )
+    unread = data.get("unread_count") or 0
+    if unread:
+        typer.echo(f"The balance of {unread} organization(s) did not load, so they are not listed.")

@@ -2,6 +2,8 @@
 
 import json
 
+import httpx
+
 SAMPLE_STRIPE_SUBS = {
     "data": [
         {
@@ -224,7 +226,7 @@ def test_billing_top_up_keeps_a_given_request_id(invoke, mock_api):
         ]
     )
     assert result.exit_code == 0
-    assert json.loads(result.output)["invoice_id"] == "in_1"
+    assert json.loads(result.stdout)["invoice_id"] == "in_1"
     assert json.loads(route.calls[0].request.content)["request_id"] == request_id
 
 
@@ -260,7 +262,7 @@ def test_billing_top_up_decline_maps_exit_code(invoke, mock_api):
         ]
     )
     assert result.exit_code == 6
-    assert json.loads(result.output)["context"]["code"] == "top_up_payment_failed"
+    assert json.loads(result.stdout)["context"]["code"] == "top_up_payment_failed"
 
 
 USAGE = {
@@ -299,3 +301,35 @@ def test_billing_credit_usage_attention_json(invoke, mock_api):
     assert result.exit_code == 0
     assert json.loads(result.output)["organizations"][0]["state"] == "warning"
     assert route.calls[0].request.url.params["attention"] == "true"
+
+
+def test_billing_top_up_prints_the_request_id_before_the_call(invoke, mock_api):
+    mock_api.post("/api/v1/admin/billing/top-ups").mock(
+        side_effect=httpx.ConnectError("network down")
+    )
+    request_id = "eeeeeeee-eeee-4eee-eeee-eeeeeeeeeeee"
+    result = invoke(
+        [
+            "admin",
+            "billing",
+            "top-up",
+            "--org-id",
+            ORG,
+            "--credits",
+            "500",
+            "--request-id",
+            request_id,
+            "--yes",
+        ]
+    )
+    assert result.exit_code == 1
+    assert f"--request-id {request_id}" in result.output
+
+
+def test_billing_credit_usage_notes_unread_balances(invoke, mock_api):
+    mock_api.get("/api/v1/admin/billing/credit-usage").respond(
+        200, json={**USAGE, "unread_count": 2}
+    )
+    result = invoke(["admin", "billing", "credit-usage"])
+    assert result.exit_code == 0
+    assert "2 organization(s) did not load" in result.output
