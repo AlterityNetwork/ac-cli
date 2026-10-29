@@ -109,6 +109,7 @@ from ac_cli.commands.admin.demo import demo_app  # noqa: E402
 from ac_cli.commands.admin.entitlement_grants import entitlement_grants_app  # noqa: E402
 from ac_cli.commands.admin.intelligence import intelligence_app  # noqa: E402
 from ac_cli.commands.admin.legal_documents import legal_docs_app  # noqa: E402
+from ac_cli.commands.admin.limit_overrides import limit_overrides_app  # noqa: E402
 from ac_cli.commands.admin.onboarding import onboarding_app  # noqa: E402
 from ac_cli.commands.admin.organizations import organizations_app  # noqa: E402
 from ac_cli.commands.admin.platform_activity import platform_activity_app  # noqa: E402
@@ -136,5 +137,6 @@ app.add_typer(billing_app, name="billing")
 app.add_typer(subscription_plans_app, name="subscription-plans")
 app.add_typer(entitlement_grants_app, name="entitlement-grants")
 app.add_typer(credit_prices_app, name="credit-prices")
+app.add_typer(limit_overrides_app, name="limit-overrides")
 app.add_typer(admin_crm_app, name="crm")
 app.add_typer(intelligence_app, name="intelligence")

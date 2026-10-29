@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import uuid
+
 import typer
 
 from ac_cli.commands._helpers import (
@@ -136,4 +138,96 @@ def billing_refund(
             ("currency", "Currency"),
             ("charge", "Charge"),
         ],
+    )
+
+
+@billing_app.command("top-up")
+def billing_top_up(
+    ctx: typer.Context,
+    organization_id: str = typer.Option(..., "--org-id", help="Organization ID"),
+    credits: int = typer.Option(..., "--credits", help="Credits to add, 100 to 1,000,000"),
+    request_id: str | None = typer.Option(
+        None,
+        "--request-id",
+        help="UUID that keys the Stripe calls; repeat it to retry without a second charge",
+    ),
+    yes: bool = typer.Option(False, "--yes", "-y", help="Skip confirmation"),
+    json_output: bool = JSON_OPTION,
+) -> None:
+    """Charge a credit top-up to the organization's saved payment method.
+
+    The invoice is the credits at GBP 0.01 each, with tax on top. The credits
+    are added when Stripe reports the invoice paid, and they count in the
+    current credit period only.
+    """
+    set_json_mode(json_output)
+    if not should_skip_confirm(yes):
+        typer.confirm(
+            f"Charge £{credits / 100:,.2f} plus tax for {credits:,} credits to "
+            f"organization {organization_id}?",
+            abort=True,
+        )
+    body = {
+        "organization_id": organization_id,
+        "credits": credits,
+        "request_id": request_id or str(uuid.uuid4()),
+    }
+    resp = _api_request("post", f"{_ADMIN}/billing/top-ups", json=body)
+    data = resp.json()
+    if json_output:
+        print_json(data)
+        return
+    print_detail(
+        data,
+        [
+            ("invoice_id", "Invoice"),
+            ("status", "Status"),
+            ("credits", "Credits"),
+            ("amount_pence", "Net (pence)"),
+            ("total_pence", "Total with tax (pence)"),
+            ("currency", "Currency"),
+        ],
+    )
+
+
+@billing_app.command("credit-usage")
+def billing_credit_usage(
+    ctx: typer.Context,
+    attention: bool = typer.Option(
+        False, "--attention", help="Only organizations at 80 percent of their credits or more"
+    ),
+    json_output: bool = JSON_OPTION,
+) -> None:
+    """List the credit balance of every organization in its current period."""
+    set_json_mode(json_output)
+    resp = _api_request(
+        "get",
+        f"{_ADMIN}/billing/credit-usage",
+        params={"attention": str(attention).lower()},
+    )
+    data = resp.json()
+    if json_output:
+        print_json(data)
+        return
+    items = [
+        {
+            **row,
+            "used": f"{row['used_percent']}%" if row.get("used_percent") is not None else "-",
+        }
+        for row in data.get("organizations") or []
+    ]
+    print_table(
+        items,
+        [
+            ("organization_name", "Organization"),
+            ("allowance", "Allowance"),
+            ("top_ups", "Top-ups"),
+            ("spent", "Spent"),
+            ("balance", "Balance"),
+            ("used", "Used"),
+            ("state", "State"),
+            ("card_last4", "Card"),
+            ("organization_id", "ID"),
+        ],
+        title=f"Credit usage ({len(items)})",
     )
