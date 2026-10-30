@@ -30,14 +30,14 @@ def inbox_list(
         "--needs-response",
         help=(
             "Only threads where the latest message is inbound (we owe a reply) "
-            "AND status='open'. Overrides --status. ENG-963 Inbox badge filter."
+            "AND status='open'. Overrides --status. The Inbox badge filter."
         ),
     ),
     limit: int = typer.Option(50, help="Max results"),
     offset: int = typer.Option(0, help="Pagination offset"),
     json_output: bool = JSON_OPTION,
 ) -> None:
-    """List inbox threads."""
+    """List inbox threads that hold at least one received reply, by email or LinkedIn."""
     set_json_mode(json_output)
     params: dict = {"limit": limit, "offset": offset}
     if status:
@@ -58,11 +58,17 @@ def inbox_list(
         print_json(data)
         return
 
-    items = data.get("data", [])
+    # Each item holds the thread fields under "thread" and the prospect beside it.
+    items = [
+        {**(item.get("thread") or {}), "prospect_name": item.get("prospect_name")}
+        for item in data.get("data", [])
+    ]
     print_table(
         items,
         [
             ("subject", "Subject"),
+            ("channel", "Channel"),
+            ("prospect_name", "From"),
             ("status", "Status"),
             ("sentiment", "Sentiment"),
             ("assigned_to", "Assigned To"),

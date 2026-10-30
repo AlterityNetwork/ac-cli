@@ -3,13 +3,35 @@
 import json
 
 SAMPLE_THREAD = {
-    "id": "t-1",
-    "subject": "Re: Partnership",
-    "status": "open",
-    "sentiment": "positive",
-    "assigned_to": "user-123",
-    "sequence_id": "seq-1",
-    "created_at": "2026-01-01T00:00:00Z",
+    "thread": {
+        "id": "t-1",
+        "subject": "Re: Partnership",
+        "channel": "email",
+        "status": "open",
+        "sentiment": "positive",
+        "assigned_to": "user-123",
+        "sequence_id": "seq-1",
+        "created_at": "2026-01-01T00:00:00Z",
+    },
+    "sequence_name": "Q1 Outreach",
+    "prospect_name": "John Smith",
+    "prospect_email": "john@example.com",
+}
+
+LINKEDIN_THREAD = {
+    "thread": {
+        "id": "t-2",
+        "subject": "LinkedIn conversation",
+        "channel": "linkedin",
+        "status": "open",
+        "sentiment": None,
+        "assigned_to": None,
+        "sequence_id": "seq-1",
+        "created_at": "2026-01-01T00:00:00Z",
+    },
+    "sequence_name": "Q1 Outreach",
+    "prospect_name": "Jane Doe",
+    "prospect_email": None,
 }
 
 SAMPLE_MESSAGE = {
@@ -27,9 +49,31 @@ def test_inbox_list(invoke, mock_api):
     )
     result = invoke(["envoy", "inbox", "list"])
     assert result.exit_code == 0
-    assert "Re: Partnership" in result.output
+    # The 80 column test console wraps the subject.
+    assert "Partnership" in result.output
+    assert "John Smith" in result.output
     assert "open" in result.output
     assert "1 total" in result.output
+
+
+def test_inbox_list_shows_the_thread_fields_and_the_prospect(invoke, mock_api):
+    mock_api.get("/api/v1/envoy/inbox/threads").respond(
+        200,
+        json={
+            "data": [SAMPLE_THREAD, LINKEDIN_THREAD],
+            "total": 2,
+            "limit": 50,
+            "offset": 0,
+            "has_more": False,
+        },
+    )
+    result = invoke(["envoy", "inbox", "list"])
+    assert result.exit_code == 0
+    assert "John Smith" in result.output
+    assert "LinkedIn" in result.output
+    assert "linkedin" in result.output
+    assert "Jane Doe" in result.output
+    assert "t-2" in result.output
 
 
 def test_inbox_list_json(invoke, mock_api):
@@ -39,7 +83,7 @@ def test_inbox_list_json(invoke, mock_api):
     result = invoke(["envoy", "inbox", "list", "--json"])
     assert result.exit_code == 0
     parsed = json.loads(result.output)
-    assert parsed["data"][0]["id"] == "t-1"
+    assert parsed["data"][0]["thread"]["id"] == "t-1"
 
 
 def test_inbox_list_with_filters(invoke, mock_api):
