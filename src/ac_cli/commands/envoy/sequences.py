@@ -111,7 +111,10 @@ def sequences_create(
     auto_enrich: bool | None = typer.Option(
         None,
         "--auto-enrich/--no-auto-enrich",
-        help="Look up a missing email or phone before a step that needs it (default on)",
+        help=(
+            "Look up a missing contact field (email, phone or LinkedIn URL) "
+            "before a step that needs it (default on)"
+        ),
     ),
     json_output: bool = JSON_OPTION,
 ) -> None:
@@ -163,7 +166,10 @@ def sequences_update(
     auto_enrich: bool | None = typer.Option(
         None,
         "--auto-enrich/--no-auto-enrich",
-        help="Look up a missing email or phone before a step that needs it (default on)",
+        help=(
+            "Look up a missing contact field (email, phone or LinkedIn URL) "
+            "before a step that needs it (default on)"
+        ),
     ),
     json_output: bool = JSON_OPTION,
 ) -> None:
