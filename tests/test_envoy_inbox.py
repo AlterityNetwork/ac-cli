@@ -185,6 +185,25 @@ def test_inbox_complete(invoke, mock_api):
     assert "Completed" in result.output
 
 
+def test_inbox_mark_read(invoke, mock_api):
+    route = mock_api.post("/api/v1/envoy/inbox/threads/t-1/read").respond(
+        200, json={"thread_id": "t-1", "unread_count": 0}
+    )
+    result = invoke(["envoy", "inbox", "mark-read", "t-1"])
+    assert result.exit_code == 0
+    assert route.called
+    assert "Marked thread t-1 as read" in result.output
+
+
+def test_inbox_mark_read_json(invoke, mock_api):
+    mock_api.post("/api/v1/envoy/inbox/threads/t-1/read").respond(
+        200, json={"thread_id": "t-1", "unread_count": 0}
+    )
+    result = invoke(["envoy", "inbox", "mark-read", "t-1", "--json"])
+    assert result.exit_code == 0
+    assert json.loads(result.output) == {"thread_id": "t-1", "unread_count": 0}
+
+
 def test_inbox_update_status(invoke, mock_api):
     mock_api.patch("/api/v1/envoy/inbox/threads/t-1/status").respond(200, json=SAMPLE_THREAD)
     result = invoke(["envoy", "inbox", "update-status", "t-1", "--status", "closed"])

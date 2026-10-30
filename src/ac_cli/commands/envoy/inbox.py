@@ -196,6 +196,23 @@ def inbox_complete(
         rprint(styled("[green]Completed thread {}[/green]", thread_id))
 
 
+@inbox_app.command("mark-read")
+def inbox_mark_read(
+    ctx: typer.Context,
+    thread_id: str = typer.Argument(..., help="Thread ID"),
+    json_output: bool = JSON_OPTION,
+) -> None:
+    """Mark every message of a thread as read by you."""
+    set_json_mode(json_output)
+    resp = _api_request("post", f"{_ENVOY}/inbox/threads/{thread_id}/read")
+
+    data = resp.json()
+    if json_output:
+        print_json(data)
+    else:
+        rprint(styled("[green]Marked thread {} as read[/green]", thread_id))
+
+
 @inbox_app.command("update-status")
 def inbox_update_status(
     ctx: typer.Context,
