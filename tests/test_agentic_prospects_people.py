@@ -439,3 +439,37 @@ def test_edit_person_maps_a_refusal_to_its_exit_code(invoke, mock_api, status, c
     result = invoke(_edit("--title", "CFO"))
 
     assert result.exit_code == code
+
+
+def test_edit_person_sends_the_version_it_read(invoke, mock_api):
+    route = mock_api.patch(f"{BASE}/{PROSPECT_ID}/people/{ROW_ID}").respond(200, json=PERSON)
+
+    result = invoke(
+        _edit("--email", "alice@acme.test", "--expected-updated-at", "2026-08-28T10:00:00Z")
+    )
+
+    assert result.exit_code == 0
+    assert json.loads(route.calls[0].request.content) == {
+        "email": "alice@acme.test",
+        "expected_updated_at": "2026-08-28T10:00:00Z",
+    }
+
+
+def test_edit_person_needs_a_change_beside_the_version(invoke, mock_api):
+    route = mock_api.patch(f"{BASE}/{PROSPECT_ID}/people/{ROW_ID}").respond(200, json=PERSON)
+
+    result = invoke(_edit("--expected-updated-at", "2026-08-28T10:00:00Z"))
+
+    assert result.exit_code == 2
+    assert not route.calls
+
+
+def test_edit_person_maps_a_changed_person_to_exit_five(invoke, mock_api):
+    mock_api.patch(f"{BASE}/{PROSPECT_ID}/people/{ROW_ID}").respond(
+        409, json={"detail": "This person changed while you edited it. Reload and try again."}
+    )
+
+    result = invoke(_edit("--title", "CFO", "--expected-updated-at", "2026-08-28T10:00:00Z"))
+
+    assert result.exit_code == 5
+    assert "changed while you edited it" in result.output

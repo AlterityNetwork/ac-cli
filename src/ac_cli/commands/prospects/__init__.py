@@ -630,6 +630,14 @@ def prospects_edit_person(
     clear_title: bool = typer.Option(False, "--clear-title", help="Remove the typed job title"),
     email: str | None = typer.Option(None, "--email", help="Work email address"),
     clear_email: bool = typer.Option(False, "--clear-email", help="Remove the typed email"),
+    expected_updated_at: str | None = typer.Option(
+        None,
+        "--expected-updated-at",
+        help=(
+            "The updated_at of the person as you read it, from `people --json`. "
+            "A person another write changed since then refuses the edit."
+        ),
+    ),
     json_output: bool = JSON_OPTION,
 ) -> None:
     """Correct one person a company prospect lists.
@@ -639,7 +647,8 @@ def prospects_edit_person(
     profile value again. A new LinkedIn profile moves the person to that
     profile. The name of a person with a profile changes only with a new
     profile. A promoted prospect takes the edit, and the CRM person changes
-    too.
+    too. Pass --expected-updated-at to refuse the edit when another write
+    changed the person after you read it.
     """
     set_json_mode(json_output)
     if title is not None and clear_title:
@@ -657,6 +666,8 @@ def prospects_edit_person(
         body["email"] = email
     if not body:
         refuse_local("Give at least one field to change")
+    if expected_updated_at is not None:
+        body["expected_updated_at"] = expected_updated_at
     data = _api_request("patch", f"{_PROSPECTS}/{prospect_id}/people/{person_id}", json=body).json()
     if json_output:
         print_json(data)
