@@ -2,6 +2,8 @@
 
 import json
 
+import pytest
+
 BASE = "/api/v1/agentic/prospects"
 PROSPECT_ID = "11111111-1111-4111-8111-111111111111"
 RUN_ID = "77777777-7777-4777-8777-777777777777"
@@ -339,3 +341,101 @@ def test_get_names_the_people_search_while_it_runs(invoke, mock_api):
 
     assert result.exit_code == 0
     assert RUN_ID in result.output
+
+
+ROW_ID = "55555555-5555-4555-8555-555555555555"
+SIGNAL_ID = "66666666-6666-4666-8666-666666666666"
+
+
+def _edit(*extra: str) -> list[str]:
+    return ["agentic", "prospects", "edit-person", PROSPECT_ID, ROW_ID, *extra]
+
+
+def test_add_person_sends_the_signal_that_named_the_person(invoke, mock_api):
+    route = mock_api.post(f"{BASE}/{PROSPECT_ID}/people").respond(200, json=PERSON)
+
+    result = invoke(_add("--named-signal-id", SIGNAL_ID))
+
+    assert result.exit_code == 0
+    assert json.loads(route.calls[0].request.content)["named_signal_id"] == SIGNAL_ID
+
+
+def test_edit_person_patches_only_the_named_fields_and_prints_the_row(invoke, mock_api):
+    route = mock_api.patch(f"{BASE}/{PROSPECT_ID}/people/{ROW_ID}").respond(
+        200, json={**PERSON, "id": ROW_ID}
+    )
+
+    result = invoke(_edit("--email", "alice@acme.test", "--title", "CFO"))
+
+    assert result.exit_code == 0
+    assert json.loads(route.calls[0].request.content) == {
+        "email": "alice@acme.test",
+        "current_title": "CFO",
+    }
+    assert "Edited person" in result.output
+    assert "Alice Doe" in result.output
+
+
+def test_edit_person_sends_the_name_and_the_profile(invoke, mock_api):
+    route = mock_api.patch(f"{BASE}/{PROSPECT_ID}/people/{ROW_ID}").respond(200, json=PERSON)
+
+    result = invoke(_edit("--name", "Alice Doe", "--linkedin-url", LINKEDIN))
+
+    assert result.exit_code == 0
+    assert json.loads(route.calls[0].request.content) == {
+        "full_name": "Alice Doe",
+        "linkedin_url": LINKEDIN,
+    }
+
+
+def test_edit_person_sends_null_for_a_cleared_title_and_email(invoke, mock_api):
+    route = mock_api.patch(f"{BASE}/{PROSPECT_ID}/people/{ROW_ID}").respond(200, json=PERSON)
+
+    result = invoke(_edit("--clear-title", "--clear-email"))
+
+    assert result.exit_code == 0
+    assert json.loads(route.calls[0].request.content) == {
+        "current_title": None,
+        "email": None,
+    }
+
+
+def test_edit_person_refuses_a_value_beside_its_clear(invoke, mock_api):
+    route = mock_api.patch(f"{BASE}/{PROSPECT_ID}/people/{ROW_ID}").respond(200, json=PERSON)
+
+    result = invoke(_edit("--email", "alice@acme.test", "--clear-email"))
+
+    assert result.exit_code == 2
+    assert not route.calls
+
+
+def test_edit_person_refuses_no_change(invoke, mock_api):
+    route = mock_api.patch(f"{BASE}/{PROSPECT_ID}/people/{ROW_ID}").respond(200, json=PERSON)
+
+    result = invoke(_edit())
+
+    assert result.exit_code == 2
+    assert not route.calls
+
+
+def test_edit_person_json_keeps_the_row(invoke, mock_api):
+    mock_api.patch(f"{BASE}/{PROSPECT_ID}/people/{ROW_ID}").respond(200, json=PERSON)
+
+    result = invoke(_edit("--title", "CFO", "--json"))
+
+    assert result.exit_code == 0
+    assert json.loads(result.output) == PERSON
+
+
+@pytest.mark.parametrize(
+    "status,code",
+    [(404, 3), (409, 5), (422, 2)],
+)
+def test_edit_person_maps_a_refusal_to_its_exit_code(invoke, mock_api, status, code):
+    mock_api.patch(f"{BASE}/{PROSPECT_ID}/people/{ROW_ID}").respond(
+        status, json={"detail": "refused"}
+    )
+
+    result = invoke(_edit("--title", "CFO"))
+
+    assert result.exit_code == code
