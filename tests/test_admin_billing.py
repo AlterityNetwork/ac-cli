@@ -2,6 +2,8 @@
 
 import json
 
+import httpx
+
 SAMPLE_STRIPE_SUBS = {
     "data": [
         {
@@ -180,3 +182,154 @@ def test_billing_refund_forbidden_maps_exit_code(invoke, mock_api):
     mock_api.post("/api/v1/admin/billing/refunds").respond(403, json={"detail": "Forbidden"})
     result = invoke(["admin", "billing", "refund", "ch_1", "--yes", "--json"])
     assert result.exit_code == 4
+
+
+TOP_UP = {
+    "invoice_id": "in_1",
+    "status": "paid",
+    "credits": 2500,
+    "amount_pence": 2500,
+    "total_pence": 3000,
+    "currency": "gbp",
+}
+ORG = "aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa"
+
+
+def test_billing_top_up(invoke, mock_api):
+    route = mock_api.post("/api/v1/admin/billing/top-ups").respond(200, json=TOP_UP)
+    result = invoke(["admin", "billing", "top-up", "--org-id", ORG, "--credits", "2500", "--yes"])
+    assert result.exit_code == 0
+    assert "in_1" in result.output
+    assert "paid" in result.output
+    body = json.loads(route.calls[0].request.content)
+    assert body["organization_id"] == ORG
+    assert body["credits"] == 2500
+    assert len(body["request_id"]) == 36
+
+
+def test_billing_top_up_keeps_a_given_request_id(invoke, mock_api):
+    route = mock_api.post("/api/v1/admin/billing/top-ups").respond(200, json=TOP_UP)
+    request_id = "dddddddd-dddd-4ddd-dddd-dddddddddddd"
+    result = invoke(
+        [
+            "admin",
+            "billing",
+            "top-up",
+            "--org-id",
+            ORG,
+            "--credits",
+            "2500",
+            "--request-id",
+            request_id,
+            "--yes",
+            "--json",
+        ]
+    )
+    assert result.exit_code == 0
+    assert json.loads(result.stdout)["invoice_id"] == "in_1"
+    assert json.loads(route.calls[0].request.content)["request_id"] == request_id
+
+
+def test_billing_top_up_confirms_the_price(invoke, mock_api):
+    result = invoke(
+        ["admin", "billing", "top-up", "--org-id", ORG, "--credits", "2500"],
+        input="n\n",
+    )
+    assert result.exit_code == 1
+    assert "£25.00" in result.output
+
+
+def test_billing_top_up_decline_maps_exit_code(invoke, mock_api):
+    mock_api.post("/api/v1/admin/billing/top-ups").respond(
+        402,
+        json={
+            "message": "The card on file was declined: Your card was declined.",
+            "code": "top_up_payment_failed",
+            "context": {"code": "top_up_payment_failed"},
+        },
+    )
+    result = invoke(
+        [
+            "admin",
+            "billing",
+            "top-up",
+            "--org-id",
+            ORG,
+            "--credits",
+            "500",
+            "--yes",
+            "--json",
+        ]
+    )
+    assert result.exit_code == 6
+    assert json.loads(result.stdout)["context"]["code"] == "top_up_payment_failed"
+
+
+USAGE = {
+    "organizations": [
+        {
+            "organization_id": ORG,
+            "organization_name": "Acme",
+            "allowance": 10000,
+            "top_ups": 0,
+            "adjustments": 0,
+            "spent": 8500,
+            "balance": 1500,
+            "used_percent": 85,
+            "state": "warning",
+            "enforced": True,
+            "card_brand": "visa",
+            "card_last4": "4242",
+            "can_top_up": True,
+        }
+    ]
+}
+
+
+def test_billing_credit_usage(invoke, mock_api):
+    route = mock_api.get("/api/v1/admin/billing/credit-usage").respond(200, json=USAGE)
+    result = invoke(["admin", "billing", "credit-usage"])
+    assert result.exit_code == 0
+    assert "Acme" in result.output
+    assert "85%" in result.output
+    assert route.calls[0].request.url.params["attention"] == "false"
+
+
+def test_billing_credit_usage_attention_json(invoke, mock_api):
+    route = mock_api.get("/api/v1/admin/billing/credit-usage").respond(200, json=USAGE)
+    result = invoke(["admin", "billing", "credit-usage", "--attention", "--json"])
+    assert result.exit_code == 0
+    assert json.loads(result.output)["organizations"][0]["state"] == "warning"
+    assert route.calls[0].request.url.params["attention"] == "true"
+
+
+def test_billing_top_up_prints_the_request_id_before_the_call(invoke, mock_api):
+    mock_api.post("/api/v1/admin/billing/top-ups").mock(
+        side_effect=httpx.ConnectError("network down")
+    )
+    request_id = "eeeeeeee-eeee-4eee-eeee-eeeeeeeeeeee"
+    result = invoke(
+        [
+            "admin",
+            "billing",
+            "top-up",
+            "--org-id",
+            ORG,
+            "--credits",
+            "500",
+            "--request-id",
+            request_id,
+            "--yes",
+        ]
+    )
+    assert result.exit_code == 1
+    assert f"--request-id {request_id}" in result.output
+
+
+def test_billing_credit_usage_notes_unread_balances(invoke, mock_api):
+    mock_api.get("/api/v1/admin/billing/credit-usage").respond(
+        200, json={**USAGE, "unread_count": 2}
+    )
+    result = invoke(["admin", "billing", "credit-usage"])
+    assert result.exit_code == 0
+    assert "2 organization(s) did not load" in result.output
