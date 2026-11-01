@@ -2,7 +2,7 @@
 
 `ac agentic outreach campaigns` creates, edits, activates, pauses, resumes and
 archives a campaign, and enrolls one person. `list` and `get` print the count
-of live enrollments against the cap and the count per state.
+of live enrollments against the cap and the count per status.
 `ac agentic outreach enrollments` lists the enrollments of a campaign (each row
 names the person, the email and the last decision; `--search` matches the
 name), reads one enrollment and its timeline, asks for a Run now (`evaluate`:
@@ -14,8 +14,8 @@ whole organization. Only an organization admin stops or resumes.
 wait for a person, then saves, approves or rejects one. The draft is named by
 its decision id.
 
-Approve sends back the `version` and the `content_hash` that `get` (or the
-last `save`) printed. The API answers 409 when either one moved, so a person
+Approve sends back the `context_version` and the `content_hash` that `get` (or
+the last `save`) printed. The API answers 409 when either one moved, so a person
 approves exactly the text they read. Approval goes only through this review.
 """
 
@@ -60,9 +60,9 @@ _LIST_FIELDS = [
 _DETAIL_FIELDS = [
     ("decision_id", "Draft ID"),
     ("outcome", "Outcome"),
-    ("enrollment_state", "Enrollment"),
+    ("enrollment_status", "Enrollment"),
     ("campaign_status", "Campaign"),
-    ("version", "Version"),
+    ("context_version", "Context version"),
     ("content_hash", "Content hash"),
     ("reviewable", "Reviewable"),
     ("locked", "Locked"),
@@ -87,7 +87,8 @@ def _print_review(data: dict) -> None:
             "[dim]Approve:[/dim]",
             as_text(
                 f"ac agentic outreach drafts approve {data['decision_id']} "
-                f"--version {data['version']} --content-hash {data['content_hash']}"
+                f"--context-version {data['context_version']} "
+                f"--content-hash {data['content_hash']}"
             ),
         )
 
@@ -129,7 +130,7 @@ def drafts_get(
     decision_id: str = typer.Argument(..., help="Draft ID (the decision id)"),
     json_output: bool = JSON_OPTION,
 ) -> None:
-    """Read one draft, its version and its content hash."""
+    """Read one draft, its context version and its content hash."""
     set_json_mode(json_output)
     data = _api_request("get", f"{_OUTREACH}/drafts/{decision_id}").json()
     if json_output:
@@ -171,7 +172,9 @@ def drafts_save(
 @drafts_app.command("approve")
 def drafts_approve(
     decision_id: str = typer.Argument(..., help="Draft ID (the decision id)"),
-    version: int = typer.Option(..., "--version", help="The version `get` printed"),
+    context_version: int = typer.Option(
+        ..., "--context-version", help="The context version `get` printed"
+    ),
     content_hash: str = typer.Option(
         ..., "--content-hash", help="The content hash of the text you read"
     ),
@@ -184,7 +187,7 @@ def drafts_approve(
     data = _api_request(
         "post",
         f"{_OUTREACH}/drafts/{decision_id}/approve",
-        json={"version": version, "content_hash": content_hash},
+        json={"context_version": context_version, "content_hash": content_hash},
     ).json()
     if json_output:
         print_json(data)
@@ -227,7 +230,7 @@ def drafts_reject(
 # Campaigns.
 
 _STATUSES = ("draft", "active", "paused", "archived")
-_STATES = ("active", "awaiting_approval", "needs_contact_data", "ended")
+_ENROLLMENT_STATUSES = ("active", "needs_contact_data", "ended")
 _PERSON_KINDS = ("crm.person", "prospect.person")
 _ENROLLMENT_PAGE_DEFAULT = 100
 _ENROLLMENT_PAGE_MAX = 200
@@ -240,7 +243,6 @@ _CAMPAIGN_LIST_FIELDS = [
     ("name", "Name"),
     ("status", "Status"),
     ("people", "People"),
-    ("awaiting", "Awaiting"),
     ("needs_email", "Needs email"),
     ("ended", "Ended"),
     ("created_at", "Created"),
@@ -258,7 +260,6 @@ _CAMPAIGN_READ_FIELDS = [
     *_CAMPAIGN_FIELDS,
     ("people", "People"),
     ("active", "Active"),
-    ("awaiting", "Awaiting"),
     ("needs_email", "Needs email"),
     ("ended", "Ended"),
 ]
@@ -266,20 +267,20 @@ _ENROLLMENT_LIST_FIELDS = [
     ("id", "Enrollment ID"),
     ("person_name", "Name"),
     ("email", "Email"),
-    ("state", "State"),
+    ("status", "Status"),
     ("last_action", "Last decision"),
-    ("next_due_at", "Next look"),
+    ("next_check_at", "Next check"),
 ]
 _ENROLLMENT_FIELDS = [
     ("id", "Enrollment ID"),
     ("campaign_id", "Campaign"),
     ("person_kind", "Kind"),
     ("person_id", "Person"),
-    ("state", "State"),
+    ("status", "Status"),
     ("ended_reason", "Ended reason"),
-    ("next_due_at", "Next look"),
-    ("active_run_id", "Run holding it"),
-    ("version", "Version"),
+    ("next_check_at", "Next check"),
+    ("touch_count", "Touches"),
+    ("context_version", "Context version"),
     ("enrolled_at", "Enrolled"),
     ("ended_at", "Ended at"),
 ]
@@ -295,7 +296,6 @@ def _with_counts(campaign: dict) -> dict:
         **campaign,
         "people": f"{counts.get('live', 0)}/{counts.get('cap', 0)}",
         "active": counts.get("active"),
-        "awaiting": counts.get("awaiting_approval"),
         "needs_email": counts.get("needs_contact_data"),
         "ended": counts.get("ended"),
     }
@@ -366,7 +366,7 @@ def campaigns_get(
     campaign_id: str = typer.Argument(..., help="Campaign ID"),
     json_output: bool = JSON_OPTION,
 ) -> None:
-    """Read one campaign and the count of its enrollments per state."""
+    """Read one campaign and the count of its enrollments per status."""
     set_json_mode(json_output)
     data = _api_request("get", f"{_OUTREACH}/campaigns/{campaign_id}").json()
     if json_output:
@@ -498,9 +498,7 @@ def campaigns_enroll(
 @enrollments_app.command("list")
 def enrollments_list(
     campaign_id: str = typer.Option(..., "--campaign-id", help="Campaign ID"),
-    state: str | None = typer.Option(
-        None, "--state", help="active, awaiting_approval, needs_contact_data or ended"
-    ),
+    status: str | None = typer.Option(None, "--status", help="active, needs_contact_data or ended"),
     search: str | None = typer.Option(
         None, "--search", help="Only the people whose name holds this text, in any case"
     ),
@@ -512,8 +510,8 @@ def enrollments_list(
 ) -> None:
     """List the enrollments of one campaign, newest first, with each person and last decision."""
     set_json_mode(json_output)
-    if state is not None and state not in _STATES:
-        refuse_local(f"--state must be one of: {', '.join(_STATES)}", state)
+    if status is not None and status not in _ENROLLMENT_STATUSES:
+        refuse_local(f"--status must be one of: {', '.join(_ENROLLMENT_STATUSES)}", status)
     if not _PAGE_MIN <= limit <= _ENROLLMENT_PAGE_MAX:
         refuse_local(f"--limit is not between {_PAGE_MIN} and {_ENROLLMENT_PAGE_MAX}", limit)
     if offset < 0:
@@ -521,8 +519,8 @@ def enrollments_list(
     if search is not None and len(search) > _SEARCH_MAX:
         refuse_local(f"--search is longer than {_SEARCH_MAX} characters", len(search))
     params: dict[str, object] = {"limit": limit, "offset": offset}
-    if state is not None:
-        params["state"] = state
+    if status is not None:
+        params["status"] = status
     if search is not None:
         params["search"] = search
     data = _api_request(

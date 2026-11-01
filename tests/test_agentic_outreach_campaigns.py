@@ -21,11 +21,11 @@ ENROLLMENT = {
     "campaign_id": CAMPAIGN_ID,
     "person_kind": "crm.person",
     "person_id": PERSON_ID,
-    "state": "active",
+    "status": "active",
     "ended_reason": None,
-    "next_due_at": None,
-    "active_run_id": None,
-    "version": 0,
+    "next_check_at": "2026-10-21T10:30:00Z",
+    "context_version": 1,
+    "touch_count": 0,
     "enrolled_at": "2026-10-21T10:00:00Z",
     "ended_at": None,
     "updated_at": "2026-10-21T10:00:00Z",
@@ -33,8 +33,7 @@ ENROLLMENT = {
 STOP = {"stopped": True, "stopped_at": "2026-10-21T10:00:00Z"}
 COUNTS = {
     "active": 125,
-    "awaiting_approval": 12,
-    "needs_contact_data": 3,
+    "needs_contact_data": 12,
     "ended": 41,
     "live": 140,
     "cap": 200,
@@ -116,6 +115,8 @@ class TestCampaigns:
             for text in ("140/200", "12", "41"):
                 assert text in output
         assert "Needs email" in read.output
+        for output in (listed.output, read.output):
+            assert "Awaiting" not in output
 
     def test_create_prints_no_count_lines(self, invoke, mock_api):
         mock_api.post(f"{BASE}/campaigns").respond(201, json=CAMPAIGN)
@@ -395,7 +396,7 @@ class TestEnrollments:
                 "list",
                 "--campaign-id",
                 CAMPAIGN_ID,
-                "--state",
+                "--status",
                 "active",
                 "--search",
                 "jane",
@@ -408,7 +409,7 @@ class TestEnrollments:
 
         assert result.exit_code == 0, result.output
         params = route.calls[0].request.url.params
-        assert (params["state"], params["search"], params["limit"], params["offset"]) == (
+        assert (params["status"], params["search"], params["limit"], params["offset"]) == (
             "active",
             "jane",
             "1",
@@ -484,6 +485,49 @@ class TestEnrollments:
 
         assert result.exit_code == 0, result.output
         assert "crm.person" in result.output
+        for label in ("Status", "Next check", "Context version", "Touches"):
+            assert label in result.output
+        assert "2026-10-21T10:30:00Z" in result.output
+        assert "Run holding it" not in result.output
+
+    def test_list_refuses_awaiting_approval_without_a_call(self, invoke, mock_api):
+        route = mock_api.get(f"{BASE}/campaigns/{CAMPAIGN_ID}/enrollments").respond(200, json=PAGE)
+
+        result = invoke(
+            [
+                "agentic",
+                "outreach",
+                "enrollments",
+                "list",
+                "--campaign-id",
+                CAMPAIGN_ID,
+                "--status",
+                "awaiting_approval",
+                "--json",
+            ]
+        )
+
+        assert result.exit_code == 2
+        assert not route.called
+
+    def test_list_has_no_state_option(self, invoke, mock_api):
+        route = mock_api.get(f"{BASE}/campaigns/{CAMPAIGN_ID}/enrollments").respond(200, json=PAGE)
+
+        result = invoke(
+            [
+                "agentic",
+                "outreach",
+                "enrollments",
+                "list",
+                "--campaign-id",
+                CAMPAIGN_ID,
+                "--state",
+                "active",
+            ]
+        )
+
+        assert result.exit_code == 2
+        assert not route.called
 
     def test_evaluate_sends_the_request_id(self, invoke, mock_api):
         route = mock_api.post(f"{BASE}/enrollments/{ENROLLMENT_ID}/evaluate").respond(
@@ -518,7 +562,7 @@ class TestEnrollments:
         assert _body(route) == {}
 
     def test_exit_asks_first_and_then_posts(self, invoke, mock_api):
-        ended = {**ENROLLMENT, "state": "ended", "ended_reason": "manual"}
+        ended = {**ENROLLMENT, "status": "ended", "ended_reason": "user_exit"}
         route = mock_api.post(f"{BASE}/enrollments/{ENROLLMENT_ID}/exit").respond(200, json=ended)
 
         refused = invoke(["agentic", "outreach", "enrollments", "exit", ENROLLMENT_ID], input="n\n")
@@ -528,7 +572,7 @@ class TestEnrollments:
 
         assert refused.exit_code == 1
         assert route.call_count == 1
-        assert json.loads(done.output)["ended_reason"] == "manual"
+        assert json.loads(done.output)["ended_reason"] == "user_exit"
 
 
 class TestOrganization:
