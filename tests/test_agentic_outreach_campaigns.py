@@ -546,6 +546,93 @@ class TestCampaigns:
         assert "200" in many.output
         assert not route.called
 
+    def test_enroll_batch_reads_a_bom_file_and_sends_each_person_once(
+        self, invoke, mock_api, tmp_path
+    ):
+        path = tmp_path / "people.txt"
+        path.write_text(
+            f"crm.person:{PERSON_ID.upper()}\r\ncrm.person:{PERSON_ID}\r\n",
+            encoding="utf-8-sig",
+        )
+        route = mock_api.post(f"{BASE}/campaigns/{CAMPAIGN_ID}/enrollments/batch").respond(
+            200, json={"results": BATCH_RESULTS[:1]}
+        )
+
+        result = invoke(
+            [
+                "agentic",
+                "outreach",
+                "campaigns",
+                "enroll-batch",
+                CAMPAIGN_ID,
+                "--person",
+                f"crm.person:{PERSON_ID}",
+                "--file",
+                str(path),
+            ]
+        )
+
+        assert result.exit_code == 0, result.output
+        assert _body(route) == {"people": [{"person_kind": "crm.person", "person_id": PERSON_ID}]}
+
+    def test_enroll_batch_accepts_exactly_200_people(self, invoke, mock_api, tmp_path):
+        path = tmp_path / "many.txt"
+        path.write_text("".join(f"crm.person:{PERSON_ID[:-3]}{n:03d}\n" for n in range(200)))
+        route = mock_api.post(f"{BASE}/campaigns/{CAMPAIGN_ID}/enrollments/batch").respond(
+            200, json={"results": []}
+        )
+
+        result = invoke(
+            ["agentic", "outreach", "campaigns", "enroll-batch", CAMPAIGN_ID, "--file", str(path)]
+        )
+
+        assert result.exit_code == 0, result.output
+        assert len(_body(route)["people"]) == 200
+
+    def test_enroll_batch_refuses_a_file_that_is_not_utf8(self, invoke, mock_api, tmp_path):
+        path = tmp_path / "people.txt"
+        path.write_bytes(f"crm.person:{PERSON_ID}\n".encode("utf-16"))
+        route = mock_api.post(f"{BASE}/campaigns/{CAMPAIGN_ID}/enrollments/batch")
+
+        result = invoke(
+            [
+                "agentic",
+                "outreach",
+                "campaigns",
+                "enroll-batch",
+                CAMPAIGN_ID,
+                "--file",
+                str(path),
+                "--json",
+            ]
+        )
+
+        assert result.exit_code == 2
+        assert json.loads(result.output)["error"] is True
+        assert not route.called
+
+    def test_enroll_batch_names_a_campaign_with_no_status(self, invoke, mock_api):
+        row = {**BATCH_RESULTS[1], "campaign_status": None}
+        mock_api.post(f"{BASE}/campaigns/{CAMPAIGN_ID}/enrollments/batch").respond(
+            200, json={"results": [row]}
+        )
+
+        result = invoke(
+            [
+                "agentic",
+                "outreach",
+                "campaigns",
+                "enroll-batch",
+                CAMPAIGN_ID,
+                "--person",
+                f"prospect.person:{row['person_id']}",
+            ]
+        )
+
+        assert result.exit_code == 0, result.output
+        assert "None" not in result.output
+        assert 'In "Q1 nurture"' in result.output
+
     def test_enroll_batch_refuses_a_missing_file(self, invoke, mock_api, tmp_path):
         result = invoke(
             [
@@ -560,6 +647,7 @@ class TestCampaigns:
         )
 
         assert result.exit_code == 2
+        assert not mock_api.calls
 
     def test_enroll_batch_shows_a_campaign_refusal(self, invoke, mock_api):
         mock_api.post(f"{BASE}/campaigns/{CAMPAIGN_ID}/enrollments/batch").respond(

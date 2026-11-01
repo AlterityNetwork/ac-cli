@@ -512,24 +512,34 @@ def _batch_person(raw: str, source: str) -> dict[str, str]:
     if kind not in _PERSON_KINDS:
         refuse_local(f"{source} must start with one of: {', '.join(_PERSON_KINDS)}", raw.strip())
     try:
-        uuid.UUID(person_id)
+        normalized = str(uuid.UUID(person_id))
     except ValueError:
         refuse_local(f"{source} must end with a person ID (a UUID)", raw.strip())
-    return {"person_kind": kind, "person_id": person_id}
+    return {"person_kind": kind, "person_id": normalized}
 
 
 def _batch_people(people: list[str], file: Path | None) -> list[dict[str, str]]:
-    """Reads the people of the flags, then the lines of the file, in order."""
+    """Reads the people of the flags, then the lines of the file, in order.
+
+    A person named twice is sent once, at the first place it is named.
+    """
     found = [_batch_person(one, "--person") for one in people]
     if file is not None:
         try:
-            lines = file.read_text(encoding="utf-8").splitlines()
+            # utf-8-sig drops the byte order mark that some editors write.
+            lines = file.read_text(encoding="utf-8-sig").splitlines()
         except OSError as error:
             refuse_local("--file cannot be read", f"{file} ({error.strerror})")
+        except UnicodeDecodeError:
+            refuse_local("--file is not UTF-8 text", str(file))
         for number, line in enumerate(lines, start=1):
             text = line.strip()
             if text and not text.startswith("#"):
                 found.append(_batch_person(text, f"--file line {number}"))
+    unique: dict[tuple[str, str], dict[str, str]] = {}
+    for one in found:
+        unique.setdefault((one["person_kind"], one["person_id"]), one)
+    found = list(unique.values())
     if not found:
         refuse_local("name at least one person with --person or --file")
     if len(found) > _BATCH_MAX:
@@ -545,7 +555,11 @@ def _batch_row(result: dict) -> dict:
     elif outcome == "already_enrolled":
         name = result.get("campaign_name")
         status = result.get("campaign_status")
-        detail = f'In "{name}" ({status})' if name else "In another campaign"
+        if not name:
+            detail = "In another campaign"
+        else:
+            detail = f'In "{name}" ({status})' if status else f'In "{name}"'
+
     else:
         detail = _OUTCOME_DETAILS.get(str(outcome), "")
     return {
