@@ -1,8 +1,9 @@
 """Commands for Outreach: campaigns, enrollments, the stop and the draft review.
 
 `ac agentic outreach campaigns` creates, edits, activates, pauses, resumes and
-archives a campaign, and enrolls one person. `list` and `get` print the count
-of live enrollments against the cap and the count per status.
+archives a campaign, and enrolls one person (`enroll`) or up to 200 people in
+one request (`enroll-batch`). `list` and `get` print the count of live
+enrollments against the cap and the count per status.
 `ac agentic outreach enrollments` lists the enrollments of a campaign (each row
 names the person, the email and the last decision; `--search` matches the
 name), reads one enrollment and its timeline, asks for a Run now (`evaluate`:
@@ -22,6 +23,7 @@ approves exactly the text they read. Approval goes only through this review.
 from __future__ import annotations
 
 import re
+import uuid
 from pathlib import Path
 
 import typer
@@ -285,6 +287,18 @@ _ENROLLMENT_FIELDS = [
     ("ended_at", "Ended at"),
 ]
 _STOP_FIELDS = [("stopped", "Stopped"), ("stopped_at", "Since")]
+# The most people one batch enroll names. The API refuses more with a 422.
+_BATCH_MAX = 200
+_BATCH_FIELDS = [
+    ("person", "Person"),
+    ("outcome", "Outcome"),
+    ("detail", "Detail"),
+]
+_OUTCOME_DETAILS = {
+    "campaign_full": "The campaign holds its 200 live enrollments",
+    "opted_out": "The address is on the do-not-contact list",
+    "not_found": "The organization holds no such person",
+}
 
 
 def _with_counts(campaign: dict) -> dict:
@@ -490,6 +504,91 @@ def campaigns_enroll(
         return
     rprint(styled("[green]Enrollment {} is created.[/green]", data["id"]))
     print_detail(data, _ENROLLMENT_FIELDS)
+
+
+def _batch_person(raw: str, source: str) -> dict[str, str]:
+    """Reads one `kind:id`, or refuses it before any HTTP call."""
+    kind, _, person_id = raw.strip().partition(":")
+    if kind not in _PERSON_KINDS:
+        refuse_local(f"{source} must start with one of: {', '.join(_PERSON_KINDS)}", raw.strip())
+    try:
+        uuid.UUID(person_id)
+    except ValueError:
+        refuse_local(f"{source} must end with a person ID (a UUID)", raw.strip())
+    return {"person_kind": kind, "person_id": person_id}
+
+
+def _batch_people(people: list[str], file: Path | None) -> list[dict[str, str]]:
+    """Reads the people of the flags, then the lines of the file, in order."""
+    found = [_batch_person(one, "--person") for one in people]
+    if file is not None:
+        try:
+            lines = file.read_text(encoding="utf-8").splitlines()
+        except OSError as error:
+            refuse_local("--file cannot be read", f"{file} ({error.strerror})")
+        for number, line in enumerate(lines, start=1):
+            text = line.strip()
+            if text and not text.startswith("#"):
+                found.append(_batch_person(text, f"--file line {number}"))
+    if not found:
+        refuse_local("name at least one person with --person or --file")
+    if len(found) > _BATCH_MAX:
+        refuse_local(f"one batch takes at most {_BATCH_MAX} people", len(found))
+    return found
+
+
+def _batch_row(result: dict) -> dict:
+    """Builds the table row of one batch result."""
+    outcome = result.get("outcome")
+    if outcome == "added":
+        detail = f"Enrollment {result.get('enrollment_id')}"
+    elif outcome == "already_enrolled":
+        name = result.get("campaign_name")
+        status = result.get("campaign_status")
+        detail = f'In "{name}" ({status})' if name else "In another campaign"
+    else:
+        detail = _OUTCOME_DETAILS.get(str(outcome), "")
+    return {
+        "person": f"{result.get('person_kind')}:{result.get('person_id')}",
+        "outcome": outcome,
+        "detail": detail,
+    }
+
+
+@campaigns_app.command("enroll-batch")
+def campaigns_enroll_batch(
+    campaign_id: str = typer.Argument(..., help="Campaign ID"),
+    people: list[str] = typer.Option(
+        [], "--person", help="kind:id, such as crm.person:<id>. Repeat for each person."
+    ),
+    file: Path | None = typer.Option(
+        None,
+        "--file",
+        help="A file with one kind:id per line. Blank lines and # comments are skipped.",
+    ),
+    json_output: bool = JSON_OPTION,
+) -> None:
+    """Enroll up to 200 people in one request, and print one result per person.
+
+    One refused person never blocks the others. Each result is added,
+    already_enrolled (in another campaign), campaign_full, opted_out or
+    not_found. A person already in this campaign answers added.
+    """
+    set_json_mode(json_output)
+    body = {"people": _batch_people(people, file)}
+    data = _api_request(
+        "post", f"{_OUTREACH}/campaigns/{campaign_id}/enrollments/batch", json=body
+    ).json()
+    if json_output:
+        print_json(data)
+        return
+    results = data.get("results", [])
+    added = sum(1 for one in results if one.get("outcome") == "added")
+    print_table(
+        [_batch_row(one) for one in results],
+        _BATCH_FIELDS,
+        title=f"{added} of {len(results)} added",
+    )
 
 
 # Enrollments.
