@@ -2,6 +2,8 @@
 
 import json
 
+import pytest
+
 BASE = "/api/v1/agentic/outreach"
 CAMPAIGN_ID = "33333333-3333-4333-8333-333333333333"
 ENROLLMENT_ID = "22222222-2222-4222-8222-222222222222"
@@ -360,6 +362,40 @@ class TestCampaigns:
 
         assert result.exit_code == 5
         assert "Q1" in result.output
+
+    @pytest.mark.parametrize("json_flag", [[], ["--json"]])
+    def test_enroll_shows_the_opted_out_refusal(self, invoke, mock_api, json_flag):
+        message = "The email address of the person is on the do-not-contact list."
+        mock_api.post(f"{BASE}/campaigns/{CAMPAIGN_ID}/enrollments").respond(
+            409,
+            json={
+                "error": "Conflict",
+                "message": message,
+                "type": "conflict",
+                "context": {"code": "opted_out"},
+                "code": "opted_out",
+            },
+        )
+
+        result = invoke(
+            [
+                "agentic",
+                "outreach",
+                "campaigns",
+                "enroll",
+                CAMPAIGN_ID,
+                "--person-kind",
+                "crm.person",
+                "--person-id",
+                PERSON_ID,
+                *json_flag,
+            ]
+        )
+
+        assert result.exit_code == 5
+        assert "do-not-contact list" in result.output
+        if json_flag:
+            assert "opted_out" in result.output
 
     def test_enroll_refuses_a_bad_person_kind_without_a_call(self, invoke, mock_api):
         route = mock_api.post(f"{BASE}/campaigns/{CAMPAIGN_ID}/enrollments").respond(
