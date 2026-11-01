@@ -15,6 +15,12 @@ CAMPAIGN = {
     "name": "Q4 intro",
     "status": "draft",
     "description": "Heads of growth at Series A SaaS companies",
+    "goal": "Book a 20 min intro call",
+    "allowed_channels": ["email", "linkedin"],
+    "max_touches": 5,
+    "followup_min_days": 3,
+    "followup_max_days": 7,
+    "sender_user_id": "99999999-9999-4999-8999-999999999999",
     "created_by": "99999999-9999-4999-8999-999999999999",
     "created_at": "2026-10-21T10:00:00Z",
     "updated_at": "2026-10-21T10:00:00Z",
@@ -192,7 +198,9 @@ class TestCampaigns:
     def test_create_prints_no_count_lines(self, invoke, mock_api):
         mock_api.post(f"{BASE}/campaigns").respond(201, json=CAMPAIGN)
 
-        result = invoke(["agentic", "outreach", "campaigns", "create", "--name", "Q4 intro"])
+        result = invoke(
+            ["agentic", "outreach", "campaigns", "create", "--name", "Q4 intro", "--goal", "G"]
+        )
 
         assert result.exit_code == 0, result.output
         assert "Needs email" not in result.output
@@ -232,22 +240,30 @@ class TestCampaigns:
                 "create",
                 "--name",
                 "Q4 intro",
+                "--goal",
+                "Book a call",
                 "--description",
                 "Heads of growth",
             ]
         )
 
         assert result.exit_code == 0, result.output
-        assert _body(route) == {"name": "Q4 intro", "description": "Heads of growth"}
+        assert _body(route) == {
+            "name": "Q4 intro",
+            "goal": "Book a call",
+            "description": "Heads of growth",
+        }
         assert "Heads of growth at Series A SaaS companies" in result.output
 
-    def test_create_without_a_description_sends_only_the_name(self, invoke, mock_api):
+    def test_create_without_a_description_sends_only_the_name_and_goal(self, invoke, mock_api):
         route = mock_api.post(f"{BASE}/campaigns").respond(201, json=CAMPAIGN)
 
-        result = invoke(["agentic", "outreach", "campaigns", "create", "--name", "Q4 intro"])
+        result = invoke(
+            ["agentic", "outreach", "campaigns", "create", "--name", "Q4 intro", "--goal", "G"]
+        )
 
         assert result.exit_code == 0, result.output
-        assert _body(route) == {"name": "Q4 intro"}
+        assert _body(route) == {"name": "Q4 intro", "goal": "G"}
 
     def test_update_clears_the_description_with_an_empty_value(self, invoke, mock_api):
         route = mock_api.patch(f"{BASE}/campaigns/{CAMPAIGN_ID}").respond(200, json=CAMPAIGN)
@@ -281,7 +297,7 @@ class TestCampaigns:
         too_long = "x" * 2001
 
         for args in (
-            ["create", "--name", "Q3", "--description", too_long],
+            ["create", "--name", "Q3", "--goal", "G", "--description", too_long],
             ["update", CAMPAIGN_ID, "--description", too_long],
         ):
             result = invoke(["agentic", "outreach", "campaigns", *args])
@@ -300,6 +316,8 @@ class TestCampaigns:
                 "create",
                 "--name",
                 "Q3",
+                "--goal",
+                "G",
                 "--description",
                 "x" * 2000,
             ]
@@ -335,7 +353,9 @@ class TestCampaigns:
         mock_api.post(f"{BASE}/campaigns").respond(201, json=CAMPAIGN)
 
         listed = invoke(["agentic", "outreach", "campaigns", "list", "--json"])
-        created = invoke(["agentic", "outreach", "campaigns", "create", "--name", "X", "--json"])
+        created = invoke(
+            ["agentic", "outreach", "campaigns", "create", "--name", "X", "--goal", "G", "--json"]
+        )
 
         assert json.loads(listed.output) == {"items": [CAMPAIGN]}
         assert json.loads(created.output) == CAMPAIGN
@@ -345,16 +365,14 @@ class TestCampaigns:
         update = mock_api.patch(f"{BASE}/campaigns/{CAMPAIGN_ID}").respond(200, json=CAMPAIGN)
 
         for option, value in (
-            ("--goal", "Book a call"),
             ("--instructions", "Be brief"),
             ("--max-emails", "3"),
-            ("--min-days", "3"),
             ("--writing-style-id", "none"),
             ("--playbook-id", "none"),
             ("--battlecard-id", "none"),
         ):
             for args in (
-                ["create", "--name", "X", option, value],
+                ["create", "--name", "X", "--goal", "G", option, value],
                 ["update", CAMPAIGN_ID, option, value],
             ):
                 result = invoke(["agentic", "outreach", "campaigns", *args])
@@ -370,8 +388,162 @@ class TestCampaigns:
         assert result.exit_code == 0, result.output
         assert "Description" in result.output
         assert "Heads of growth at Series A SaaS companies" in result.output
-        for label in ("Goal", "Instructions", "Max emails", "Writing style", "Playbook"):
+        for label in ("Instructions", "Max emails", "Writing style", "Playbook"):
             assert label not in result.output
+
+    def test_get_prints_the_goal_channels_limits_and_sender(self, invoke, mock_api):
+        mock_api.get(f"{BASE}/campaigns/{CAMPAIGN_ID}").respond(200, json=CAMPAIGN)
+
+        result = invoke(["agentic", "outreach", "campaigns", "get", CAMPAIGN_ID])
+
+        assert result.exit_code == 0, result.output
+        for text in (
+            "Goal",
+            "Book a 20 min intro call",
+            "Channels",
+            "email, linkedin",
+            "Max touches",
+            "Follow-up",
+            "3 to 7 days",
+            "Sender",
+            "99999999-9999-4999-8999-999999999999",
+        ):
+            assert text in result.output
+
+    def test_list_prints_the_channels(self, invoke, mock_api, table_column):
+        mock_api.get(f"{BASE}/campaigns").respond(200, json={"items": [CAMPAIGN]})
+
+        result = invoke(["agentic", "outreach", "campaigns", "list"])
+
+        assert result.exit_code == 0, result.output
+        # A narrow terminal folds the cell at the space, and the reader drops it.
+        assert table_column(result.output, 3).replace(" ", "") == "email,linkedin"
+
+    def test_create_sends_the_context_options(self, invoke, mock_api):
+        route = mock_api.post(f"{BASE}/campaigns").respond(201, json=CAMPAIGN)
+        sender = "11111111-1111-4111-8111-111111111111"
+
+        result = invoke(
+            [
+                "agentic",
+                "outreach",
+                "campaigns",
+                "create",
+                "--name",
+                "Q4",
+                "--goal",
+                "Book a call",
+                "--channel",
+                "linkedin",
+                "--channel",
+                "email",
+                "--max-touches",
+                "4",
+                "--min-days",
+                "2",
+                "--max-days",
+                "9",
+                "--sender",
+                sender,
+            ]
+        )
+
+        assert result.exit_code == 0, result.output
+        assert _body(route) == {
+            "name": "Q4",
+            "goal": "Book a call",
+            "allowed_channels": ["linkedin", "email"],
+            "max_touches": 4,
+            "followup_min_days": 2,
+            "followup_max_days": 9,
+            "sender_user_id": sender,
+        }
+
+    def test_update_sends_only_the_given_context_options(self, invoke, mock_api):
+        route = mock_api.patch(f"{BASE}/campaigns/{CAMPAIGN_ID}").respond(200, json=CAMPAIGN)
+
+        result = invoke(
+            [
+                "agentic",
+                "outreach",
+                "campaigns",
+                "update",
+                CAMPAIGN_ID,
+                "--goal",
+                "Book a demo",
+                "--channel",
+                "email",
+                "--max-days",
+                "10",
+            ]
+        )
+
+        assert result.exit_code == 0, result.output
+        assert _body(route) == {
+            "goal": "Book a demo",
+            "allowed_channels": ["email"],
+            "followup_max_days": 10,
+        }
+
+    def test_create_requires_a_goal(self, invoke, mock_api):
+        route = mock_api.post(f"{BASE}/campaigns").respond(201, json=CAMPAIGN)
+
+        result = invoke(["agentic", "outreach", "campaigns", "create", "--name", "Q4"])
+
+        assert result.exit_code == 2
+        assert not route.called
+
+    @pytest.mark.parametrize(
+        "args",
+        [
+            ["--goal", " "],
+            ["--goal", "x" * 2001],
+            ["--channel", "sms"],
+            ["--max-touches", "0"],
+            ["--max-touches", "11"],
+            ["--min-days", "0"],
+            ["--max-days", "31"],
+            ["--min-days", "8", "--max-days", "7"],
+            ["--sender", "not-a-uuid"],
+        ],
+    )
+    def test_a_bad_context_option_is_refused_without_a_call(self, invoke, mock_api, args):
+        created = mock_api.post(f"{BASE}/campaigns").respond(201, json=CAMPAIGN)
+        updated = mock_api.patch(f"{BASE}/campaigns/{CAMPAIGN_ID}").respond(200, json=CAMPAIGN)
+        goal = [] if args[0] == "--goal" else ["--goal", "G"]
+
+        for command in (
+            ["create", "--name", "Q4", *goal, *args],
+            ["update", CAMPAIGN_ID, *args],
+        ):
+            result = invoke(["agentic", "outreach", "campaigns", *command])
+            assert result.exit_code == 2, (command, result.output)
+        assert not created.called
+        assert not updated.called
+
+    def test_a_locked_sender_prints_the_conflict(self, invoke, mock_api):
+        mock_api.patch(f"{BASE}/campaigns/{CAMPAIGN_ID}").respond(
+            409,
+            json={
+                "detail": "The sender cannot change once the campaign has an enrollment.",
+                "code": "sender_locked",
+            },
+        )
+
+        result = invoke(
+            [
+                "agentic",
+                "outreach",
+                "campaigns",
+                "update",
+                CAMPAIGN_ID,
+                "--sender",
+                "11111111-1111-4111-8111-111111111111",
+            ]
+        )
+
+        assert result.exit_code == 5
+        assert "sender cannot change" in result.output
 
     def test_archive_asks_first(self, invoke, mock_api):
         route = mock_api.post(f"{BASE}/campaigns/{CAMPAIGN_ID}/status").respond(200, json=CAMPAIGN)

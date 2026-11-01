@@ -238,12 +238,17 @@ _ENROLLMENT_PAGE_DEFAULT = 100
 _ENROLLMENT_PAGE_MAX = 200
 _SEARCH_MAX = 100
 _DESCRIPTION_MAX = 2000
+_GOAL_MAX = 2000
+_CHANNELS = ("email", "linkedin")
+_MAX_TOUCHES_MAX = 10
+_FOLLOWUP_DAYS_MAX = 30
 _ORDERS = ("desc", "asc")
 
 _CAMPAIGN_LIST_FIELDS = [
     ("id", "Campaign ID"),
     ("name", "Name"),
     ("status", "Status"),
+    ("channels", "Channels"),
     ("people", "People"),
     ("needs_email", "Needs email"),
     ("ended", "Ended"),
@@ -254,6 +259,11 @@ _CAMPAIGN_FIELDS = [
     ("name", "Name"),
     ("status", "Status"),
     ("description", "Description"),
+    ("goal", "Goal"),
+    ("channels", "Channels"),
+    ("max_touches", "Max touches"),
+    ("followup", "Follow-up"),
+    ("sender_user_id", "Sender"),
     ("created_by", "Owner"),
     ("updated_at", "Updated"),
 ]
@@ -305,8 +315,21 @@ _OUTCOME_DETAILS = {
 }
 
 
+def _with_settings(campaign: dict) -> dict:
+    """Adds the channel and follow-up window cells to one campaign row."""
+    cells: dict[str, object] = {}
+    channels = campaign.get("allowed_channels")
+    if isinstance(channels, list):
+        cells["channels"] = ", ".join(str(one) for one in channels)
+    low, high = campaign.get("followup_min_days"), campaign.get("followup_max_days")
+    if low is not None and high is not None:
+        cells["followup"] = f"{low} to {high} days"
+    return {**campaign, **cells}
+
+
 def _with_counts(campaign: dict) -> dict:
-    """Adds the enrollment count cells to one campaign row."""
+    """Adds the enrollment count and setting cells to one campaign row."""
+    campaign = _with_settings(campaign)
     counts = campaign.get("enrollment_counts")
     if not isinstance(counts, dict):
         return campaign
@@ -328,20 +351,84 @@ def _with_last_action(row: dict) -> dict:
     return {**row, "last_action": " · ".join(str(part) for part in parts if part)}
 
 
-def _campaign_body(*, name: str | None, description: str | None) -> dict[str, object]:
-    """Build a campaign body from the given options. An empty description clears it."""
+def _check_range(option: str, value: int | None, low: int, high: int) -> None:
+    if value is not None and not low <= value <= high:
+        refuse_local(f"{option} is not between {low} and {high}", value)
+
+
+def _campaign_body(
+    *,
+    name: str | None,
+    description: str | None,
+    goal: str | None = None,
+    channels: list[str] | None = None,
+    max_touches: int | None = None,
+    min_days: int | None = None,
+    max_days: int | None = None,
+    sender: str | None = None,
+) -> dict[str, object]:
+    """Build a campaign body from the given options. An empty description clears it.
+
+    The checks mirror the API, so a bad value is refused before any call.
+    """
     if description is not None and len(description) > _DESCRIPTION_MAX:
         refuse_local(
             f"--description is longer than {_DESCRIPTION_MAX} characters", len(description)
         )
+    if goal is not None and not goal.strip():
+        refuse_local("--goal may not be blank")
+    if goal is not None and len(goal) > _GOAL_MAX:
+        refuse_local(f"--goal is longer than {_GOAL_MAX} characters", len(goal))
+    for channel in channels or []:
+        if channel not in _CHANNELS:
+            refuse_local(f"--channel must be one of: {', '.join(_CHANNELS)}", channel)
+    _check_range("--max-touches", max_touches, 1, _MAX_TOUCHES_MAX)
+    _check_range("--min-days", min_days, 1, _FOLLOWUP_DAYS_MAX)
+    _check_range("--max-days", max_days, 1, _FOLLOWUP_DAYS_MAX)
+    if min_days is not None and max_days is not None and min_days > max_days:
+        refuse_local("--min-days may not be above --max-days")
+    if sender is not None:
+        try:
+            uuid.UUID(sender)
+        except ValueError:
+            refuse_local("--sender is not a user ID", sender)
     return {
         key: value
-        for key, value in (("name", name), ("description", description))
+        for key, value in (
+            ("name", name),
+            ("goal", goal),
+            ("description", description),
+            ("allowed_channels", channels or None),
+            ("max_touches", max_touches),
+            ("followup_min_days", min_days),
+            ("followup_max_days", max_days),
+            ("sender_user_id", sender),
+        )
         if value is not None
     }
 
 
 _NAME_OPTION = typer.Option(None, "--name", help="Campaign name")
+_GOAL_HELP = (
+    f'What the campaign wants, such as "Book a 20 min intro call", at most {_GOAL_MAX} characters'
+)
+_CHANNEL_OPTION = typer.Option(
+    None, "--channel", help="A channel the campaign can use: email or linkedin. Repeat for both"
+)
+_MAX_TOUCHES_OPTION = typer.Option(
+    None, "--max-touches", help="The most outbound touches per person, 1 to 10"
+)
+_MIN_DAYS_OPTION = typer.Option(
+    None, "--min-days", help="The fewest days between two touches, 1 to 30"
+)
+_MAX_DAYS_OPTION = typer.Option(
+    None, "--max-days", help="The most days between two touches, 1 to 30"
+)
+_SENDER_OPTION = typer.Option(
+    None,
+    "--sender",
+    help="User ID of the member whose accounts send. Locked once a person is enrolled",
+)
 _DESCRIPTION_OPTION = typer.Option(
     None,
     "--description",
@@ -396,37 +483,74 @@ def campaigns_get(
 @campaigns_app.command("create")
 def campaigns_create(
     name: str = typer.Option(..., "--name", help="Campaign name"),
+    goal: str = typer.Option(..., "--goal", help=_GOAL_HELP),
     description: str | None = _DESCRIPTION_OPTION,
+    channels: list[str] | None = _CHANNEL_OPTION,
+    max_touches: int | None = _MAX_TOUCHES_OPTION,
+    min_days: int | None = _MIN_DAYS_OPTION,
+    max_days: int | None = _MAX_DAYS_OPTION,
+    sender: str | None = _SENDER_OPTION,
     json_output: bool = JSON_OPTION,
 ) -> None:
-    """Create a draft campaign. You own it, and your mailbox sends its emails."""
+    """Create a draft campaign. You own it. Your mailbox sends unless you name a --sender.
+
+    A limit left out takes the default: email only, 5 touches, 3 to 7 days.
+    """
     set_json_mode(json_output)
-    body = _campaign_body(name=name, description=description)
+    body = _campaign_body(
+        name=name,
+        description=description,
+        goal=goal,
+        channels=channels,
+        max_touches=max_touches,
+        min_days=min_days,
+        max_days=max_days,
+        sender=sender,
+    )
     data = _api_request("post", f"{_OUTREACH}/campaigns", json=body).json()
     if json_output:
         print_json(data)
         return
     rprint(styled("[green]Campaign {} is created as a draft.[/green]", data["id"]))
-    print_detail(data, _CAMPAIGN_FIELDS)
+    print_detail(_with_settings(data), _CAMPAIGN_FIELDS)
 
 
 @campaigns_app.command("update")
 def campaigns_update(
     campaign_id: str = typer.Argument(..., help="Campaign ID"),
     name: str | None = _NAME_OPTION,
+    goal: str | None = typer.Option(None, "--goal", help=_GOAL_HELP),
     description: str | None = _DESCRIPTION_OPTION,
+    channels: list[str] | None = _CHANNEL_OPTION,
+    max_touches: int | None = _MAX_TOUCHES_OPTION,
+    min_days: int | None = _MIN_DAYS_OPTION,
+    max_days: int | None = _MAX_DAYS_OPTION,
+    sender: str | None = _SENDER_OPTION,
     json_output: bool = JSON_OPTION,
 ) -> None:
-    """Edit a campaign. Pass an empty `--description` to clear the description."""
+    """Edit a campaign. Pass an empty `--description` to clear the description.
+
+    `--channel` replaces the channel list. The sender cannot change once the
+    campaign has an enrollment (409).
+    """
     set_json_mode(json_output)
-    body = _campaign_body(name=name, description=description)
+    body = _campaign_body(
+        name=name,
+        description=description,
+        goal=goal,
+        channels=channels,
+        max_touches=max_touches,
+        min_days=min_days,
+        max_days=max_days,
+        sender=sender,
+    )
     if not body:
         refuse_local("nothing to update: give at least one option")
     data = _api_request("patch", f"{_OUTREACH}/campaigns/{campaign_id}", json=body).json()
     if json_output:
         print_json(data)
         return
-    print_detail(data, _CAMPAIGN_FIELDS)
+    print_detail(_with_settings(data), _CAMPAIGN_FIELDS)
 
 
 def _set_status(campaign_id: str, status: str, json_output: bool) -> bool:
