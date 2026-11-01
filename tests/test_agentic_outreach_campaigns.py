@@ -489,8 +489,11 @@ class TestCampaigns:
         route = mock_api.post(f"{BASE}/campaigns").respond(201, json=CAMPAIGN)
 
         result = invoke(["agentic", "outreach", "campaigns", "create", "--name", "Q4"])
+        as_json = invoke(["agentic", "outreach", "campaigns", "create", "--name", "Q4", "--json"])
 
         assert result.exit_code == 2
+        assert as_json.exit_code == 2
+        assert json.loads(as_json.output)["error"] is True
         assert not route.called
 
     @pytest.mark.parametrize(
