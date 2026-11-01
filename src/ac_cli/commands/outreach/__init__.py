@@ -287,8 +287,11 @@ _ENROLLMENT_FIELDS = [
     ("ended_at", "Ended at"),
 ]
 _STOP_FIELDS = [("stopped", "Stopped"), ("stopped_at", "Since")]
-# The most people one batch enroll names. The API refuses more with a 422.
+# The most people one enroll-batch run names: the live cap of a campaign.
 _BATCH_MAX = 200
+# The most people one batch request names. The API refuses more with a 422,
+# so a run sends its people in chunks of this size, one after another.
+_BATCH_CHUNK = 50
 _BATCH_FIELDS = [
     ("person", "Person"),
     ("outcome", "Outcome"),
@@ -298,6 +301,7 @@ _OUTCOME_DETAILS = {
     "campaign_full": "The campaign holds its 200 live enrollments",
     "opted_out": "The address is on the do-not-contact list",
     "not_found": "The organization holds no such person",
+    "not_sent": "Not sent: an earlier request of this run failed",
 }
 
 
@@ -582,21 +586,41 @@ def campaigns_enroll_batch(
     ),
     json_output: bool = JSON_OPTION,
 ) -> None:
-    """Enroll up to 200 people in one request, and print one result per person.
+    """Enroll up to 200 people, and print one result per person, in order.
 
-    One refused person never blocks the others. Each result is added,
-    already_enrolled (in another campaign), campaign_full, opted_out or
-    not_found. A person already in this campaign answers added.
+    The people go in requests of 50, one after another. One refused person
+    never blocks the others. Each result is added, already_enrolled (in
+    another campaign), campaign_full, opted_out or not_found. A person
+    already in this campaign answers added. When a request fails, the run
+    stops: the table shows the people already sent and marks the rest
+    not_sent. A repeat of the run is safe.
     """
     set_json_mode(json_output)
-    body = {"people": _batch_people(people, file)}
-    data = _api_request(
-        "post", f"{_OUTREACH}/campaigns/{campaign_id}/enrollments/batch", json=body
-    ).json()
+    found = _batch_people(people, file)
+    results: list[dict] = []
+    try:
+        for start in range(0, len(found), _BATCH_CHUNK):
+            chunk = found[start : start + _BATCH_CHUNK]
+            data = _api_request(
+                "post",
+                f"{_OUTREACH}/campaigns/{campaign_id}/enrollments/batch",
+                json={"people": chunk},
+            ).json()
+            results.extend(data.get("results", []))
+    except typer.Exit:
+        # The error is printed. In JSON mode it is the whole output.
+        if not json_output and results:
+            unsent = [{**one, "outcome": "not_sent"} for one in found[len(results) :]]
+            _print_batch(results + unsent)
+        raise
     if json_output:
-        print_json(data)
+        print_json({"results": results})
         return
-    results = data.get("results", [])
+    _print_batch(results)
+
+
+def _print_batch(results: list[dict]) -> None:
+    """Prints one row per batch result, under the count of the people added."""
     added = sum(1 for one in results if one.get("outcome") == "added")
     print_table(
         [_batch_row(one) for one in results],

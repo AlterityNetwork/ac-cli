@@ -2,6 +2,7 @@
 
 import json
 
+import httpx
 import pytest
 
 BASE = "/api/v1/agentic/outreach"
@@ -100,6 +101,27 @@ ROW = {
     },
 }
 PAGE = {"data": [ROW], "total": 3, "limit": 1, "offset": 1, "has_more": True}
+
+
+def _added(request) -> httpx.Response:
+    """Answers each person of a batch request as added, in order."""
+    people = json.loads(request.content)["people"]
+    return httpx.Response(
+        200,
+        json={
+            "results": [
+                {
+                    **one,
+                    "outcome": "added",
+                    "enrollment_id": ENROLLMENT_ID,
+                    "campaign_id": None,
+                    "campaign_name": None,
+                    "campaign_status": None,
+                }
+                for one in people
+            ]
+        },
+    )
 
 
 def _body(route) -> dict:
@@ -578,8 +600,8 @@ class TestCampaigns:
     def test_enroll_batch_accepts_exactly_200_people(self, invoke, mock_api, tmp_path):
         path = tmp_path / "many.txt"
         path.write_text("".join(f"crm.person:{PERSON_ID[:-3]}{n:03d}\n" for n in range(200)))
-        route = mock_api.post(f"{BASE}/campaigns/{CAMPAIGN_ID}/enrollments/batch").respond(
-            200, json={"results": []}
+        route = mock_api.post(f"{BASE}/campaigns/{CAMPAIGN_ID}/enrollments/batch").mock(
+            side_effect=_added
         )
 
         result = invoke(
@@ -587,7 +609,8 @@ class TestCampaigns:
         )
 
         assert result.exit_code == 0, result.output
-        assert len(_body(route)["people"]) == 200
+        assert [len(json.loads(c.request.content)["people"]) for c in route.calls] == [50] * 4
+        assert "200 of 200 added" in result.output
 
     def test_enroll_batch_refuses_a_file_that_is_not_utf8(self, invoke, mock_api, tmp_path):
         path = tmp_path / "people.txt"
@@ -632,6 +655,75 @@ class TestCampaigns:
         assert result.exit_code == 0, result.output
         assert "None" not in result.output
         assert 'In "Q1 nurture"' in result.output
+
+    def test_enroll_batch_sends_120_people_in_chunks_of_50_in_order(
+        self, invoke, mock_api, tmp_path
+    ):
+        ids = [f"{PERSON_ID[:-3]}{n:03d}" for n in range(120)]
+        path = tmp_path / "many.txt"
+        path.write_text("".join(f"crm.person:{one}\n" for one in ids))
+        route = mock_api.post(f"{BASE}/campaigns/{CAMPAIGN_ID}/enrollments/batch").mock(
+            side_effect=lambda request: _added(request)
+        )
+
+        result = invoke(
+            [
+                "agentic",
+                "outreach",
+                "campaigns",
+                "enroll-batch",
+                CAMPAIGN_ID,
+                "--file",
+                str(path),
+                "--json",
+            ]
+        )
+
+        assert result.exit_code == 0, result.output
+        sizes = [len(json.loads(call.request.content)["people"]) for call in route.calls]
+        assert sizes == [50, 50, 20]
+        results = json.loads(result.output)["results"]
+        assert [one["person_id"] for one in results] == ids
+
+    def test_enroll_batch_reports_the_sent_chunks_when_a_later_one_fails(
+        self, invoke, mock_api, tmp_path
+    ):
+        ids = [f"{PERSON_ID[:-3]}{n:03d}" for n in range(60)]
+        path = tmp_path / "many.txt"
+        path.write_text("".join(f"crm.person:{one}\n" for one in ids))
+        answers = iter(
+            [
+                None,
+                httpx.Response(
+                    409,
+                    json={
+                        "error": "Conflict",
+                        "message": "The campaign is archived.",
+                        "type": "conflict",
+                        "context": {"code": "campaign_archived"},
+                        "code": "campaign_archived",
+                    },
+                ),
+            ]
+        )
+
+        def answer(request):
+            planned = next(answers)
+            return planned if planned is not None else _added(request)
+
+        route = mock_api.post(f"{BASE}/campaigns/{CAMPAIGN_ID}/enrollments/batch").mock(
+            side_effect=answer
+        )
+
+        result = invoke(
+            ["agentic", "outreach", "campaigns", "enroll-batch", CAMPAIGN_ID, "--file", str(path)]
+        )
+
+        assert result.exit_code == 5
+        assert route.call_count == 2
+        assert "archived" in result.output
+        assert "50 of 60 added" in result.output
+        assert "not_sent" in result.output
 
     def test_enroll_batch_refuses_a_missing_file(self, invoke, mock_api, tmp_path):
         result = invoke(
