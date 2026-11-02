@@ -97,7 +97,8 @@ _COMPANY_FIELDS = [
     ("last_enriched_at", "Last enriched"),
 ]
 _PERSON_FIELDS = [
-    ("person_id", "Person ID"),
+    # `promote --person` and `edit-person` take this id, not the global person.
+    ("prospect_person_id", "Person ID"),
     ("full_name", "Name"),
     ("current_title", "Title"),
     ("employer_name", "Company"),
@@ -510,6 +511,8 @@ def _person_row(item: dict) -> dict:
         **item,
         "person_id": person["id"],
         **person,
+        # The person keys hold their own `id`, so the row id keeps its own key.
+        "prospect_person_id": item["id"],
         "employer_name": _employer_name(person),
     }
 
@@ -580,6 +583,11 @@ def prospects_add_person(
     ),
     title: str | None = typer.Option(None, "--title", help="Current job title"),
     email: str | None = typer.Option(None, "--email", help="Work email address"),
+    named_signal_id: str | None = typer.Option(
+        None,
+        "--named-signal-id",
+        help="The company signal that named the person, so the review lists them once",
+    ),
     json_output: bool = JSON_OPTION,
 ) -> None:
     """Add one person you name to a company prospect.
@@ -598,11 +606,73 @@ def prospects_add_person(
         body["current_title"] = title
     if email is not None:
         body["email"] = email
+    if named_signal_id is not None:
+        body["named_signal_id"] = named_signal_id
     data = _api_request("post", f"{_PROSPECTS}/{prospect_id}/people", json=body).json()
     if json_output:
         print_json(data)
         return
     print_table([_person_row(data)], _PERSON_FIELDS, title="Added person")
+
+
+@app.command("edit-person")
+def prospects_edit_person(
+    ctx: typer.Context,
+    prospect_id: str = typer.Argument(..., help="Prospect ID"),
+    person_id: str = typer.Argument(
+        ..., help="Prospect person ID, from `ac agentic prospects people`"
+    ),
+    name: str | None = typer.Option(None, "--name", help="Full name of the person"),
+    linkedin_url: str | None = typer.Option(
+        None, "--linkedin-url", help="LinkedIn profile URL of the person (/in/)"
+    ),
+    title: str | None = typer.Option(None, "--title", help="Current job title"),
+    clear_title: bool = typer.Option(False, "--clear-title", help="Remove the typed job title"),
+    email: str | None = typer.Option(None, "--email", help="Work email address"),
+    clear_email: bool = typer.Option(False, "--clear-email", help="Remove the typed email"),
+    expected_updated_at: str | None = typer.Option(
+        None,
+        "--expected-updated-at",
+        help=(
+            "The updated_at of the person as you read it, from `people --json`. "
+            "A person another write changed since then refuses the edit."
+        ),
+    ),
+    json_output: bool = JSON_OPTION,
+) -> None:
+    """Correct one person a company prospect lists.
+
+    Only the options you give change. A typed title and email stay on the
+    prospect and are shown over the profile value. A cleared one shows the
+    profile value again. A new LinkedIn profile moves the person to that
+    profile. The name of a person with a profile changes only with a new
+    profile. A promoted prospect takes the edit, and the CRM person changes
+    too. Pass --expected-updated-at to refuse the edit when another write
+    changed the person after you read it.
+    """
+    set_json_mode(json_output)
+    if title is not None and clear_title:
+        refuse_local("Use --title or --clear-title, not both")
+    if email is not None and clear_email:
+        refuse_local("Use --email or --clear-email, not both")
+    body: dict[str, object | None] = {}
+    if name is not None:
+        body["full_name"] = name
+    if linkedin_url is not None:
+        body["linkedin_url"] = linkedin_url
+    if title is not None or clear_title:
+        body["current_title"] = title
+    if email is not None or clear_email:
+        body["email"] = email
+    if not body:
+        refuse_local("Give at least one field to change")
+    if expected_updated_at is not None:
+        body["expected_updated_at"] = expected_updated_at
+    data = _api_request("patch", f"{_PROSPECTS}/{prospect_id}/people/{person_id}", json=body).json()
+    if json_output:
+        print_json(data)
+        return
+    print_table([_person_row(data)], _PERSON_FIELDS, title="Edited person")
 
 
 _PERSONA_FIELDS = [

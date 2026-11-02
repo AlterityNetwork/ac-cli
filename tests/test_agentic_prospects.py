@@ -812,6 +812,20 @@ def test_people_prints_nested_person_fields(invoke, mock_api):
     assert "--limit 5 --cursor next" in result.output
 
 
+def test_people_prints_the_prospect_person_id(invoke, mock_api):
+    # `edit-person` and `promote --person` take the prospect person id, not
+    # the global person id.
+    mock_api.get(f"{BASE}/{PROSPECT_ID}/people").respond(
+        200, json={"items": [PERSON], "next_cursor": None}
+    )
+
+    result = invoke(["agentic", "prospects", "people", PROSPECT_ID])
+
+    assert result.exit_code == 0
+    # The table can wrap the id, so the test reads its first block.
+    assert PERSON["id"][:8] in result.output
+
+
 def test_people_json_keeps_the_page(invoke, mock_api):
     page = {"items": [PERSON], "next_cursor": None}
     mock_api.get(f"{BASE}/{PROSPECT_ID}/people").respond(200, json=page)
