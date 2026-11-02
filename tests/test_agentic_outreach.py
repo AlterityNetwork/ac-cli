@@ -43,12 +43,11 @@ REVIEW = {
     "campaign_id": CAMPAIGN_ID,
     "run_id": RUN_ID,
     "outcome": "proposed",
-    "reason": "She asked for the deck.",
-    "evidence_refs": [],
+    "rationale": "She asked for the deck.",
     "ai_subject": "The deck",
     "ai_body": "Hi Jane, here is the deck.",
     "reviewer_note": None,
-    "failure_code": None,
+    "failure_reason": None,
     "context_version": 3,
     "enrollment_status": "active",
     "campaign_status": "active",
@@ -167,6 +166,17 @@ def test_get_prints_the_version_and_the_hash(invoke, mock_api):
     assert HASH in result.output
     assert "Hi Jane, here is the deck." in result.output
     assert "--context-version 3" in result.output
+
+
+def test_get_prints_the_rationale_and_the_failure_reason(invoke, mock_api):
+    review = {**REVIEW, "failure_reason": "send_cap_reached"}
+    mock_api.get(f"{BASE}/{DECISION_ID}").respond(200, json=review)
+
+    result = invoke(["agentic", "outreach", "drafts", "get", DECISION_ID])
+
+    assert result.exit_code == 0, result.output
+    assert "She asked for the deck." in result.output
+    assert "send_cap_reached" in result.output
 
 
 def test_get_json_keeps_the_review(invoke, mock_api):
