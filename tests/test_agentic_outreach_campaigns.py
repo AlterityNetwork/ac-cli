@@ -1448,7 +1448,7 @@ def test_list_names_only_the_status_of_a_decision_without_a_type(invoke, mock_ap
 
 
 def test_list_falls_back_to_the_outcome_of_a_row_with_no_status(invoke, mock_api, table_column):
-    """A v2 draft review row may carry an outcome and no status."""
+    """An answer with no status falls back to the outcome."""
     row = {
         **ROW,
         "last_decision": {**ROW["last_decision"], "status": None, "outcome": "proposed"},
