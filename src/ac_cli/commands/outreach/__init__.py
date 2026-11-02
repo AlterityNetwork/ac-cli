@@ -365,7 +365,6 @@ def _campaign_body(
     max_touches: int | None = None,
     min_days: int | None = None,
     max_days: int | None = None,
-    sender: str | None = None,
 ) -> dict[str, object]:
     """Build a campaign body from the given options. An empty description clears it.
 
@@ -387,11 +386,6 @@ def _campaign_body(
     _check_range("--max-days", max_days, 1, _FOLLOWUP_DAYS_MAX)
     if min_days is not None and max_days is not None and min_days > max_days:
         refuse_local("--min-days may not be above --max-days")
-    if sender is not None:
-        try:
-            uuid.UUID(sender)
-        except ValueError:
-            refuse_local("--sender is not a user ID", sender)
     return {
         key: value
         for key, value in (
@@ -402,7 +396,6 @@ def _campaign_body(
             ("max_touches", max_touches),
             ("followup_min_days", min_days),
             ("followup_max_days", max_days),
-            ("sender_user_id", sender),
         )
         if value is not None
     }
@@ -423,11 +416,6 @@ _MIN_DAYS_OPTION = typer.Option(
 )
 _MAX_DAYS_OPTION = typer.Option(
     None, "--max-days", help="The most days between two touches, 1 to 30"
-)
-_SENDER_OPTION = typer.Option(
-    None,
-    "--sender",
-    help="User ID of the member whose accounts send. Locked once a person is enrolled",
 )
 _DESCRIPTION_OPTION = typer.Option(
     None,
@@ -490,10 +478,9 @@ def campaigns_create(
     max_touches: int | None = _MAX_TOUCHES_OPTION,
     min_days: int | None = _MIN_DAYS_OPTION,
     max_days: int | None = _MAX_DAYS_OPTION,
-    sender: str | None = _SENDER_OPTION,
     json_output: bool = JSON_OPTION,
 ) -> None:
-    """Create a draft campaign. You own it. Your mailbox sends unless you name a --sender.
+    """Create a draft campaign. You own it, and your mailbox sends its emails.
 
     A limit left out takes the default: email only, 5 touches, 3 to 7 days.
     """
@@ -508,7 +495,6 @@ def campaigns_create(
         max_touches=max_touches,
         min_days=min_days,
         max_days=max_days,
-        sender=sender,
     )
     data = _api_request("post", f"{_OUTREACH}/campaigns", json=body).json()
     if json_output:
@@ -528,13 +514,11 @@ def campaigns_update(
     max_touches: int | None = _MAX_TOUCHES_OPTION,
     min_days: int | None = _MIN_DAYS_OPTION,
     max_days: int | None = _MAX_DAYS_OPTION,
-    sender: str | None = _SENDER_OPTION,
     json_output: bool = JSON_OPTION,
 ) -> None:
     """Edit a campaign. Pass an empty `--description` to clear the description.
 
-    `--channel` replaces the channel list. The sender cannot change once the
-    campaign has an enrollment (409).
+    `--channel` replaces the channel list. The sender stays the creator.
     """
     set_json_mode(json_output)
     body = _campaign_body(
@@ -545,7 +529,6 @@ def campaigns_update(
         max_touches=max_touches,
         min_days=min_days,
         max_days=max_days,
-        sender=sender,
     )
     if not body:
         refuse_local("nothing to update: give at least one option")

@@ -421,7 +421,6 @@ class TestCampaigns:
 
     def test_create_sends_the_context_options(self, invoke, mock_api):
         route = mock_api.post(f"{BASE}/campaigns").respond(201, json=CAMPAIGN)
-        sender = "11111111-1111-4111-8111-111111111111"
 
         result = invoke(
             [
@@ -443,8 +442,6 @@ class TestCampaigns:
                 "2",
                 "--max-days",
                 "9",
-                "--sender",
-                sender,
             ]
         )
 
@@ -456,7 +453,6 @@ class TestCampaigns:
             "max_touches": 4,
             "followup_min_days": 2,
             "followup_max_days": 9,
-            "sender_user_id": sender,
         }
 
     def test_update_sends_only_the_given_context_options(self, invoke, mock_api):
@@ -507,7 +503,6 @@ class TestCampaigns:
             ["--min-days", "0"],
             ["--max-days", "31"],
             ["--min-days", "8", "--max-days", "7"],
-            ["--sender", "not-a-uuid"],
         ],
     )
     def test_a_bad_context_option_is_refused_without_a_call(self, invoke, mock_api, args):
@@ -524,29 +519,20 @@ class TestCampaigns:
         assert not created.called
         assert not updated.called
 
-    def test_a_locked_sender_prints_the_conflict(self, invoke, mock_api):
-        mock_api.patch(f"{BASE}/campaigns/{CAMPAIGN_ID}").respond(
-            409,
-            json={
-                "detail": "The sender cannot change once the campaign has an enrollment.",
-                "code": "sender_locked",
-            },
-        )
+    def test_there_is_no_sender_option(self, invoke, mock_api):
+        """The sender is always the creator, so no option names it."""
+        created = mock_api.post(f"{BASE}/campaigns").respond(201, json=CAMPAIGN)
+        updated = mock_api.patch(f"{BASE}/campaigns/{CAMPAIGN_ID}").respond(200, json=CAMPAIGN)
+        sender = "11111111-1111-4111-8111-111111111111"
 
-        result = invoke(
-            [
-                "agentic",
-                "outreach",
-                "campaigns",
-                "update",
-                CAMPAIGN_ID,
-                "--sender",
-                "11111111-1111-4111-8111-111111111111",
-            ]
-        )
-
-        assert result.exit_code == 5
-        assert "sender cannot change" in result.output
+        for command in (
+            ["create", "--name", "Q4", "--goal", "G", "--sender", sender],
+            ["update", CAMPAIGN_ID, "--sender", sender],
+        ):
+            result = invoke(["agentic", "outreach", "campaigns", *command])
+            assert result.exit_code == 2, command
+        assert not created.called
+        assert not updated.called
 
     def test_archive_asks_first(self, invoke, mock_api):
         route = mock_api.post(f"{BASE}/campaigns/{CAMPAIGN_ID}/status").respond(200, json=CAMPAIGN)
