@@ -58,7 +58,7 @@ def recipients_history(
     recipient_id: str = typer.Argument(..., help="Recipient ID"),
     json_output: bool = JSON_OPTION,
 ) -> None:
-    """Show every step of a sequence for one recipient, and the email thread."""
+    """Show every step of a sequence for one recipient, and the thread of emails and LinkedIn messages."""
     set_json_mode(json_output)
     resp = _api_request(
         "get", f"{_ENVOY}/sequences/{sequence_id}/recipients/{recipient_id}/history"
@@ -87,6 +87,7 @@ def recipients_history(
         [
             ("communication_date", "Date"),
             ("direction", "Direction"),
+            ("channel", "Channel"),
             ("subject", "Subject"),
         ],
         title=f"Thread ({len(messages)})",
