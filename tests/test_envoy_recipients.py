@@ -260,6 +260,13 @@ HISTORY = {
             "subject": "Re: One gap at Nuveau",
             "communication_date": "2026-09-21T09:00:00Z",
         },
+        {
+            "id": "c3",
+            "direction": "outbound",
+            "subject": None,
+            "communication_date": "2026-09-22T09:00:00Z",
+            "channel": "linkedin",
+        },
     ],
 }
 
@@ -276,6 +283,8 @@ def test_recipients_history(invoke, mock_api):
     assert "Reason" in result.output
     assert "8" in result.output
     assert "Re: One gap at Nuveau" in result.output
+    assert "Channel" in result.output
+    assert "linkedin" in result.output
 
 
 def test_recipients_history_json(invoke, mock_api):
