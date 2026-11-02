@@ -1281,3 +1281,16 @@ def test_bulk_promote_asks_before_it_writes_crm(invoke, mock_api):
 
     assert result.exit_code != 0
     assert not route.calls
+
+
+@pytest.mark.parametrize("pair", [PERSON_ID, f"{PROSPECT_ID}:"])
+def test_bulk_promote_refuses_a_person_with_no_prospect_pair(invoke, mock_api, pair):
+    route = mock_api.post(f"{BASE}/bulk-promote").respond(200, json=BULK_PROMOTION)
+
+    result = invoke(
+        ["agentic", "prospects", "bulk-promote", PROSPECT_ID, "--person", pair, "--yes"]
+    )
+
+    assert result.exit_code == 2
+    assert "PROSPECT_ID:PERSON_ID" in result.output
+    assert not route.calls
