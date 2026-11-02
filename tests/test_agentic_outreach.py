@@ -18,7 +18,7 @@ ITEM = {
     "person_kind": "crm.person",
     "person_id": "77777777-7777-4777-8777-777777777777",
     "person_name": "Jane Doe",
-    "enrollment_state": "awaiting_approval",
+    "enrollment_status": "active",
     "outcome": "proposed",
     "subject": "The deck",
     "to_emails": ["jane@acme.example"],
@@ -49,8 +49,8 @@ REVIEW = {
     "ai_body": "Hi Jane, here is the deck.",
     "reviewer_note": None,
     "failure_code": None,
-    "version": 3,
-    "enrollment_state": "awaiting_approval",
+    "context_version": 3,
+    "enrollment_status": "active",
     "campaign_status": "active",
     "organization_stopped": False,
     "approval_id": "55555555-5555-4555-8555-555555555555",
@@ -166,7 +166,7 @@ def test_get_prints_the_version_and_the_hash(invoke, mock_api):
     assert result.exit_code == 0, result.output
     assert HASH in result.output
     assert "Hi Jane, here is the deck." in result.output
-    assert "--version 3" in result.output
+    assert "--context-version 3" in result.output
 
 
 def test_get_json_keeps_the_review(invoke, mock_api):
@@ -278,7 +278,7 @@ def test_approve_sends_the_version_and_the_hash(invoke, mock_api):
             "drafts",
             "approve",
             DECISION_ID,
-            "--version",
+            "--context-version",
             "3",
             "--content-hash",
             HASH,
@@ -286,7 +286,10 @@ def test_approve_sends_the_version_and_the_hash(invoke, mock_api):
     )
 
     assert result.exit_code == 0, result.output
-    assert json.loads(route.calls[0].request.content) == {"version": 3, "content_hash": HASH}
+    assert json.loads(route.calls[0].request.content) == {
+        "context_version": 3,
+        "content_hash": HASH,
+    }
     assert "approved" in result.output
     assert "Approve:" not in result.output
 
@@ -301,7 +304,7 @@ def test_approve_refuses_a_malformed_hash_before_the_request(invoke, mock_api):
             "drafts",
             "approve",
             DECISION_ID,
-            "--version",
+            "--context-version",
             "3",
             "--content-hash",
             "abc",
@@ -323,7 +326,7 @@ def test_a_stale_approve_exits_5_with_the_code(invoke, mock_api):
             "drafts",
             "approve",
             DECISION_ID,
-            "--version",
+            "--context-version",
             "2",
             "--content-hash",
             HASH,
