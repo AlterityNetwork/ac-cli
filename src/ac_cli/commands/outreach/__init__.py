@@ -69,9 +69,9 @@ _DETAIL_FIELDS = [
     ("reviewable", "Reviewable"),
     ("locked", "Locked"),
     ("approval_expires_at", "Approval expires"),
-    ("reason", "Why now"),
+    ("rationale", "Why now"),
     ("reviewer_note", "Reviewer note"),
-    ("failure_code", "Failure"),
+    ("failure_reason", "Failure"),
 ]
 
 
@@ -347,7 +347,8 @@ def _with_last_action(row: dict) -> dict:
     last = row.get("last_decision")
     if not isinstance(last, dict):
         return row
-    parts = [last.get("action_type"), last.get("outcome")]
+    # A v2 draft review row may have an outcome and no status.
+    parts = [last.get("type"), last.get("status") or last.get("outcome")]
     return {**row, "last_action": " · ".join(str(part) for part in parts if part)}
 
 
@@ -809,7 +810,7 @@ def _timeline_text(item: dict) -> str:
     """Answers one line that says what a timeline item holds."""
     kind = item.get("kind")
     if kind == "decision":
-        parts = [item.get("action_type"), item.get("outcome"), item.get("subject")]
+        parts = [item.get("type"), item.get("status"), item.get("subject")]
     elif kind == "email":
         parts = [item.get("direction"), item.get("status"), item.get("subject")]
     elif kind == "activity":

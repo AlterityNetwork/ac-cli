@@ -100,7 +100,8 @@ ROW = {
     "email": "jane@acme.test",
     "last_decision": {
         "id": "66666666-6666-4666-8666-666666666666",
-        "action_type": "send_email",
+        "type": "email",
+        "status": "saved",
         "outcome": "proposed",
         "executed_at": None,
         "created_at": "2026-10-21T11:00:00Z",
@@ -987,7 +988,7 @@ class TestEnrollments:
         assert table_column(result.output, 1) == "Jane Doe"
         assert table_column(result.output, 2) == "jane@acme.test"
         # The fold drops the space at the end of a line part.
-        assert table_column(result.output, 4).replace(" ", "") == "send_email·proposed"
+        assert table_column(result.output, 4).replace(" ", "") == "email·saved"
         assert "--offset 2" in result.output
 
     def test_list_without_a_search_sends_no_search(self, invoke, mock_api):
@@ -1269,14 +1270,18 @@ TIMELINE = {
             "kind": "decision",
             "at": "2026-10-22T09:00:00Z",
             "id": "44444444-4444-4444-8444-444444444444",
-            "action_type": "send_email",
-            "outcome": "proposed",
-            "reason": "Jane asked for a call.",
+            "type": "wait",
+            "outcome": None,
+            "rationale": "Jane asked for a call.",
+            "objective": "Book a call.",
+            "followup_days": 3,
+            "goal_met": False,
+            "trigger_reason": "reply_received",
             "reviewer_note": None,
-            "failure_code": None,
+            "failure_reason": "wait_days_out_of_window",
             "subject": "A time for the call",
             "direction": None,
-            "status": None,
+            "status": "invalid",
             "activity_type": None,
             "title": None,
             "ended_reason": None,
@@ -1285,11 +1290,15 @@ TIMELINE = {
             "kind": "email",
             "at": "2026-10-21T15:00:00Z",
             "id": "55555555-5555-4555-8555-555555555555",
-            "action_type": None,
+            "type": None,
             "outcome": None,
-            "reason": None,
+            "rationale": None,
+            "objective": None,
+            "followup_days": None,
+            "goal_met": None,
+            "trigger_reason": None,
             "reviewer_note": None,
-            "failure_code": None,
+            "failure_reason": None,
             "subject": "Re: Hello Jane",
             "direction": "inbound",
             "status": "received",
@@ -1301,11 +1310,15 @@ TIMELINE = {
             "kind": "enrolled",
             "at": "2026-10-21T10:00:00Z",
             "id": None,
-            "action_type": None,
+            "type": None,
             "outcome": None,
-            "reason": None,
+            "rationale": None,
+            "objective": None,
+            "followup_days": None,
+            "goal_met": None,
+            "trigger_reason": None,
             "reviewer_note": None,
-            "failure_code": None,
+            "failure_reason": None,
             "subject": None,
             "direction": None,
             "status": None,
@@ -1330,7 +1343,7 @@ class TestEnrollmentTimeline:
         assert result.exit_code == 0, result.output
         assert route.calls[0].request.url.params["limit"] == "5"
         assert "Q4 intro" in result.output
-        assert "proposed" in result.output
+        assert "wait · invalid · A time for the call" in result.output
         assert "Re: Hello Jane" in result.output
         assert "enrolled" in result.output
 
@@ -1418,12 +1431,10 @@ def test_list_prints_a_row_with_no_decision_and_no_name_as_blank(invoke, mock_ap
     assert "--offset" not in result.output
 
 
-def test_list_names_only_the_outcome_of_a_decision_without_an_action(
-    invoke, mock_api, table_column
-):
+def test_list_names_only_the_status_of_a_decision_without_a_type(invoke, mock_api, table_column):
     row = {
         **ROW,
-        "last_decision": {**ROW["last_decision"], "action_type": None, "outcome": "failed"},
+        "last_decision": {**ROW["last_decision"], "type": None, "status": "error"},
     }
     mock_api.get(f"{BASE}/campaigns/{CAMPAIGN_ID}/enrollments").respond(
         200, json=_page([row], total=1, offset=0, has_more=False)
@@ -1432,8 +1443,24 @@ def test_list_names_only_the_outcome_of_a_decision_without_an_action(
     result = invoke(LIST)
 
     assert result.exit_code == 0, result.output
-    assert table_column(result.output, 4) == "failed"
+    assert table_column(result.output, 4) == "error"
     assert "·" not in result.output
+
+
+def test_list_falls_back_to_the_outcome_of_a_row_with_no_status(invoke, mock_api, table_column):
+    """A v2 draft review row may carry an outcome and no status."""
+    row = {
+        **ROW,
+        "last_decision": {**ROW["last_decision"], "status": None, "outcome": "proposed"},
+    }
+    mock_api.get(f"{BASE}/campaigns/{CAMPAIGN_ID}/enrollments").respond(
+        200, json=_page([row], total=1, offset=0, has_more=False)
+    )
+
+    result = invoke(LIST)
+
+    assert result.exit_code == 0, result.output
+    assert table_column(result.output, 4).replace(" ", "") == "email·proposed"
 
 
 def test_list_past_the_end_prints_zero_of_the_total_and_no_next_offset(invoke, mock_api):
