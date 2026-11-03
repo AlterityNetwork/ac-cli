@@ -24,6 +24,10 @@ decision id. `get` prints the decision id of an action.
 Approve sends back the `context_version` and the `content_hash` that `save`
 printed. The API answers 409 when either one moved, so a person
 approves exactly the text they read. Approval goes only through this review.
+
+⚠️ **No command prints the v2 version and hash without an edit.** `get` reads
+an action, and `save` needs a changed field. Until ENG-2824 moves approve to
+the action id, approve an unedited v2 draft in the Review tab of the web app.
 """
 
 from __future__ import annotations
@@ -254,7 +258,11 @@ def drafts_approve(
     ),
     json_output: bool = JSON_OPTION,
 ) -> None:
-    """Approve the text you read. The Run then sends it once."""
+    """Approve the v2 draft text that `save` printed. The Run then sends it once.
+
+    To approve an unedited v2 draft, use the Review tab of the web app. ENG-2824
+    moves approve to the action id.
+    """
     set_json_mode(json_output)
     if not _HASH.match(content_hash):
         refuse_local("--content-hash is not a 64 character hex digest", content_hash)
