@@ -116,9 +116,9 @@ def disconnect(
 @app.command("send")
 def send(
     ctx: typer.Context,
-    to: str = typer.Option(..., "--to", help="Recipient email address"),
+    to: str = typer.Option(..., "--to", help="Comma-separated recipient email addresses"),
     subject: str = typer.Option(..., "--subject", help="Email subject"),
-    body: str = typer.Option(..., "--body", help="Email body"),
+    body: str = typer.Option(..., "--body", help="Email body (plain text)"),
     reply_to_message_id: str | None = typer.Option(
         None, "--reply-to-message-id", help="Message ID to reply to"
     ),
@@ -127,7 +127,10 @@ def send(
     """Send an email via Nylas."""
     set_json_mode(json_output)
     payload = _build_body(
-        to=to, subject=subject, body=body, reply_to_message_id=reply_to_message_id
+        to=[address.strip() for address in to.split(",") if address.strip()],
+        subject=subject,
+        text=body,
+        reply_message_id=reply_to_message_id,
     )
 
     resp = _api_request("post", f"{_NYLAS}/email/send", json=payload)
