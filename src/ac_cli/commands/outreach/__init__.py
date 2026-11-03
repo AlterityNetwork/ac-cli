@@ -11,13 +11,23 @@ re-evaluate, retry, or retry after an added email) and ends it (`exit`).
 `ac agentic outreach organization` reads, stops and resumes Outreach for the
 whole organization. Only an organization admin stops or resumes.
 
-`ac agentic outreach drafts` reads the emails an Outreach Run drafted and that
-wait for a person, then saves, approves or rejects one. The draft is named by
-its decision id.
+`ac agentic outreach drafts list` and `get` read the Review queue: the
+proposed actions (an email, a LinkedIn note or a LinkedIn message) that wait
+for a person. `list` reads the `pending_approval` actions by default, oldest
+first, and filters by `--status`, `--campaign-id` and `--type`. `get` reads one
+action by its action id. Each item names the person, the company, the campaign,
+the address read fresh, the reply it answers and the draft.
 
-Approve sends back the `context_version` and the `content_hash` that `get` (or
-the last `save`) printed. The API answers 409 when either one moved, so a person
+`save`, `approve` and `reject` still answer the v2 email draft, named by its
+decision id. `get` prints the decision id of an action.
+
+Approve sends back the `context_version` and the `content_hash` that `save`
+printed. The API answers 409 when either one moved, so a person
 approves exactly the text they read. Approval goes only through this review.
+
+⚠️ **No command prints the v2 version and hash without an edit.** `get` reads
+an action, and `save` needs a changed field. Until ENG-2824 moves approve to
+the action id, approve an unedited v2 draft in the Review tab of the web app.
 """
 
 from __future__ import annotations
@@ -51,13 +61,39 @@ _PAGE_MAX = 100
 _MODES = ("regenerate", "skip", "exit")
 _HASH = re.compile(r"^[0-9a-f]{64}$")
 
+_ACTION_STATUSES = (
+    "pending_approval",
+    "approved",
+    "sending",
+    "executed",
+    "rejected",
+    "invalidated",
+    "failed",
+)
+_ACTION_TYPES = ("email", "linkedin_connection", "linkedin_message")
+
 _LIST_FIELDS = [
-    ("decision_id", "Draft ID"),
+    ("id", "Action ID"),
     ("person_name", "Person"),
-    ("subject", "Subject"),
-    ("outcome", "Outcome"),
+    ("type", "Type"),
+    ("to", "To"),
     ("campaign_name", "Campaign"),
-    ("expires_at", "Expires"),
+    ("status", "Status"),
+    ("created_at", "Created"),
+]
+_ACTION_FIELDS = [
+    ("id", "Action ID"),
+    ("decision_id", "Decision ID"),
+    ("type", "Type"),
+    ("status", "Status"),
+    ("person_name", "Person"),
+    ("company_name", "Company"),
+    ("campaign_name", "Campaign"),
+    ("campaign_status", "Campaign status"),
+    ("to", "To"),
+    ("created_at", "Created"),
+    ("rationale", "Why"),
+    ("objective", "Objective"),
 ]
 _DETAIL_FIELDS = [
     ("decision_id", "Draft ID"),
@@ -95,50 +131,90 @@ def _print_review(data: dict) -> None:
         )
 
 
+def _flat(item: dict) -> dict:
+    """One action with the person and the campaign names at the top level.
+
+    A person with no name, or a deleted one, shows the address instead. A
+    deleted person also has no address, so the cell is blank.
+    """
+    person = item.get("person") or {}
+    campaign = item.get("campaign") or {}
+    return {
+        **item,
+        "person_name": person.get("name") or item.get("to"),
+        "campaign_name": campaign.get("name"),
+        "campaign_status": campaign.get("status"),
+    }
+
+
+def _print_action(item: dict) -> None:
+    """Print one proposed action, the reply it answers, and its draft."""
+    print_detail(_flat(item), _ACTION_FIELDS)
+    reply = item.get("replying_to")
+    if reply:
+        rprint("[bold]Replying to:[/bold]")
+        rprint(as_text(reply.get("text") or ""))
+    draft = item.get("draft_payload") or {}
+    for key, label in (("subject", "Subject"), ("note", "Note"), ("body", "Body")):
+        if draft.get(key) is not None:
+            rprint(styled("[bold]{}:[/bold]", label))
+            rprint(as_text(draft[key]))
+
+
 @drafts_app.command("list")
 def drafts_list(
+    status: str | None = typer.Option(
+        None, "--status", help="Only this status. The API default is pending_approval"
+    ),
     campaign_id: str | None = typer.Option(None, "--campaign-id", help="Only this campaign"),
-    limit: int = typer.Option(_PAGE_DEFAULT, "--limit", help="How many drafts, 1 to 100"),
-    offset: int = typer.Option(0, "--offset", help="How many drafts to skip first"),
+    action_type: str | None = typer.Option(
+        None, "--type", help="Only this type: email, linkedin_connection or linkedin_message"
+    ),
+    limit: int = typer.Option(_PAGE_DEFAULT, "--limit", help="How many actions, 1 to 100"),
+    offset: int = typer.Option(0, "--offset", help="How many actions to skip first"),
     json_output: bool = JSON_OPTION,
 ) -> None:
-    """List the email drafts that wait for review, newest first, with each person and campaign."""
+    """List the proposed actions that wait for review, oldest first, with the queue total."""
     set_json_mode(json_output)
+    if status is not None and status not in _ACTION_STATUSES:
+        refuse_local(f"--status must be one of: {', '.join(_ACTION_STATUSES)}", status)
+    if action_type is not None and action_type not in _ACTION_TYPES:
+        refuse_local(f"--type must be one of: {', '.join(_ACTION_TYPES)}", action_type)
     if not _PAGE_MIN <= limit <= _PAGE_MAX:
         refuse_local(f"--limit is not between {_PAGE_MIN} and {_PAGE_MAX}", limit)
     if offset < 0:
         refuse_local("--offset may not be negative", offset)
     params: dict[str, object] = {"limit": limit, "offset": offset}
+    if status is not None:
+        params["status"] = status
     if campaign_id is not None:
         params["campaign_id"] = campaign_id
-    data = _api_request("get", f"{_OUTREACH}/drafts", params=params).json()
+    if action_type is not None:
+        params["type"] = action_type
+    data = _api_request("get", f"{_OUTREACH}/actions", params=params).json()
     if json_output:
         print_json(data)
         return
-    # A deleted person has no name; the address still names the recipient.
-    rows = [
-        {**item, "person_name": item.get("person_name") or ", ".join(item.get("to_emails") or [])}
-        for item in data.get("data", [])
-    ]
+    rows = [_flat(item) for item in data.get("data", [])]
     total = data.get("total", len(rows))
     shown = f"{offset + 1}-{offset + len(rows)} of {total}" if rows else f"0 of {total}"
-    print_table(rows, _LIST_FIELDS, title=f"Outreach drafts {shown}")
+    print_table(rows, _LIST_FIELDS, title=f"Outreach actions {shown}")
     if data.get("has_more"):
-        rprint(styled("[dim]More drafts wait: --offset {}[/dim]", offset + len(rows)))
+        rprint(styled("[dim]More actions wait: --offset {}[/dim]", offset + len(rows)))
 
 
 @drafts_app.command("get")
 def drafts_get(
-    decision_id: str = typer.Argument(..., help="Draft ID (the decision id)"),
+    action_id: str = typer.Argument(..., help="Action ID"),
     json_output: bool = JSON_OPTION,
 ) -> None:
-    """Read one draft, its context version and its content hash."""
+    """Read one proposed action: the person, the address, the reply and the draft."""
     set_json_mode(json_output)
-    data = _api_request("get", f"{_OUTREACH}/drafts/{decision_id}").json()
+    data = _api_request("get", f"{_OUTREACH}/actions/{action_id}").json()
     if json_output:
         print_json(data)
         return
-    _print_review(data)
+    _print_action(data)
 
 
 @drafts_app.command("save")
@@ -175,14 +251,18 @@ def drafts_save(
 def drafts_approve(
     decision_id: str = typer.Argument(..., help="Draft ID (the decision id)"),
     context_version: int = typer.Option(
-        ..., "--context-version", help="The context version `get` printed"
+        ..., "--context-version", help="The context version `save` printed"
     ),
     content_hash: str = typer.Option(
         ..., "--content-hash", help="The content hash of the text you read"
     ),
     json_output: bool = JSON_OPTION,
 ) -> None:
-    """Approve the text you read. The Run then sends it once."""
+    """Approve the v2 draft text that `save` printed. The Run then sends it once.
+
+    To approve an unedited v2 draft, use the Review tab of the web app. ENG-2824
+    moves approve to the action id.
+    """
     set_json_mode(json_output)
     if not _HASH.match(content_hash):
         refuse_local("--content-hash is not a 64 character hex digest", content_hash)
