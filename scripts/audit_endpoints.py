@@ -190,10 +190,11 @@ OUT_OF_SCOPE: set[tuple[str, str]] = {
     ("POST", "/api/v1/billing/portal-session"),
     ("GET", "/api/v1/billing/card-on-file"),
     ("POST", "/api/v1/profiles/me/complete-onboarding"),
-    # The v2 Review tab only, removed in ENG-2829. `drafts list` and `drafts
-    # get` read /agentic/outreach/actions instead.
+    # The v2 Review tab only, removed in ENG-2829. `drafts list`, `drafts get`
+    # and `drafts approve` call /agentic/outreach/actions instead.
     ("GET", "/api/v1/agentic/outreach/drafts"),
     ("GET", "/api/v1/agentic/outreach/drafts/{id}"),
+    ("POST", "/api/v1/agentic/outreach/drafts/{id}/approve"),
 }
 
 PARAM_RE = re.compile(r"\{[^}]+\}")
