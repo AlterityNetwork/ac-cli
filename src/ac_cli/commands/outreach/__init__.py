@@ -21,8 +21,8 @@ the address read fresh, the reply it answers and the draft.
 `save`, `approve` and `reject` still answer the v2 email draft, named by its
 decision id. `get` prints the decision id of an action.
 
-Approve sends back the `context_version` and the `content_hash` that `get` (or
-the last `save`) printed. The API answers 409 when either one moved, so a person
+Approve sends back the `context_version` and the `content_hash` that `save`
+printed. The API answers 409 when either one moved, so a person
 approves exactly the text they read. Approval goes only through this review.
 """
 
@@ -67,7 +67,6 @@ _ACTION_STATUSES = (
     "failed",
 )
 _ACTION_TYPES = ("email", "linkedin_connection", "linkedin_message")
-_DELETED = "(deleted)"
 
 _LIST_FIELDS = [
     ("id", "Action ID"),
@@ -129,13 +128,17 @@ def _print_review(data: dict) -> None:
 
 
 def _flat(item: dict) -> dict:
-    """One action with the person and the campaign names at the top level."""
+    """One action with the person and the campaign names at the top level.
+
+    A person with no name, or a deleted one, shows the address instead. A
+    deleted person also has no address, so the cell is blank.
+    """
     person = item.get("person") or {}
     campaign = item.get("campaign") or {}
     return {
         **item,
-        "person_name": person.get("name") or _DELETED,
-        "campaign_name": campaign.get("name") or _DELETED,
+        "person_name": person.get("name") or item.get("to"),
+        "campaign_name": campaign.get("name"),
         "campaign_status": campaign.get("status"),
     }
 
@@ -244,7 +247,7 @@ def drafts_save(
 def drafts_approve(
     decision_id: str = typer.Argument(..., help="Draft ID (the decision id)"),
     context_version: int = typer.Option(
-        ..., "--context-version", help="The context version `get` printed"
+        ..., "--context-version", help="The context version `save` printed"
     ),
     content_hash: str = typer.Option(
         ..., "--content-hash", help="The content hash of the text you read"
