@@ -332,76 +332,133 @@ def test_save_after_the_approval_exits_5(invoke, mock_api):
     assert json.loads(result.output)["context"] == {"code": "draft_locked"}
 
 
-def test_approve_sends_the_version_and_the_hash(invoke, mock_api):
-    route = mock_api.post(f"{BASE}/{DECISION_ID}/approve").respond(
-        200, json={**REVIEW, "outcome": "approved", "locked": True, "reviewable": False}
-    )
+APPROVED = {**ACTION, "status": "approved"}
 
-    result = invoke(
-        [
-            "agentic",
-            "outreach",
-            "drafts",
-            "approve",
-            DECISION_ID,
-            "--context-version",
-            "3",
-            "--content-hash",
-            HASH,
-        ]
-    )
+
+def _approve(*flags):
+    return ["agentic", "outreach", "drafts", "approve", ACTION_ID, *flags]
+
+
+def test_approve_without_an_edit_sends_no_payload(invoke, mock_api):
+    read = mock_api.get(f"{ACTIONS}/{ACTION_ID}").respond(200, json=ACTION)
+    route = mock_api.post(f"{ACTIONS}/{ACTION_ID}/approve").respond(200, json=APPROVED)
+
+    result = invoke(_approve())
+
+    assert result.exit_code == 0, result.output
+    assert json.loads(route.calls[0].request.content) == {}
+    assert not read.called
+    assert f"Action {ACTION_ID} is approved." in result.output
+    assert "Hi Jane, here is the deck." in result.output
+
+
+def test_approve_merges_an_edit_over_the_draft(invoke, mock_api):
+    mock_api.get(f"{ACTIONS}/{ACTION_ID}").respond(200, json=ACTION)
+    route = mock_api.post(f"{ACTIONS}/{ACTION_ID}/approve").respond(200, json=APPROVED)
+
+    result = invoke(_approve("--subject", "A new subject", "--json"))
 
     assert result.exit_code == 0, result.output
     assert json.loads(route.calls[0].request.content) == {
-        "context_version": 3,
-        "content_hash": HASH,
+        "payload": {"subject": "A new subject", "body": "Hi Jane, here is the deck."}
     }
-    assert "approved" in result.output
-    assert "Approve:" not in result.output
+    assert json.loads(result.output)["status"] == "approved"
 
 
-def test_approve_refuses_a_malformed_hash_before_the_request(invoke, mock_api):
-    route = mock_api.post(f"{BASE}/{DECISION_ID}/approve").respond(200, json=REVIEW)
+def test_approve_reads_the_body_from_a_file(invoke, mock_api, tmp_path):
+    mock_api.get(f"{ACTIONS}/{ACTION_ID}").respond(200, json=ACTION)
+    route = mock_api.post(f"{ACTIONS}/{ACTION_ID}/approve").respond(200, json=APPROVED)
+    body = tmp_path / "body.txt"
+    body.write_text("Line one.\nLine two.\n")
 
-    result = invoke(
-        [
-            "agentic",
-            "outreach",
-            "drafts",
-            "approve",
-            DECISION_ID,
-            "--context-version",
-            "3",
-            "--content-hash",
-            "abc",
-            "--json",
-        ]
-    )
+    result = invoke(_approve("--body-file", str(body), "--json"))
 
-    assert result.exit_code == 2
+    assert result.exit_code == 0, result.output
+    assert json.loads(route.calls[0].request.content)["payload"] == {
+        "subject": "The deck",
+        "body": "Line one.\nLine two.\n",
+    }
+
+
+def test_approve_sends_a_linkedin_message_and_a_note(invoke, mock_api):
+    message = {**ACTION, "type": "linkedin_message", "draft_payload": {"body": "Hi"}}
+    mock_api.get(f"{ACTIONS}/{ACTION_ID}").respond(200, json=message)
+    route = mock_api.post(f"{ACTIONS}/{ACTION_ID}/approve").respond(200, json=APPROVED)
+
+    result = invoke(_approve("--message", "Hi Jane", "--json"))
+
+    assert result.exit_code == 0, result.output
+    assert json.loads(route.calls[0].request.content) == {"payload": {"body": "Hi Jane"}}
+
+    note = {**ACTION, "type": "linkedin_connection", "draft_payload": {"note": "Hi"}}
+    mock_api.get(f"{ACTIONS}/{ACTION_ID}").respond(200, json=note)
+
+    result = invoke(_approve("--note", "Hi Jane, let us connect.", "--json"))
+
+    assert result.exit_code == 0, result.output
+    assert json.loads(route.calls[1].request.content) == {
+        "payload": {"note": "Hi Jane, let us connect."}
+    }
+
+
+def test_approve_refuses_two_body_flags_before_the_request(invoke, mock_api, tmp_path):
+    route = mock_api.post(f"{ACTIONS}/{ACTION_ID}/approve").respond(200, json=APPROVED)
+    body = tmp_path / "body.txt"
+    body.write_text("x")
+
+    for flags in (
+        ("--body", "y", "--body-file", str(body)),
+        ("--body", "y", "--message", "z"),
+        ("--body-file", str(body), "--message", "z"),
+    ):
+        result = invoke(_approve(*flags, "--json"))
+
+        assert result.exit_code == 2, flags
     assert not route.called
 
 
-def test_a_stale_approve_exits_5_with_the_code(invoke, mock_api):
-    mock_api.post(f"{BASE}/{DECISION_ID}/approve").respond(409, json=CONFLICT)
-
-    result = invoke(
-        [
-            "agentic",
-            "outreach",
-            "drafts",
-            "approve",
-            DECISION_ID,
-            "--context-version",
-            "2",
-            "--content-hash",
-            HASH,
-            "--json",
-        ]
+def test_a_failed_draft_check_exits_2_with_the_code_and_the_field(invoke, mock_api):
+    mock_api.get(f"{ACTIONS}/{ACTION_ID}").respond(200, json=ACTION)
+    mock_api.post(f"{ACTIONS}/{ACTION_ID}/approve").respond(
+        422,
+        json={
+            "detail": {
+                "message": "The draft fails the check: draft_placeholder on subject.",
+                "code": "draft_placeholder",
+                "field": "subject",
+            }
+        },
     )
 
+    result = invoke(_approve("--subject", "Hi [First name]", "--json"))
+
+    assert result.exit_code == 2
+    assert "draft_placeholder" in result.output
+
+
+def test_an_approve_that_is_not_pending_exits_5_with_the_code(invoke, mock_api):
+    mock_api.post(f"{ACTIONS}/{ACTION_ID}/approve").respond(
+        409,
+        json={
+            **CONFLICT,
+            "code": "action_not_pending",
+            "context": {"code": "action_not_pending"},
+        },
+    )
+
+    result = invoke(_approve("--json"))
+
     assert result.exit_code == 5
-    assert json.loads(result.output)["context"] == {"code": "version_changed"}
+    assert json.loads(result.output)["context"] == {"code": "action_not_pending"}
+
+
+def test_save_prints_no_v2_approve_command(invoke, mock_api):
+    mock_api.patch(f"{BASE}/{DECISION_ID}").respond(200, json=REVIEW)
+
+    result = invoke(["agentic", "outreach", "drafts", "save", DECISION_ID, "--body", "x"])
+
+    assert result.exit_code == 0, result.output
+    assert "--context-version" not in result.output
 
 
 def test_reject_sends_the_mode_and_the_note(invoke, mock_api):

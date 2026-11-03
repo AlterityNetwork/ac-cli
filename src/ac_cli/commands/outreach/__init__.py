@@ -18,21 +18,18 @@ first, and filters by `--status`, `--campaign-id` and `--type`. `get` reads one
 action by its action id. Each item names the person, the company, the campaign,
 the address read fresh, the reply it answers and the draft.
 
-`save`, `approve` and `reject` still answer the v2 email draft, named by its
-decision id. `get` prints the decision id of an action.
+`approve` takes an action id. With no edit flag it approves the draft as it
+is and sends no payload. An edit flag reads the action first and sends the
+draft with the edited fields over it, so `--subject` alone keeps the body. The
+API checks the edit, reads the address now, and freezes the text, the address
+and their hash. A retry of the same approve answers the same action.
 
-Approve sends back the `context_version` and the `content_hash` that `save`
-printed. The API answers 409 when either one moved, so a person
-approves exactly the text they read. Approval goes only through this review.
-
-⚠️ **No command prints the v2 version and hash without an edit.** `get` reads
-an action, and `save` needs a changed field. Until ENG-2824 moves approve to
-the action id, approve an unedited v2 draft in the Review tab of the web app.
+`save` and `reject` still answer the v2 email draft, named by its decision id.
+`get` prints the decision id of an action.
 """
 
 from __future__ import annotations
 
-import re
 import uuid
 from pathlib import Path
 
@@ -59,7 +56,6 @@ _PAGE_DEFAULT = 50
 _PAGE_MIN = 1
 _PAGE_MAX = 100
 _MODES = ("regenerate", "skip", "exit")
-_HASH = re.compile(r"^[0-9a-f]{64}$")
 
 _ACTION_STATUSES = (
     "pending_approval",
@@ -112,7 +108,7 @@ _DETAIL_FIELDS = [
 
 
 def _print_review(data: dict) -> None:
-    """Print one draft review, its text, and the approve command it allows."""
+    """Print one draft review and its text."""
     print_detail(data, _DETAIL_FIELDS)
     draft = data.get("draft")
     if draft:
@@ -120,15 +116,6 @@ def _print_review(data: dict) -> None:
         rprint("[bold]Subject:[/bold]", as_text(draft.get("subject") or ""))
         rprint("[bold]Body:[/bold]")
         rprint(as_text(draft.get("body") or ""))
-    if data.get("reviewable") and not data.get("locked"):
-        rprint(
-            "[dim]Approve:[/dim]",
-            as_text(
-                f"ac agentic outreach drafts approve {data['decision_id']} "
-                f"--context-version {data['context_version']} "
-                f"--content-hash {data['content_hash']}"
-            ),
-        )
 
 
 def _flat(item: dict) -> dict:
@@ -249,33 +236,49 @@ def drafts_save(
 
 @drafts_app.command("approve")
 def drafts_approve(
-    decision_id: str = typer.Argument(..., help="Draft ID (the decision id)"),
-    context_version: int = typer.Option(
-        ..., "--context-version", help="The context version `save` printed"
+    action_id: str = typer.Argument(..., help="Action ID"),
+    subject: str | None = typer.Option(None, "--subject", help="New email subject"),
+    body: str | None = typer.Option(None, "--body", help="New plain text email body"),
+    body_file: Path | None = typer.Option(
+        None,
+        "--body-file",
+        help="Read the new email body from this file",
+        exists=True,
+        dir_okay=False,
     ),
-    content_hash: str = typer.Option(
-        ..., "--content-hash", help="The content hash of the text you read"
-    ),
+    note: str | None = typer.Option(None, "--note", help="New LinkedIn connection note"),
+    message: str | None = typer.Option(None, "--message", help="New LinkedIn message"),
     json_output: bool = JSON_OPTION,
 ) -> None:
-    """Approve the v2 draft text that `save` printed. The Run then sends it once.
+    """Approve one proposed action. The text, the address and their hash freeze.
 
-    To approve an unedited v2 draft, use the Review tab of the web app. ENG-2824
-    moves approve to the action id.
+    With no edit flag, the draft is approved as it is. An edit flag replaces
+    that field of the draft, and the API checks the result.
     """
     set_json_mode(json_output)
-    if not _HASH.match(content_hash):
-        refuse_local("--content-hash is not a 64 character hex digest", content_hash)
-    data = _api_request(
-        "post",
-        f"{_OUTREACH}/drafts/{decision_id}/approve",
-        json={"context_version": context_version, "content_hash": content_hash},
-    ).json()
+    if sum(one is not None for one in (body, body_file, message)) > 1:
+        refuse_local("give one of --body, --body-file and --message")
+    if body_file is not None:
+        body = body_file.read_text(encoding="utf-8")
+    edits = {
+        key: value
+        for key, value in (
+            ("subject", subject),
+            ("body", body if message is None else message),
+            ("note", note),
+        )
+        if value is not None
+    }
+    request: dict[str, object] = {}
+    if edits:
+        draft = _api_request("get", f"{_OUTREACH}/actions/{action_id}").json()
+        request["payload"] = {**(draft.get("draft_payload") or {}), **edits}
+    data = _api_request("post", f"{_OUTREACH}/actions/{action_id}/approve", json=request).json()
     if json_output:
         print_json(data)
         return
-    rprint(styled("[green]Draft {} is approved.[/green]", decision_id))
-    _print_review(data)
+    rprint(styled("[green]Action {} is approved.[/green]", action_id))
+    _print_action(data)
 
 
 @drafts_app.command("reject")
