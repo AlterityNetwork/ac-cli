@@ -137,22 +137,15 @@ def test_resources_list_help_names_the_organisation():
     assert "organisation" in result.output
 
 
-def test_resources_list_sends_the_scope(invoke, mock_api):
-    route = mock_api.get("/api/v1/resources").respond(200, json=SAMPLE_RESOURCES)
-    result = invoke(["resources", "list", "--scope", "organization"])
-    assert result.exit_code == 0
-    assert route.calls.last.request.url.params["scope"] == "organization"
-
-
-def test_resources_list_without_scope_keeps_the_api_default(invoke, mock_api):
+def test_resources_list_sends_no_scope(invoke, mock_api):
     route = mock_api.get("/api/v1/resources").respond(200, json=SAMPLE_RESOURCES)
     result = invoke(["resources", "list", "--json"])
     assert result.exit_code == 0
     assert "scope" not in route.calls.last.request.url.params
 
 
-def test_resources_list_refuses_an_unknown_scope(invoke, mock_api):
-    result = invoke(["resources", "list", "--scope", "team"])
+def test_resources_list_has_no_scope_option(invoke, mock_api):
+    result = invoke(["resources", "list", "--scope", "organization"])
     assert result.exit_code == 2
 
 

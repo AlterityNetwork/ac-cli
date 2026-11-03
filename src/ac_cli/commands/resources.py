@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import mimetypes
-from enum import Enum
 from pathlib import Path
 
 import httpx
@@ -31,14 +30,6 @@ ALLOWED_EXTENSIONS = {".pdf", ".txt", ".md", ".docx"}
 MAX_SIZE_BYTES = 10_485_760  # 10 MB
 
 
-class ResourceScope(str, Enum):
-    """The sets of documents that `GET /resources` returns."""
-
-    organization = "organization"
-    platform = "platform"
-    all = "all"
-
-
 @app.callback()
 def resources_callback(ctx: typer.Context) -> None:
     ctx.ensure_object(dict)
@@ -49,25 +40,15 @@ def resources_list(
     ctx: typer.Context,
     limit: int = typer.Option(50, help="Max items to return"),
     offset: int = typer.Option(0, help="Offset for pagination"),
-    scope: ResourceScope | None = typer.Option(
-        None,
-        "--scope",
-        help=(
-            "organization: your organisation's documents only. platform: the platform "
-            "documents only. all (the API default): both."
-        ),
-    ),
     json_output: bool = JSON_OPTION,
 ) -> None:
-    """List the documents of your organisation, and the platform documents.
+    """List the documents of your organisation.
 
     The list holds every document of the organisation, not only the ones you
-    uploaded. Use --scope organization for the documents you can attach.
+    uploaded.
     """
     set_json_mode(json_output)
     params: dict = {"limit": limit, "offset": offset}
-    if scope is not None:
-        params["scope"] = scope.value
     resp = _api_request("get", _RESOURCES, params=params)
 
     data = resp.json()
