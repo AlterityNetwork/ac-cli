@@ -9,7 +9,7 @@ from ac_cli.commands._helpers import (
     JSON_OPTION,
     _api_request,
     _build_body,
-    _get_org_id,
+    refuse_local,
     set_json_mode,
     should_skip_confirm,
 )
@@ -19,6 +19,14 @@ from ac_cli.formatting import print_detail, print_json, print_table, styled
 _PLAYBOOKS = "/api/v1/playbooks"
 
 playbooks_app = typer.Typer(help="Playbook operations")
+
+_DOCUMENT_HELP = "Vault document id the offer attaches. Repeat for several."
+_ICP_IDS_HELP = "Ideal customer profile id. Repeat for several."
+
+
+def _with_document_count(row: dict) -> dict:
+    """Returns the row with a `documents` count of its document ids."""
+    return {**row, "documents": len(row.get("document_ids") or [])}
 
 
 @playbooks_app.command("list")
@@ -48,10 +56,12 @@ def playbooks_list(
 
     items = data if isinstance(data, list) else data.get("data", [])
     print_table(
-        items,
+        [_with_document_count(item) for item in items],
         [
             ("name", "Name"),
-            ("status", "Status"),
+            ("offer", "Offer"),
+            ("cta", "CTA"),
+            ("documents", "Documents"),
             ("id", "ID"),
         ],
         title=f"Playbooks ({len(items)})",
@@ -74,15 +84,16 @@ def playbooks_get(
         return
 
     print_detail(
-        data,
+        {**data, "document_ids": ", ".join(data.get("document_ids") or [])},
         [
             ("id", "ID"),
             ("name", "Name"),
-            ("description", "Description"),
-            ("status", "Status"),
-            ("competitor_name", "Competitor Name"),
+            ("icp", "ICP"),
+            ("offer", "Offer"),
+            ("cta", "CTA"),
+            ("cta_link", "CTA Link"),
+            ("document_ids", "Documents"),
             ("created_at", "Created"),
-            ("updated_at", "Updated"),
         ],
     )
 
@@ -91,25 +102,25 @@ def playbooks_get(
 def playbooks_create(
     ctx: typer.Context,
     name: str = typer.Option(..., help="Playbook name"),
-    description: str | None = typer.Option(None, help="Description"),
-    status: str | None = typer.Option(None, help="Status"),
-    competitor_name: str | None = typer.Option(None, "--competitor-name", help="Competitor name"),
-    icp_ids: list[str] | None = typer.Option(
-        None, "--icp-id", help="Ideal customer profile id. Repeat for several."
-    ),
+    icp: str | None = typer.Option(None, "--icp", help="Ideal customer profile, as text"),
+    offer: str | None = typer.Option(None, "--offer", help="Offer or value proposition"),
+    cta: str | None = typer.Option(None, "--cta", help="Call-to-action text"),
+    cta_link: str | None = typer.Option(None, "--cta-link", help="Call-to-action URL"),
+    icp_ids: list[str] | None = typer.Option(None, "--icp-id", help=_ICP_IDS_HELP),
+    documents: list[str] | None = typer.Option(None, "--document", help=_DOCUMENT_HELP),
     json_output: bool = JSON_OPTION,
 ) -> None:
     """Create a new playbook."""
     set_json_mode(json_output)
     body = _build_body(
         name=name,
-        description=description,
-        status=status,
-        competitor_name=competitor_name,
+        icp=icp,
+        offer=offer,
+        cta=cta,
+        cta_link=cta_link,
         icp_ids=icp_ids,
+        document_ids=documents or None,
     )
-
-    body["organization_id"] = _get_org_id()
 
     resp = _api_request("post", f"{_PLAYBOOKS}", json=body)
 
@@ -125,22 +136,31 @@ def playbooks_update(
     ctx: typer.Context,
     playbook_id: str = typer.Argument(..., help="Playbook ID"),
     name: str | None = typer.Option(None, help="Playbook name"),
-    description: str | None = typer.Option(None, help="Description"),
-    status: str | None = typer.Option(None, help="Status"),
-    competitor_name: str | None = typer.Option(None, "--competitor-name", help="Competitor name"),
-    icp_ids: list[str] | None = typer.Option(
-        None, "--icp-id", help="Ideal customer profile id. Repeat for several."
+    icp: str | None = typer.Option(None, "--icp", help="Ideal customer profile, as text"),
+    offer: str | None = typer.Option(None, "--offer", help="Offer or value proposition"),
+    cta: str | None = typer.Option(None, "--cta", help="Call-to-action text"),
+    cta_link: str | None = typer.Option(None, "--cta-link", help="Call-to-action URL"),
+    icp_ids: list[str] | None = typer.Option(None, "--icp-id", help=_ICP_IDS_HELP),
+    documents: list[str] | None = typer.Option(
+        None, "--document", help=f"{_DOCUMENT_HELP} Replaces the current documents."
+    ),
+    clear_documents: bool = typer.Option(
+        False, "--clear-documents", help="Remove every attached document"
     ),
     json_output: bool = JSON_OPTION,
 ) -> None:
     """Update a playbook."""
     set_json_mode(json_output)
+    if documents and clear_documents:
+        refuse_local("Use --document or --clear-documents, not both")
     body = _build_body(
         name=name,
-        description=description,
-        status=status,
-        competitor_name=competitor_name,
+        icp=icp,
+        offer=offer,
+        cta=cta,
+        cta_link=cta_link,
         icp_ids=icp_ids,
+        document_ids=documents or ([] if clear_documents else None),
     )
 
     if not body:
