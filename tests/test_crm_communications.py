@@ -839,3 +839,119 @@ def test_comms_list_folder_scheduled(invoke, mock_api):
 def test_comms_list_rejects_unknown_folder(invoke, mock_api):
     result = invoke(["crm", "comms", "list", "--folder", "later"])
     assert result.exit_code != 0
+
+
+def _draft_args(*extra):
+    return [
+        "crm",
+        "comms",
+        "draft-email",
+        "--contact-id",
+        "p1",
+        "--subject",
+        "Partnership opportunity",
+        "--content",
+        "Dear Jane...",
+        *extra,
+    ]
+
+
+def test_comms_draft_email_attaches_vault_documents(invoke, mock_api):
+    route = mock_api.post("/api/v1/crm/communications/draft-email").respond(201, json=SAMPLE_DRAFT)
+    result = invoke(_draft_args("--attach", "res-1", "--attach", "res-2"))
+    assert result.exit_code == 0
+    body = json.loads(route.calls.last.request.content)
+    assert body["attachments"] == [{"resource_id": "res-1"}, {"resource_id": "res-2"}]
+
+
+def test_comms_draft_email_without_attach_sends_no_attachments(invoke, mock_api):
+    route = mock_api.post("/api/v1/crm/communications/draft-email").respond(201, json=SAMPLE_DRAFT)
+    result = invoke(_draft_args())
+    assert result.exit_code == 0
+    assert "attachments" not in json.loads(route.calls.last.request.content)
+
+
+def test_comms_draft_email_over_the_limit_is_refused(invoke, mock_api):
+    mock_api.post("/api/v1/crm/communications/draft-email").respond(
+        400,
+        json={
+            "error": True,
+            "message": "Attachments exceed the 15 MB limit for one email.",
+            "type": "ValidationError",
+            "code": "attachments_too_large",
+            "context": {"code": "attachments_too_large"},
+        },
+    )
+    result = invoke(_draft_args("--attach", "res-1", "--json"))
+    assert result.exit_code == 1
+    parsed = json.loads(result.output)
+    assert parsed["context"]["code"] == "attachments_too_large"
+
+
+def test_comms_update_attaches_vault_documents(invoke, mock_api):
+    route = mock_api.patch("/api/v1/crm/communications/comm1").respond(
+        200, json=SAMPLE_COMMUNICATION
+    )
+    result = invoke(["crm", "comms", "update", "comm1", "--attach", "res-1"])
+    assert result.exit_code == 0
+    body = json.loads(route.calls.last.request.content)
+    assert body == {"attachments": [{"resource_id": "res-1"}]}
+
+
+def test_comms_update_clears_attachments(invoke, mock_api):
+    route = mock_api.patch("/api/v1/crm/communications/comm1").respond(
+        200, json=SAMPLE_COMMUNICATION
+    )
+    result = invoke(["crm", "comms", "update", "comm1", "--clear-attachments", "--json"])
+    assert result.exit_code == 0
+    assert json.loads(route.calls.last.request.content) == {"attachments": []}
+    assert json.loads(result.output)["id"] == "comm1"
+
+
+def test_comms_update_attach_and_clear_is_refused(invoke, mock_api):
+    route = mock_api.patch("/api/v1/crm/communications/comm1")
+    result = invoke(
+        ["crm", "comms", "update", "comm1", "--attach", "res-1", "--clear-attachments", "--json"]
+    )
+    assert result.exit_code == 2
+    assert json.loads(result.output)["error"] is True
+    assert not route.called
+
+
+def test_comms_thread_lists_attachments(invoke, mock_api):
+    outbound = {
+        **SAMPLE_OUTBOUND,
+        "attachments": [
+            {
+                "resource_id": "res-1",
+                "filename": "deck.pdf",
+                "content_type": "application/pdf",
+                "size": 1000,
+            },
+            {
+                "resource_id": "res-2",
+                "filename": "[old] terms.pdf",
+                "content_type": "application/pdf",
+                "size": 10,
+                "missing": True,
+            },
+        ],
+    }
+    inbound = {
+        **SAMPLE_COMMUNICATION,
+        "attachments": [
+            {
+                "filename": "reply.docx",
+                "content_type": "application/msword",
+                "size": 5,
+                "nylas_attachment_id": "na-1",
+            }
+        ],
+    }
+    mock_api.get("/api/v1/crm/communications/thread/thread_jane_001").respond(
+        200, json={"data": [outbound, inbound], "total": 2}
+    )
+    result = invoke(["crm", "comms", "thread", "thread_jane_001"])
+    assert result.exit_code == 0
+    assert "Attachments: deck.pdf, [old] terms.pdf (removed)" in result.output
+    assert "Attachments: reply.docx" in result.output

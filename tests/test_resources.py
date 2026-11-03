@@ -106,3 +106,107 @@ def test_resources_status_without_a_description(invoke, mock_api):
     assert result.exit_code == 0
     assert "Description:" in result.output
     assert "None" not in result.output
+
+
+IN_USE = {
+    "error": True,
+    "message": "This document is attached to offers or sequence steps.",
+    "type": "ConflictError",
+    "code": "resource_in_use",
+    "context": {
+        "code": "resource_in_use",
+        "offers": [{"id": "pb-1", "name": "Spring [promo] offer"}],
+        "steps": [
+            {
+                "id": "step-1",
+                "sequence_id": "seq-1",
+                "sequence_name": "Founders",
+                "step_name": "Intro email",
+            }
+        ],
+    },
+}
+
+
+def test_resources_list_help_names_the_organisation():
+    from typer.testing import CliRunner
+
+    from ac_cli.main import app
+
+    result = CliRunner().invoke(app, ["resources", "list", "--help"])
+    assert "organisation" in result.output
+
+
+def test_resources_list_sends_the_scope(invoke, mock_api):
+    route = mock_api.get("/api/v1/resources").respond(200, json=SAMPLE_RESOURCES)
+    result = invoke(["resources", "list", "--scope", "organization"])
+    assert result.exit_code == 0
+    assert route.calls.last.request.url.params["scope"] == "organization"
+
+
+def test_resources_list_without_scope_keeps_the_api_default(invoke, mock_api):
+    route = mock_api.get("/api/v1/resources").respond(200, json=SAMPLE_RESOURCES)
+    result = invoke(["resources", "list", "--json"])
+    assert result.exit_code == 0
+    assert "scope" not in route.calls.last.request.url.params
+
+
+def test_resources_list_refuses_an_unknown_scope(invoke, mock_api):
+    result = invoke(["resources", "list", "--scope", "team"])
+    assert result.exit_code == 2
+
+
+def test_resources_delete_without_force_sends_no_force(invoke, mock_api):
+    route = mock_api.delete("/api/v1/resources/res-1").respond(204, content=b"")
+    result = invoke(["resources", "delete", "res-1", "--yes"])
+    assert result.exit_code == 0
+    assert "force" not in route.calls.last.request.url.params
+
+
+def test_resources_delete_force(invoke, mock_api):
+    route = mock_api.delete("/api/v1/resources/res-1").respond(204, content=b"")
+    result = invoke(["resources", "delete", "res-1", "--force", "--yes", "--json"])
+    assert result.exit_code == 0
+    assert route.calls.last.request.url.params["force"] == "true"
+    assert json.loads(result.output) == {"deleted": True, "id": "res-1"}
+
+
+def test_resources_delete_in_use_lists_the_offers_and_steps(invoke, mock_api):
+    mock_api.delete("/api/v1/resources/res-1").respond(409, json=IN_USE)
+    result = invoke(["resources", "delete", "res-1", "--yes"])
+    assert result.exit_code == 5
+    assert "Spring [promo] offer" in result.output
+    assert "Founders" in result.output
+    assert "Intro email" in result.output
+    assert "--force" in result.output
+
+
+def test_resources_delete_in_use_json(invoke, mock_api):
+    mock_api.delete("/api/v1/resources/res-1").respond(409, json=IN_USE)
+    result = invoke(["resources", "delete", "res-1", "--yes", "--json"])
+    assert result.exit_code == 5
+    parsed = json.loads(result.output)
+    assert parsed["status_code"] == 409
+    assert parsed["context"]["offers"][0]["id"] == "pb-1"
+    assert parsed["context"]["steps"][0]["sequence_id"] == "seq-1"
+
+
+def test_resources_delete_other_conflict_uses_the_standard_error(invoke, mock_api):
+    mock_api.delete("/api/v1/resources/res-1").respond(409, json={"detail": "Busy"})
+    result = invoke(["resources", "delete", "res-1", "--yes"])
+    assert result.exit_code == 5
+    assert "Busy" in result.output
+    assert "--force" not in result.output
+
+
+def test_resources_delete_not_found(invoke, mock_api):
+    mock_api.delete("/api/v1/resources/res-9").respond(404, json={"detail": "Not found"})
+    result = invoke(["resources", "delete", "res-9", "--yes"])
+    assert result.exit_code == 3
+
+
+def test_resources_delete_env_yes(invoke, mock_api, monkeypatch):
+    monkeypatch.setenv("AC_YES", "1")
+    mock_api.delete("/api/v1/resources/res-1").respond(204, content=b"")
+    result = invoke(["resources", "delete", "res-1"])
+    assert result.exit_code == 0

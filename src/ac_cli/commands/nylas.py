@@ -122,6 +122,9 @@ def send(
     reply_to_message_id: str | None = typer.Option(
         None, "--reply-to-message-id", help="Message ID to reply to"
     ),
+    attach: list[str] | None = typer.Option(
+        None, "--attach", help="Vault document id to attach. Repeat for several."
+    ),
     json_output: bool = JSON_OPTION,
 ) -> None:
     """Send an email via Nylas."""
@@ -132,6 +135,8 @@ def send(
         text=body,
         reply_message_id=reply_to_message_id,
     )
+    if attach:
+        payload["attachments"] = [{"resource_id": resource_id} for resource_id in attach]
 
     resp = _api_request("post", f"{_NYLAS}/email/send", json=payload)
 

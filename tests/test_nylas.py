@@ -142,3 +142,87 @@ def test_nylas_send_cap_json(invoke, mock_api):
     result = invoke(["nylas", "send-cap", "--json"])
     assert result.exit_code == 0
     assert json.loads(result.output) == status
+
+
+def test_nylas_send_attaches_vault_documents(invoke, mock_api):
+    route = mock_api.post("/api/v1/nylas/email/send").respond(200, json={"message_id": "m"})
+    result = invoke(
+        [
+            "nylas",
+            "send",
+            "--to",
+            "a@b.com",
+            "--subject",
+            "Hi",
+            "--body",
+            "Hello",
+            "--attach",
+            "res-1",
+            "--attach",
+            "res-2",
+        ]
+    )
+    assert result.exit_code == 0
+    body = json.loads(route.calls.last.request.content)
+    assert body["attachments"] == [{"resource_id": "res-1"}, {"resource_id": "res-2"}]
+
+
+def test_nylas_send_without_attach_sends_no_attachments(invoke, mock_api):
+    """A null list tells the API to use the draft row's attachments."""
+    route = mock_api.post("/api/v1/nylas/email/send").respond(200, json={"message_id": "m"})
+    result = invoke(["nylas", "send", "--to", "a@b.com", "--subject", "Hi", "--body", "Hello"])
+    assert result.exit_code == 0
+    assert "attachments" not in json.loads(route.calls.last.request.content)
+
+
+def test_nylas_send_attach_json(invoke, mock_api):
+    mock_api.post("/api/v1/nylas/email/send").respond(200, json={"message_id": "m"})
+    result = invoke(
+        [
+            "nylas",
+            "send",
+            "--to",
+            "a@b.com",
+            "--subject",
+            "Hi",
+            "--body",
+            "Hello",
+            "--attach",
+            "res-1",
+            "--json",
+        ]
+    )
+    assert result.exit_code == 0
+    assert json.loads(result.output) == {"message_id": "m"}
+
+
+def test_nylas_send_deleted_document_is_refused(invoke, mock_api):
+    mock_api.post("/api/v1/nylas/email/send").respond(
+        400,
+        json={
+            "error": True,
+            "message": 'Document "deck.pdf" was deleted. Remove it before sending.',
+            "type": "ValidationError",
+            "code": "attachment_missing",
+            "context": {"code": "attachment_missing"},
+        },
+    )
+    result = invoke(
+        [
+            "nylas",
+            "send",
+            "--to",
+            "a@b.com",
+            "--subject",
+            "Hi",
+            "--body",
+            "Hello",
+            "--attach",
+            "res-1",
+            "--json",
+        ]
+    )
+    assert result.exit_code == 1
+    parsed = json.loads(result.output)
+    assert parsed["status_code"] == 400
+    assert "deck.pdf" in parsed["detail"]
