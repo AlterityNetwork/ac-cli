@@ -20,8 +20,10 @@ the address read fresh, the reply it answers and the draft.
 
 `approve` takes an action id. With no edit flag it approves the draft as it
 is and sends no payload. An edit flag reads the action first and sends the
-draft with the edited fields over it, so `--subject` alone keeps the body. The
-API checks the edit, reads the address now, and freezes the text, the address
+draft with the edited fields over it, so `--subject` alone keeps the body. A
+flag the action type does not take is refused before the approve: an email
+takes `--subject` and `--body` (a reply `--body` only), a LinkedIn note
+`--note`, a LinkedIn message `--message`. The API checks the edit, reads the address now, and freezes the text, the address
 and their hash. A retry of the same approve answers the same action.
 
 `save` and `reject` still answer the v2 email draft, named by its decision id.
@@ -67,6 +69,14 @@ _ACTION_STATUSES = (
     "failed",
 )
 _ACTION_TYPES = ("email", "linkedin_connection", "linkedin_message")
+
+# The edit flags each action takes. A reply email keeps no subject.
+_EDIT_FLAGS = {
+    "email": ("--subject", "--body"),
+    "email_reply": ("--body",),
+    "linkedin_connection": ("--note",),
+    "linkedin_message": ("--message",),
+}
 
 _LIST_FIELDS = [
     ("id", "Action ID"),
@@ -260,19 +270,31 @@ def drafts_approve(
         refuse_local("give one of --body, --body-file and --message")
     if body_file is not None:
         body = body_file.read_text(encoding="utf-8")
-    edits = {
-        key: value
-        for key, value in (
-            ("subject", subject),
-            ("body", body if message is None else message),
-            ("note", note),
+    given = {
+        flag: (key, value)
+        for flag, key, value in (
+            ("--subject", "subject", subject),
+            ("--body", "body", body),
+            ("--note", "note", note),
+            ("--message", "body", message),
         )
         if value is not None
     }
     request: dict[str, object] = {}
-    if edits:
-        draft = _api_request("get", f"{_OUTREACH}/actions/{action_id}").json()
-        request["payload"] = {**(draft.get("draft_payload") or {}), **edits}
+    if given:
+        action = _api_request("get", f"{_OUTREACH}/actions/{action_id}").json()
+        kind = action.get("type")
+        if kind == "email" and action.get("replying_to"):
+            kind = "email_reply"
+        allowed = _EDIT_FLAGS.get(str(kind), ())
+        refused = [flag for flag in given if flag not in allowed]
+        if refused:
+            refuse_local(
+                f"this action ({kind}) takes {', '.join(allowed) or 'no edit flag'}",
+                ", ".join(refused),
+            )
+        edits = dict(given.values())
+        request["payload"] = {**(action.get("draft_payload") or {}), **edits}
     data = _api_request("post", f"{_OUTREACH}/actions/{action_id}/approve", json=request).json()
     if json_output:
         print_json(data)

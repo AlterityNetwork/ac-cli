@@ -2,6 +2,8 @@
 
 import json
 
+import pytest
+
 BASE = "/api/v1/agentic/outreach/drafts"
 DECISION_ID = "11111111-1111-4111-8111-111111111111"
 ENROLLMENT_ID = "22222222-2222-4222-8222-222222222222"
@@ -353,7 +355,7 @@ def test_approve_without_an_edit_sends_no_payload(invoke, mock_api):
 
 
 def test_approve_merges_an_edit_over_the_draft(invoke, mock_api):
-    mock_api.get(f"{ACTIONS}/{ACTION_ID}").respond(200, json=ACTION)
+    mock_api.get(f"{ACTIONS}/{ACTION_ID}").respond(200, json=NEW_EMAIL)
     route = mock_api.post(f"{ACTIONS}/{ACTION_ID}/approve").respond(200, json=APPROVED)
 
     result = invoke(_approve("--subject", "A new subject", "--json"))
@@ -418,22 +420,57 @@ def test_approve_refuses_two_body_flags_before_the_request(invoke, mock_api, tmp
 
 
 def test_a_failed_draft_check_exits_2_with_the_code_and_the_field(invoke, mock_api):
-    mock_api.get(f"{ACTIONS}/{ACTION_ID}").respond(200, json=ACTION)
+    mock_api.get(f"{ACTIONS}/{ACTION_ID}").respond(200, json=NEW_EMAIL)
+    detail = {
+        "message": "The draft fails the check: draft_placeholder on subject.",
+        "code": "draft_placeholder",
+        "field": "subject",
+    }
     mock_api.post(f"{ACTIONS}/{ACTION_ID}/approve").respond(
         422,
         json={
-            "detail": {
-                "message": "The draft fails the check: draft_placeholder on subject.",
-                "code": "draft_placeholder",
-                "field": "subject",
-            }
+            "error": "HTTP Error",
+            "message": detail["message"],
+            "type": "http_error",
+            "code": "draft_placeholder",
+            "detail": detail,
         },
     )
 
     result = invoke(_approve("--subject", "Hi [First name]", "--json"))
 
     assert result.exit_code == 2
-    assert "draft_placeholder" in result.output
+    body = json.loads(result.output)
+    assert (body["detail"]["code"], body["detail"]["field"]) == ("draft_placeholder", "subject")
+
+
+NEW_EMAIL = {**ACTION, "replying_to": None}
+REPLY = ACTION
+CONNECTION = {**ACTION, "type": "linkedin_connection", "draft_payload": {"note": "Hi"}}
+MESSAGE = {**ACTION, "type": "linkedin_message", "draft_payload": {"body": "Hi"}}
+
+
+@pytest.mark.parametrize(
+    ("action", "flags"),
+    [
+        (REPLY, ("--subject", "Re: x")),
+        (NEW_EMAIL, ("--note", "x")),
+        (NEW_EMAIL, ("--message", "x")),
+        (CONNECTION, ("--body", "x")),
+        (CONNECTION, ("--message", "x")),
+        (MESSAGE, ("--note", "x")),
+        (MESSAGE, ("--subject", "x")),
+        (MESSAGE, ("--body", "x")),
+    ],
+)
+def test_approve_refuses_a_flag_the_action_type_does_not_take(invoke, mock_api, action, flags):
+    mock_api.get(f"{ACTIONS}/{ACTION_ID}").respond(200, json=action)
+    route = mock_api.post(f"{ACTIONS}/{ACTION_ID}/approve").respond(200, json=APPROVED)
+
+    result = invoke(_approve(*flags, "--json"))
+
+    assert result.exit_code == 2, result.output
+    assert not route.called
 
 
 def test_an_approve_that_is_not_pending_exits_5_with_the_code(invoke, mock_api):
