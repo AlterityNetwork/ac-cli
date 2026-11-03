@@ -191,3 +191,71 @@ def notifications_reset_preferences(
         print_json({"ok": True, "action": "reset-preferences"})
     else:
         rprint("[green]Reset notification preferences[/green]")
+
+
+@app.command("signals-settings")
+def notifications_signals_settings(
+    ctx: typer.Context,
+    json_output: bool = JSON_OPTION,
+) -> None:
+    """Get your Signals notification settings: minimum score and saved searches."""
+    set_json_mode(json_output)
+    resp = _api_request("get", f"{_NOTIFICATIONS}/signals-settings")
+
+    data = resp.json()
+    if json_output:
+        print_json(data)
+        return
+    _print_signals_settings(data)
+
+
+@app.command("set-signals-settings")
+def notifications_set_signals_settings(
+    ctx: typer.Context,
+    min_score: int | None = typer.Option(
+        None,
+        "--min-score",
+        min=0,
+        max=100,
+        help="Lowest prospect score (0-100) that notifies you. 50 shows as 5/10.",
+    ),
+    mute_search: list[str] = typer.Option(
+        [], "--mute-search", help="Saved search id to stop notifying on (repeatable)"
+    ),
+    unmute_search: list[str] = typer.Option(
+        [], "--unmute-search", help="Saved search id to notify on again (repeatable)"
+    ),
+    json_output: bool = JSON_OPTION,
+) -> None:
+    """Set your Signals notification settings."""
+    set_json_mode(json_output)
+    body: dict[str, object] = {}
+    if min_score is not None:
+        body["min_score"] = min_score
+    searches = [{"saved_search_id": s, "enabled": False} for s in mute_search] + [
+        {"saved_search_id": s, "enabled": True} for s in unmute_search
+    ]
+    if searches:
+        body["searches"] = searches
+    if not body:
+        rprint("[yellow]No fields to update.[/yellow]")
+        raise typer.Exit(code=1)
+
+    resp = _api_request("put", f"{_NOTIFICATIONS}/signals-settings", json=body)
+
+    data = resp.json()
+    if json_output:
+        print_json(data)
+        return
+    _print_signals_settings(data)
+
+
+def _print_signals_settings(data: dict) -> None:
+    score = int(data.get("min_score", 0))
+    # Half up, as the app rounds a prospect score for display.
+    rprint(styled("Minimum score: {}/10 ({})", int(score / 10 + 0.5), score))
+    print_table(
+        data.get("searches", []),
+        [("name", "Saved search"), ("saved_search_id", "ID"), ("enabled", "Notify")],
+        title="Signals saved searches",
+    )

@@ -407,3 +407,47 @@ def test_profiles_subscription_json(invoke, mock_api):
     assert result.exit_code == 0
     parsed = json.loads(result.output)
     assert parsed["plan_id"] == "pro"
+
+
+def test_profiles_me_shows_the_notification_email(invoke, mock_api):
+    me = SAMPLE_ME | {"notification_email": "alerts@example.com"}
+    mock_api.get("/api/v1/profiles/me").respond(200, json=me)
+    result = invoke(["profiles", "me"])
+    assert result.exit_code == 0
+    assert "alerts@example.com" in result.output
+
+
+def test_profiles_update_notification_email(invoke, mock_api):
+    route = mock_api.patch("/api/v1/profiles/me").respond(200, json=SAMPLE_UPDATED)
+    result = invoke(["profiles", "update", "--notification-email", "alerts@example.com"])
+    assert result.exit_code == 0
+    assert json.loads(route.calls.last.request.content) == {
+        "notification_email": "alerts@example.com"
+    }
+
+
+def test_profiles_update_clear_notification_email(invoke, mock_api):
+    route = mock_api.patch("/api/v1/profiles/me").respond(200, json=SAMPLE_UPDATED)
+    result = invoke(["profiles", "update", "--clear-notification-email"])
+    assert result.exit_code == 0
+    assert json.loads(route.calls.last.request.content) == {"notification_email": None}
+
+
+def test_profiles_update_notification_email_conflicting_flags(invoke, mock_api):
+    result = invoke(
+        [
+            "profiles",
+            "update",
+            "--notification-email",
+            "alerts@example.com",
+            "--clear-notification-email",
+        ]
+    )
+    assert result.exit_code == 2
+
+
+def test_profiles_update_invalid_notification_email(invoke, mock_api):
+    mock_api.patch("/api/v1/profiles/me").respond(422, json={"detail": "bad email"})
+    result = invoke(["profiles", "update", "--notification-email", "nope", "--json"])
+    assert result.exit_code == 2
+    assert json.loads(result.output)["error"] is True

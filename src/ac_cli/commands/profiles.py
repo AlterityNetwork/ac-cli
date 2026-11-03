@@ -46,6 +46,7 @@ def profiles_me(
             ("first_name", "First Name"),
             ("last_name", "Last Name"),
             ("email", "Email"),
+            ("notification_email", "Notification Email"),
             ("job_title", "Job Title"),
             ("bio", "Bio"),
             ("is_superadmin", "Superadmin"),
@@ -63,10 +64,24 @@ def profiles_update(
     job_title: str | None = typer.Option(None, "--job-title", help="Job title"),
     avatar_url: str | None = typer.Option(None, "--avatar-url", help="Avatar URL"),
     email: str | None = typer.Option(None, "--email", help="Email address"),
+    notification_email: str | None = typer.Option(
+        None,
+        "--notification-email",
+        help="Where notification emails and the daily digest go",
+    ),
+    clear_notification_email: bool = typer.Option(
+        False,
+        "--clear-notification-email",
+        help="Send notification emails to the account email again",
+    ),
     json_output: bool = JSON_OPTION,
 ) -> None:
     """Update the current user's profile."""
     set_json_mode(json_output)
+    if notification_email is not None and clear_notification_email:
+        raise typer.BadParameter(
+            "Use --notification-email or --clear-notification-email, not both."
+        )
     body = _build_body(
         first_name=first_name,
         last_name=last_name,
@@ -74,7 +89,11 @@ def profiles_update(
         job_title=job_title,
         avatar_url=avatar_url,
         email=email,
+        notification_email=notification_email,
     )
+    if clear_notification_email:
+        # The body builder drops None values, and None is the value that clears.
+        body["notification_email"] = None
 
     if not body:
         rprint("[yellow]No fields to update.[/yellow]")
