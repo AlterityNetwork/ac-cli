@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from enum import Enum
+
 import typer
 from rich import print as rprint
 
@@ -819,6 +821,51 @@ def prospects_restore(
     _print_curation(data, json_output=json_output)
 
 
+class _BulkIntent(str, Enum):
+    """The curation intents one bulk request writes."""
+
+    watch = "watch"
+    dismiss = "dismiss"
+    restore = "restore"
+
+
+#: The outcome lists of a bulk curation, in the order the table shows them.
+_BULK_OUTCOMES = ("updated", "unchanged", "promoted", "not_found")
+
+
+@app.command("bulk-curate")
+def prospects_bulk_curate(
+    ctx: typer.Context,
+    intent: _BulkIntent = typer.Argument(..., help="watch, dismiss or restore"),
+    prospect_ids: list[str] = typer.Argument(..., help="Prospect IDs, at most 100"),
+    json_output: bool = JSON_OPTION,
+) -> None:
+    """Write one curation intent to many prospects.
+
+    A promoted, missing or foreign prospect does not move. The answer lists
+    each prospect under its outcome.
+    """
+    set_json_mode(json_output)
+    data = _api_request(
+        "post",
+        f"{_PROSPECTS}/bulk-curate",
+        json={"intent": intent.value, "prospect_ids": list(prospect_ids)},
+    ).json()
+    if json_output:
+        print_json(data)
+        return
+    rows = [
+        {"prospect_id": one, "outcome": outcome}
+        for outcome in _BULK_OUTCOMES
+        for one in data.get(outcome) or []
+    ]
+    print_table(
+        rows,
+        [("prospect_id", "Prospect ID"), ("outcome", "Outcome")],
+        title=f"Bulk {intent.value}",
+    )
+
+
 @app.command("dismiss-action")
 def prospects_dismiss_action(
     ctx: typer.Context,
@@ -919,6 +966,91 @@ def prospects_promote(
     named = data.get("named_people") or []
     if named:
         print_table(named, _PROMOTED_NAMED_FIELDS, title="People named in signals")
+
+
+_BULK_PROMOTION_FIELDS = [
+    ("prospect_id", "Prospect ID"),
+    ("status", "Status"),
+    ("crm_company_id", "CRM company ID"),
+]
+
+
+def _bulk_items(prospect_ids: list[str], people: list[str]) -> list[dict[str, object]]:
+    """Builds one bulk promotion item for each prospect.
+
+    Args:
+        prospect_ids: The prospects, in the order to promote.
+        people: The `PROSPECT_ID:PERSON_ID` pairs the reader passed.
+
+    Returns:
+        One item for each prospect, with the people it promotes.
+
+    Raises:
+        typer.BadParameter: A pair has no colon, or names a prospect the
+          command does not promote.
+    """
+    selected: dict[str, list[str]] = {one: [] for one in prospect_ids}
+    for pair in people:
+        prospect_id, colon, person_id = pair.partition(":")
+        if not colon or not person_id:
+            raise typer.BadParameter(
+                f"Use PROSPECT_ID:PERSON_ID, not {pair}.", param_hint="--person"
+            )
+        if prospect_id not in selected:
+            raise typer.BadParameter(
+                f"Prospect {prospect_id} is not in the prospects to promote.",
+                param_hint="--person",
+            )
+        selected[prospect_id].append(person_id)
+    return [{"prospect_id": one, "person_ids": ids} for one, ids in selected.items()]
+
+
+@app.command("bulk-promote")
+def prospects_bulk_promote(
+    ctx: typer.Context,
+    prospect_ids: list[str] = typer.Argument(..., help="Prospect IDs, at most 25"),
+    person: list[str] = typer.Option(
+        [],
+        "--person",
+        help=(
+            "PROSPECT_ID:PERSON_ID, a prospect person to promote with its "
+            "prospect. Repeat for each person."
+        ),
+    ),
+    yes: bool = typer.Option(False, "--yes", "-y", help="Skip the confirmation."),
+    json_output: bool = JSON_OPTION,
+) -> None:
+    """Promote many prospects into CRM, one after the other.
+
+    A prospect with no --person promotes the company alone, or the subject
+    person of a person prospect. A refused prospect is a failed result, and
+    the next prospect still promotes.
+    """
+    set_json_mode(json_output)
+    items = _bulk_items(list(prospect_ids), list(person))
+    if not should_skip_confirm(yes):
+        typer.confirm(f"Promote {len(items)} prospects into CRM?", abort=True)
+    data = _api_request("post", f"{_PROSPECTS}/bulk-promote", json={"items": items}).json()
+    if json_output:
+        print_json(data)
+        return
+    results = data.get("results") or []
+    rows = [
+        {
+            "prospect_id": result.get("prospect_id"),
+            "status": result.get("status"),
+            "crm_company_id": (result.get("promotion") or {}).get("crm_company_id"),
+        }
+        for result in results
+    ]
+    print_table(rows, _BULK_PROMOTION_FIELDS, title="Bulk promotion")
+    # A reason is free text, so it gets its own line and is not cut.
+    for result in results:
+        if result.get("status") == "failed":
+            console.print(
+                as_text(f"{result.get('prospect_id')}: {result.get('error')}"),
+                soft_wrap=True,
+            )
 
 
 @app.command("delete")
