@@ -498,71 +498,94 @@ def test_save_prints_no_v2_approve_command(invoke, mock_api):
     assert "--context-version" not in result.output
 
 
-def test_reject_sends_the_mode_and_the_note(invoke, mock_api):
-    route = mock_api.post(f"{BASE}/{DECISION_ID}/reject").respond(
-        200, json={**REVIEW, "outcome": "rejected", "reviewer_note": "Shorter."}
-    )
+REJECTED = {**ACTION, "status": "rejected"}
 
-    result = invoke(
-        [
-            "agentic",
-            "outreach",
-            "drafts",
-            "reject",
-            DECISION_ID,
-            "--mode",
-            "regenerate",
-            "--note",
-            "Shorter.",
-            "--json",
-        ]
-    )
+
+def _reject(*args):
+    return ["agentic", "outreach", "drafts", "reject", ACTION_ID, *args]
+
+
+def test_reject_regenerate_sends_then_and_the_reason_to_the_action(invoke, mock_api):
+    route = mock_api.post(f"{ACTIONS}/{ACTION_ID}/reject").respond(200, json=REJECTED)
+
+    result = invoke(_reject("--then", "regenerate", "--reason", "Shorter.", "--json"))
 
     assert result.exit_code == 0, result.output
     assert json.loads(route.calls[0].request.content) == {
-        "mode": "regenerate",
-        "note": "Shorter.",
+        "then": "regenerate",
+        "reason": "Shorter.",
     }
+    assert json.loads(result.output)["status"] == "rejected"
 
 
-def test_reject_skip_sends_no_note_when_none_is_given(invoke, mock_api):
-    route = mock_api.post(f"{BASE}/{DECISION_ID}/reject").respond(200, json=REVIEW)
+def test_reject_regenerate_needs_a_reason_before_the_request(invoke, mock_api):
+    route = mock_api.post(f"{ACTIONS}/{ACTION_ID}/reject").respond(200, json=REJECTED)
 
-    result = invoke(["agentic", "outreach", "drafts", "reject", DECISION_ID, "--mode", "skip"])
-
-    assert result.exit_code == 0, result.output
-    assert json.loads(route.calls[0].request.content) == {"mode": "skip"}
-
-
-def test_reject_refuses_an_unknown_mode_before_the_request(invoke, mock_api):
-    route = mock_api.post(f"{BASE}/{DECISION_ID}/reject").respond(200, json=REVIEW)
-
-    result = invoke(
-        ["agentic", "outreach", "drafts", "reject", DECISION_ID, "--mode", "later", "--json"]
-    )
+    result = invoke(_reject("--then", "regenerate", "--json"))
 
     assert result.exit_code == 2
     assert not route.called
 
 
-def test_reject_exit_asks_before_it_ends_the_enrollment(invoke, mock_api):
-    route = mock_api.post(f"{BASE}/{DECISION_ID}/reject").respond(200, json=REVIEW)
+def test_reject_refuses_an_unknown_then_before_the_request(invoke, mock_api):
+    route = mock_api.post(f"{ACTIONS}/{ACTION_ID}/reject").respond(200, json=REJECTED)
 
-    result = invoke(
-        ["agentic", "outreach", "drafts", "reject", DECISION_ID, "--mode", "exit"],
-        input="n\n",
-    )
+    result = invoke(_reject("--then", "skip", "--reason", "Later.", "--json"))
+
+    assert result.exit_code == 2
+    assert not route.called
+
+
+def test_reject_stop_asks_before_it_ends_the_enrollment(invoke, mock_api):
+    route = mock_api.post(f"{ACTIONS}/{ACTION_ID}/reject").respond(200, json=REJECTED)
+
+    result = invoke(_reject("--then", "stop"), input="n\n")
 
     assert result.exit_code == 1
     assert not route.called
 
 
-def test_reject_exit_with_yes_skips_the_question(invoke, mock_api):
-    route = mock_api.post(f"{BASE}/{DECISION_ID}/reject").respond(200, json=REVIEW)
+def test_reject_stop_with_yes_sends_no_reason_when_none_is_given(invoke, mock_api):
+    route = mock_api.post(f"{ACTIONS}/{ACTION_ID}/reject").respond(200, json=REJECTED)
 
-    result = invoke(
-        ["agentic", "outreach", "drafts", "reject", DECISION_ID, "--mode", "exit", "--yes"]
-    )
+    result = invoke(_reject("--then", "stop", "--yes"))
 
     assert result.exit_code == 0, result.output
-    assert json.loads(route.calls[0].request.content) == {"mode": "exit"}
+    assert json.loads(route.calls[0].request.content) == {"then": "stop"}
+    assert "rejected" in result.output
+
+
+def test_reject_stop_sends_an_optional_reason(invoke, mock_api):
+    route = mock_api.post(f"{ACTIONS}/{ACTION_ID}/reject").respond(200, json=REJECTED)
+
+    result = invoke(_reject("--then", "stop", "--reason", "Wrong person.", "--yes", "--json"))
+
+    assert result.exit_code == 0, result.output
+    assert json.loads(route.calls[0].request.content) == {
+        "then": "stop",
+        "reason": "Wrong person.",
+    }
+
+
+def test_a_reject_that_is_not_pending_exits_5_with_the_code(invoke, mock_api):
+    mock_api.post(f"{ACTIONS}/{ACTION_ID}/reject").respond(
+        409,
+        json={
+            **CONFLICT,
+            "code": "action_not_pending",
+            "context": {"code": "action_not_pending"},
+        },
+    )
+
+    result = invoke(_reject("--then", "regenerate", "--reason", "x", "--json"))
+
+    assert result.exit_code == 5
+
+
+def test_reject_calls_no_v2_draft_route(invoke, mock_api):
+    v2 = mock_api.post(f"{BASE}/{ACTION_ID}/reject").respond(200, json=REVIEW)
+    mock_api.post(f"{ACTIONS}/{ACTION_ID}/reject").respond(200, json=REJECTED)
+
+    invoke(_reject("--then", "stop", "--yes"))
+
+    assert not v2.called

@@ -26,8 +26,12 @@ takes `--subject` and `--body` (a reply `--body` only), a LinkedIn note
 `--note`, a LinkedIn message `--message`. The API checks the edit, reads the address now, and freezes the text, the address
 and their hash. A retry of the same approve answers the same action.
 
-`save` and `reject` still answer the v2 email draft, named by its decision id.
-`get` prints the decision id of an action.
+`reject` takes an action id and `--then`. `regenerate` needs `--reason`
+and asks for one new draft that reads it. `stop` ends the enrollment, and
+asks first unless `--yes`. A retry of the same reject answers the same action.
+
+`save` still answers the v2 email draft, named by its decision id. `get`
+prints the decision id of an action.
 """
 
 from __future__ import annotations
@@ -57,7 +61,7 @@ _OUTREACH = "/api/v1/agentic/outreach"
 _PAGE_DEFAULT = 50
 _PAGE_MIN = 1
 _PAGE_MAX = 100
-_MODES = ("regenerate", "skip", "exit")
+_THENS = ("regenerate", "stop")
 
 _ACTION_STATUSES = (
     "pending_approval",
@@ -305,33 +309,37 @@ def drafts_approve(
 
 @drafts_app.command("reject")
 def drafts_reject(
-    decision_id: str = typer.Argument(..., help="Draft ID (the decision id)"),
-    mode: str = typer.Option(
+    action_id: str = typer.Argument(..., help="Action ID"),
+    then: str = typer.Option(
         ...,
-        "--mode",
-        help=(
-            "regenerate: plan a new email now. skip: send nothing and look again "
-            "later. exit: end the enrollment."
-        ),
+        "--then",
+        help="regenerate: ask for one new draft. stop: end the enrollment.",
     ),
-    note: str | None = typer.Option(None, "--note", help="Feedback that later Runs read"),
-    yes: bool = typer.Option(False, "--yes", "-y", help="Skip confirmation for --mode exit"),
+    reason: str | None = typer.Option(
+        None,
+        "--reason",
+        help="What the next draft must change (1 to 1000 chars). Required for regenerate.",
+    ),
+    yes: bool = typer.Option(False, "--yes", "-y", help="Skip confirmation for --then stop"),
     json_output: bool = JSON_OPTION,
 ) -> None:
-    """Reject the email, then regenerate, skip or exit the campaign."""
+    """Reject one proposed action, then ask for a new draft or stop."""
     set_json_mode(json_output)
-    if mode not in _MODES:
-        refuse_local(f"--mode must be one of: {', '.join(_MODES)}", mode)
-    if mode == "exit" and not should_skip_confirm(yes):
+    if then not in _THENS:
+        refuse_local(f"--then must be one of: {', '.join(_THENS)}", then)
+    if then == "regenerate" and reason is None:
+        refuse_local("--then regenerate needs --reason")
+    if then == "stop" and not should_skip_confirm(yes):
         typer.confirm("End this person's enrollment in the campaign?", abort=True)
-    body: dict[str, str] = {"mode": mode}
-    if note is not None:
-        body["note"] = note
-    data = _api_request("post", f"{_OUTREACH}/drafts/{decision_id}/reject", json=body).json()
+    body: dict[str, str] = {"then": then}
+    if reason is not None:
+        body["reason"] = reason
+    data = _api_request("post", f"{_OUTREACH}/actions/{action_id}/reject", json=body).json()
     if json_output:
         print_json(data)
         return
-    rprint(styled("[yellow]Draft {} is rejected ({}).[/yellow]", decision_id, mode))
+    rprint(styled("[yellow]Action {} is rejected ({}).[/yellow]", action_id, then))
+    _print_action(data)
 
 
 # Campaigns.
