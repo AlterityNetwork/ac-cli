@@ -1,4 +1,4 @@
-"""Commands for Outreach: campaigns, enrollments, the stop and the draft review.
+"""Commands for Outreach: campaigns, enrollments, the stop and the Review queue.
 
 `ac agentic outreach campaigns` creates, edits, activates, pauses, resumes and
 archives a campaign, and enrolls one person (`enroll`) or up to 200 people in
@@ -29,9 +29,6 @@ and their hash. A retry of the same approve answers the same action.
 `reject` takes an action id and `--then`. `regenerate` needs `--reason`
 and asks for one new draft that reads it. `stop` ends the enrollment, and
 asks first unless `--yes`. A retry of the same reject answers the same action.
-
-`save` still answers the v2 email draft, named by its decision id. `get`
-prints the decision id of an action.
 """
 
 from __future__ import annotations
@@ -51,8 +48,8 @@ from ac_cli.commands._helpers import (
 )
 from ac_cli.formatting import as_text, print_detail, print_json, print_table, styled
 
-app = typer.Typer(help="Outreach (agentic): campaigns, enrollments and draft review")
-drafts_app = typer.Typer(help="Read, save, approve and reject Outreach email drafts")
+app = typer.Typer(help="Outreach (agentic): campaigns, enrollments and the Review queue")
+drafts_app = typer.Typer(help="Read, approve and reject Outreach drafts")
 campaigns_app = typer.Typer(help="Create, edit, pause and archive Outreach campaigns")
 enrollments_app = typer.Typer(help="Read, re-evaluate and end Outreach enrollments")
 organization_app = typer.Typer(help="Stop or resume Outreach for the organization")
@@ -105,31 +102,6 @@ _ACTION_FIELDS = [
     ("rationale", "Why"),
     ("objective", "Objective"),
 ]
-_DETAIL_FIELDS = [
-    ("decision_id", "Draft ID"),
-    ("outcome", "Outcome"),
-    ("enrollment_status", "Enrollment"),
-    ("campaign_status", "Campaign"),
-    ("context_version", "Context version"),
-    ("content_hash", "Content hash"),
-    ("reviewable", "Reviewable"),
-    ("locked", "Locked"),
-    ("approval_expires_at", "Approval expires"),
-    ("rationale", "Why now"),
-    ("reviewer_note", "Reviewer note"),
-    ("failure_reason", "Failure"),
-]
-
-
-def _print_review(data: dict) -> None:
-    """Print one draft review and its text."""
-    print_detail(data, _DETAIL_FIELDS)
-    draft = data.get("draft")
-    if draft:
-        rprint("[bold]To:[/bold]", as_text(", ".join(draft.get("to_emails") or [])))
-        rprint("[bold]Subject:[/bold]", as_text(draft.get("subject") or ""))
-        rprint("[bold]Body:[/bold]")
-        rprint(as_text(draft.get("body") or ""))
 
 
 def _flat(item: dict) -> dict:
@@ -216,36 +188,6 @@ def drafts_get(
         print_json(data)
         return
     _print_action(data)
-
-
-@drafts_app.command("save")
-def drafts_save(
-    decision_id: str = typer.Argument(..., help="Draft ID (the decision id)"),
-    subject: str | None = typer.Option(None, "--subject", help="New subject"),
-    body: str | None = typer.Option(None, "--body", help="New plain text body"),
-    body_file: Path | None = typer.Option(
-        None, "--body-file", help="Read the new body from this file", exists=True, dir_okay=False
-    ),
-    json_output: bool = JSON_OPTION,
-) -> None:
-    """Save the draft text. A save after the approval fails with 409."""
-    set_json_mode(json_output)
-    if body is not None and body_file is not None:
-        refuse_local("give --body or --body-file, not both")
-    if body_file is not None:
-        body = body_file.read_text(encoding="utf-8")
-    patch: dict[str, str] = {}
-    if subject is not None:
-        patch["subject"] = subject
-    if body is not None:
-        patch["body"] = body
-    if not patch:
-        refuse_local("nothing to save: give --subject, --body or --body-file")
-    data = _api_request("patch", f"{_OUTREACH}/drafts/{decision_id}", json=patch).json()
-    if json_output:
-        print_json(data)
-        return
-    _print_review(data)
 
 
 @drafts_app.command("approve")
@@ -995,7 +937,7 @@ def enrollments_exit(
     yes: bool = typer.Option(False, "--yes", "-y", help="Skip confirmation"),
     json_output: bool = JSON_OPTION,
 ) -> None:
-    """End the enrollment. You reject a draft that waits for review."""
+    """End the enrollment. A draft that waits for review is not sent."""
     set_json_mode(json_output)
     if not should_skip_confirm(yes):
         typer.confirm("End this person's enrollment in the campaign?", abort=True)
