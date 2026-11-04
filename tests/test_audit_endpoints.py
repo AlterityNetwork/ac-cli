@@ -135,3 +135,22 @@ def test_the_audit_finds_each_prospect_command() -> None:
         ("POST", "/api/v1/agentic/prospects/{id}/watch"),
         ("POST", "/api/v1/agentic/prospects/{id}/dismiss"),
     } <= calls
+
+
+def test_the_audit_finds_each_share_link_command() -> None:
+    calls = audit.collect_cli_calls(audit.CLI_ROOT)
+
+    assert {
+        ("POST", "/api/v1/resources/{id}/share-links"),
+        ("GET", "/api/v1/resources/{id}/share-links"),
+        ("PATCH", "/api/v1/resources/share-links/{id}"),
+        ("POST", "/api/v1/resources/share-links/{id}/revoke"),
+        ("GET", "/api/v1/resources/share-links/{id}/opens"),
+    } <= calls
+
+
+def test_the_public_share_routes_are_out_of_scope() -> None:
+    assert {
+        ("GET", "/api/v1/share/{id}"),
+        ("GET", "/api/v1/share/{id}/file"),
+    } <= audit.OUT_OF_SCOPE
