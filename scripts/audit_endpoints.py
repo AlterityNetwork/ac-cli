@@ -140,6 +140,9 @@ OUT_OF_SCOPE: set[tuple[str, str]] = {
     ("GET", "/api/v1/resources/{id}/stream"),
     ("GET", "/api/v1/resources/{id}/preview-url"),
     ("PATCH", "/api/v1/resources/{id}"),
+    # Public share page routes: unauthenticated, called by the hosted preview page.
+    ("GET", "/api/v1/share/{id}"),
+    ("GET", "/api/v1/share/{id}/file"),
     ("GET", "/api/v1/nylas/sync/messages/{id}/attachments/{id}/download"),
     # battlecards/playbooks: non-envoy mounts duplicate routes — CLI uses /envoy/*
     ("GET", "/api/v1/battlecards/{id}"),
