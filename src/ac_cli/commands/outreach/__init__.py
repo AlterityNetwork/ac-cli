@@ -355,7 +355,6 @@ _GOAL_MAX = 2000
 _CHANNELS = ("email", "linkedin")
 _MAX_TOUCHES_MAX = 10
 _FOLLOWUP_DAYS_MAX = 30
-_ORDERS = ("desc", "asc")
 
 _CAMPAIGN_LIST_FIELDS = [
     ("id", "Campaign ID"),
@@ -924,11 +923,13 @@ def _timeline_text(item: dict) -> str:
     """Answers one line that says what a timeline item holds."""
     kind = item.get("kind")
     if kind == "decision":
-        parts = [item.get("type"), item.get("status"), item.get("subject")]
+        parts = [item.get("type"), item.get("status"), item.get("rationale")]
+    elif kind == "action":
+        parts = [item.get("type"), item.get("status"), item.get("reject_reason")]
     elif kind == "email":
         parts = [item.get("direction"), item.get("status"), item.get("subject")]
-    elif kind == "activity":
-        parts = [item.get("activity_type"), item.get("status"), item.get("title")]
+    elif kind == "linkedin_message":
+        parts = [item.get("direction"), item.get("text")]
     elif kind == "ended":
         parts = [item.get("ended_reason")]
     else:
@@ -940,31 +941,31 @@ def _timeline_text(item: dict) -> str:
 def enrollments_timeline(
     enrollment_id: str = typer.Argument(..., help="Enrollment ID"),
     limit: int = typer.Option(
-        _PAGE_DEFAULT, "--limit", help="Most decisions, emails and activities, each, 1 to 100"
+        _PAGE_DEFAULT, "--limit", help="Most rows of each kind, 1 to 100. The newest are kept"
     ),
-    order: str = typer.Option("desc", "--order", help="desc: newest first. asc: oldest first"),
     json_output: bool = JSON_OPTION,
 ) -> None:
-    """Read what happened to one enrollment, newest first unless --order asc."""
+    """Read the Outreach items of one enrollment, newest first.
+
+    The items are the start, each decision, each proposed action, the thread
+    emails, the LinkedIn messages and the end. No CRM activity is in it.
+    """
     set_json_mode(json_output)
     if not _PAGE_MIN <= limit <= _PAGE_MAX:
         refuse_local(f"--limit is not between {_PAGE_MIN} and {_PAGE_MAX}", limit)
-    if order not in _ORDERS:
-        refuse_local(f"--order must be one of: {', '.join(_ORDERS)}", order)
     data = _api_request(
         "get",
         f"{_OUTREACH}/enrollments/{enrollment_id}/timeline",
-        params={"limit": limit, "order": order},
+        params={"limit": limit},
     ).json()
     if json_output:
         print_json(data)
         return
     rows = [{**item, "what": _timeline_text(item)} for item in data.get("items", [])]
-    sequence = "oldest first" if order == "asc" else "newest first"
     print_table(
         rows,
         _TIMELINE_FIELDS,
-        title=f"Outreach timeline: {data.get('campaign_name') or ''} ({sequence})",
+        title=f"Outreach timeline: {data.get('campaign_name') or ''} (newest first)",
     )
 
 
