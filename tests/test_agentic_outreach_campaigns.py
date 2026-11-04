@@ -1267,71 +1267,61 @@ TIMELINE = {
     "campaign_name": "Q4 intro",
     "items": [
         {
+            "kind": "ended",
+            "at": "2026-10-23T09:00:00Z",
+            "id": ENROLLMENT_ID,
+            "ended_reason": "goal_met",
+        },
+        {
+            "kind": "linkedin_message",
+            "at": "2026-10-22T12:00:00Z",
+            "id": "66666666-6666-4666-8666-666666666666",
+            "direction": "inbound",
+            "text": "Happy to chat.",
+        },
+        {
+            "kind": "action",
+            "at": "2026-10-22T10:00:00Z",
+            "id": "77777777-7777-4777-8777-777777777777",
+            "type": "email",
+            "status": "rejected",
+            "decision_id": "44444444-4444-4444-8444-444444444444",
+            "communication_id": None,
+            "reject_reason": "Too long.",
+        },
+        {
             "kind": "decision",
             "at": "2026-10-22T09:00:00Z",
             "id": "44444444-4444-4444-8444-444444444444",
-            "type": "wait",
-            "outcome": None,
-            "rationale": "Jane asked for a call.",
+            "type": "email",
+            "status": "saved",
+            "trigger_reason": "reply_received",
+            "rationale": "She asked.",
             "objective": "Book a call.",
             "followup_days": 3,
             "goal_met": False,
-            "trigger_reason": "reply_received",
-            "reviewer_note": None,
-            "failure_reason": "wait_days_out_of_window",
-            "subject": "A time for the call",
-            "direction": None,
-            "status": "invalid",
-            "activity_type": None,
-            "title": None,
-            "ended_reason": None,
+            "failure_reason": None,
         },
         {
             "kind": "email",
             "at": "2026-10-21T15:00:00Z",
             "id": "55555555-5555-4555-8555-555555555555",
-            "type": None,
-            "outcome": None,
-            "rationale": None,
-            "objective": None,
-            "followup_days": None,
-            "goal_met": None,
-            "trigger_reason": None,
-            "reviewer_note": None,
-            "failure_reason": None,
-            "subject": "Re: Hello Jane",
             "direction": "inbound",
+            "subject": "Re: Hello",
             "status": "received",
-            "activity_type": None,
-            "title": None,
-            "ended_reason": None,
+            "text": "Can we talk on Friday?",
         },
         {
             "kind": "enrolled",
             "at": "2026-10-21T10:00:00Z",
-            "id": None,
-            "type": None,
-            "outcome": None,
-            "rationale": None,
-            "objective": None,
-            "followup_days": None,
-            "goal_met": None,
-            "trigger_reason": None,
-            "reviewer_note": None,
-            "failure_reason": None,
-            "subject": None,
-            "direction": None,
-            "status": None,
-            "activity_type": None,
-            "title": None,
-            "ended_reason": None,
+            "id": ENROLLMENT_ID,
         },
     ],
 }
 
 
 class TestEnrollmentTimeline:
-    def test_timeline_sends_the_limit_and_prints_each_fact(self, invoke, mock_api):
+    def test_timeline_sends_the_limit_and_prints_each_kind(self, invoke, mock_api):
         route = mock_api.get(f"{BASE}/enrollments/{ENROLLMENT_ID}/timeline").respond(
             200, json=TIMELINE
         )
@@ -1341,30 +1331,25 @@ class TestEnrollmentTimeline:
         )
 
         assert result.exit_code == 0, result.output
-        assert route.calls[0].request.url.params["limit"] == "5"
+        assert dict(route.calls[0].request.url.params) == {"limit": "5"}
         assert "Q4 intro" in result.output
-        assert "wait · invalid · A time for the call" in result.output
-        assert "Re: Hello Jane" in result.output
-        assert "enrolled" in result.output
+        for line in (
+            "goal_met",
+            "inbound · Happy to chat.",
+            "email · rejected · Too long.",
+            "email · saved · She asked.",
+            "inbound · received · Re: Hello",
+            "linkedin_message",
+            "action",
+            "enrolled",
+        ):
+            assert line in result.output
 
-    def test_timeline_sends_the_order(self, invoke, mock_api):
-        route = mock_api.get(f"{BASE}/enrollments/{ENROLLMENT_ID}/timeline").respond(
-            200, json=TIMELINE
-        )
-
-        result = invoke(
-            ["agentic", "outreach", "enrollments", "timeline", ENROLLMENT_ID, "--order", "asc"]
-        )
-
-        assert result.exit_code == 0, result.output
-        assert route.calls[0].request.url.params["order"] == "asc"
-        assert "oldest first" in result.output
-
-    def test_timeline_refuses_a_bad_order_without_a_call(self, invoke, mock_api):
+    def test_timeline_has_no_order_option(self, invoke, mock_api):
         route = mock_api.get(f"{BASE}/enrollments/{ENROLLMENT_ID}/timeline")
 
         result = invoke(
-            ["agentic", "outreach", "enrollments", "timeline", ENROLLMENT_ID, "--order", "up"]
+            ["agentic", "outreach", "enrollments", "timeline", ENROLLMENT_ID, "--order", "asc"]
         )
 
         assert result.exit_code == 2
@@ -1475,13 +1460,13 @@ def test_list_past_the_end_prints_zero_of_the_total_and_no_next_offset(invoke, m
     assert "--offset" not in result.output
 
 
-def test_timeline_sends_desc_by_default_and_says_newest_first(invoke, mock_api):
+def test_timeline_says_newest_first_and_sends_no_order(invoke, mock_api):
     route = mock_api.get(f"{BASE}/enrollments/{ENROLLMENT_ID}/timeline").respond(200, json=TIMELINE)
 
     result = invoke(["agentic", "outreach", "enrollments", "timeline", ENROLLMENT_ID])
 
     assert result.exit_code == 0, result.output
-    assert route.calls[0].request.url.params["order"] == "desc"
+    assert "order" not in route.calls[0].request.url.params
     assert "newest first" in result.output
 
 
