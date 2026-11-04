@@ -102,10 +102,9 @@ ROW = {
         "id": "66666666-6666-4666-8666-666666666666",
         "type": "email",
         "status": "saved",
-        "outcome": "proposed",
-        "executed_at": None,
         "created_at": "2026-10-21T11:00:00Z",
     },
+    "awaiting_approval": True,
 }
 PAGE = {"data": [ROW], "total": 3, "limit": 1, "offset": 1, "has_more": True}
 
@@ -1430,22 +1429,6 @@ def test_list_names_only_the_status_of_a_decision_without_a_type(invoke, mock_ap
     assert result.exit_code == 0, result.output
     assert table_column(result.output, 4) == "error"
     assert "·" not in result.output
-
-
-def test_list_falls_back_to_the_outcome_of_a_row_with_no_status(invoke, mock_api, table_column):
-    """An answer with no status falls back to the outcome."""
-    row = {
-        **ROW,
-        "last_decision": {**ROW["last_decision"], "status": None, "outcome": "proposed"},
-    }
-    mock_api.get(f"{BASE}/campaigns/{CAMPAIGN_ID}/enrollments").respond(
-        200, json=_page([row], total=1, offset=0, has_more=False)
-    )
-
-    result = invoke(LIST)
-
-    assert result.exit_code == 0, result.output
-    assert table_column(result.output, 4).replace(" ", "") == "email·proposed"
 
 
 def test_list_past_the_end_prints_zero_of_the_total_and_no_next_offset(invoke, mock_api):

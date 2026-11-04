@@ -401,9 +401,7 @@ def _with_last_action(row: dict) -> dict:
     last = row.get("last_decision")
     if not isinstance(last, dict):
         return row
-    # The outcome is shown only when the status is empty. The table never sets a
-    # status null, so this guards an older answer.
-    parts = [last.get("type"), last.get("status") or last.get("outcome")]
+    parts = [last.get("type"), last.get("status")]
     return {**row, "last_action": " · ".join(str(part) for part in parts if part)}
 
 
