@@ -5,12 +5,26 @@ from __future__ import annotations
 import typer
 from rich import print as rprint
 
-from ac_cli.commands._helpers import JSON_OPTION, set_json_mode, should_skip_confirm
+from ac_cli.commands._helpers import (
+    JSON_OPTION,
+    refuse_local,
+    set_json_mode,
+    should_skip_confirm,
+)
 from ac_cli.commands.crm import _api_request, _build_body
 from ac_cli.commands.envoy import _ENVOY
-from ac_cli.formatting import print_json, print_table, styled
+from ac_cli.formatting import as_text, print_json, print_table, styled
 
 steps_app = typer.Typer(help="Sequence step operations")
+
+_ATTACH_HELP = "Vault document id to attach to each email of a message step. Repeat for several."
+
+
+def _print_attachments(data: dict) -> None:
+    """Prints the vault document ids that one step attaches, if any."""
+    ids = data.get("attachment_resource_ids") or []
+    if ids:
+        rprint(as_text(f"  Attachments: {', '.join(ids)}"))
 
 
 @steps_app.command("create")
@@ -41,6 +55,7 @@ def steps_create(
         "--wait-for-acceptance/--no-wait-for-acceptance",
         help="Hold the recipient at the request step until the person accepts",
     ),
+    attach: list[str] | None = typer.Option(None, "--attach", help=_ATTACH_HELP),
     json_output: bool = JSON_OPTION,
 ) -> None:
     """Create a step in a sequence."""
@@ -56,6 +71,7 @@ def steps_create(
         execution=execution,
         accept_wait_days=accept_wait_days,
         wait_for_acceptance=wait_for_acceptance,
+        attachment_resource_ids=attach or None,
     )
 
     resp = _api_request("post", f"{_ENVOY}/sequences/{sequence_id}/steps", json=body)
@@ -69,6 +85,7 @@ def steps_create(
                 "[green]Created step:[/green] {} ({})", data.get("step_type", step_type), data["id"]
             )
         )
+        _print_attachments(data)
 
 
 @steps_app.command("update")
@@ -98,10 +115,18 @@ def steps_update(
         "--wait-for-acceptance/--no-wait-for-acceptance",
         help="Hold the recipient at the request step until the person accepts",
     ),
+    attach: list[str] | None = typer.Option(
+        None, "--attach", help=f"{_ATTACH_HELP} Replaces the current documents."
+    ),
+    clear_attachments: bool = typer.Option(
+        False, "--clear-attachments", help="Remove every attached document"
+    ),
     json_output: bool = JSON_OPTION,
 ) -> None:
     """Update a sequence step."""
     set_json_mode(json_output)
+    if attach and clear_attachments:
+        refuse_local("Use --attach or --clear-attachments, not both")
     body = _build_body(
         message_template=message_template,
         prompt=prompt,
@@ -111,6 +136,7 @@ def steps_update(
         execution=execution,
         accept_wait_days=accept_wait_days,
         wait_for_acceptance=wait_for_acceptance,
+        attachment_resource_ids=attach or ([] if clear_attachments else None),
     )
 
     if not body:
@@ -124,6 +150,7 @@ def steps_update(
         print_json(data)
     else:
         rprint(styled("[green]Updated step {}[/green]", step_id))
+        _print_attachments(data)
 
 
 @steps_app.command("delete")

@@ -8,11 +8,37 @@ from enum import Enum
 import typer
 from rich import print as rprint
 
-from ac_cli.commands._helpers import JSON_OPTION, set_json_mode, should_skip_confirm
+from ac_cli.commands._helpers import (
+    JSON_OPTION,
+    refuse_local,
+    set_json_mode,
+    should_skip_confirm,
+)
 from ac_cli.commands.crm import _CRM, _api_request, _build_body
 from ac_cli.formatting import as_text, print_detail, print_json, print_table, styled
 
 communications_app = typer.Typer(help="Communications / email operations")
+
+
+_ATTACH_HELP = "Vault document id to attach. Repeat for several."
+
+
+def _vault_items(resource_ids: list[str]) -> list[dict]:
+    """Returns one vault reference item for each document id."""
+    return [{"resource_id": resource_id} for resource_id in resource_ids]
+
+
+def _attachment_names(attachments: list[dict]) -> str:
+    """Returns the file names of one message, comma-separated.
+
+    The API marks a vault item whose document was deleted with `missing`.
+    The line names that item as removed.
+    """
+    names = []
+    for item in attachments:
+        name = item.get("filename") or item.get("name") or "?"
+        names.append(f"{name} (removed)" if item.get("missing") else name)
+    return ", ".join(names)
 
 
 class InboxFolder(str, Enum):
@@ -147,6 +173,8 @@ def communications_thread(
             header.append_text(styled(" [dim]({})[/dim]", sentiment))
         rprint(header)
         rprint(styled("[dim]  To: {}[/dim]", ", ".join(msg.get("to_emails", []))))
+        if msg.get("attachments"):
+            rprint(styled("[dim]  Attachments: {}[/dim]", _attachment_names(msg["attachments"])))
         rprint(as_text(f"\n{msg.get('content', '')}"))
         rprint(styled("[dim]{}[/dim]", "─" * 60))
 
@@ -237,11 +265,23 @@ def communications_update(
     content: str | None = typer.Option(None, help="Content"),
     status: str | None = typer.Option(None, help="Status"),
     tags: str | None = typer.Option(None, help="Comma-separated tags"),
+    attach: list[str] | None = typer.Option(
+        None, "--attach", help=f"{_ATTACH_HELP} Replaces the current attachments."
+    ),
+    clear_attachments: bool = typer.Option(
+        False, "--clear-attachments", help="Remove every attachment"
+    ),
     json_output: bool = JSON_OPTION,
 ) -> None:
     """Update a communication."""
     set_json_mode(json_output)
+    if attach and clear_attachments:
+        refuse_local("Use --attach or --clear-attachments, not both")
     body = _build_body(subject=subject, content=content, status=status, tags=tags)
+    if attach:
+        body["attachments"] = _vault_items(attach)
+    elif clear_attachments:
+        body["attachments"] = []
 
     if not body:
         rprint("[yellow]No fields to update.[/yellow]")
@@ -370,6 +410,7 @@ def communications_draft_email(
         None, "--to-emails", help="Comma-separated recipient emails"
     ),
     from_email: str | None = typer.Option(None, "--from-email", help="Sender email"),
+    attach: list[str] | None = typer.Option(None, "--attach", help=_ATTACH_HELP),
     json_output: bool = JSON_OPTION,
 ) -> None:
     """Create an email draft."""
@@ -384,6 +425,8 @@ def communications_draft_email(
     )
     if to_emails:
         body["to_emails"] = [e.strip() for e in to_emails.split(",")]
+    if attach:
+        body["attachments"] = _vault_items(attach)
 
     resp = _api_request("post", f"{_CRM}/communications/draft-email", json=body)
 

@@ -5,16 +5,22 @@ from __future__ import annotations
 import mimetypes
 from pathlib import Path
 
+import httpx
 import typer
 from rich import print as rprint
 
+from ac_cli.client import get_api_client
 from ac_cli.commands._helpers import (
+    _EXIT_CODES,
     JSON_OPTION,
     _api_request,
+    _handle_connection_error,
+    _handle_error,
+    _json_output,
     set_json_mode,
     should_skip_confirm,
 )
-from ac_cli.formatting import print_detail, print_json, print_table, styled
+from ac_cli.formatting import as_text, print_detail, print_json, print_table, styled
 
 app = typer.Typer(help="Knowledge base resources")
 
@@ -36,9 +42,14 @@ def resources_list(
     offset: int = typer.Option(0, help="Offset for pagination"),
     json_output: bool = JSON_OPTION,
 ) -> None:
-    """List knowledge base resources."""
+    """List the documents of your organisation.
+
+    The list holds every document of the organisation, not only the ones you
+    uploaded.
+    """
     set_json_mode(json_output)
-    resp = _api_request("get", _RESOURCES, params={"limit": limit, "offset": offset})
+    params: dict = {"limit": limit, "offset": offset}
+    resp = _api_request("get", _RESOURCES, params=params)
 
     data = resp.json()
     if json_output:
@@ -116,19 +127,67 @@ def resources_upload(
         )
 
 
+def _in_use_context(exc: httpx.HTTPStatusError) -> dict | None:
+    """Returns the context of a `resource_in_use` refusal, or None."""
+    if exc.response.status_code != 409:
+        return None
+    try:
+        body = exc.response.json()
+    except ValueError:
+        return None
+    context = body.get("context") if isinstance(body, dict) else None
+    if not isinstance(context, dict):
+        return None
+    if "resource_in_use" not in (body.get("code"), context.get("code")):
+        return None
+    return context
+
+
+def _print_in_use(resource_id: str, context: dict) -> None:
+    """Prints the offers and sequence steps that attach one document."""
+    rprint(styled("[red]Error 409:[/red] Document {} is in use.", resource_id))
+    for offer in context.get("offers") or []:
+        rprint(as_text(f"  Offer: {offer.get('name') or offer.get('id')}"))
+    for step in context.get("steps") or []:
+        sequence = step.get("sequence_name") or step.get("sequence_id")
+        name = step.get("step_name") or step.get("id")
+        rprint(as_text(f"  Sequence step: {sequence} / {name}"))
+    rprint("Run the command again with --force to remove it from each and delete it.")
+
+
 @app.command("delete")
 def resources_delete(
     ctx: typer.Context,
     resource_id: str = typer.Argument(..., help="Resource ID"),
+    force: bool = typer.Option(
+        False,
+        "--force",
+        help="Remove the document from every offer and sequence step that attaches it",
+    ),
     yes: bool = typer.Option(False, "--yes", "-y", help="Skip confirmation"),
     json_output: bool = JSON_OPTION,
 ) -> None:
-    """Delete a knowledge base resource."""
+    """Delete a knowledge base resource.
+
+    The API refuses a document that an offer or a sequence step attaches. The
+    refusal names each offer and step. Use --force to delete it anyway.
+    """
     set_json_mode(json_output)
     if not should_skip_confirm(yes):
         typer.confirm(f"Delete resource {resource_id}?", abort=True)
 
-    _api_request("delete", f"{_RESOURCES}/{resource_id}")
+    params = {"force": "true"} if force else None
+    with get_api_client() as client:
+        try:
+            client.delete(f"{_RESOURCES}/{resource_id}", params=params).raise_for_status()
+        except httpx.HTTPStatusError as exc:
+            context = _in_use_context(exc)
+            if context is None or _json_output.get():
+                _handle_error(exc)
+            _print_in_use(resource_id, context)
+            raise typer.Exit(code=_EXIT_CODES[409]) from None
+        except httpx.HTTPError as exc:
+            _handle_connection_error(exc)
 
     if json_output:
         print_json({"deleted": True, "id": resource_id})

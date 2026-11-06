@@ -244,3 +244,93 @@ def test_steps_update_can_lift_the_hold(invoke, mock_api):
     assert result.exit_code == 0
     body = json.loads(route.calls.last.request.content)
     assert body == {"wait_for_acceptance": False}
+
+
+def test_steps_create_attaches_documents(invoke, mock_api):
+    route = mock_api.post("/api/v1/envoy/sequences/seq-1/steps").respond(
+        201, json={**SAMPLE_STEP, "attachment_resource_ids": ["res-1", "res-2"]}
+    )
+    result = invoke(
+        [
+            "envoy",
+            "steps",
+            "create",
+            "seq-1",
+            "--type",
+            "message",
+            "--attach",
+            "res-1",
+            "--attach",
+            "res-2",
+        ]
+    )
+    assert result.exit_code == 0
+    body = json.loads(route.calls.last.request.content)
+    assert body["attachment_resource_ids"] == ["res-1", "res-2"]
+    assert "Attachments: res-1, res-2" in result.output
+
+
+def test_steps_create_without_attach_sends_no_ids(invoke, mock_api):
+    route = mock_api.post("/api/v1/envoy/sequences/seq-1/steps").respond(201, json=SAMPLE_STEP)
+    result = invoke(["envoy", "steps", "create", "seq-1", "--type", "message"])
+    assert result.exit_code == 0
+    assert "attachment_resource_ids" not in json.loads(route.calls.last.request.content)
+    assert "Attachments" not in result.output
+
+
+def test_steps_update_attaches_documents(invoke, mock_api):
+    route = mock_api.patch("/api/v1/envoy/sequences/seq-1/steps/step-1").respond(
+        200, json={**SAMPLE_STEP, "attachment_resource_ids": ["res-1"]}
+    )
+    result = invoke(["envoy", "steps", "update", "seq-1", "step-1", "--attach", "res-1"])
+    assert result.exit_code == 0
+    assert json.loads(route.calls.last.request.content) == {"attachment_resource_ids": ["res-1"]}
+    assert "Attachments: res-1" in result.output
+
+
+def test_steps_update_clears_attachments(invoke, mock_api):
+    route = mock_api.patch("/api/v1/envoy/sequences/seq-1/steps/step-1").respond(
+        200, json={**SAMPLE_STEP, "attachment_resource_ids": []}
+    )
+    result = invoke(
+        ["envoy", "steps", "update", "seq-1", "step-1", "--clear-attachments", "--json"]
+    )
+    assert result.exit_code == 0
+    assert json.loads(route.calls.last.request.content) == {"attachment_resource_ids": []}
+    assert json.loads(result.output)["attachment_resource_ids"] == []
+
+
+def test_steps_update_attach_and_clear_is_refused(invoke, mock_api):
+    route = mock_api.patch("/api/v1/envoy/sequences/seq-1/steps/step-1")
+    result = invoke(
+        [
+            "envoy",
+            "steps",
+            "update",
+            "seq-1",
+            "step-1",
+            "--attach",
+            "res-1",
+            "--clear-attachments",
+        ]
+    )
+    assert result.exit_code == 2
+    assert not route.called
+
+
+def test_steps_create_over_the_limit_is_refused(invoke, mock_api):
+    mock_api.post("/api/v1/envoy/sequences/seq-1/steps").respond(
+        400,
+        json={
+            "error": True,
+            "message": "Attachments exceed the 15 MB limit for one email.",
+            "type": "ValidationError",
+            "code": "attachments_too_large",
+            "context": {"code": "attachments_too_large"},
+        },
+    )
+    result = invoke(
+        ["envoy", "steps", "create", "seq-1", "--type", "message", "--attach", "res-1", "--json"]
+    )
+    assert result.exit_code == 1
+    assert json.loads(result.output)["context"]["code"] == "attachments_too_large"

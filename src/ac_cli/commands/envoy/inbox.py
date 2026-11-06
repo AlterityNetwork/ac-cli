@@ -293,11 +293,16 @@ def inbox_reply(
     thread_id: str = typer.Argument(..., help="Thread ID"),
     body: str = typer.Option(..., "--body", help="Reply body"),
     subject: str | None = typer.Option(None, "--subject", help="Reply subject"),
+    attach: list[str] | None = typer.Option(
+        None, "--attach", help="Vault document id to attach. Repeat for several."
+    ),
     json_output: bool = JSON_OPTION,
 ) -> None:
     """Reply to a thread."""
     set_json_mode(json_output)
     req_body = _build_body(body=body, subject=subject)
+    if attach:
+        req_body["attachments"] = [{"resource_id": resource_id} for resource_id in attach]
     resp = _api_request("post", f"{_ENVOY}/inbox/threads/{thread_id}/reply", json=req_body)
 
     data = resp.json()

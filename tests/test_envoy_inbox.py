@@ -232,6 +232,35 @@ def test_inbox_reply(invoke, mock_api):
     assert "Replied" in result.output
 
 
+def test_inbox_reply_sends_no_attachments_by_default(invoke, mock_api):
+    route = mock_api.post("/api/v1/envoy/inbox/threads/t-1/reply").respond(200, json=SAMPLE_MESSAGE)
+    result = invoke(["envoy", "inbox", "reply", "t-1", "--body", "Thanks"])
+    assert result.exit_code == 0
+    assert "attachments" not in json.loads(route.calls.last.request.content)
+
+
+def test_inbox_reply_attaches_vault_documents(invoke, mock_api):
+    route = mock_api.post("/api/v1/envoy/inbox/threads/t-1/reply").respond(200, json=SAMPLE_MESSAGE)
+    result = invoke(
+        [
+            "envoy",
+            "inbox",
+            "reply",
+            "t-1",
+            "--body",
+            "Thanks",
+            "--attach",
+            "doc-1",
+            "--attach",
+            "doc-2",
+        ]
+    )
+    assert result.exit_code == 0
+    body = json.loads(route.calls.last.request.content)
+    assert body["attachments"] == [{"resource_id": "doc-1"}, {"resource_id": "doc-2"}]
+    assert body["body"] == "Thanks"
+
+
 def test_inbox_list_not_found(invoke, mock_api):
     mock_api.get("/api/v1/envoy/inbox/threads").respond(404, json={"detail": "Not found"})
     result = invoke(["envoy", "inbox", "list"])
