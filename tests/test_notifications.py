@@ -137,3 +137,82 @@ def test_notifications_reset_preferences_abort(invoke, mock_api):
     result = invoke(["notifications", "reset-preferences"], input="n\n")
     assert result.exit_code != 0
     assert not route.called
+
+
+SIGNALS_SETTINGS = {
+    "min_score": 50,
+    "searches": [
+        {"saved_search_id": "s-1", "name": "Fintech hiring", "enabled": True},
+        {"saved_search_id": "s-2", "name": "UK SaaS", "enabled": False},
+    ],
+}
+
+
+def test_notifications_signals_settings(invoke, mock_api):
+    mock_api.get("/api/v1/notifications/signals-settings").respond(200, json=SIGNALS_SETTINGS)
+    result = invoke(["notifications", "signals-settings"])
+    assert result.exit_code == 0
+    assert "5/10" in result.output
+    assert "Fintech hiring" in result.output
+    assert "UK SaaS" in result.output
+
+
+def test_notifications_signals_settings_json(invoke, mock_api):
+    mock_api.get("/api/v1/notifications/signals-settings").respond(200, json=SIGNALS_SETTINGS)
+    result = invoke(["notifications", "signals-settings", "--json"])
+    assert result.exit_code == 0
+    assert json.loads(result.output) == SIGNALS_SETTINGS
+
+
+def test_notifications_set_signals_settings_min_score(invoke, mock_api):
+    route = mock_api.put("/api/v1/notifications/signals-settings").respond(
+        200, json=SIGNALS_SETTINGS
+    )
+    result = invoke(["notifications", "set-signals-settings", "--min-score", "60"])
+    assert result.exit_code == 0
+    assert json.loads(route.calls.last.request.content) == {"min_score": 60}
+
+
+def test_notifications_set_signals_settings_mute_and_unmute(invoke, mock_api):
+    route = mock_api.put("/api/v1/notifications/signals-settings").respond(
+        200, json=SIGNALS_SETTINGS
+    )
+    result = invoke(
+        [
+            "notifications",
+            "set-signals-settings",
+            "--mute-search",
+            "s-1",
+            "--unmute-search",
+            "s-2",
+            "--json",
+        ]
+    )
+    assert result.exit_code == 0
+    assert json.loads(route.calls.last.request.content) == {
+        "searches": [
+            {"saved_search_id": "s-1", "enabled": False},
+            {"saved_search_id": "s-2", "enabled": True},
+        ]
+    }
+    assert json.loads(result.output) == SIGNALS_SETTINGS
+
+
+def test_notifications_set_signals_settings_requires_a_change(invoke, mock_api):
+    result = invoke(["notifications", "set-signals-settings"])
+    assert result.exit_code == 1
+    assert "No fields" in result.output
+
+
+def test_notifications_set_signals_settings_rejects_out_of_range(invoke, mock_api):
+    result = invoke(["notifications", "set-signals-settings", "--min-score", "101"])
+    assert result.exit_code == 2
+
+
+def test_notifications_set_signals_settings_unknown_search(invoke, mock_api):
+    mock_api.put("/api/v1/notifications/signals-settings").respond(
+        400, json={"detail": "Not a Signals saved search"}
+    )
+    result = invoke(["notifications", "set-signals-settings", "--mute-search", "x", "--json"])
+    assert result.exit_code == 1
+    assert json.loads(result.output)["status_code"] == 400
