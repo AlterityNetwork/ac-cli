@@ -339,3 +339,80 @@ def test_ask_to_reply_and_counts(invoke, mock_api):
     assert invoke(["inbox", "ask-to-reply", T1]).exit_code == 0
     counts = invoke(["inbox", "counts", "--json"])
     assert json.loads(counts.output) == {"badge": 3, "needs_reply": 2, "unread": 2}
+
+
+def test_every_command_prints_json_with_json(invoke, mock_api):
+    changed = {"thread_ids": [T1]}
+    mock_api.get(f"{BASE}/messages").respond(
+        200, json={"data": [], "total": 0, "limit": 50, "offset": 0, "has_more": False}
+    )
+    mock_api.get(f"{BASE}/threads/{T1}").respond(200, json={"id": T1})
+    mock_api.post(f"{BASE}/threads/{T1}/read").respond(200, json=changed)
+    mock_api.post(f"{BASE}/threads/{T1}/status").respond(200, json=changed)
+    mock_api.post(f"{BASE}/threads/{T1}/reply").respond(
+        200, json={"status": "sent", "communication_id": "c9"}
+    )
+    mock_api.post(f"{BASE}/messages").respond(
+        200, json={"status": "sent", "communication_id": "c9"}
+    )
+    mock_api.post(f"{BASE}/threads/{T1}/ai-draft").respond(202, json={"draft_id": "d1"})
+    mock_api.post(f"{BASE}/threads/{T1}/ask-to-reply").respond(
+        200, json={"owner_user_id": "u2", "notified": True}
+    )
+    commands = [
+        ["inbox", "messages", "--view", "sent"],
+        ["inbox", "show", T1],
+        ["inbox", "read", T1],
+        ["inbox", "status", T1, "--status", "open"],
+        ["inbox", "reply", T1, "--channel", "email", "--body", "Hi"],
+        [
+            "inbox",
+            "send",
+            "--contact-id",
+            P1,
+            "--channel",
+            "email",
+            "--subject",
+            "S",
+            "--body",
+            "Hi",
+        ],
+        ["inbox", "ai-draft", T1, "--channel", "email"],
+        ["inbox", "ask-to-reply", T1],
+    ]
+    for command in commands:
+        result = invoke([*command, "--json"])
+        assert result.exit_code == 0, (command, result.output)
+        json.loads(result.output)
+
+
+def test_local_refusals_exit_2_before_any_call(invoke, mock_api):
+    reply = mock_api.post(f"{BASE}/threads/{T1}/reply").respond(200, json={})
+    bulk = mock_api.post(f"{BASE}/threads/bulk").respond(200, json={})
+    assert invoke(["inbox", "list", "--offset", "-1"]).exit_code == 2
+    assert invoke(["inbox", "messages", "--view", "inbox"]).exit_code == 2
+    assert invoke(["inbox", "reply", T1, "--channel", "email", "--body", "  "]).exit_code == 2
+    assert invoke(["inbox", "bulk", "--ids", " , ", "--action", "done"]).exit_code == 2
+    assert invoke(["inbox", "bulk", "--ids", T1, "--action", "archive"]).exit_code == 2
+    assert not reply.called and not bulk.called
+
+
+def test_a_failed_draft_says_why(invoke, mock_api):
+    mock_api.post(f"{BASE}/threads/{T1}/ai-draft").respond(202, json={"draft_id": "d1"})
+    mock_api.get(f"{BASE}/ai-drafts/d1").respond(
+        200,
+        json={"draft_id": "d1", "status": "failed", "reason": "draft_placeholder"},
+    )
+    result = invoke(["inbox", "ai-draft", T1, "--channel", "email", "--wait"])
+    assert result.exit_code == 0
+    assert "draft_placeholder" in result.output
+
+
+def test_a_ready_draft_with_a_subject_prints_it_and_json_waits_too(invoke, mock_api):
+    mock_api.post(f"{BASE}/threads/{T1}/ai-draft").respond(202, json={"draft_id": "d1"})
+    ready = {"draft_id": "d1", "status": "ready", "subject": "Re: Deck", "body": "Here."}
+    mock_api.get(f"{BASE}/ai-drafts/d1").respond(200, json=ready)
+    result = invoke(["inbox", "ai-draft", T1, "--channel", "email", "--wait"])
+    assert "Re: Deck" in result.output
+    as_json = invoke(["inbox", "ai-draft", T1, "--channel", "email", "--wait", "--json"])
+    assert json.loads(as_json.output) == ready
