@@ -23,6 +23,9 @@ _DELTA_METRICS = [
     ("outbound_touches", "Outbound touches"),
     ("replies", "Replies"),
     ("sequence_emails_sent", "Sequence emails sent"),
+    ("linkedin_requests_sent", "LinkedIn requests sent"),
+    ("linkedin_requests_accepted", "LinkedIn requests accepted"),
+    ("linkedin_requests_awaiting", "LinkedIn requests awaiting acceptance"),
     ("companies_new", "New companies"),
     ("people", "New people"),
     ("tasks_created", "Tasks created"),
@@ -111,6 +114,7 @@ def analytics_overview(
         ("email_reply_rate", "Email reply rate"),
         ("email_positive_reply_rate", "Positive reply rate"),
         ("email_bounce_rate", "Bounce rate"),
+        ("linkedin_acceptance_rate", "LinkedIn acceptance rate"),
     ):
         rate = _rate_text((data.get(key) or {}).get("current"), "%")
         rprint(as_text(f"  {label}: {rate}"))

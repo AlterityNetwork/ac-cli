@@ -23,6 +23,11 @@ OVERVIEW = {
     "email_reply_rate": {"current": 8.5, "previous": 6.0, "change_pct": 41.7},
     "email_positive_reply_rate": {"current": 3.0, "previous": 2.0, "change_pct": 50.0},
     "email_bounce_rate": {"current": 1.2, "previous": 2.4, "change_pct": -50.0},
+    "linkedin_requests_sent": {"current": 20, "previous": 16, "change_pct": 25.0},
+    "linkedin_requests_accepted": {"current": 7, "previous": 5, "change_pct": 40.0},
+    "linkedin_acceptance_rate": {"current": 35.0, "previous": 50.0, "change_pct": -30.0},
+    "linkedin_requests_awaiting": {"current": 9, "previous": 2, "change_pct": 350.0},
+    "linkedin_requests_by_day": [{"date": "2026-07-21", "sent": 5, "accepted": 2}],
     "sequences_by_reply_rate": [
         {
             "id": "s1",
@@ -76,6 +81,16 @@ def test_analytics_overview(invoke, mock_api):
     assert "Positive reply rate: 3.0%" in result.output
     assert "Bounce rate: 1.2%" in result.output
     assert "added to CRM" not in result.output
+
+
+def test_analytics_overview_shows_the_linkedin_requests(invoke, mock_api):
+    mock_api.get("/api/v1/analytics/overview").respond(200, json=OVERVIEW)
+    result = invoke(["analytics", "overview"])
+    assert result.exit_code == 0
+    assert "LinkedIn requests sent" in result.output
+    assert "LinkedIn requests accepted" in result.output
+    assert "LinkedIn requests awaiting acceptance" in result.output
+    assert "LinkedIn acceptance rate: 35.0%" in result.output
 
 
 def test_analytics_overview_period_days(invoke, mock_api):
@@ -163,10 +178,16 @@ def test_analytics_overview_without_searches_or_replies(invoke, mock_api):
         "prospects_pursued_rate": {"current": None, "previous": None, "change_pct": None},
         "avg_reply_hours": {"current": None, "previous": None, "change_pct": None},
         "email_reply_rate": {"current": None, "previous": None, "change_pct": None},
+        "linkedin_acceptance_rate": {
+            "current": None,
+            "previous": None,
+            "change_pct": None,
+        },
     }
     mock_api.get("/api/v1/analytics/overview").respond(200, json=empty)
     result = invoke(["analytics", "overview"])
     assert result.exit_code == 0
+    assert "LinkedIn acceptance rate: -" in result.output
     assert "Saved searches: 0 of 0" in result.output
     assert "Prospects pursued: -" in result.output
     assert "Average time to reply: -" in result.output
