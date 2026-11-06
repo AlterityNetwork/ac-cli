@@ -161,12 +161,14 @@ def _cell(value: object) -> Text:
 
 def print_table(
     data: list[dict],
-    columns: list[tuple[str, str]],
+    columns: list[tuple[str, str | Text]],
     title: str | None = None,
 ) -> None:
     """Render a list of dicts as a Rich table.
 
-    columns: list of (key, header_label) tuples.
+    columns: list of (key, header_label) tuples. A header label that holds a
+    value the CLI did not write goes in as Text, because a str header reads
+    markup.
 
     The console reads rich markup, and no caller writes the cells. A company
     name that holds `[/beta]` raises MarkupError, and the command then exits 1

@@ -812,6 +812,20 @@ def test_people_prints_nested_person_fields(invoke, mock_api):
     assert "--limit 5 --cursor next" in result.output
 
 
+def test_people_prints_the_prospect_person_id(invoke, mock_api):
+    # `edit-person` and `promote --person` take the prospect person id, not
+    # the global person id.
+    mock_api.get(f"{BASE}/{PROSPECT_ID}/people").respond(
+        200, json={"items": [PERSON], "next_cursor": None}
+    )
+
+    result = invoke(["agentic", "prospects", "people", PROSPECT_ID])
+
+    assert result.exit_code == 0
+    # The table can wrap the id, so the test reads its first block.
+    assert PERSON["id"][:8] in result.output
+
+
 def test_people_json_keeps_the_page(invoke, mock_api):
     page = {"items": [PERSON], "next_cursor": None}
     mock_api.get(f"{BASE}/{PROSPECT_ID}/people").respond(200, json=page)
@@ -1132,3 +1146,151 @@ def test_delete_maps_not_found_to_exit_three(invoke, mock_api):
     mock_api.delete(f"{BASE}/{PROSPECT_ID}").respond(404, json={"detail": "prospect not found"})
 
     assert invoke(["agentic", "prospects", "delete", PROSPECT_ID, "--yes"]).exit_code == 3
+
+
+SECOND_ID = "55555555-5555-4555-8555-555555555555"
+PERSON_ID = "33333333-3333-4333-8333-333333333333"
+
+
+def test_bulk_curate_posts_the_intent_and_prints_each_outcome(invoke, mock_api):
+    route = mock_api.post(f"{BASE}/bulk-curate").respond(
+        200,
+        json={
+            "updated": [PROSPECT_ID],
+            "unchanged": [],
+            "promoted": [SECOND_ID],
+            "not_found": [],
+        },
+    )
+
+    result = invoke(["agentic", "prospects", "bulk-curate", "watch", PROSPECT_ID, SECOND_ID])
+
+    assert result.exit_code == 0
+    assert json.loads(route.calls[0].request.content) == {
+        "intent": "watch",
+        "prospect_ids": [PROSPECT_ID, SECOND_ID],
+    }
+    assert PROSPECT_ID in result.output
+    assert SECOND_ID in result.output
+    assert "promoted" in result.output
+
+
+def test_bulk_curate_json_keeps_the_whole_answer(invoke, mock_api):
+    answer = {"updated": [], "unchanged": [PROSPECT_ID], "promoted": [], "not_found": []}
+    mock_api.post(f"{BASE}/bulk-curate").respond(200, json=answer)
+
+    result = invoke(["agentic", "prospects", "bulk-curate", "dismiss", PROSPECT_ID, "--json"])
+
+    assert json.loads(result.output) == answer
+
+
+def test_bulk_curate_refuses_an_unknown_intent(invoke, mock_api):
+    route = mock_api.post(f"{BASE}/bulk-curate").respond(200, json={})
+
+    result = invoke(["agentic", "prospects", "bulk-curate", "promote", PROSPECT_ID])
+
+    assert result.exit_code == 2
+    assert not route.calls
+
+
+def test_bulk_curate_maps_a_refused_body_to_exit_two(invoke, mock_api):
+    mock_api.post(f"{BASE}/bulk-curate").respond(422, json={"detail": "too many prospects"})
+
+    result = invoke(["agentic", "prospects", "bulk-curate", "restore", PROSPECT_ID, "--json"])
+
+    assert result.exit_code == 2
+    assert json.loads(result.output)["status_code"] == 422
+
+
+BULK_PROMOTION = {
+    "results": [
+        {
+            "prospect_id": PROSPECT_ID,
+            "status": "promoted",
+            "promotion": PROMOTION,
+            "error": None,
+        },
+        {
+            "prospect_id": SECOND_ID,
+            "status": "failed",
+            "promotion": None,
+            "error": "The company has no name",
+        },
+    ]
+}
+
+
+def test_bulk_promote_posts_each_prospect_with_its_people(invoke, mock_api):
+    route = mock_api.post(f"{BASE}/bulk-promote").respond(200, json=BULK_PROMOTION)
+
+    result = invoke(
+        [
+            "agentic",
+            "prospects",
+            "bulk-promote",
+            PROSPECT_ID,
+            SECOND_ID,
+            "--person",
+            f"{PROSPECT_ID}:{PERSON_ID}",
+            "--yes",
+        ]
+    )
+
+    assert result.exit_code == 0
+    assert json.loads(route.calls[0].request.content) == {
+        "items": [
+            {"prospect_id": PROSPECT_ID, "person_ids": [PERSON_ID]},
+            {"prospect_id": SECOND_ID, "person_ids": []},
+        ]
+    }
+    assert "The company has no name" in result.output
+    assert "failed" in result.output
+
+
+def test_bulk_promote_json_keeps_the_whole_answer(invoke, mock_api):
+    mock_api.post(f"{BASE}/bulk-promote").respond(200, json=BULK_PROMOTION)
+
+    result = invoke(["agentic", "prospects", "bulk-promote", PROSPECT_ID, "--yes", "--json"])
+
+    assert json.loads(result.output) == BULK_PROMOTION
+
+
+def test_bulk_promote_refuses_a_person_of_a_prospect_it_does_not_name(invoke, mock_api):
+    route = mock_api.post(f"{BASE}/bulk-promote").respond(200, json=BULK_PROMOTION)
+
+    result = invoke(
+        [
+            "agentic",
+            "prospects",
+            "bulk-promote",
+            PROSPECT_ID,
+            "--person",
+            f"{SECOND_ID}:{PERSON_ID}",
+            "--yes",
+        ]
+    )
+
+    assert result.exit_code == 2
+    assert not route.calls
+
+
+def test_bulk_promote_asks_before_it_writes_crm(invoke, mock_api):
+    route = mock_api.post(f"{BASE}/bulk-promote").respond(200, json=BULK_PROMOTION)
+
+    result = invoke(["agentic", "prospects", "bulk-promote", PROSPECT_ID], input="n\n")
+
+    assert result.exit_code != 0
+    assert not route.calls
+
+
+@pytest.mark.parametrize("pair", [PERSON_ID, f"{PROSPECT_ID}:"])
+def test_bulk_promote_refuses_a_person_with_no_prospect_pair(invoke, mock_api, pair):
+    route = mock_api.post(f"{BASE}/bulk-promote").respond(200, json=BULK_PROMOTION)
+
+    result = invoke(
+        ["agentic", "prospects", "bulk-promote", PROSPECT_ID, "--person", pair, "--yes"]
+    )
+
+    assert result.exit_code == 2
+    assert "PROSPECT_ID:PERSON_ID" in result.output
+    assert not route.calls

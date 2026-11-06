@@ -139,6 +139,31 @@ def send(
         rprint("[green]Email sent[/green]")
 
 
+@app.command("send-cap")
+def send_cap(
+    json_output: bool = JSON_OPTION,
+) -> None:
+    """Show today's prospect emails of your mailbox against its daily cap."""
+    set_json_mode(json_output)
+    resp = _api_request("get", f"{_NYLAS}/email/send-cap")
+
+    data = resp.json()
+    if json_output:
+        print_json(data)
+        return
+    used = data.get("used", 0)
+    if data.get("limit") is None:
+        rprint(styled("Prospect emails today: {}. No daily cap applies.", used))
+    else:
+        rprint(
+            styled(
+                "Prospect emails today: {} of {}. The count resets at midnight UTC.",
+                used,
+                data["limit"],
+            )
+        )
+
+
 @app.command("update-signature")
 def update_signature(
     ctx: typer.Context,

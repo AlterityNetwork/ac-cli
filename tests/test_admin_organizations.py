@@ -307,3 +307,37 @@ def test_orgs_icps_reject_invalid_json_without_request(invoke, mock_api, tmp_pat
         result = invoke(["admin", "orgs", "update", "org-1", "--icps-file", str(path), "--json"])
         assert result.exit_code == 2
         assert not mock_api.calls
+
+
+def test_orgs_update_sets_the_prospect_email_cap(invoke, mock_api):
+    route = mock_api.patch("/api/v1/admin/organizations/org-1").respond(200, json=SAMPLE_ORG)
+    result = invoke(["admin", "orgs", "update", "org-1", "--prospect-emails-per-day", "12"])
+    assert result.exit_code == 0
+    assert json.loads(route.calls.last.request.content) == {"prospect_emails_per_day": 12}
+
+
+def test_orgs_update_clears_the_prospect_email_cap(invoke, mock_api):
+    route = mock_api.patch("/api/v1/admin/organizations/org-1").respond(200, json=SAMPLE_ORG)
+    result = invoke(["admin", "orgs", "update", "org-1", "--clear-prospect-emails-per-day"])
+    assert result.exit_code == 0
+    assert json.loads(route.calls.last.request.content) == {"prospect_emails_per_day": None}
+
+
+def test_orgs_update_refuses_a_cap_and_a_clear_together(invoke, mock_api):
+    result = invoke(
+        [
+            "admin",
+            "orgs",
+            "update",
+            "org-1",
+            "--prospect-emails-per-day",
+            "12",
+            "--clear-prospect-emails-per-day",
+        ]
+    )
+    assert result.exit_code != 0
+
+
+def test_orgs_update_refuses_a_negative_cap(invoke, mock_api):
+    result = invoke(["admin", "orgs", "update", "org-1", "--prospect-emails-per-day", "-1"])
+    assert result.exit_code != 0

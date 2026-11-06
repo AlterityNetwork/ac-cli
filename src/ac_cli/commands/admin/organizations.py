@@ -154,10 +154,25 @@ def organizations_update(
         "--comped/--no-comped",
         help="Set or clear the comped flag: a comped organization is never billed",
     ),
+    prospect_emails_per_day: int | None = typer.Option(
+        None,
+        "--prospect-emails-per-day",
+        min=0,
+        help="Prospect emails one mailbox sends per UTC day. 0 stops every prospect email",
+    ),
+    clear_prospect_emails_per_day: bool = typer.Option(
+        False,
+        "--clear-prospect-emails-per-day",
+        help="Return the prospect email cap to the platform default",
+    ),
     json_output: bool = JSON_OPTION,
 ) -> None:
     """Update an existing organization."""
     set_json_mode(json_output)
+    if prospect_emails_per_day is not None and clear_prospect_emails_per_day:
+        raise typer.BadParameter(
+            "Use --prospect-emails-per-day or --clear-prospect-emails-per-day, not both."
+        )
     body = _build_body(
         name=name,
         slug=slug,
@@ -173,6 +188,12 @@ def organizations_update(
 
     if icps_file is not None:
         body["ideal_customer_profiles"] = _read_icps(icps_file)
+
+    if prospect_emails_per_day is not None:
+        body["prospect_emails_per_day"] = prospect_emails_per_day
+    elif clear_prospect_emails_per_day:
+        # An explicit null returns the organization to the platform default.
+        body["prospect_emails_per_day"] = None
 
     if not body:
         rprint("[yellow]No fields to update.[/yellow]")

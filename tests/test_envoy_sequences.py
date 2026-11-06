@@ -130,6 +130,19 @@ def test_sequences_update_auto_enrich(invoke, mock_api):
     assert body == {"auto_enrich_recipients": True}
 
 
+def test_sequences_auto_enrich_help_names_every_contact_field():
+    from typer.testing import CliRunner
+
+    from ac_cli.main import app
+
+    # A wide terminal keeps the help text on one line inside its box.
+    runner = CliRunner(env={"COLUMNS": "240"})
+    for command in ("create", "update"):
+        result = runner.invoke(app, ["envoy", "sequences", command, "--help"])
+        assert result.exit_code == 0
+        assert "email, phone or LinkedIn URL" in result.output
+
+
 def test_sequences_create_draft_feedback(invoke, mock_api):
     mock_api.get("/whoami").respond(200, json=WHOAMI_RESPONSE)
     route = mock_api.post("/api/v1/envoy/sequences").respond(201, json=SAMPLE_SEQUENCE)

@@ -14,14 +14,15 @@ _ANALYTICS = "/api/v1/analytics"
 
 # (response key, display label) for the MetricDelta KPI rows, in display order.
 _DELTA_METRICS = [
-    ("sonar_companies", "Sonar (legacy) companies"),
-    ("sonar_signals", "Sonar (legacy) signals"),
-    ("sonar_searches", "Sonar (legacy) searches"),
-    ("headhunter_people", "Headhunter (legacy) people"),
-    ("headhunter_searches", "Headhunter (legacy) searches"),
-    ("sequences_launched", "Sequences launched"),
-    ("emails_sent", "Emails sent"),
-    ("email_replies", "Email replies"),
+    ("prospects_found", "Prospects found"),
+    ("prospects_watched", "Prospects watched"),
+    ("prospects_dismissed", "Prospects dismissed"),
+    ("prospects_pursued", "Prospects pursued"),
+    ("signals_searches", "Signals searches"),
+    ("sequence_prospects_added", "Prospects added to sequences"),
+    ("outbound_touches", "Outbound touches"),
+    ("replies", "Replies"),
+    ("sequence_emails_sent", "Sequence emails sent"),
     ("companies_new", "New companies"),
     ("people", "New people"),
     ("tasks_created", "Tasks created"),
@@ -30,6 +31,11 @@ _DELTA_METRICS = [
     ("logins", "Logins"),
     ("active_users", "Active users"),
 ]
+
+
+def _rate_text(value: float | None, suffix: str) -> str:
+    """Format a rate or an average, or a dash when the period has none."""
+    return "-" if value is None else f"{value:.1f}{suffix}"
 
 
 @app.callback()
@@ -91,8 +97,47 @@ def analytics_overview(
         ],
         title="Period metrics",
     )
-    rprint(as_text(f"  Reply rate: {data.get('reply_rate', 0.0):.1f}%"))
+    rprint(as_text(f"  Watching now: {data.get('prospects_watching_total', 0)}"))
+    searches = (data.get("signals_searches") or {}).get("current", 0)
+    saved = data.get("signals_searches_saved", 0)
+    saved_share = f" ({saved / searches * 100:.1f}%)" if searches else ""
+    rprint(as_text(f"  Saved searches: {saved} of {searches}{saved_share}"))
+    pursued = _rate_text((data.get("prospects_pursued_rate") or {}).get("current"), "%")
+    found_note = " of the prospects found" if pursued != "-" else ""
+    rprint(as_text(f"  Prospects pursued: {pursued}{found_note}"))
+    reply = _rate_text((data.get("avg_reply_hours") or {}).get("current"), " hours")
+    rprint(as_text(f"  Average time to reply: {reply}"))
+    for key, label in (
+        ("email_reply_rate", "Email reply rate"),
+        ("email_positive_reply_rate", "Positive reply rate"),
+        ("email_bounce_rate", "Bounce rate"),
+    ):
+        rate = _rate_text((data.get(key) or {}).get("current"), "%")
+        rprint(as_text(f"  {label}: {rate}"))
+    rprint(as_text(f"  Live sequences: {data.get('sequences_active', 0)}"))
     rprint(as_text(f"  Task completion rate: {data.get('task_completion_rate', 0.0):.1f}%"))
-    rprint(as_text(f"  Active sequences: {data.get('sequences_active', 0)}"))
     rprint(as_text(f"  Companies total: {data.get('companies_total', 0)}"))
     rprint(as_text(f"  People total: {data.get('people_total', 0)}"))
+
+    ranking = data.get("sequences_by_reply_rate") or []
+    if ranking:
+        print_table(
+            [
+                {
+                    "name": row.get("name", ""),
+                    "status": row.get("status", ""),
+                    "prospects": row.get("prospects", 0),
+                    "replies": row.get("replies", 0),
+                    "reply_rate": f"{row.get('reply_rate') or 0.0:.1f}%",
+                }
+                for row in ranking
+            ],
+            [
+                ("name", "Sequence"),
+                ("status", "Status"),
+                ("prospects", "Prospects"),
+                ("replies", "Replies"),
+                ("reply_rate", "Reply rate"),
+            ],
+            title="Sequences by reply rate (all time)",
+        )
