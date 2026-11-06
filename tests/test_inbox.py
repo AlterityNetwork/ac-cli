@@ -416,3 +416,87 @@ def test_a_ready_draft_with_a_subject_prints_it_and_json_waits_too(invoke, mock_
     assert "Re: Deck" in result.output
     as_json = invoke(["inbox", "ai-draft", T1, "--channel", "email", "--wait", "--json"])
     assert json.loads(as_json.output) == ready
+
+
+ITEM = "00000000-0000-0000-0000-0000000000e1"
+ITEM_ANSWER = {
+    "id": ITEM,
+    "kind": "invite_received",
+    "status": "replied",
+    "outcome": "accepted",
+    "thread_id": "linkedin:conn:prov",
+    "content": "Fixture note",
+    "item_data": {"request_id": "fx-relreq-received-0001"},
+}
+
+
+def test_accept_posts_to_the_item(invoke, mock_api):
+    route = mock_api.post(f"{BASE}/items/{ITEM}/accept").respond(200, json=ITEM_ANSWER)
+    result = invoke(["inbox", "accept", ITEM])
+    assert result.exit_code == 0, result.output
+    assert route.called
+    assert "Accepted" in result.output
+
+
+def test_accept_of_a_request_gone_on_linkedin_says_so(invoke, mock_api):
+    mock_api.post(f"{BASE}/items/{ITEM}/accept").respond(
+        200, json={**ITEM_ANSWER, "status": "archived", "outcome": "closed_elsewhere"}
+    )
+    result = invoke(["inbox", "accept", ITEM])
+    assert result.exit_code == 0
+    assert "closed on LinkedIn" in result.output
+
+
+def test_ignore_asks_first_and_posts_on_yes(invoke, mock_api):
+    route = mock_api.post(f"{BASE}/items/{ITEM}/ignore").respond(
+        200, json={**ITEM_ANSWER, "status": "archived", "outcome": "ignored"}
+    )
+    result = invoke(["inbox", "ignore", ITEM], input="y\n")
+    assert result.exit_code == 0, result.output
+    assert route.called
+    assert "Ignored" in result.output
+
+
+def test_ignore_stops_on_no(invoke, mock_api):
+    route = mock_api.post(f"{BASE}/items/{ITEM}/ignore").respond(200, json=ITEM_ANSWER)
+    result = invoke(["inbox", "ignore", ITEM], input="n\n")
+    assert result.exit_code != 0
+    assert not route.called
+
+
+def test_ignore_with_yes_skips_the_question(invoke, mock_api):
+    route = mock_api.post(f"{BASE}/items/{ITEM}/ignore").respond(
+        200, json={**ITEM_ANSWER, "status": "archived", "outcome": "ignored"}
+    )
+    result = invoke(["inbox", "ignore", ITEM, "--yes", "--json"])
+    assert result.exit_code == 0, result.output
+    assert route.called
+    assert json.loads(result.output)["outcome"] == "ignored"
+
+
+def test_comment_reply_sends_the_text(invoke, mock_api):
+    route = mock_api.post(f"{BASE}/items/{ITEM}/comment-reply").respond(
+        200,
+        json={**ITEM_ANSWER, "kind": "post_comment", "status": "sent", "outcome": "replied"},
+    )
+    result = invoke(["inbox", "comment-reply", ITEM, "--text", "Thank you."])
+    assert result.exit_code == 0, result.output
+    assert json.loads(route.calls[0].request.content) == {"text": "Thank you."}
+    assert "Replied" in result.output
+
+
+def test_comment_reply_refuses_a_long_or_empty_text_before_any_call(invoke, mock_api):
+    route = mock_api.post(f"{BASE}/items/{ITEM}/comment-reply").respond(200, json={})
+    assert invoke(["inbox", "comment-reply", ITEM, "--text", "x" * 1251]).exit_code == 2
+    assert invoke(["inbox", "comment-reply", ITEM, "--text", "   "]).exit_code == 2
+    assert not route.called
+
+
+def test_a_spent_comment_budget_exits_5(invoke, mock_api):
+    mock_api.post(f"{BASE}/items/{ITEM}/comment-reply").respond(
+        409,
+        json={"message": "The daily LinkedIn comment limit", "code": "LINKEDIN_COMMENT_BUDGET"},
+    )
+    result = invoke(["inbox", "comment-reply", ITEM, "--text", "Thank you.", "--json"])
+    assert result.exit_code == 5
+    assert json.loads(result.output)["status_code"] == 409
