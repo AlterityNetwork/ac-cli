@@ -17,6 +17,7 @@ from ac_cli.commands import (
     envoy,
     files,
     health,
+    inbox,
     launchpad,
     legal_documents,
     managed_onboarding,
@@ -84,6 +85,7 @@ app.add_typer(env.app, name="env")
 app.add_typer(health.app, name="health")
 app.add_typer(envoy.app, name="envoy")
 app.add_typer(files.app, name="files")
+app.add_typer(inbox.app, name="inbox")
 app.add_typer(launchpad.app, name="launchpad")
 app.add_typer(legal_documents.app, name="legal-docs")
 app.add_typer(managed_onboarding.app, name="onboarding")
