@@ -18,6 +18,7 @@ uv sync --all-extras       # Install with dev dependencies (pytest, respx)
 | `crm` | Companies, people, deals, activities, comms (incl. approvals), lists, imports |
 | `envoy` | Sequences (incl. lifecycle), steps, recipients, outbox, playbooks, battlecards, inbox |
 | `files` | Image upload/delete |
+| `inbox` | Inbox: one row per person on email and LinkedIn, Sent, Drafts and Scheduled views, reply, new message, AI draft, done, read state, intent, counts |
 | `workflows` | Runs, schedules, presets, csv-parse |
 | `apps` | Organization app install/config |
 | `settings` | Organization settings: the copilot approval framework, targeting, the Company dossier, your memory lines and the suggestions learned from your edits |

@@ -40,6 +40,7 @@ paths:
   - `_ENVOY = "/api/v1/envoy"` in `envoy/__init__.py`
   - `_FILES = "/api/v1/files"` in `files/__init__.py`
   - `_IMPERSONATION = "/api/v1/impersonation"` in `admin/users.py`
+  - `_INBOX = "/api/v1/inbox"` in `inbox.py`
   - `_INTEL = f"{_ADMIN}/intelligence"` in `admin/intelligence/__init__.py`
   - `_LAUNCHPAD = "/api/v1/launchpad"` in `launchpad/__init__.py`
   - `_LEGAL = "/api/v1/legal-documents"` in `legal_documents.py`

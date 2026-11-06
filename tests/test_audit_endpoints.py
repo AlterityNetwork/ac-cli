@@ -135,3 +135,9 @@ def test_the_audit_finds_each_prospect_command() -> None:
         ("POST", "/api/v1/agentic/prospects/{id}/watch"),
         ("POST", "/api/v1/agentic/prospects/{id}/dismiss"),
     } <= calls
+
+
+def test_the_inbox_constant_and_its_stream_are_registered():
+    assert audit.PATH_CONSTANTS["_INBOX"] == "/api/v1/inbox"
+    assert ("GET", "/api/v1/inbox/stream") in audit.OUT_OF_SCOPE
+    assert ("POST", "/api/v1/inbox/threads/{id}/reply") in audit.collect_cli_calls(audit.CLI_ROOT)

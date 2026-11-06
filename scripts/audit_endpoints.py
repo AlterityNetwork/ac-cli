@@ -42,6 +42,7 @@ PATH_CONSTANTS: dict[str, str] = {
     "_CRM": "/api/v1/crm",
     "_COPILOTS": "/api/v1/admin/copilots",
     "_ENVOY": "/api/v1/envoy",
+    "_INBOX": "/api/v1/inbox",
     "_FILES": "/api/v1/files",
     "_IMPERSONATION": "/api/v1/impersonation",
     "_INTEL": "/api/v1/admin/intelligence",
@@ -120,6 +121,8 @@ OUT_OF_SCOPE: set[tuple[str, str]] = {
     ("GET", "/api/v1/workflows/{id}/runs/{id}/events"),
     # SSE stream — frontend-only consumer (ENG-769)
     ("GET", "/api/v1/notifications/stream"),
+    # SSE stream of inbox thread changes. Only the frontend reads it.
+    ("GET", "/api/v1/inbox/stream"),
     # ENG-2124: the agentic run stream. SSE is not a CLI shape — the command
     # would never return, and the events are a live hint whose durable record
     # the CLI already reads through `runs get` and `runs spans`. Only this SSE
