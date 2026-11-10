@@ -17,6 +17,7 @@ from ac_cli.commands._helpers import (
     _build_body,
     refuse_local,
     set_json_mode,
+    should_skip_confirm,
 )
 from ac_cli.formatting import print_detail, print_json, print_table, styled
 
@@ -34,6 +35,8 @@ _BULK_ACTIONS = ("done", "read", "unread")
 _PAGE_MAX = 100
 # The longest LinkedIn message the API takes.
 _LINKEDIN_LIMIT = 1000
+# The longest LinkedIn comment the API takes.
+_COMMENT_LIMIT = 1250
 # How long `ai-draft --wait` polls, and how often.
 _WAIT_SECONDS = 180
 _POLL_SECONDS = 2.0
@@ -487,3 +490,69 @@ def inbox_counts(json_output: bool = JSON_OPTION) -> None:
         data,
         [("badge", "Badge"), ("needs_reply", "People waiting"), ("unread", "People unread")],
     )
+
+
+def _print_item(data: dict, json_output: bool, done: str) -> None:
+    if json_output:
+        print_json(data)
+        return
+    if data.get("outcome") == "closed_elsewhere":
+        rprint(
+            styled(
+                "[yellow]The request was closed on LinkedIn[/yellow]: {} is archived",
+                data.get("id"),
+            )
+        )
+        return
+    rprint(styled("[green]{}[/green] {}", done, data.get("id")))
+
+
+@app.command("accept")
+def inbox_accept(
+    item_id: str = typer.Argument(..., help="The inbox item id of the connection request"),
+    json_output: bool = JSON_OPTION,
+) -> None:
+    """Accept a LinkedIn connection request from the owner's account.
+
+    Only the owner of the receiving account accepts. The request then no longer
+    needs a reply.
+    """
+    set_json_mode(json_output)
+    data = _api_request("post", f"{_INBOX}/items/{item_id}/accept").json()
+    _print_item(data, json_output, "Accepted")
+
+
+@app.command("ignore")
+def inbox_ignore(
+    item_id: str = typer.Argument(..., help="The inbox item id of the connection request"),
+    yes: bool = typer.Option(False, "--yes", "-y", help="Skip confirmation"),
+    json_output: bool = JSON_OPTION,
+) -> None:
+    """Ignore a LinkedIn connection request. LinkedIn cannot undo it."""
+    set_json_mode(json_output)
+    if not should_skip_confirm(yes):
+        typer.confirm(f"Ignore connection request {item_id}? LinkedIn cannot undo it.", abort=True)
+    data = _api_request("post", f"{_INBOX}/items/{item_id}/ignore").json()
+    _print_item(data, json_output, "Ignored")
+
+
+@app.command("comment-reply")
+def inbox_comment_reply(
+    item_id: str = typer.Argument(..., help="The inbox item id of the comment"),
+    text: str = typer.Option(..., help="The reply, 1 to 1,250 characters"),
+    json_output: bool = JSON_OPTION,
+) -> None:
+    """Reply under a comment that a CRM person wrote on your LinkedIn post.
+
+    The reply counts against the daily LinkedIn comment budget of the account.
+    """
+    set_json_mode(json_output)
+    text = text.strip()
+    if not text:
+        refuse_local("--text is empty")
+    if len(text) > _COMMENT_LIMIT:
+        refuse_local(f"A LinkedIn comment holds at most {_COMMENT_LIMIT} characters", len(text))
+    data = _api_request(
+        "post", f"{_INBOX}/items/{item_id}/comment-reply", json={"text": text}
+    ).json()
+    _print_item(data, json_output, "Replied")
