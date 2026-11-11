@@ -349,3 +349,31 @@ def test_recipients_history_json(invoke, mock_api):
     result = invoke(["sequences", "recipients", "history", "seq-1", "rec-1", "--json"])
     assert result.exit_code == 0
     assert json.loads(result.output)["messages"][1]["direction"] == "inbound"
+
+
+def test_recipients_history_tasks_name_the_step_by_its_order(invoke, mock_api):
+    """The Steps table shows the step order, so the Tasks table does too."""
+    step_id = "9b1c2d3e-0000-4000-8000-000000000042"
+    data = {
+        "recipient_id": "rec-1",
+        "steps": [{"step_id": step_id, "step_order": 6, "type": "task", "status": "task_created"}],
+        "messages": [],
+        "tasks": [
+            {
+                "id": "rs-6",
+                "step_id": step_id,
+                "activity_type": "call",
+                "title": "Call Jonah",
+                "outcome": None,
+                "completed_at": "2026-09-24T09:00:00Z",
+            }
+        ],
+    }
+    mock_api.get("/api/v1/sequences/sequences/seq-1/recipients/rec-1/history").respond(
+        200, json=data
+    )
+    result = invoke(["sequences", "recipients", "history", "seq-1", "rec-1"])
+    assert result.exit_code == 0
+    tasks_table = result.output.split("Tasks (1)", 1)[1]
+    assert "9b1c2d3e" not in tasks_table
+    assert "│ 6 " in tasks_table or "│ 6" in tasks_table

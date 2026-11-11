@@ -93,12 +93,16 @@ def recipients_history(
         ],
         title=f"Thread ({len(messages)})",
     )
-    tasks = data.get("tasks", [])
+    # The Steps table names a step by its order, so a task row does too.
+    order = {s.get("step_id"): s.get("step_order") for s in steps}
+    tasks = [
+        {**task, "step_order": order.get(task.get("step_id"))} for task in data.get("tasks", [])
+    ]
     print_table(
         tasks,
         [
             ("completed_at", "Date"),
-            ("step_id", "Step"),
+            ("step_order", "Step"),
             ("activity_type", "Type"),
             ("title", "Title"),
             ("outcome", "Outcome"),
