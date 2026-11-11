@@ -9,7 +9,7 @@ and starts one of them,
 `ac agentic conversations` reads and writes web chat conversations,
 `ac agentic prospects` reviews discovered companies,
 `ac agentic saved-searches` manages repeatable search briefs,
-`ac agentic outreach` reviews the email drafts of Outreach campaigns,
+`ac agentic envoy` reviews the email drafts of Envoy campaigns,
 `ac agentic policies` writes the rules an organization governs its agents with,
 `ac agentic connections` links and revokes the provider accounts its agents act
 through, and `ac agentic limits` reads and writes what it may spend in a day and
@@ -51,7 +51,7 @@ from ac_cli.commands._helpers import (
     should_skip_confirm,
 )
 from ac_cli.commands.conversations import app as conversations_app
-from ac_cli.commands.outreach import app as outreach_app
+from ac_cli.commands.envoy import app as envoy_app
 from ac_cli.commands.prospects import app as prospects_app
 from ac_cli.commands.saved_searches import app as saved_searches_app
 from ac_cli.formatting import as_text, console, print_detail, print_json, print_table, styled
@@ -1463,7 +1463,11 @@ app.add_typer(approvals_app, name="approvals")
 app.add_typer(conversations_app, name="conversations")
 app.add_typer(prospects_app, name="prospects")
 app.add_typer(saved_searches_app, name="saved-searches")
-app.add_typer(outreach_app, name="outreach")
+app.add_typer(envoy_app, name="envoy")
+# The group was `ac agentic outreach` before ENG-2904. A script or an agent can
+# still call it.
+# TODO: ENG-2906 - remove the hidden alias after one release.
+app.add_typer(envoy_app, name="outreach", hidden=True)
 
 
 connections_app = typer.Typer(help="Agentic provider connections")

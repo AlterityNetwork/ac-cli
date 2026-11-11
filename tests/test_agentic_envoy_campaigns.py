@@ -1,11 +1,11 @@
-"""Tests for the Outreach campaign, enrollment and organization stop commands."""
+"""Tests for the Envoy campaign, enrollment and organization stop commands."""
 
 import json
 
 import httpx
 import pytest
 
-BASE = "/api/v1/agentic/outreach"
+BASE = "/api/v1/agentic/envoy"
 CAMPAIGN_ID = "33333333-3333-4333-8333-333333333333"
 ENROLLMENT_ID = "22222222-2222-4222-8222-222222222222"
 PERSON_ID = "77777777-7777-4777-8777-777777777777"
@@ -139,7 +139,7 @@ class TestCampaigns:
         route = mock_api.get(f"{BASE}/campaigns").respond(200, json={"items": [CAMPAIGN]})
 
         result = invoke(
-            ["agentic", "outreach", "campaigns", "list", "--status", "draft", "--limit", "5"]
+            ["agentic", "envoy", "campaigns", "list", "--status", "draft", "--limit", "5"]
         )
 
         assert result.exit_code == 0, result.output
@@ -151,9 +151,7 @@ class TestCampaigns:
         page = {"items": [CAMPAIGN], "total": 3, "limit": 1, "offset": 1, "has_more": True}
         route = mock_api.get(f"{BASE}/campaigns").respond(200, json=page)
 
-        result = invoke(
-            ["agentic", "outreach", "campaigns", "list", "--limit", "1", "--offset", "1"]
-        )
+        result = invoke(["agentic", "envoy", "campaigns", "list", "--limit", "1", "--offset", "1"])
 
         assert result.exit_code == 0, result.output
         assert route.calls[0].request.url.params["offset"] == "1"
@@ -164,7 +162,7 @@ class TestCampaigns:
         page = {"items": [], "total": 3, "limit": 50, "offset": 10, "has_more": False}
         mock_api.get(f"{BASE}/campaigns").respond(200, json=page)
 
-        result = invoke(["agentic", "outreach", "campaigns", "list", "--offset", "10"])
+        result = invoke(["agentic", "envoy", "campaigns", "list", "--offset", "10"])
 
         assert result.exit_code == 0, result.output
         assert "0 of 3" in result.output
@@ -173,7 +171,7 @@ class TestCampaigns:
     def test_list_refuses_a_negative_offset_without_a_call(self, invoke, mock_api):
         route = mock_api.get(f"{BASE}/campaigns").respond(200, json={"items": []})
 
-        result = invoke(["agentic", "outreach", "campaigns", "list", "--offset", "-1"])
+        result = invoke(["agentic", "envoy", "campaigns", "list", "--offset", "-1"])
 
         assert result.exit_code == 2
         assert not route.called
@@ -183,8 +181,8 @@ class TestCampaigns:
         mock_api.get(f"{BASE}/campaigns").respond(200, json={"items": [counted]})
         mock_api.get(f"{BASE}/campaigns/{CAMPAIGN_ID}").respond(200, json=counted)
 
-        listed = invoke(["agentic", "outreach", "campaigns", "list"])
-        read = invoke(["agentic", "outreach", "campaigns", "get", CAMPAIGN_ID])
+        listed = invoke(["agentic", "envoy", "campaigns", "list"])
+        read = invoke(["agentic", "envoy", "campaigns", "get", CAMPAIGN_ID])
 
         assert listed.exit_code == 0, listed.output
         assert read.exit_code == 0, read.output
@@ -199,7 +197,7 @@ class TestCampaigns:
         mock_api.post(f"{BASE}/campaigns").respond(201, json=CAMPAIGN)
 
         result = invoke(
-            ["agentic", "outreach", "campaigns", "create", "--name", "Q4 intro", "--goal", "G"]
+            ["agentic", "envoy", "campaigns", "create", "--name", "Q4 intro", "--goal", "G"]
         )
 
         assert result.exit_code == 0, result.output
@@ -209,7 +207,7 @@ class TestCampaigns:
     def test_a_campaign_without_counts_prints_no_none(self, invoke, mock_api):
         mock_api.get(f"{BASE}/campaigns").respond(200, json={"items": [CAMPAIGN]})
 
-        result = invoke(["agentic", "outreach", "campaigns", "list"])
+        result = invoke(["agentic", "envoy", "campaigns", "list"])
 
         assert result.exit_code == 0, result.output
         assert "None" not in result.output
@@ -217,7 +215,7 @@ class TestCampaigns:
     def test_list_refuses_a_bad_status_without_a_call(self, invoke, mock_api):
         route = mock_api.get(f"{BASE}/campaigns").respond(200, json={"items": []})
 
-        result = invoke(["agentic", "outreach", "campaigns", "list", "--status", "live"])
+        result = invoke(["agentic", "envoy", "campaigns", "list", "--status", "live"])
 
         assert result.exit_code == 2
         assert not route.called
@@ -225,7 +223,7 @@ class TestCampaigns:
     def test_get_prints_the_campaign(self, invoke, mock_api):
         mock_api.get(f"{BASE}/campaigns/{CAMPAIGN_ID}").respond(200, json=CAMPAIGN)
 
-        result = invoke(["agentic", "outreach", "campaigns", "get", CAMPAIGN_ID, "--json"])
+        result = invoke(["agentic", "envoy", "campaigns", "get", CAMPAIGN_ID, "--json"])
 
         assert json.loads(result.output) == CAMPAIGN
 
@@ -235,7 +233,7 @@ class TestCampaigns:
         result = invoke(
             [
                 "agentic",
-                "outreach",
+                "envoy",
                 "campaigns",
                 "create",
                 "--name",
@@ -259,7 +257,7 @@ class TestCampaigns:
         route = mock_api.post(f"{BASE}/campaigns").respond(201, json=CAMPAIGN)
 
         result = invoke(
-            ["agentic", "outreach", "campaigns", "create", "--name", "Q4 intro", "--goal", "G"]
+            ["agentic", "envoy", "campaigns", "create", "--name", "Q4 intro", "--goal", "G"]
         )
 
         assert result.exit_code == 0, result.output
@@ -271,7 +269,7 @@ class TestCampaigns:
         result = invoke(
             [
                 "agentic",
-                "outreach",
+                "envoy",
                 "campaigns",
                 "update",
                 CAMPAIGN_ID,
@@ -286,7 +284,7 @@ class TestCampaigns:
     def test_update_with_nothing_refuses_without_a_call(self, invoke, mock_api):
         route = mock_api.patch(f"{BASE}/campaigns/{CAMPAIGN_ID}").respond(200, json=CAMPAIGN)
 
-        result = invoke(["agentic", "outreach", "campaigns", "update", CAMPAIGN_ID])
+        result = invoke(["agentic", "envoy", "campaigns", "update", CAMPAIGN_ID])
 
         assert result.exit_code == 2
         assert not route.called
@@ -300,7 +298,7 @@ class TestCampaigns:
             ["create", "--name", "Q3", "--goal", "G", "--description", too_long],
             ["update", CAMPAIGN_ID, "--description", too_long],
         ):
-            result = invoke(["agentic", "outreach", "campaigns", *args])
+            result = invoke(["agentic", "envoy", "campaigns", *args])
             assert result.exit_code == 2, args
         assert not created.called
         assert not updated.called
@@ -311,7 +309,7 @@ class TestCampaigns:
         result = invoke(
             [
                 "agentic",
-                "outreach",
+                "envoy",
                 "campaigns",
                 "create",
                 "--name",
@@ -335,7 +333,7 @@ class TestCampaigns:
             ("resume", "active"),
             ("archive", "archived"),
         ):
-            args = ["agentic", "outreach", "campaigns", command, CAMPAIGN_ID]
+            args = ["agentic", "envoy", "campaigns", command, CAMPAIGN_ID]
             result = invoke([*args, "--yes"] if command == "archive" else args)
             assert result.exit_code == 0, result.output
             assert json.loads(route.calls[-1].request.content) == {"status": status}
@@ -344,7 +342,7 @@ class TestCampaigns:
         mock_api.post(f"{BASE}/campaigns/{CAMPAIGN_ID}/status").respond(200, json=CAMPAIGN)
 
         for command in ("activate", "pause", "resume", "archive"):
-            args = ["agentic", "outreach", "campaigns", command, CAMPAIGN_ID, "--json"]
+            args = ["agentic", "envoy", "campaigns", command, CAMPAIGN_ID, "--json"]
             result = invoke([*args, "--yes"] if command == "archive" else args)
             assert json.loads(result.output) == CAMPAIGN
 
@@ -352,9 +350,9 @@ class TestCampaigns:
         mock_api.get(f"{BASE}/campaigns").respond(200, json={"items": [CAMPAIGN]})
         mock_api.post(f"{BASE}/campaigns").respond(201, json=CAMPAIGN)
 
-        listed = invoke(["agentic", "outreach", "campaigns", "list", "--json"])
+        listed = invoke(["agentic", "envoy", "campaigns", "list", "--json"])
         created = invoke(
-            ["agentic", "outreach", "campaigns", "create", "--name", "X", "--goal", "G", "--json"]
+            ["agentic", "envoy", "campaigns", "create", "--name", "X", "--goal", "G", "--json"]
         )
 
         assert json.loads(listed.output) == {"items": [CAMPAIGN]}
@@ -375,7 +373,7 @@ class TestCampaigns:
                 ["create", "--name", "X", "--goal", "G", option, value],
                 ["update", CAMPAIGN_ID, option, value],
             ):
-                result = invoke(["agentic", "outreach", "campaigns", *args])
+                result = invoke(["agentic", "envoy", "campaigns", *args])
                 assert result.exit_code == 2, args
         assert not create.called
         assert not update.called
@@ -383,7 +381,7 @@ class TestCampaigns:
     def test_get_prints_the_description_and_no_removed_field(self, invoke, mock_api):
         mock_api.get(f"{BASE}/campaigns/{CAMPAIGN_ID}").respond(200, json=CAMPAIGN)
 
-        result = invoke(["agentic", "outreach", "campaigns", "get", CAMPAIGN_ID])
+        result = invoke(["agentic", "envoy", "campaigns", "get", CAMPAIGN_ID])
 
         assert result.exit_code == 0, result.output
         assert "Description" in result.output
@@ -394,7 +392,7 @@ class TestCampaigns:
     def test_get_prints_the_goal_channels_limits_and_sender(self, invoke, mock_api):
         mock_api.get(f"{BASE}/campaigns/{CAMPAIGN_ID}").respond(200, json=CAMPAIGN)
 
-        result = invoke(["agentic", "outreach", "campaigns", "get", CAMPAIGN_ID])
+        result = invoke(["agentic", "envoy", "campaigns", "get", CAMPAIGN_ID])
 
         assert result.exit_code == 0, result.output
         for text in (
@@ -413,7 +411,7 @@ class TestCampaigns:
     def test_list_prints_the_channels(self, invoke, mock_api, table_column):
         mock_api.get(f"{BASE}/campaigns").respond(200, json={"items": [CAMPAIGN]})
 
-        result = invoke(["agentic", "outreach", "campaigns", "list"])
+        result = invoke(["agentic", "envoy", "campaigns", "list"])
 
         assert result.exit_code == 0, result.output
         # A narrow terminal folds the cell at the space, and the reader drops it.
@@ -425,7 +423,7 @@ class TestCampaigns:
         result = invoke(
             [
                 "agentic",
-                "outreach",
+                "envoy",
                 "campaigns",
                 "create",
                 "--name",
@@ -461,7 +459,7 @@ class TestCampaigns:
         result = invoke(
             [
                 "agentic",
-                "outreach",
+                "envoy",
                 "campaigns",
                 "update",
                 CAMPAIGN_ID,
@@ -484,8 +482,8 @@ class TestCampaigns:
     def test_create_requires_a_goal(self, invoke, mock_api):
         route = mock_api.post(f"{BASE}/campaigns").respond(201, json=CAMPAIGN)
 
-        result = invoke(["agentic", "outreach", "campaigns", "create", "--name", "Q4"])
-        as_json = invoke(["agentic", "outreach", "campaigns", "create", "--name", "Q4", "--json"])
+        result = invoke(["agentic", "envoy", "campaigns", "create", "--name", "Q4"])
+        as_json = invoke(["agentic", "envoy", "campaigns", "create", "--name", "Q4", "--json"])
 
         assert result.exit_code == 2
         assert as_json.exit_code == 2
@@ -514,7 +512,7 @@ class TestCampaigns:
             ["create", "--name", "Q4", *goal, *args],
             ["update", CAMPAIGN_ID, *args],
         ):
-            result = invoke(["agentic", "outreach", "campaigns", *command])
+            result = invoke(["agentic", "envoy", "campaigns", *command])
             assert result.exit_code == 2, (command, result.output)
         assert not created.called
         assert not updated.called
@@ -529,7 +527,7 @@ class TestCampaigns:
             ["create", "--name", "Q4", "--goal", "G", "--sender", sender],
             ["update", CAMPAIGN_ID, "--sender", sender],
         ):
-            result = invoke(["agentic", "outreach", "campaigns", *command])
+            result = invoke(["agentic", "envoy", "campaigns", *command])
             assert result.exit_code == 2, command
         assert not created.called
         assert not updated.called
@@ -537,7 +535,7 @@ class TestCampaigns:
     def test_archive_asks_first(self, invoke, mock_api):
         route = mock_api.post(f"{BASE}/campaigns/{CAMPAIGN_ID}/status").respond(200, json=CAMPAIGN)
 
-        result = invoke(["agentic", "outreach", "campaigns", "archive", CAMPAIGN_ID], input="n\n")
+        result = invoke(["agentic", "envoy", "campaigns", "archive", CAMPAIGN_ID], input="n\n")
 
         assert result.exit_code == 1
         assert not route.called
@@ -550,7 +548,7 @@ class TestCampaigns:
         result = invoke(
             [
                 "agentic",
-                "outreach",
+                "envoy",
                 "campaigns",
                 "enroll",
                 CAMPAIGN_ID,
@@ -579,7 +577,7 @@ class TestCampaigns:
         result = invoke(
             [
                 "agentic",
-                "outreach",
+                "envoy",
                 "campaigns",
                 "enroll",
                 CAMPAIGN_ID,
@@ -610,7 +608,7 @@ class TestCampaigns:
         result = invoke(
             [
                 "agentic",
-                "outreach",
+                "envoy",
                 "campaigns",
                 "enroll",
                 CAMPAIGN_ID,
@@ -639,7 +637,7 @@ class TestCampaigns:
         result = invoke(
             [
                 "agentic",
-                "outreach",
+                "envoy",
                 "campaigns",
                 "enroll-batch",
                 CAMPAIGN_ID,
@@ -678,7 +676,7 @@ class TestCampaigns:
         result = invoke(
             [
                 "agentic",
-                "outreach",
+                "envoy",
                 "campaigns",
                 "enroll-batch",
                 CAMPAIGN_ID,
@@ -701,7 +699,7 @@ class TestCampaigns:
         result = invoke(
             [
                 "agentic",
-                "outreach",
+                "envoy",
                 "campaigns",
                 "enroll-batch",
                 CAMPAIGN_ID,
@@ -720,9 +718,9 @@ class TestCampaigns:
         path = tmp_path / "many.txt"
         path.write_text("".join(f"crm.person:{PERSON_ID[:-3]}{n:03d}\n" for n in range(201)))
 
-        empty = invoke(["agentic", "outreach", "campaigns", "enroll-batch", CAMPAIGN_ID])
+        empty = invoke(["agentic", "envoy", "campaigns", "enroll-batch", CAMPAIGN_ID])
         many = invoke(
-            ["agentic", "outreach", "campaigns", "enroll-batch", CAMPAIGN_ID, "--file", str(path)]
+            ["agentic", "envoy", "campaigns", "enroll-batch", CAMPAIGN_ID, "--file", str(path)]
         )
 
         assert (empty.exit_code, many.exit_code) == (2, 2)
@@ -744,7 +742,7 @@ class TestCampaigns:
         result = invoke(
             [
                 "agentic",
-                "outreach",
+                "envoy",
                 "campaigns",
                 "enroll-batch",
                 CAMPAIGN_ID,
@@ -766,7 +764,7 @@ class TestCampaigns:
         )
 
         result = invoke(
-            ["agentic", "outreach", "campaigns", "enroll-batch", CAMPAIGN_ID, "--file", str(path)]
+            ["agentic", "envoy", "campaigns", "enroll-batch", CAMPAIGN_ID, "--file", str(path)]
         )
 
         assert result.exit_code == 0, result.output
@@ -781,7 +779,7 @@ class TestCampaigns:
         result = invoke(
             [
                 "agentic",
-                "outreach",
+                "envoy",
                 "campaigns",
                 "enroll-batch",
                 CAMPAIGN_ID,
@@ -804,7 +802,7 @@ class TestCampaigns:
         result = invoke(
             [
                 "agentic",
-                "outreach",
+                "envoy",
                 "campaigns",
                 "enroll-batch",
                 CAMPAIGN_ID,
@@ -830,7 +828,7 @@ class TestCampaigns:
         result = invoke(
             [
                 "agentic",
-                "outreach",
+                "envoy",
                 "campaigns",
                 "enroll-batch",
                 CAMPAIGN_ID,
@@ -877,7 +875,7 @@ class TestCampaigns:
         )
 
         result = invoke(
-            ["agentic", "outreach", "campaigns", "enroll-batch", CAMPAIGN_ID, "--file", str(path)]
+            ["agentic", "envoy", "campaigns", "enroll-batch", CAMPAIGN_ID, "--file", str(path)]
         )
 
         assert result.exit_code == 5
@@ -890,7 +888,7 @@ class TestCampaigns:
         result = invoke(
             [
                 "agentic",
-                "outreach",
+                "envoy",
                 "campaigns",
                 "enroll-batch",
                 CAMPAIGN_ID,
@@ -917,7 +915,7 @@ class TestCampaigns:
         result = invoke(
             [
                 "agentic",
-                "outreach",
+                "envoy",
                 "campaigns",
                 "enroll-batch",
                 CAMPAIGN_ID,
@@ -937,7 +935,7 @@ class TestCampaigns:
         result = invoke(
             [
                 "agentic",
-                "outreach",
+                "envoy",
                 "campaigns",
                 "enroll",
                 CAMPAIGN_ID,
@@ -959,7 +957,7 @@ class TestEnrollments:
         result = invoke(
             [
                 "agentic",
-                "outreach",
+                "envoy",
                 "enrollments",
                 "list",
                 "--campaign-id",
@@ -983,7 +981,7 @@ class TestEnrollments:
             "1",
             "1",
         )
-        assert "Outreach enrollments 2-2 of 3" in result.output
+        assert "Envoy enrollments 2-2 of 3" in result.output
         assert table_column(result.output, 1) == "Jane Doe"
         assert table_column(result.output, 2) == "jane@acme.test"
         # The fold drops the space at the end of a line part.
@@ -995,9 +993,7 @@ class TestEnrollments:
             200, json={"data": [], "total": 0, "limit": 100, "offset": 0, "has_more": False}
         )
 
-        result = invoke(
-            ["agentic", "outreach", "enrollments", "list", "--campaign-id", CAMPAIGN_ID]
-        )
+        result = invoke(["agentic", "envoy", "enrollments", "list", "--campaign-id", CAMPAIGN_ID])
 
         assert result.exit_code == 0, result.output
         params = route.calls[0].request.url.params
@@ -1008,7 +1004,7 @@ class TestEnrollments:
 
     def test_list_refuses_a_bad_offset_or_search_without_a_call(self, invoke, mock_api):
         route = mock_api.get(f"{BASE}/campaigns/{CAMPAIGN_ID}/enrollments")
-        base = ["agentic", "outreach", "enrollments", "list", "--campaign-id", CAMPAIGN_ID]
+        base = ["agentic", "envoy", "enrollments", "list", "--campaign-id", CAMPAIGN_ID]
 
         negative = invoke([*base, "--offset", "-1"])
         long = invoke([*base, "--search", "x" * 101])
@@ -1020,7 +1016,7 @@ class TestEnrollments:
         mock_api.get(f"{BASE}/campaigns/{CAMPAIGN_ID}/enrollments").respond(200, json=PAGE)
 
         result = invoke(
-            ["agentic", "outreach", "enrollments", "list", "--campaign-id", CAMPAIGN_ID, "--json"]
+            ["agentic", "envoy", "enrollments", "list", "--campaign-id", CAMPAIGN_ID, "--json"]
         )
 
         assert json.loads(result.output) == PAGE
@@ -1033,7 +1029,7 @@ class TestEnrollments:
         result = invoke(
             [
                 "agentic",
-                "outreach",
+                "envoy",
                 "enrollments",
                 "list",
                 "--campaign-id",
@@ -1049,7 +1045,7 @@ class TestEnrollments:
     def test_get_prints_the_enrollment(self, invoke, mock_api):
         mock_api.get(f"{BASE}/enrollments/{ENROLLMENT_ID}").respond(200, json=ENROLLMENT)
 
-        result = invoke(["agentic", "outreach", "enrollments", "get", ENROLLMENT_ID])
+        result = invoke(["agentic", "envoy", "enrollments", "get", ENROLLMENT_ID])
 
         assert result.exit_code == 0, result.output
         assert "crm.person" in result.output
@@ -1064,7 +1060,7 @@ class TestEnrollments:
         result = invoke(
             [
                 "agentic",
-                "outreach",
+                "envoy",
                 "enrollments",
                 "list",
                 "--campaign-id",
@@ -1084,7 +1080,7 @@ class TestEnrollments:
         result = invoke(
             [
                 "agentic",
-                "outreach",
+                "envoy",
                 "enrollments",
                 "list",
                 "--campaign-id",
@@ -1106,7 +1102,7 @@ class TestEnrollments:
         result = invoke(
             [
                 "agentic",
-                "outreach",
+                "envoy",
                 "enrollments",
                 "evaluate",
                 ENROLLMENT_ID,
@@ -1124,7 +1120,7 @@ class TestEnrollments:
             200, json={"enrollment": ENROLLMENT, "event_id": "manual:x:y"}
         )
 
-        result = invoke(["agentic", "outreach", "enrollments", "evaluate", ENROLLMENT_ID])
+        result = invoke(["agentic", "envoy", "enrollments", "evaluate", ENROLLMENT_ID])
 
         assert result.exit_code == 0, result.output
         assert _body(route) == {}
@@ -1133,10 +1129,8 @@ class TestEnrollments:
         ended = {**ENROLLMENT, "status": "ended", "ended_reason": "user_exit"}
         route = mock_api.post(f"{BASE}/enrollments/{ENROLLMENT_ID}/exit").respond(200, json=ended)
 
-        refused = invoke(["agentic", "outreach", "enrollments", "exit", ENROLLMENT_ID], input="n\n")
-        done = invoke(
-            ["agentic", "outreach", "enrollments", "exit", ENROLLMENT_ID, "--yes", "--json"]
-        )
+        refused = invoke(["agentic", "envoy", "enrollments", "exit", ENROLLMENT_ID], input="n\n")
+        done = invoke(["agentic", "envoy", "enrollments", "exit", ENROLLMENT_ID, "--yes", "--json"])
 
         assert refused.exit_code == 1
         assert route.call_count == 1
@@ -1149,15 +1143,15 @@ class TestOrganization:
             200, json={"stopped": False, "stopped_at": None}
         )
 
-        result = invoke(["agentic", "outreach", "organization", "status", "--json"])
+        result = invoke(["agentic", "envoy", "organization", "status", "--json"])
 
         assert json.loads(result.output) == {"stopped": False, "stopped_at": None}
 
     def test_stop_asks_first_and_then_posts(self, invoke, mock_api):
         route = mock_api.post(f"{BASE}/organization/stop").respond(200, json=STOP)
 
-        refused = invoke(["agentic", "outreach", "organization", "stop"], input="n\n")
-        done = invoke(["agentic", "outreach", "organization", "stop", "--yes"])
+        refused = invoke(["agentic", "envoy", "organization", "stop"], input="n\n")
+        done = invoke(["agentic", "envoy", "organization", "stop", "--yes"])
 
         assert refused.exit_code == 1
         assert done.exit_code == 0, done.output
@@ -1168,7 +1162,7 @@ class TestOrganization:
             200, json={"stopped": False, "stopped_at": None}
         )
 
-        result = invoke(["agentic", "outreach", "organization", "resume"])
+        result = invoke(["agentic", "envoy", "organization", "resume"])
 
         assert result.exit_code == 0, result.output
         assert route.called
@@ -1178,7 +1172,7 @@ class TestOrganization:
             403, json={"detail": "only an organization admin stops or resumes Outreach"}
         )
 
-        result = invoke(["agentic", "outreach", "organization", "stop", "--yes"])
+        result = invoke(["agentic", "envoy", "organization", "stop", "--yes"])
 
         assert result.exit_code == 4
 
@@ -1190,7 +1184,7 @@ class TestJsonOutput:
         mock_api.patch(f"{BASE}/campaigns/{CAMPAIGN_ID}").respond(200, json=CAMPAIGN)
 
         result = invoke(
-            ["agentic", "outreach", "campaigns", "update", CAMPAIGN_ID, "--name", "X", "--json"]
+            ["agentic", "envoy", "campaigns", "update", CAMPAIGN_ID, "--name", "X", "--json"]
         )
 
         assert json.loads(result.output) == CAMPAIGN
@@ -1201,7 +1195,7 @@ class TestJsonOutput:
         result = invoke(
             [
                 "agentic",
-                "outreach",
+                "envoy",
                 "campaigns",
                 "enroll",
                 CAMPAIGN_ID,
@@ -1218,7 +1212,7 @@ class TestJsonOutput:
     def test_enrollments_get_prints_json(self, invoke, mock_api):
         mock_api.get(f"{BASE}/enrollments/{ENROLLMENT_ID}").respond(200, json=ENROLLMENT)
 
-        result = invoke(["agentic", "outreach", "enrollments", "get", ENROLLMENT_ID, "--json"])
+        result = invoke(["agentic", "envoy", "enrollments", "get", ENROLLMENT_ID, "--json"])
 
         assert json.loads(result.output) == ENROLLMENT
 
@@ -1226,7 +1220,7 @@ class TestJsonOutput:
         answer = {"enrollment": ENROLLMENT, "event_id": f"manual:{ENROLLMENT_ID}:r1"}
         mock_api.post(f"{BASE}/enrollments/{ENROLLMENT_ID}/evaluate").respond(200, json=answer)
 
-        result = invoke(["agentic", "outreach", "enrollments", "evaluate", ENROLLMENT_ID, "--json"])
+        result = invoke(["agentic", "envoy", "enrollments", "evaluate", ENROLLMENT_ID, "--json"])
 
         assert json.loads(result.output) == answer
 
@@ -1235,8 +1229,8 @@ class TestJsonOutput:
         mock_api.post(f"{BASE}/organization/stop").respond(200, json=STOP)
         mock_api.post(f"{BASE}/organization/resume").respond(200, json=resumed)
 
-        stopped = invoke(["agentic", "outreach", "organization", "stop", "--yes", "--json"])
-        cleared = invoke(["agentic", "outreach", "organization", "resume", "--json"])
+        stopped = invoke(["agentic", "envoy", "organization", "stop", "--yes", "--json"])
+        cleared = invoke(["agentic", "envoy", "organization", "resume", "--json"])
 
         assert json.loads(stopped.output) == STOP
         assert json.loads(cleared.output) == resumed
@@ -1253,7 +1247,7 @@ class TestJsonOutput:
             },
         )
 
-        result = invoke(["agentic", "outreach", "enrollments", "evaluate", ENROLLMENT_ID, "--json"])
+        result = invoke(["agentic", "envoy", "enrollments", "evaluate", ENROLLMENT_ID, "--json"])
 
         body = json.loads(result.output)
         assert result.exit_code == 5
@@ -1326,7 +1320,7 @@ class TestEnrollmentTimeline:
         )
 
         result = invoke(
-            ["agentic", "outreach", "enrollments", "timeline", ENROLLMENT_ID, "--limit", "5"]
+            ["agentic", "envoy", "enrollments", "timeline", ENROLLMENT_ID, "--limit", "5"]
         )
 
         assert result.exit_code == 0, result.output
@@ -1348,7 +1342,7 @@ class TestEnrollmentTimeline:
         route = mock_api.get(f"{BASE}/enrollments/{ENROLLMENT_ID}/timeline")
 
         result = invoke(
-            ["agentic", "outreach", "enrollments", "timeline", ENROLLMENT_ID, "--order", "asc"]
+            ["agentic", "envoy", "enrollments", "timeline", ENROLLMENT_ID, "--order", "asc"]
         )
 
         assert result.exit_code == 2
@@ -1357,7 +1351,7 @@ class TestEnrollmentTimeline:
     def test_timeline_prints_json(self, invoke, mock_api):
         mock_api.get(f"{BASE}/enrollments/{ENROLLMENT_ID}/timeline").respond(200, json=TIMELINE)
 
-        result = invoke(["agentic", "outreach", "enrollments", "timeline", ENROLLMENT_ID, "--json"])
+        result = invoke(["agentic", "envoy", "enrollments", "timeline", ENROLLMENT_ID, "--json"])
 
         assert json.loads(result.output) == TIMELINE
 
@@ -1365,7 +1359,7 @@ class TestEnrollmentTimeline:
         route = mock_api.get(f"{BASE}/enrollments/{ENROLLMENT_ID}/timeline")
 
         result = invoke(
-            ["agentic", "outreach", "enrollments", "timeline", ENROLLMENT_ID, "--limit", "101"]
+            ["agentic", "envoy", "enrollments", "timeline", ENROLLMENT_ID, "--limit", "101"]
         )
 
         assert result.exit_code == 2
@@ -1376,7 +1370,7 @@ class TestEnrollmentTimeline:
             404, json={"detail": "Outreach enrollment not found"}
         )
 
-        result = invoke(["agentic", "outreach", "enrollments", "timeline", ENROLLMENT_ID])
+        result = invoke(["agentic", "envoy", "enrollments", "timeline", ENROLLMENT_ID])
 
         assert result.exit_code == 3
 
@@ -1385,13 +1379,13 @@ class TestEnrollmentTimeline:
             200, json={**TIMELINE, "campaign_name": None}
         )
 
-        result = invoke(["agentic", "outreach", "enrollments", "timeline", ENROLLMENT_ID])
+        result = invoke(["agentic", "envoy", "enrollments", "timeline", ENROLLMENT_ID])
 
         assert result.exit_code == 0, result.output
         assert "None" not in result.output
 
 
-LIST = ["agentic", "outreach", "enrollments", "list", "--campaign-id", CAMPAIGN_ID]
+LIST = ["agentic", "envoy", "enrollments", "list", "--campaign-id", CAMPAIGN_ID]
 
 
 def _page(rows, *, total, offset, has_more, limit=100):
@@ -1411,7 +1405,7 @@ def test_list_prints_a_row_with_no_decision_and_no_name_as_blank(invoke, mock_ap
     assert "None" not in result.output
     assert table_column(result.output, 1) == ""
     assert table_column(result.output, 4) == ""
-    assert "Outreach enrollments 1-1 of 1" in result.output
+    assert "Envoy enrollments 1-1 of 1" in result.output
     assert "--offset" not in result.output
 
 
@@ -1439,14 +1433,14 @@ def test_list_past_the_end_prints_zero_of_the_total_and_no_next_offset(invoke, m
     result = invoke([*LIST, "--offset", "10"])
 
     assert result.exit_code == 0, result.output
-    assert "Outreach enrollments 0 of 3" in result.output
+    assert "Envoy enrollments 0 of 3" in result.output
     assert "--offset" not in result.output
 
 
 def test_timeline_says_newest_first_and_sends_no_order(invoke, mock_api):
     route = mock_api.get(f"{BASE}/enrollments/{ENROLLMENT_ID}/timeline").respond(200, json=TIMELINE)
 
-    result = invoke(["agentic", "outreach", "enrollments", "timeline", ENROLLMENT_ID])
+    result = invoke(["agentic", "envoy", "enrollments", "timeline", ENROLLMENT_ID])
 
     assert result.exit_code == 0, result.output
     assert "order" not in route.calls[0].request.url.params
@@ -1456,7 +1450,7 @@ def test_timeline_says_newest_first_and_sends_no_order(invoke, mock_api):
 def test_get_of_a_campaign_without_counts_prints_no_none(invoke, mock_api):
     mock_api.get(f"{BASE}/campaigns/{CAMPAIGN_ID}").respond(200, json=CAMPAIGN)
 
-    result = invoke(["agentic", "outreach", "campaigns", "get", CAMPAIGN_ID])
+    result = invoke(["agentic", "envoy", "campaigns", "get", CAMPAIGN_ID])
 
     assert result.exit_code == 0, result.output
     assert "None" not in result.output
