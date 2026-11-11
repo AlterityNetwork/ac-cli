@@ -1,10 +1,10 @@
-"""Envoy sales signals commands.
+"""Sequences sales signals commands.
 
 `signals` is a sub-app with two forms:
 
-- ``ac envoy signals for <recipient-id>`` — per-recipient signals (LinkedIn,
+- ``ac sequences signals for <recipient-id>`` — per-recipient signals (LinkedIn,
   news, funding, hiring, etc.).
-- ``ac envoy signals recent [--since-days N] [--limit N]`` — cross-company
+- ``ac sequences signals recent [--since-days N] [--limit N]`` — cross-company
   list of signals discovered within a rolling window. Powers the agent's
   "what's been discovered in the last 7 days" path and the Launchpad
   hottest-signals view.
@@ -16,7 +16,7 @@ import typer
 from rich import print as rprint
 
 from ac_cli.commands._helpers import JSON_OPTION, _api_request, set_json_mode
-from ac_cli.commands.envoy import _ENVOY
+from ac_cli.commands.sequences import _SEQUENCES
 from ac_cli.formatting import print_json, print_table, styled
 
 signals_app = typer.Typer(help="Sales signals (per recipient or recent across org)")
@@ -35,7 +35,7 @@ def signals_for(
 ) -> None:
     """Get sales signals for a specific recipient."""
     set_json_mode(json_output)
-    resp = _api_request("get", f"{_ENVOY}/recipients/{recipient_id}/sales-signals")
+    resp = _api_request("get", f"{_SEQUENCES}/recipients/{recipient_id}/sales-signals")
 
     data = resp.json()
     if json_output:
@@ -77,7 +77,7 @@ def signals_recent(
     """List recent signals across all companies in the org."""
     set_json_mode(json_output)
     params: dict = {"since_days": since_days, "limit": limit}
-    resp = _api_request("get", f"{_ENVOY}/signals/recent", params=params)
+    resp = _api_request("get", f"{_SEQUENCES}/signals/recent", params=params)
 
     data = resp.json()
     if json_output:

@@ -30,7 +30,7 @@ paths:
 
 ## Test File Naming
 - CRM: `test_crm_<group>.py` (e.g. `test_crm_companies.py`)
-- Envoy: `test_envoy_<group>.py` (e.g. `test_envoy_playbooks.py`)
+- Sequences: `test_sequences_<group>.py` (e.g. `test_sequences_playbooks.py`)
 - Workflows: `test_workflows_<group>.py` (e.g. `test_workflows_runs.py`)
 - Admin: `test_admin_<group>.py` (e.g. `test_admin_users.py`)
 - Other domains: `test_<domain>.py` (e.g. `test_writing_styles.py`, `test_apps.py`, `test_nylas.py`, `test_hooks.py`)
@@ -42,7 +42,7 @@ paths:
 ```bash
 uv run pytest                              # All tests (~800 tests, ~92% coverage)
 uv run pytest tests/test_crm_deals.py      # Single CRM test file
-uv run pytest tests/test_envoy_outbox.py   # Single Envoy test file
+uv run pytest tests/test_sequences_outbox.py   # Single Sequences test file
 uv run pytest tests/test_admin_users.py    # Single Admin test file
 uv run pytest tests/test_workflows_runs.py # Single Workflows test file
 uv run pytest tests/test_agent_features.py # Agent-friendly features

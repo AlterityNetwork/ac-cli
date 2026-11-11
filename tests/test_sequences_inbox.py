@@ -1,4 +1,4 @@
-"""Tests for envoy inbox commands."""
+"""Tests for sequences inbox commands."""
 
 import json
 
@@ -44,10 +44,10 @@ SAMPLE_MESSAGE = {
 
 
 def test_inbox_list(invoke, mock_api):
-    mock_api.get("/api/v1/envoy/inbox/threads").respond(
+    mock_api.get("/api/v1/sequences/inbox/threads").respond(
         200, json={"data": [SAMPLE_THREAD], "total": 1, "limit": 50, "offset": 0, "has_more": False}
     )
-    result = invoke(["envoy", "inbox", "list"])
+    result = invoke(["sequences", "inbox", "list"])
     assert result.exit_code == 0
     # The 80 column test console wraps the subject.
     assert "Partnership" in result.output
@@ -57,7 +57,7 @@ def test_inbox_list(invoke, mock_api):
 
 
 def test_inbox_list_shows_the_thread_fields_and_the_prospect(invoke, mock_api):
-    mock_api.get("/api/v1/envoy/inbox/threads").respond(
+    mock_api.get("/api/v1/sequences/inbox/threads").respond(
         200,
         json={
             "data": [SAMPLE_THREAD, LINKEDIN_THREAD],
@@ -67,7 +67,7 @@ def test_inbox_list_shows_the_thread_fields_and_the_prospect(invoke, mock_api):
             "has_more": False,
         },
     )
-    result = invoke(["envoy", "inbox", "list"])
+    result = invoke(["sequences", "inbox", "list"])
     assert result.exit_code == 0
     assert "John Smith" in result.output
     assert "LinkedIn" in result.output
@@ -77,29 +77,29 @@ def test_inbox_list_shows_the_thread_fields_and_the_prospect(invoke, mock_api):
 
 
 def test_inbox_list_json(invoke, mock_api):
-    mock_api.get("/api/v1/envoy/inbox/threads").respond(
+    mock_api.get("/api/v1/sequences/inbox/threads").respond(
         200, json={"data": [SAMPLE_THREAD], "total": 1, "limit": 50, "offset": 0, "has_more": False}
     )
-    result = invoke(["envoy", "inbox", "list", "--json"])
+    result = invoke(["sequences", "inbox", "list", "--json"])
     assert result.exit_code == 0
     parsed = json.loads(result.output)
     assert parsed["data"][0]["thread"]["id"] == "t-1"
 
 
 def test_inbox_list_with_filters(invoke, mock_api):
-    mock_api.get("/api/v1/envoy/inbox/threads").respond(
+    mock_api.get("/api/v1/sequences/inbox/threads").respond(
         200, json={"data": [], "total": 0, "limit": 50, "offset": 0, "has_more": False}
     )
-    result = invoke(["envoy", "inbox", "list", "--status", "open"])
+    result = invoke(["sequences", "inbox", "list", "--status", "open"])
     assert result.exit_code == 0
 
 
 def test_inbox_list_with_offset(invoke, mock_api):
-    route = mock_api.get("/api/v1/envoy/inbox/threads").respond(
+    route = mock_api.get("/api/v1/sequences/inbox/threads").respond(
         200,
         json={"data": [SAMPLE_THREAD], "total": 11, "limit": 50, "offset": 10, "has_more": False},
     )
-    result = invoke(["envoy", "inbox", "list", "--offset", "10"])
+    result = invoke(["sequences", "inbox", "list", "--offset", "10"])
     assert result.exit_code == 0
     assert "11 total" in result.output
     req = route.calls[0].request
@@ -109,130 +109,130 @@ def test_inbox_list_with_offset(invoke, mock_api):
 # ENG-963 — Inbox tab badge uses --needs-response to count threads where the
 # latest message is inbound and the thread is still open.
 def test_inbox_list_needs_response_flag(invoke, mock_api):
-    route = mock_api.get("/api/v1/envoy/inbox/threads").respond(
+    route = mock_api.get("/api/v1/sequences/inbox/threads").respond(
         200,
         json={"data": [SAMPLE_THREAD], "total": 1, "limit": 50, "offset": 0, "has_more": False},
     )
-    result = invoke(["envoy", "inbox", "list", "--needs-response"])
+    result = invoke(["sequences", "inbox", "list", "--needs-response"])
     assert result.exit_code == 0
     req = route.calls[0].request
     assert "needs_response=true" in str(req.url)
 
 
 def test_inbox_list_no_needs_response_by_default(invoke, mock_api):
-    route = mock_api.get("/api/v1/envoy/inbox/threads").respond(
+    route = mock_api.get("/api/v1/sequences/inbox/threads").respond(
         200,
         json={"data": [], "total": 0, "limit": 50, "offset": 0, "has_more": False},
     )
-    result = invoke(["envoy", "inbox", "list"])
+    result = invoke(["sequences", "inbox", "list"])
     assert result.exit_code == 0
     req = route.calls[0].request
     assert "needs_response" not in str(req.url)
 
 
 def test_inbox_messages(invoke, mock_api):
-    mock_api.get("/api/v1/envoy/inbox/threads/t-1/messages").respond(
+    mock_api.get("/api/v1/sequences/inbox/threads/t-1/messages").respond(
         200, json={"messages": [SAMPLE_MESSAGE]}
     )
-    result = invoke(["envoy", "inbox", "messages", "t-1"])
+    result = invoke(["sequences", "inbox", "messages", "t-1"])
     assert result.exit_code == 0
     assert "john@example.com" in result.output
     assert "Looking forward" in result.output
 
 
 def test_inbox_messages_json(invoke, mock_api):
-    mock_api.get("/api/v1/envoy/inbox/threads/t-1/messages").respond(
+    mock_api.get("/api/v1/sequences/inbox/threads/t-1/messages").respond(
         200, json={"messages": [SAMPLE_MESSAGE]}
     )
-    result = invoke(["envoy", "inbox", "messages", "t-1", "--json"])
+    result = invoke(["sequences", "inbox", "messages", "t-1", "--json"])
     assert result.exit_code == 0
     parsed = json.loads(result.output)
     assert parsed["messages"][0]["id"] == "m-1"
 
 
 def test_inbox_archive(invoke, mock_api):
-    mock_api.post("/api/v1/envoy/inbox/threads/t-1/archive").respond(200, json=SAMPLE_THREAD)
-    result = invoke(["envoy", "inbox", "archive", "t-1"])
+    mock_api.post("/api/v1/sequences/inbox/threads/t-1/archive").respond(200, json=SAMPLE_THREAD)
+    result = invoke(["sequences", "inbox", "archive", "t-1"])
     assert result.exit_code == 0
     assert "Archived" in result.output
 
 
 def test_inbox_unarchive(invoke, mock_api):
-    mock_api.post("/api/v1/envoy/inbox/threads/t-1/unarchive").respond(200, json=SAMPLE_THREAD)
-    result = invoke(["envoy", "inbox", "unarchive", "t-1"])
+    mock_api.post("/api/v1/sequences/inbox/threads/t-1/unarchive").respond(200, json=SAMPLE_THREAD)
+    result = invoke(["sequences", "inbox", "unarchive", "t-1"])
     assert result.exit_code == 0
     assert "Unarchived" in result.output
 
 
 def test_inbox_assign(invoke, mock_api):
-    mock_api.post("/api/v1/envoy/inbox/threads/t-1/assign").respond(200, json=SAMPLE_THREAD)
-    result = invoke(["envoy", "inbox", "assign", "t-1", "--user-id", "user-456"])
+    mock_api.post("/api/v1/sequences/inbox/threads/t-1/assign").respond(200, json=SAMPLE_THREAD)
+    result = invoke(["sequences", "inbox", "assign", "t-1", "--user-id", "user-456"])
     assert result.exit_code == 0
     assert "Assigned" in result.output
 
 
 def test_inbox_snooze(invoke, mock_api):
-    mock_api.post("/api/v1/envoy/inbox/threads/t-1/snooze").respond(200, json=SAMPLE_THREAD)
-    result = invoke(["envoy", "inbox", "snooze", "t-1", "--until", "2026-03-15T09:00:00Z"])
+    mock_api.post("/api/v1/sequences/inbox/threads/t-1/snooze").respond(200, json=SAMPLE_THREAD)
+    result = invoke(["sequences", "inbox", "snooze", "t-1", "--until", "2026-03-15T09:00:00Z"])
     assert result.exit_code == 0
     assert "Snoozed" in result.output
 
 
 def test_inbox_complete(invoke, mock_api):
-    mock_api.post("/api/v1/envoy/inbox/threads/t-1/complete").respond(200, json=SAMPLE_THREAD)
-    result = invoke(["envoy", "inbox", "complete", "t-1"])
+    mock_api.post("/api/v1/sequences/inbox/threads/t-1/complete").respond(200, json=SAMPLE_THREAD)
+    result = invoke(["sequences", "inbox", "complete", "t-1"])
     assert result.exit_code == 0
     assert "Completed" in result.output
 
 
 def test_inbox_mark_read(invoke, mock_api):
-    route = mock_api.post("/api/v1/envoy/inbox/threads/t-1/read").respond(
+    route = mock_api.post("/api/v1/sequences/inbox/threads/t-1/read").respond(
         200, json={"thread_id": "t-1", "unread_count": 0}
     )
-    result = invoke(["envoy", "inbox", "mark-read", "t-1"])
+    result = invoke(["sequences", "inbox", "mark-read", "t-1"])
     assert result.exit_code == 0
     assert route.called
     assert "Marked thread t-1 as read" in result.output
 
 
 def test_inbox_mark_read_json(invoke, mock_api):
-    mock_api.post("/api/v1/envoy/inbox/threads/t-1/read").respond(
+    mock_api.post("/api/v1/sequences/inbox/threads/t-1/read").respond(
         200, json={"thread_id": "t-1", "unread_count": 0}
     )
-    result = invoke(["envoy", "inbox", "mark-read", "t-1", "--json"])
+    result = invoke(["sequences", "inbox", "mark-read", "t-1", "--json"])
     assert result.exit_code == 0
     assert json.loads(result.output) == {"thread_id": "t-1", "unread_count": 0}
 
 
 def test_inbox_update_status(invoke, mock_api):
-    mock_api.patch("/api/v1/envoy/inbox/threads/t-1/status").respond(200, json=SAMPLE_THREAD)
-    result = invoke(["envoy", "inbox", "update-status", "t-1", "--status", "closed"])
+    mock_api.patch("/api/v1/sequences/inbox/threads/t-1/status").respond(200, json=SAMPLE_THREAD)
+    result = invoke(["sequences", "inbox", "update-status", "t-1", "--status", "closed"])
     assert result.exit_code == 0
     assert "Updated" in result.output
 
 
 def test_inbox_add_tags(invoke, mock_api):
-    mock_api.post("/api/v1/envoy/inbox/threads/t-1/tags").respond(200, json=SAMPLE_THREAD)
-    result = invoke(["envoy", "inbox", "add-tags", "t-1", "--tags", "vip,priority"])
+    mock_api.post("/api/v1/sequences/inbox/threads/t-1/tags").respond(200, json=SAMPLE_THREAD)
+    result = invoke(["sequences", "inbox", "add-tags", "t-1", "--tags", "vip,priority"])
     assert result.exit_code == 0
     assert "Added tags" in result.output
 
 
 def test_inbox_remove_tags(invoke, mock_api):
-    mock_api.delete("/api/v1/envoy/inbox/threads/t-1/tags").respond(200, json=SAMPLE_THREAD)
-    result = invoke(["envoy", "inbox", "remove-tags", "t-1", "--tags", "vip,priority"])
+    mock_api.delete("/api/v1/sequences/inbox/threads/t-1/tags").respond(200, json=SAMPLE_THREAD)
+    result = invoke(["sequences", "inbox", "remove-tags", "t-1", "--tags", "vip,priority"])
     assert result.exit_code == 0
     assert "Removed tags" in result.output
 
 
 def test_inbox_reply(invoke, mock_api):
-    mock_api.post("/api/v1/envoy/inbox/threads/t-1/reply").respond(200, json=SAMPLE_MESSAGE)
-    result = invoke(["envoy", "inbox", "reply", "t-1", "--body", "Thanks for reaching out"])
+    mock_api.post("/api/v1/sequences/inbox/threads/t-1/reply").respond(200, json=SAMPLE_MESSAGE)
+    result = invoke(["sequences", "inbox", "reply", "t-1", "--body", "Thanks for reaching out"])
     assert result.exit_code == 0
     assert "Replied" in result.output
 
 
 def test_inbox_list_not_found(invoke, mock_api):
-    mock_api.get("/api/v1/envoy/inbox/threads").respond(404, json={"detail": "Not found"})
-    result = invoke(["envoy", "inbox", "list"])
+    mock_api.get("/api/v1/sequences/inbox/threads").respond(404, json={"detail": "Not found"})
+    result = invoke(["sequences", "inbox", "list"])
     assert result.exit_code == 3

@@ -1,4 +1,4 @@
-"""Envoy battlecards commands."""
+"""Sequences battlecards commands."""
 
 from __future__ import annotations
 
@@ -15,7 +15,7 @@ from ac_cli.commands._helpers import (
 )
 from ac_cli.formatting import print_detail, print_json, print_table, styled
 
-# Battlecards moved out of /envoy to top-level /api/v1/battlecards (ENG-592).
+# Battlecards moved out of /sequences to top-level /api/v1/battlecards (ENG-592).
 _BATTLECARDS = "/api/v1/battlecards"
 
 battlecards_app = typer.Typer(help="Battlecard operations")

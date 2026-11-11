@@ -1,4 +1,4 @@
-"""Envoy inbox commands."""
+"""Sequences inbox commands."""
 
 from __future__ import annotations
 
@@ -12,7 +12,7 @@ from ac_cli.commands._helpers import (
     _handle_connection_error,
     set_json_mode,
 )
-from ac_cli.commands.envoy import _ENVOY
+from ac_cli.commands.sequences import _SEQUENCES
 from ac_cli.formatting import print_json, print_table, styled
 
 inbox_app = typer.Typer(help="Inbox thread operations")
@@ -51,7 +51,7 @@ def inbox_list(
     if needs_response:
         params["needs_response"] = "true"
 
-    resp = _api_request("get", f"{_ENVOY}/inbox/threads", params=params)
+    resp = _api_request("get", f"{_SEQUENCES}/inbox/threads", params=params)
 
     data = resp.json()
     if json_output:
@@ -86,7 +86,7 @@ def inbox_messages(
 ) -> None:
     """Get messages for a thread."""
     set_json_mode(json_output)
-    resp = _api_request("get", f"{_ENVOY}/inbox/threads/{thread_id}/messages")
+    resp = _api_request("get", f"{_SEQUENCES}/inbox/threads/{thread_id}/messages")
 
     data = resp.json()
     if json_output:
@@ -113,7 +113,7 @@ def inbox_archive(
 ) -> None:
     """Archive a thread."""
     set_json_mode(json_output)
-    resp = _api_request("post", f"{_ENVOY}/inbox/threads/{thread_id}/archive")
+    resp = _api_request("post", f"{_SEQUENCES}/inbox/threads/{thread_id}/archive")
 
     data = resp.json()
     if json_output:
@@ -130,7 +130,7 @@ def inbox_unarchive(
 ) -> None:
     """Unarchive a thread."""
     set_json_mode(json_output)
-    resp = _api_request("post", f"{_ENVOY}/inbox/threads/{thread_id}/unarchive")
+    resp = _api_request("post", f"{_SEQUENCES}/inbox/threads/{thread_id}/unarchive")
 
     data = resp.json()
     if json_output:
@@ -149,7 +149,7 @@ def inbox_assign(
     """Assign a thread to a user."""
     set_json_mode(json_output)
     resp = _api_request(
-        "post", f"{_ENVOY}/inbox/threads/{thread_id}/assign", json={"assigned_to": user_id}
+        "post", f"{_SEQUENCES}/inbox/threads/{thread_id}/assign", json={"assigned_to": user_id}
     )
 
     data = resp.json()
@@ -169,7 +169,7 @@ def inbox_snooze(
     """Snooze a thread until a given time."""
     set_json_mode(json_output)
     resp = _api_request(
-        "post", f"{_ENVOY}/inbox/threads/{thread_id}/snooze", json={"snooze_until": until}
+        "post", f"{_SEQUENCES}/inbox/threads/{thread_id}/snooze", json={"snooze_until": until}
     )
 
     data = resp.json()
@@ -187,7 +187,7 @@ def inbox_complete(
 ) -> None:
     """Mark a thread as complete."""
     set_json_mode(json_output)
-    resp = _api_request("post", f"{_ENVOY}/inbox/threads/{thread_id}/complete")
+    resp = _api_request("post", f"{_SEQUENCES}/inbox/threads/{thread_id}/complete")
 
     data = resp.json()
     if json_output:
@@ -204,7 +204,7 @@ def inbox_mark_read(
 ) -> None:
     """Mark every message of a thread as read by you."""
     set_json_mode(json_output)
-    resp = _api_request("post", f"{_ENVOY}/inbox/threads/{thread_id}/read")
+    resp = _api_request("post", f"{_SEQUENCES}/inbox/threads/{thread_id}/read")
 
     data = resp.json()
     if json_output:
@@ -223,7 +223,7 @@ def inbox_update_status(
     """Update the status of a thread."""
     set_json_mode(json_output)
     resp = _api_request(
-        "patch", f"{_ENVOY}/inbox/threads/{thread_id}/status", json={"status": status}
+        "patch", f"{_SEQUENCES}/inbox/threads/{thread_id}/status", json={"status": status}
     )
 
     data = resp.json()
@@ -243,7 +243,7 @@ def inbox_add_tags(
     """Add tags to a thread."""
     set_json_mode(json_output)
     tags_list = [t.strip() for t in tags.split(",")]
-    resp = _api_request("post", f"{_ENVOY}/inbox/threads/{thread_id}/tags", json=tags_list)
+    resp = _api_request("post", f"{_SEQUENCES}/inbox/threads/{thread_id}/tags", json=tags_list)
 
     data = resp.json()
     if json_output:
@@ -270,7 +270,7 @@ def inbox_remove_tags(
     with get_api_client() as client:
         try:
             resp = client.request(
-                "DELETE", f"{_ENVOY}/inbox/threads/{thread_id}/tags", json=tags_list
+                "DELETE", f"{_SEQUENCES}/inbox/threads/{thread_id}/tags", json=tags_list
             )
             resp.raise_for_status()
         except httpx.HTTPStatusError as exc:
@@ -298,7 +298,7 @@ def inbox_reply(
     """Reply to a thread."""
     set_json_mode(json_output)
     req_body = _build_body(body=body, subject=subject)
-    resp = _api_request("post", f"{_ENVOY}/inbox/threads/{thread_id}/reply", json=req_body)
+    resp = _api_request("post", f"{_SEQUENCES}/inbox/threads/{thread_id}/reply", json=req_body)
 
     data = resp.json()
     if json_output:

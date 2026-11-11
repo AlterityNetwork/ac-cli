@@ -1,4 +1,4 @@
-"""Envoy sequence recipients commands."""
+"""sequence recipients commands."""
 
 from __future__ import annotations
 
@@ -9,7 +9,7 @@ from rich import print as rprint
 
 from ac_cli.commands._helpers import JSON_OPTION, set_json_mode, should_skip_confirm
 from ac_cli.commands.crm import _api_request
-from ac_cli.commands.envoy import _ENVOY
+from ac_cli.commands.sequences import _SEQUENCES
 from ac_cli.formatting import print_json, print_table, styled
 
 recipients_app = typer.Typer(help="Sequence recipient operations")
@@ -31,7 +31,7 @@ def recipients_list(
     if step_id:
         params["step_id"] = step_id
 
-    resp = _api_request("get", f"{_ENVOY}/sequences/{sequence_id}/recipients", params=params)
+    resp = _api_request("get", f"{_SEQUENCES}/sequences/{sequence_id}/recipients", params=params)
 
     data = resp.json()
     if json_output:
@@ -61,7 +61,7 @@ def recipients_history(
     """Show every step of a sequence for one recipient, and the thread of emails and LinkedIn messages."""
     set_json_mode(json_output)
     resp = _api_request(
-        "get", f"{_ENVOY}/sequences/{sequence_id}/recipients/{recipient_id}/history"
+        "get", f"{_SEQUENCES}/sequences/{sequence_id}/recipients/{recipient_id}/history"
     )
     data = resp.json()
     if json_output:
@@ -147,7 +147,7 @@ def recipients_add(
 
     body["reenroll"] = reenroll
 
-    resp = _api_request("post", f"{_ENVOY}/sequences/{sequence_id}/recipients", json=body)
+    resp = _api_request("post", f"{_SEQUENCES}/sequences/{sequence_id}/recipients", json=body)
     data = resp.json()
 
     if json_output:
@@ -177,7 +177,7 @@ def recipients_add(
             reenrol_ids = [p["prospect_id"] for p in needs_confirm]
             resp2 = _api_request(
                 "post",
-                f"{_ENVOY}/sequences/{sequence_id}/recipients",
+                f"{_SEQUENCES}/sequences/{sequence_id}/recipients",
                 json={
                     "source": {"type": "explicit", "prospect_ids": reenrol_ids},
                     "reenroll": True,
@@ -213,7 +213,7 @@ def recipients_remove(
     if not should_skip_confirm(yes):
         typer.confirm(f"Remove recipient {recipient_id} from sequence {sequence_id}?", abort=True)
 
-    _api_request("delete", f"{_ENVOY}/sequences/{sequence_id}/recipients/{recipient_id}")
+    _api_request("delete", f"{_SEQUENCES}/sequences/{sequence_id}/recipients/{recipient_id}")
 
     rprint(
         styled("[green]Removed recipient {} from sequence {}[/green]", recipient_id, sequence_id)

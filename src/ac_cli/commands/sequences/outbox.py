@@ -1,4 +1,4 @@
-"""Envoy outbox (draft approval flow) commands."""
+"""Sequences outbox (draft approval flow) commands."""
 
 from __future__ import annotations
 
@@ -10,7 +10,7 @@ from rich import print as rprint
 from ac_cli.commands._helpers import JSON_OPTION, set_json_mode
 from ac_cli.commands.crm import _CRM, _api_request, _build_body
 from ac_cli.commands.crm.communications import RegenerateScope
-from ac_cli.commands.envoy import _ENVOY
+from ac_cli.commands.sequences import _SEQUENCES
 from ac_cli.formatting import print_json, print_table, styled
 
 outbox_app = typer.Typer(help="Outbox / draft approval operations")
@@ -33,7 +33,7 @@ def outbox_pending(
     if step_id:
         params["step_id"] = step_id
 
-    resp = _api_request("get", f"{_ENVOY}/outbox/pending", params=params)
+    resp = _api_request("get", f"{_SEQUENCES}/outbox/pending", params=params)
 
     data = resp.json()
     if json_output:
@@ -71,7 +71,7 @@ def outbox_sent(
     if status:
         params["status"] = status
 
-    resp = _api_request("get", f"{_ENVOY}/outbox/sent", params=params)
+    resp = _api_request("get", f"{_SEQUENCES}/outbox/sent", params=params)
 
     data = resp.json()
     if json_output:
@@ -109,7 +109,7 @@ def outbox_step_drafts(
         "limit": limit,
         "offset": offset,
     }
-    resp = _api_request("get", f"{_ENVOY}/outbox/step-drafts", params=params)
+    resp = _api_request("get", f"{_SEQUENCES}/outbox/step-drafts", params=params)
 
     data = resp.json()
     if json_output:
@@ -145,7 +145,7 @@ def outbox_update_draft(
         rprint("[yellow]No fields to update.[/yellow]")
         raise typer.Exit(code=1)
 
-    resp = _api_request("patch", f"{_ENVOY}/outbox/pending/{draft_id}", json=update_body)
+    resp = _api_request("patch", f"{_SEQUENCES}/outbox/pending/{draft_id}", json=update_body)
 
     data = resp.json()
     if json_output:
@@ -207,7 +207,7 @@ def outbox_approve(
     """Approve and send a pending draft."""
     set_json_mode(json_output)
     req_body = _build_body(subject=subject, body=body)
-    resp = _api_request("post", f"{_ENVOY}/outbox/pending/{draft_id}/approve", json=req_body)
+    resp = _api_request("post", f"{_SEQUENCES}/outbox/pending/{draft_id}/approve", json=req_body)
 
     data = resp.json()
     if json_output:

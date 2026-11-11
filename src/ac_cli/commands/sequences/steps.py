@@ -1,4 +1,4 @@
-"""Envoy sequence steps commands."""
+"""sequence steps commands."""
 
 from __future__ import annotations
 
@@ -7,7 +7,7 @@ from rich import print as rprint
 
 from ac_cli.commands._helpers import JSON_OPTION, set_json_mode, should_skip_confirm
 from ac_cli.commands.crm import _api_request, _build_body
-from ac_cli.commands.envoy import _ENVOY
+from ac_cli.commands.sequences import _SEQUENCES
 from ac_cli.formatting import print_json, print_table, styled
 
 steps_app = typer.Typer(help="Sequence step operations")
@@ -58,7 +58,7 @@ def steps_create(
         wait_for_acceptance=wait_for_acceptance,
     )
 
-    resp = _api_request("post", f"{_ENVOY}/sequences/{sequence_id}/steps", json=body)
+    resp = _api_request("post", f"{_SEQUENCES}/sequences/{sequence_id}/steps", json=body)
 
     data = resp.json()
     if json_output:
@@ -117,7 +117,7 @@ def steps_update(
         rprint("[yellow]No fields to update.[/yellow]")
         raise typer.Exit(code=1)
 
-    resp = _api_request("patch", f"{_ENVOY}/sequences/{sequence_id}/steps/{step_id}", json=body)
+    resp = _api_request("patch", f"{_SEQUENCES}/sequences/{sequence_id}/steps/{step_id}", json=body)
 
     data = resp.json()
     if json_output:
@@ -136,7 +136,7 @@ def steps_delete(
     if not should_skip_confirm(yes):
         typer.confirm(f"Delete step {step_id}?", abort=True)
 
-    _api_request("delete", f"{_ENVOY}/sequences/{sequence_id}/steps/{step_id}")
+    _api_request("delete", f"{_SEQUENCES}/sequences/{sequence_id}/steps/{step_id}")
 
     rprint(styled("[green]Deleted step {}[/green]", step_id))
 
@@ -154,7 +154,7 @@ def steps_reorder(
     set_json_mode(json_output)
     ids_list = [s.strip() for s in step_ids.split(",")]
     resp = _api_request(
-        "put", f"{_ENVOY}/sequences/{sequence_id}/steps/reorder", json={"step_ids": ids_list}
+        "put", f"{_SEQUENCES}/sequences/{sequence_id}/steps/reorder", json={"step_ids": ids_list}
     )
 
     data = resp.json()
@@ -174,7 +174,7 @@ def steps_stats(
 ) -> None:
     """Show step execution statistics for a sequence."""
     set_json_mode(json_output)
-    resp = _api_request("get", f"{_ENVOY}/sequences/{sequence_id}/step-stats")
+    resp = _api_request("get", f"{_SEQUENCES}/sequences/{sequence_id}/step-stats")
 
     data = resp.json()
     if json_output:
@@ -209,7 +209,7 @@ def steps_retry(
 ) -> None:
     """Re-queue a step's failed recipients so the poller runs them again."""
     set_json_mode(json_output)
-    resp = _api_request("post", f"{_ENVOY}/sequences/{sequence_id}/steps/{step_id}/retry")
+    resp = _api_request("post", f"{_SEQUENCES}/sequences/{sequence_id}/steps/{step_id}/retry")
 
     data = resp.json()
     if json_output:

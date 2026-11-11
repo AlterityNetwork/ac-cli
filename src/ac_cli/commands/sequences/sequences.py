@@ -1,4 +1,4 @@
-"""Envoy sequences commands."""
+"""sequences commands."""
 
 from __future__ import annotations
 
@@ -7,7 +7,7 @@ from rich import print as rprint
 
 from ac_cli.commands._helpers import JSON_OPTION, _get_org_id, set_json_mode, should_skip_confirm
 from ac_cli.commands.crm import _api_request, _build_body
-from ac_cli.commands.envoy import _ENVOY
+from ac_cli.commands.sequences import _SEQUENCES
 from ac_cli.formatting import print_detail, print_json, print_table, styled
 
 sequences_app = typer.Typer(help="Sequence operations")
@@ -25,7 +25,7 @@ def sequences_list(
     if status:
         params["status_filter"] = status
 
-    resp = _api_request("get", f"{_ENVOY}/sequences", params=params)
+    resp = _api_request("get", f"{_SEQUENCES}/sequences", params=params)
 
     data = resp.json()
     if json_output:
@@ -52,7 +52,7 @@ def sequences_get(
 ) -> None:
     """Get a sequence by ID."""
     set_json_mode(json_output)
-    resp = _api_request("get", f"{_ENVOY}/sequences/{sequence_id}")
+    resp = _api_request("get", f"{_SEQUENCES}/sequences/{sequence_id}")
 
     data = resp.json()
     if json_output:
@@ -133,7 +133,7 @@ def sequences_create(
 
     body["organization_id"] = _get_org_id()
 
-    resp = _api_request("post", f"{_ENVOY}/sequences", json=body)
+    resp = _api_request("post", f"{_SEQUENCES}/sequences", json=body)
 
     data = resp.json()
     if json_output:
@@ -190,7 +190,7 @@ def sequences_update(
         rprint("[yellow]No fields to update.[/yellow]")
         raise typer.Exit(code=1)
 
-    resp = _api_request("patch", f"{_ENVOY}/sequences/{sequence_id}", json=body)
+    resp = _api_request("patch", f"{_SEQUENCES}/sequences/{sequence_id}", json=body)
 
     data = resp.json()
     if json_output:
@@ -208,7 +208,7 @@ def sequences_delete(
     if not should_skip_confirm(yes):
         typer.confirm(f"Delete sequence {sequence_id}?", abort=True)
 
-    _api_request("delete", f"{_ENVOY}/sequences/{sequence_id}")
+    _api_request("delete", f"{_SEQUENCES}/sequences/{sequence_id}")
 
     rprint(styled("[green]Deleted sequence {}[/green]", sequence_id))
 
@@ -223,7 +223,7 @@ def sequences_launch(
     """Launch a sequence."""
     set_json_mode(json_output)
     resp = _api_request(
-        "post", f"{_ENVOY}/sequences/{sequence_id}/launch", json={"workflow_id": workflow_id}
+        "post", f"{_SEQUENCES}/sequences/{sequence_id}/launch", json={"workflow_id": workflow_id}
     )
 
     data = resp.json()
@@ -241,7 +241,7 @@ def sequences_pause(
 ) -> None:
     """Pause a running sequence."""
     set_json_mode(json_output)
-    resp = _api_request("post", f"{_ENVOY}/sequences/{sequence_id}/pause")
+    resp = _api_request("post", f"{_SEQUENCES}/sequences/{sequence_id}/pause")
 
     data = resp.json()
     if json_output:
@@ -260,7 +260,7 @@ def sequences_resume(
     """Resume a paused sequence."""
     set_json_mode(json_output)
     resp = _api_request(
-        "post", f"{_ENVOY}/sequences/{sequence_id}/resume", json={"workflow_id": workflow_id}
+        "post", f"{_SEQUENCES}/sequences/{sequence_id}/resume", json={"workflow_id": workflow_id}
     )
 
     data = resp.json()
@@ -278,7 +278,7 @@ def sequences_duplicate(
 ) -> None:
     """Duplicate a sequence."""
     set_json_mode(json_output)
-    resp = _api_request("post", f"{_ENVOY}/sequences/{sequence_id}/duplicate")
+    resp = _api_request("post", f"{_SEQUENCES}/sequences/{sequence_id}/duplicate")
     data = resp.json()
     if json_output:
         print_json(data)
@@ -298,7 +298,7 @@ def sequences_archive(
 ) -> None:
     """Archive a sequence."""
     set_json_mode(json_output)
-    resp = _api_request("post", f"{_ENVOY}/sequences/{sequence_id}/archive")
+    resp = _api_request("post", f"{_SEQUENCES}/sequences/{sequence_id}/archive")
     data = resp.json()
     if json_output:
         print_json(data)
@@ -314,7 +314,7 @@ def sequences_restore(
 ) -> None:
     """Restore an archived sequence."""
     set_json_mode(json_output)
-    resp = _api_request("post", f"{_ENVOY}/sequences/{sequence_id}/restore")
+    resp = _api_request("post", f"{_SEQUENCES}/sequences/{sequence_id}/restore")
     data = resp.json()
     if json_output:
         print_json(data)
@@ -335,7 +335,7 @@ def sequences_impact_preview(
     set_json_mode(json_output)
     resp = _api_request(
         "post",
-        f"{_ENVOY}/sequences/{sequence_id}/impact-preview",
+        f"{_SEQUENCES}/sequences/{sequence_id}/impact-preview",
         json={"step_ids": step_id},
     )
     data = resp.json()
@@ -362,7 +362,7 @@ def sequences_bulk_remove_recipients(
     set_json_mode(json_output)
     resp = _api_request(
         "post",
-        f"{_ENVOY}/sequences/{sequence_id}/recipients/bulk-remove",
+        f"{_SEQUENCES}/sequences/{sequence_id}/recipients/bulk-remove",
         json={"recipient_ids": recipient_id},
     )
     data = resp.json()
@@ -388,7 +388,7 @@ def sequences_classify_step_subtype(
     set_json_mode(json_output)
     resp = _api_request(
         "post",
-        f"{_ENVOY}/sequences/classify-step-subtype",
+        f"{_SEQUENCES}/sequences/classify-step-subtype",
         json={"instruction": instruction},
     )
     data = resp.json()
@@ -410,7 +410,7 @@ def sequences_outputs(
     set_json_mode(json_output)
     resp = _api_request(
         "get",
-        f"{_ENVOY}/sequences/{sequence_id}/outputs",
+        f"{_SEQUENCES}/sequences/{sequence_id}/outputs",
         params={"limit": limit, "offset": offset},
     )
     data = resp.json()
@@ -438,7 +438,7 @@ def sequences_for_prospect(
 ) -> None:
     """List sequences that include a given prospect."""
     set_json_mode(json_output)
-    resp = _api_request("get", f"{_ENVOY}/sequences/by-prospect/{prospect_id}")
+    resp = _api_request("get", f"{_SEQUENCES}/sequences/by-prospect/{prospect_id}")
 
     data = resp.json()
     if json_output:
@@ -469,7 +469,7 @@ def sequences_generate_drafts(
     set_json_mode(json_output)
     resp = _api_request(
         "post",
-        f"{_ENVOY}/sequences/{sequence_id}/steps/{step_id}/generate-drafts",
+        f"{_SEQUENCES}/sequences/{sequence_id}/steps/{step_id}/generate-drafts",
         json={"workflow_id": workflow_id},
     )
     data = resp.json()

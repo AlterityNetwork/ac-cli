@@ -1,4 +1,4 @@
-"""Tests for envoy playbooks commands."""
+"""Tests for sequences playbooks commands."""
 
 import json
 
@@ -18,14 +18,14 @@ SAMPLE_PLAYBOOK = {
 
 def test_playbooks_list(invoke, mock_api):
     mock_api.get("/api/v1/playbooks").respond(200, json=[SAMPLE_PLAYBOOK])
-    result = invoke(["envoy", "playbooks", "list"])
+    result = invoke(["sequences", "playbooks", "list"])
     assert result.exit_code == 0
     assert "Competitor Battlecard" in result.output
 
 
 def test_playbooks_list_json(invoke, mock_api):
     mock_api.get("/api/v1/playbooks").respond(200, json=[SAMPLE_PLAYBOOK])
-    result = invoke(["envoy", "playbooks", "list", "--json"])
+    result = invoke(["sequences", "playbooks", "list", "--json"])
     assert result.exit_code == 0
     parsed = json.loads(result.output)
     assert parsed[0]["name"] == "Competitor Battlecard"
@@ -33,21 +33,21 @@ def test_playbooks_list_json(invoke, mock_api):
 
 def test_playbooks_get(invoke, mock_api):
     mock_api.get("/api/v1/playbooks/pb-1").respond(200, json=SAMPLE_PLAYBOOK)
-    result = invoke(["envoy", "playbooks", "get", "pb-1"])
+    result = invoke(["sequences", "playbooks", "get", "pb-1"])
     assert result.exit_code == 0
     assert "Competitor Battlecard" in result.output
 
 
 def test_playbooks_get_not_found(invoke, mock_api):
     mock_api.get("/api/v1/playbooks/pb-999").respond(404, json={"detail": "Not found"})
-    result = invoke(["envoy", "playbooks", "get", "pb-999"])
+    result = invoke(["sequences", "playbooks", "get", "pb-999"])
     assert result.exit_code == 3
 
 
 def test_playbooks_create(invoke, mock_api):
     mock_api.get("/whoami").respond(200, json=WHOAMI_RESPONSE)
     mock_api.post("/api/v1/playbooks").respond(201, json=SAMPLE_PLAYBOOK)
-    result = invoke(["envoy", "playbooks", "create", "--name", "Competitor Battlecard"])
+    result = invoke(["sequences", "playbooks", "create", "--name", "Competitor Battlecard"])
     assert result.exit_code == 0
     assert "Created playbook" in result.output
 
@@ -55,7 +55,9 @@ def test_playbooks_create(invoke, mock_api):
 def test_playbooks_create_json(invoke, mock_api):
     mock_api.get("/whoami").respond(200, json=WHOAMI_RESPONSE)
     mock_api.post("/api/v1/playbooks").respond(201, json=SAMPLE_PLAYBOOK)
-    result = invoke(["envoy", "playbooks", "create", "--name", "Competitor Battlecard", "--json"])
+    result = invoke(
+        ["sequences", "playbooks", "create", "--name", "Competitor Battlecard", "--json"]
+    )
     assert result.exit_code == 0
     parsed = json.loads(result.output)
     assert parsed["name"] == "Competitor Battlecard"
@@ -66,7 +68,7 @@ def test_playbooks_create_sends_icp_ids(invoke, mock_api):
     route = mock_api.post("/api/v1/playbooks").respond(201, json=SAMPLE_PLAYBOOK)
     result = invoke(
         [
-            "envoy",
+            "sequences",
             "playbooks",
             "create",
             "--name",
@@ -84,7 +86,7 @@ def test_playbooks_create_sends_icp_ids(invoke, mock_api):
 
 def test_playbooks_update_sends_icp_ids(invoke, mock_api):
     route = mock_api.patch("/api/v1/playbooks/pb-1").respond(200, json=SAMPLE_PLAYBOOK)
-    result = invoke(["envoy", "playbooks", "update", "pb-1", "--icp-id", "icp-1"])
+    result = invoke(["sequences", "playbooks", "update", "pb-1", "--icp-id", "icp-1"])
     assert result.exit_code == 0
     body = json.loads(route.calls.last.request.content)
     assert body == {"icp_ids": ["icp-1"]}
@@ -93,31 +95,31 @@ def test_playbooks_update_sends_icp_ids(invoke, mock_api):
 def test_playbooks_update(invoke, mock_api):
     updated = {**SAMPLE_PLAYBOOK, "name": "Updated Playbook"}
     mock_api.patch("/api/v1/playbooks/pb-1").respond(200, json=updated)
-    result = invoke(["envoy", "playbooks", "update", "pb-1", "--name", "Updated Playbook"])
+    result = invoke(["sequences", "playbooks", "update", "pb-1", "--name", "Updated Playbook"])
     assert result.exit_code == 0
     assert "Updated playbook" in result.output
 
 
 def test_playbooks_update_no_fields(invoke, mock_api):
-    result = invoke(["envoy", "playbooks", "update", "pb-1"])
+    result = invoke(["sequences", "playbooks", "update", "pb-1"])
     assert result.exit_code == 1
 
 
 def test_playbooks_delete_with_yes(invoke, mock_api):
     mock_api.delete("/api/v1/playbooks/pb-1").respond(204)
-    result = invoke(["envoy", "playbooks", "delete", "pb-1", "--yes"])
+    result = invoke(["sequences", "playbooks", "delete", "pb-1", "--yes"])
     assert result.exit_code == 0
     assert "Deleted" in result.output
 
 
 def test_playbooks_delete_aborted(invoke, mock_api):
-    result = invoke(["envoy", "playbooks", "delete", "pb-1"], input="n\n")
+    result = invoke(["sequences", "playbooks", "delete", "pb-1"], input="n\n")
     assert result.exit_code == 1
 
 
 def test_playbooks_duplicate(invoke, mock_api):
     duplicated = {**SAMPLE_PLAYBOOK, "id": "pb-2", "name": "Competitor Battlecard (Copy)"}
     mock_api.post("/api/v1/playbooks/pb-1/duplicate").respond(201, json=duplicated)
-    result = invoke(["envoy", "playbooks", "duplicate", "pb-1"])
+    result = invoke(["sequences", "playbooks", "duplicate", "pb-1"])
     assert result.exit_code == 0
     assert "Duplicated playbook" in result.output
