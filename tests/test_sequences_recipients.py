@@ -243,6 +243,13 @@ HISTORY = {
         },
         {"step_id": "s2", "step_order": 2, "type": "delay", "status": "upcoming"},
         {
+            "step_id": "s5",
+            "step_order": 5,
+            "type": "task",
+            "status": "sent",
+            "connection_status": "not_accepted",
+        },
+        {
             "step_id": "s4",
             "step_order": 4,
             "type": "task",
@@ -278,6 +285,28 @@ HISTORY = {
             "channel": "linkedin",
         },
     ],
+    "tasks": [
+        {
+            "id": "rs-4",
+            "step_id": "s4",
+            "activity_id": None,
+            "activity_type": None,
+            "title": None,
+            "outcome": None,
+            "suggested_message": None,
+            "completed_at": "2026-09-19T09:00:00Z",
+        },
+        {
+            "id": "rs-5",
+            "step_id": "s5",
+            "activity_id": "a1",
+            "activity_type": "call",
+            "title": "Call Jonah",
+            "outcome": "Left a voicemail",
+            "suggested_message": "Hi Jonah, a quick call.",
+            "completed_at": "2026-09-24T09:00:00Z",
+        },
+    ],
 }
 
 
@@ -295,6 +324,22 @@ def test_recipients_history(invoke, mock_api):
     assert "Re: One gap at Nuveau" in result.output
     assert "Channel" in result.output
     assert "linkedin" in result.output
+    assert "Connection" in result.output
+    assert "Tasks (2)" in result.output
+    assert "call" in result.output
+    assert "Call Jonah" in result.output
+    assert "Left a voicemail" in result.output
+
+
+def test_recipients_history_without_tasks(invoke, mock_api):
+    """A response from an API that sends no tasks prints an empty Tasks table."""
+    data = {key: value for key, value in HISTORY.items() if key != "tasks"}
+    mock_api.get("/api/v1/sequences/sequences/seq-1/recipients/rec-1/history").respond(
+        200, json=data
+    )
+    result = invoke(["sequences", "recipients", "history", "seq-1", "rec-1"])
+    assert result.exit_code == 0
+    assert "Tasks (0)" in result.output
 
 
 def test_recipients_history_json(invoke, mock_api):
@@ -304,3 +349,31 @@ def test_recipients_history_json(invoke, mock_api):
     result = invoke(["sequences", "recipients", "history", "seq-1", "rec-1", "--json"])
     assert result.exit_code == 0
     assert json.loads(result.output)["messages"][1]["direction"] == "inbound"
+
+
+def test_recipients_history_tasks_name_the_step_by_its_order(invoke, mock_api):
+    """The Steps table shows the step order, so the Tasks table does too."""
+    step_id = "9b1c2d3e-0000-4000-8000-000000000042"
+    data = {
+        "recipient_id": "rec-1",
+        "steps": [{"step_id": step_id, "step_order": 6, "type": "task", "status": "task_created"}],
+        "messages": [],
+        "tasks": [
+            {
+                "id": "rs-6",
+                "step_id": step_id,
+                "activity_type": "call",
+                "title": "Call Jonah",
+                "outcome": None,
+                "completed_at": "2026-09-24T09:00:00Z",
+            }
+        ],
+    }
+    mock_api.get("/api/v1/sequences/sequences/seq-1/recipients/rec-1/history").respond(
+        200, json=data
+    )
+    result = invoke(["sequences", "recipients", "history", "seq-1", "rec-1"])
+    assert result.exit_code == 0
+    tasks_table = result.output.split("Tasks (1)", 1)[1]
+    assert "9b1c2d3e" not in tasks_table
+    assert "│ 6 " in tasks_table or "│ 6" in tasks_table

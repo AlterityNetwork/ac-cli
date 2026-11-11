@@ -58,7 +58,7 @@ def recipients_history(
     recipient_id: str = typer.Argument(..., help="Recipient ID"),
     json_output: bool = JSON_OPTION,
 ) -> None:
-    """Show every step of a sequence for one recipient, and the thread of emails and LinkedIn messages."""
+    """Show every step of a sequence for one recipient, the thread of emails and LinkedIn messages, and the completed task steps."""
     set_json_mode(json_output)
     resp = _api_request(
         "get", f"{_SEQUENCES}/sequences/{sequence_id}/recipients/{recipient_id}/history"
@@ -78,6 +78,7 @@ def recipients_history(
             ("subject", "Subject"),
             ("awaiting_approval_count", "Waiting"),
             ("skip_reason", "Reason"),
+            ("connection_status", "Connection"),
         ],
         title=f"Steps ({len(steps)})",
     )
@@ -91,6 +92,22 @@ def recipients_history(
             ("subject", "Subject"),
         ],
         title=f"Thread ({len(messages)})",
+    )
+    # The Steps table names a step by its order, so a task row does too.
+    order = {s.get("step_id"): s.get("step_order") for s in steps}
+    tasks = [
+        {**task, "step_order": order.get(task.get("step_id"))} for task in data.get("tasks", [])
+    ]
+    print_table(
+        tasks,
+        [
+            ("completed_at", "Date"),
+            ("step_order", "Step"),
+            ("activity_type", "Type"),
+            ("title", "Title"),
+            ("outcome", "Outcome"),
+        ],
+        title=f"Tasks ({len(tasks)})",
     )
 
 
