@@ -28,7 +28,15 @@ app = typer.Typer(help="Inbox: one row per person, reply and AI draft on email a
 _CHANNELS = ("email", "linkedin")
 _VIEWS = ("inbox", "done")
 _MESSAGE_VIEWS = ("sent", "drafts", "scheduled")
-_INTENTS = ("interested", "not_interested", "out_of_office", "none")
+_INTENTS = (
+    "interested",
+    "referral",
+    "out_of_office",
+    "unclear",
+    "not_interested",
+    "opted_out",
+    "none",
+)
 _KINDS = ("message", "connection", "engagement")
 _STATUSES = ("open", "done", "snoozed")
 _BULK_ACTIONS = ("done", "read", "unread")
@@ -91,7 +99,9 @@ def inbox_list(
     ),
     unread: bool = typer.Option(False, "--unread", help="Only people with an unread item"),
     intent: list[str] = typer.Option(
-        None, help="interested, not_interested, out_of_office or none (repeat for more)"
+        None,
+        help="interested, referral, out_of_office, unclear, not_interested, opted_out "
+        "or none (repeat for more)",
     ),
     kind: list[str] = typer.Option(
         None, help="message, connection or engagement (repeat for more)"
@@ -328,7 +338,10 @@ def inbox_status(
 @app.command("intent")
 def inbox_intent(
     thread_id: str = typer.Argument(..., help="Any inbox thread id of the person"),
-    intent: str = typer.Option(..., help="interested, not_interested, out_of_office or none"),
+    intent: str = typer.Option(
+        ...,
+        help="interested, referral, out_of_office, unclear, not_interested, opted_out or none",
+    ),
     json_output: bool = JSON_OPTION,
 ) -> None:
     """Set the intent of the person. `none` clears it."""
