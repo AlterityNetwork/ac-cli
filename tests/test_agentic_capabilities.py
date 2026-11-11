@@ -418,3 +418,26 @@ def test_start_refuses_a_key_the_header_refuses(invoke, mock_api, key):
     assert body["status_code"] is None
     assert "--idempotency-key" in body["detail"]
     assert not mock_api.calls
+
+
+def test_start_sends_the_name_and_the_saved_search(invoke, mock_api):
+    route = mock_api.post(PATH).respond(200, json={**SAMPLE_RUN, "capability_id": "company.search"})
+
+    result = invoke([*ARGS, "--title", "Acme lookalikes", "--saved-search-id", "s-1", "--json"])
+
+    assert result.exit_code == 0, result.output
+    assert json.loads(route.calls[0].request.content) == {
+        "input": {"query": "acme"},
+        "title": "Acme lookalikes",
+        "saved_search_id": "s-1",
+    }
+
+
+def test_start_sends_neither_by_default(invoke, mock_api):
+    route = mock_api.post(PATH).respond(200, json={**SAMPLE_RUN, "capability_id": "company.search"})
+
+    invoke([*ARGS, "--json"])
+
+    body = json.loads(route.calls[0].request.content)
+    assert "title" not in body
+    assert "saved_search_id" not in body

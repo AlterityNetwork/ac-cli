@@ -205,7 +205,8 @@ def _draft(value: str) -> dict[str, object]:
     """Reads one `--draft` flag, or refuses it before any HTTP call.
 
     Args:
-        value: A JSON object with `capability_id` and an object `input`.
+        value: A JSON object with `capability_id`, an object `input`, and an
+          optional text or null `title`.
 
     Returns:
         The draft body.
@@ -221,9 +222,16 @@ def _draft(value: str) -> dict[str, object]:
         not isinstance(draft, dict)
         or not isinstance(draft.get("capability_id"), str)
         or not isinstance(draft.get("input"), dict)
+        or not isinstance(draft.get("title"), str | None)
     ):
-        refuse_local("--draft must be a JSON object with a capability_id and an object input")
-    return {"capability_id": draft["capability_id"], "input": draft["input"]}
+        refuse_local(
+            "--draft must be a JSON object with a capability_id, an object input "
+            "and an optional text title"
+        )
+    body: dict[str, object] = {"capability_id": draft["capability_id"], "input": draft["input"]}
+    if "title" in draft:
+        body["title"] = draft["title"]
+    return body
 
 
 @app.command("send")

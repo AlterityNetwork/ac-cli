@@ -517,3 +517,27 @@ def test_messages_json_keeps_the_draft(invoke, mock_api):
     result = invoke(["agentic", "conversations", "messages", CONVERSATION_ID, "--json"])
 
     assert json.loads(result.output)["items"][0]["draft"] == _DRAFT
+
+
+def test_send_carries_the_title_of_the_form(invoke, mock_api):
+    draft = {**_DRAFT, "title": "Weekly fintech"}
+    route = mock_api.post(MESSAGES).respond(202, json={**MESSAGE, "draft": draft})
+
+    result = invoke(
+        ["agentic", "conversations", "send", CONVERSATION_ID, "hi", "--draft", json.dumps(draft)]
+    )
+
+    assert result.exit_code == 0, result.output
+    assert json.loads(route.calls[0].request.content)["draft"] == draft
+
+
+def test_send_refuses_a_title_that_is_not_text(invoke, mock_api):
+    route = mock_api.post(MESSAGES).respond(202, json=MESSAGE)
+    draft = json.dumps({**_DRAFT, "title": 3})
+
+    result = invoke(
+        ["agentic", "conversations", "send", CONVERSATION_ID, "hi", "--draft", draft, "--json"]
+    )
+
+    assert result.exit_code == 2, result.output
+    assert not route.called

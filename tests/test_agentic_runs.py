@@ -1578,3 +1578,106 @@ def test_runs_list_keeps_the_source_in_the_next_page_hint(invoke, mock_api):
     result = invoke(["agentic", "runs", "list", "--source", "trigger"])
 
     assert "--source trigger" in " ".join(result.output.split())
+
+
+# --- the name and the saved search of a run ----------------------------------
+
+
+def test_runs_start_sends_the_name(invoke, mock_api):
+    route = mock_api.post("/api/v1/agentic/runs").respond(200, json=SAMPLE_RUN)
+
+    result = invoke(
+        [
+            "agentic",
+            "runs",
+            "start",
+            "--definition",
+            SAMPLE_RUN["definition_id"],
+            "--title",
+            "Weekly fintech",
+        ]
+    )
+
+    assert result.exit_code == 0, result.output
+    body = json.loads(route.calls[0].request.content)
+    assert body["title"] == "Weekly fintech"
+
+
+def test_runs_start_sends_no_name_by_default(invoke, mock_api):
+    route = mock_api.post("/api/v1/agentic/runs").respond(200, json=SAMPLE_RUN)
+
+    invoke(["agentic", "runs", "start", "--definition", SAMPLE_RUN["definition_id"]])
+
+    assert "title" not in json.loads(route.calls[0].request.content)
+
+
+def test_runs_rename_sends_the_name(invoke, mock_api):
+    renamed = {**SAMPLE_RUN, "title": "Weekly fintech", "custom_title": "Weekly fintech"}
+    route = mock_api.patch(f"/api/v1/agentic/runs/{SAMPLE_RUN['id']}").respond(200, json=renamed)
+
+    result = invoke(["agentic", "runs", "rename", SAMPLE_RUN["id"], "--title", "Weekly fintech"])
+
+    assert result.exit_code == 0, result.output
+    assert json.loads(route.calls[0].request.content) == {"title": "Weekly fintech"}
+    assert "Weekly fintech" in result.output
+
+
+def test_runs_rename_json(invoke, mock_api):
+    renamed = {**SAMPLE_RUN, "title": "Weekly fintech"}
+    mock_api.patch(f"/api/v1/agentic/runs/{SAMPLE_RUN['id']}").respond(200, json=renamed)
+
+    result = invoke(
+        ["agentic", "runs", "rename", SAMPLE_RUN["id"], "--title", "Weekly fintech", "--json"]
+    )
+
+    assert json.loads(result.output)["title"] == "Weekly fintech"
+
+
+def test_runs_rename_clear_sends_null(invoke, mock_api):
+    route = mock_api.patch(f"/api/v1/agentic/runs/{SAMPLE_RUN['id']}").respond(200, json=SAMPLE_RUN)
+
+    result = invoke(["agentic", "runs", "rename", SAMPLE_RUN["id"], "--clear"])
+
+    assert result.exit_code == 0, result.output
+    assert json.loads(route.calls[0].request.content) == {"title": None}
+
+
+@pytest.mark.parametrize(
+    "flags",
+    [
+        pytest.param([], id="neither"),
+        pytest.param(["--title", "x", "--clear"], id="both"),
+        pytest.param(["--title", "x" * 201], id="too_long"),
+        pytest.param(["--title", "   "], id="blank"),
+    ],
+)
+def test_runs_rename_refuses_locally(invoke, mock_api, flags):
+    route = mock_api.patch(f"/api/v1/agentic/runs/{SAMPLE_RUN['id']}").respond(200, json=SAMPLE_RUN)
+
+    result = invoke(["agentic", "runs", "rename", SAMPLE_RUN["id"], *flags, "--json"])
+
+    assert result.exit_code == 2, result.output
+    assert not route.called
+
+
+@pytest.mark.parametrize("status,exit_code", [(404, 3), (422, 2), (403, 4)])
+def test_runs_rename_errors(invoke, mock_api, status, exit_code):
+    mock_api.patch(f"/api/v1/agentic/runs/{SAMPLE_RUN['id']}").respond(
+        status, json={"detail": "refused"}
+    )
+
+    result = invoke(["agentic", "runs", "rename", SAMPLE_RUN["id"], "--title", "x", "--json"])
+
+    assert result.exit_code == exit_code
+    assert json.loads(result.output)["status_code"] == status
+
+
+def test_runs_get_prints_the_title_and_the_saved_search(invoke, mock_api):
+    run = {**SAMPLE_RUN, "title": "My strategy", "saved_search_name": "Weekly"}
+    mock_api.get(f"/api/v1/agentic/runs/{SAMPLE_RUN['id']}").respond(200, json=run)
+
+    result = invoke(["agentic", "runs", "get", SAMPLE_RUN["id"]])
+
+    assert result.exit_code == 0, result.output
+    assert "My strategy" in result.output
+    assert "Weekly" in result.output

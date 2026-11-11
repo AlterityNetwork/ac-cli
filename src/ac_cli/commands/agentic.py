@@ -103,6 +103,7 @@ _PAGE_MAX = 100
 
 _RUN_FIELDS = [
     ("id", "Run ID"),
+    ("title", "Title"),
     ("kind", "Kind"),
     ("definition_name", "Definition"),
     ("capability_id", "Capability"),
@@ -110,15 +111,18 @@ _RUN_FIELDS = [
     ("status", "Status"),
     ("waiting_on", "Waiting on"),
     ("source", "Source"),
+    ("saved_search_name", "Saved search"),
     ("child_count", "Children"),
     ("created_at", "Created"),
     ("started_at", "Started"),
     ("ended_at", "Ended"),
 ]
 
-# `Title` and `Prospects` are blank on every list but a `--capability
-# signals.search` one. The API names and counts a Run on that list alone, and it
-# answers null everywhere else. Zero is a Run that wrote no prospect.
+# `Title` holds the name a person gave a Run, or its saved-search name, on any
+# list. A `--capability signals.search` list also titles an unnamed Run from its
+# input. `Prospects` is blank on every list but that one. Zero is a Run that
+# wrote no prospect. The table holds seven columns to stay readable at 80
+# characters, so the saved search of a Run prints on `runs get` and in `--json`.
 _LIST_FIELDS = [
     ("id", "Run ID"),
     ("display_name", "Definition / Search"),
@@ -166,6 +170,15 @@ def capabilities_start(
     idempotency_key: str = typer.Option(
         ..., "--idempotency-key", help="Delivery key; reuse it only for the same request"
     ),
+    title: str | None = typer.Option(
+        None, "--title", help="Name of the search, up to 200 characters"
+    ),
+    saved_search_id: str | None = typer.Option(
+        None,
+        "--saved-search-id",
+        help="The saved search this start came from. The run lists under it, and the "
+        "saved search keeps its last run.",
+    ),
     json_output: bool = JSON_OPTION,
 ) -> None:
     """Start a capability with the active contract and a delivery key."""
@@ -180,10 +193,15 @@ def capabilities_start(
         # Name no value. A refused input is the whole flag, and it can be long.
         refuse_local("--input must be a UTF-8 JSON object with finite numbers")
     capability_id = quote(capability_id, safe="")
+    body: dict = {"input": value}
+    if title is not None:
+        body["title"] = title
+    if saved_search_id:
+        body["saved_search_id"] = saved_search_id
     resp = _api_request(
         "post",
         f"{_AGENTIC}/capabilities/{capability_id}/runs",
-        json={"input": value},
+        json=body,
         headers={"Idempotency-Key": idempotency_key},
     )
     data = resp.json()
@@ -205,11 +223,14 @@ def runs_start(
         "--idempotency-key",
         help="Delivery identity of this start. A fresh one is minted when it is not given.",
     ),
+    title: str | None = typer.Option(None, "--title", help="Name of the run, up to 200 characters"),
     json_output: bool = JSON_OPTION,
 ) -> None:
     """Start a run of one definition."""
     set_json_mode(json_output)
     body = {"definition_id": definition_id, "input": _parse_input(input_json)}
+    if title is not None:
+        body["title"] = title
     # A fresh key per invocation, and never a stable one. The key names the
     # delivery, so a value derived from the command would make tomorrow's run a
     # duplicate of today's and it would never execute.
@@ -289,7 +310,8 @@ def runs_list(
     saved_search_id: str | None = typer.Option(
         None,
         "--saved-search-id",
-        help="Runs one saved search started, from Run now or from its schedule.",
+        help="Runs one saved search started: from Run now, from its schedule, or from "
+        "the form after Load search.",
     ),
     every: bool = typer.Option(
         False, "--all", help="Include child runs. The default returns roots only."
@@ -735,6 +757,41 @@ def runs_cancel(
         print_json(data)
         return
     rprint("[green]Cancel requested:[/green]", as_text(f"{data['id']} (status: {data['status']})"))
+
+
+# The API holds the same bound. A local check refuses a long name with no call.
+_RUN_TITLE_MAX = 200
+
+
+@runs_app.command("rename")
+def runs_rename(
+    ctx: typer.Context,
+    run_id: str = typer.Argument(..., help="Run ID"),
+    title: str | None = typer.Option(None, "--title", help="The new name, up to 200 characters"),
+    clear: bool = typer.Option(
+        False, "--clear", help="Remove the stored name. The derived title comes back."
+    ),
+    json_output: bool = JSON_OPTION,
+) -> None:
+    """Rename one run. It does not rename the saved search the run came from."""
+    set_json_mode(json_output)
+    if clear == (title is not None):
+        refuse_local("Give --title or --clear, and not both")
+    value = " ".join(title.split()) if title is not None else None
+    if title is not None and not value:
+        refuse_local("--title needs text. Use --clear to remove the name")
+    if value is not None and len(value) > _RUN_TITLE_MAX:
+        refuse_local(f"--title is at most {_RUN_TITLE_MAX} characters")
+
+    resp = _api_request("patch", f"{_AGENTIC}/runs/{run_id}", json={"title": value})
+
+    data = resp.json()
+    if json_output:
+        print_json(data)
+        return
+    rprint(
+        "[green]Run renamed:[/green]", as_text(f"{data['id']} ({data.get('title') or 'no title'})")
+    )
 
 
 app.add_typer(runs_app, name="runs")
