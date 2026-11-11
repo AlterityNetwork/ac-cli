@@ -42,7 +42,7 @@ uv sync --all-extras       # Install with dev dependencies (pytest, respx)
 | Group | Domain |
 |-------|--------|
 | `crm` | Companies, people, deals, activities, comms (incl. approvals), lists, imports |
-| `envoy` | Sequences (incl. lifecycle), steps, recipients, outbox, playbooks, battlecards, inbox |
+| `sequences` | Sequences (incl. lifecycle), steps, recipients, outbox, playbooks, battlecards, inbox |
 | `files` | Image upload/delete |
 | `workflows` | Runs, schedules, presets, csv-parse |
 | `apps` | Organization app install/config |
@@ -91,7 +91,7 @@ src/ac_cli/
   client.py            → Authenticated httpx client from stored config
   config.py            → Multi-env config (~/.agencycore/config.json)
   formatting.py        → Shared output (print_table, print_detail, print_json)
-  commands/            → Command modules (auth, env, crm/, envoy/, admin/, etc.)
+  commands/            → Command modules (auth, env, crm/, sequences/, admin/, etc.)
     _helpers.py        → Shared helpers (_api_request, _build_body, _get_org_id, exit codes)
 tests/                 → One test file per command group (test_<domain>_<group>.py)
 scripts/               → bump.sh (manual version), auto-version-tag.sh (post-commit hook),
@@ -144,18 +144,18 @@ The following API domains are intentionally not covered by the CLI:
 
 - `/test` — dev-only email simulation endpoints
 - `/admin/demo/*-stream`, `/organizations/scrape-website-stream`,
-  `/envoy/sequences/{id}/step-stats/stream`,
+  `/sequences/sequences/{id}/step-stats/stream`,
   `/workflows/{id}/runs/{id}/events`, `/resources/{id}/stream` — SSE streaming
 - `/webhook`, `/nylas/webhook`, `/messaging/whatsapp/webhook`,
   `/messaging/slack/events` — server-side webhook handlers
 - `/nylas/oauth/callback`, `/email/unsubscribe`, `/nylas/email/unsubscribe` —
   public/browser endpoints
 - `/nylas/demo/*` — demo-only email simulation
-- `/organizations/*` (non-admin), `/profiles` (admin list), `/envoy/outputs` —
+- `/organizations/*` (non-admin), `/profiles` (admin list), `/sequences/outputs` —
   not surfaced via CLI today; admin equivalents exist under `ac admin orgs`
 - `/orgs/{id}/activity-events` — frontend-only activity logger
 - `/battlecards/*`, `/playbooks/*` mounted bare are duplicates of the
-  `/envoy/*` variants — CLI uses the canonical path
+  `/sequences/*` variants — CLI uses the canonical path
 
 The full list lives in `OUT_OF_SCOPE` inside `scripts/audit_endpoints.py`;
 update that set when intentionally adding a new API endpoint that the CLI

@@ -41,7 +41,7 @@ PATH_CONSTANTS: dict[str, str] = {
     "_CONVERSATIONS": "/api/v1/agentic/conversations",
     "_CRM": "/api/v1/crm",
     "_COPILOTS": "/api/v1/admin/copilots",
-    "_ENVOY": "/api/v1/envoy",
+    "_SEQUENCES": "/api/v1/sequences",
     "_INBOX": "/api/v1/inbox",
     "_FILES": "/api/v1/files",
     "_IMPERSONATION": "/api/v1/impersonation",
@@ -105,11 +105,11 @@ OUT_OF_SCOPE: set[tuple[str, str]] = {
     # e2e-only headhunter fixture seed/cleanup used by Playwright runs.
     ("POST", "/api/v1/test/seed-headhunter"),
     ("POST", "/api/v1/test/cleanup-headhunter"),
-    # ENG-1137: e2e/QA-only Sonar + Envoy installed-app fixture seed/cleanup.
+    # ENG-1137: e2e/QA-only Sonar + Sequences installed-app fixture seed/cleanup.
     ("POST", "/api/v1/test/seed-sonar"),
     ("POST", "/api/v1/test/cleanup-sonar"),
-    ("POST", "/api/v1/test/seed-envoy"),
-    ("POST", "/api/v1/test/cleanup-envoy"),
+    ("POST", "/api/v1/test/seed-sequences"),
+    ("POST", "/api/v1/test/cleanup-sequences"),
     # ENG-1763: QA-only stale artifact cleanup for nightly staging runs.
     ("POST", "/api/v1/test/cleanup-qa-artifacts"),
     ("POST", "/api/v1/admin/demo/scrape-website-stream"),
@@ -117,7 +117,7 @@ OUT_OF_SCOPE: set[tuple[str, str]] = {
     ("POST", "/api/v1/admin/demo/generate-random-profile-stream"),
     ("POST", "/api/v1/admin/demo/prepare-account-stream"),
     ("POST", "/api/v1/organizations/scrape-website-stream"),
-    ("GET", "/api/v1/envoy/sequences/{id}/step-stats/stream"),
+    ("GET", "/api/v1/sequences/sequences/{id}/step-stats/stream"),
     ("GET", "/api/v1/workflows/{id}/runs/{id}/events"),
     # SSE stream — frontend-only consumer (ENG-769)
     ("GET", "/api/v1/notifications/stream"),
@@ -144,7 +144,7 @@ OUT_OF_SCOPE: set[tuple[str, str]] = {
     ("GET", "/api/v1/resources/{id}/preview-url"),
     ("PATCH", "/api/v1/resources/{id}"),
     ("GET", "/api/v1/nylas/sync/messages/{id}/attachments/{id}/download"),
-    # battlecards/playbooks: non-envoy mounts duplicate routes — CLI uses /envoy/*
+    # battlecards/playbooks: non-sequences mounts duplicate routes — CLI uses /sequences/*
     ("GET", "/api/v1/battlecards/{id}"),
     ("PATCH", "/api/v1/battlecards/{id}"),
     ("DELETE", "/api/v1/battlecards/{id}"),
@@ -179,7 +179,7 @@ OUT_OF_SCOPE: set[tuple[str, str]] = {
     # Frontend-only activity logger
     ("POST", "/api/v1/orgs/{id}/activity-events"),
     # Cross-org outputs feed (admin-style, not exposed to CLI today)
-    ("GET", "/api/v1/envoy/outputs"),
+    ("GET", "/api/v1/sequences/outputs"),
     # User-facing org CRUD: covered through admin/orgs (super-admin) for CLI users
     ("GET", "/api/v1/organizations/{id}"),
     ("PATCH", "/api/v1/organizations/{id}"),

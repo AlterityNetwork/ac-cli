@@ -1,4 +1,4 @@
-"""Tests for envoy sequences commands."""
+"""Tests for sequences sequences commands."""
 
 import json
 
@@ -21,37 +21,37 @@ SAMPLE_SEQUENCE = {
 
 
 def test_sequences_list(invoke, mock_api):
-    mock_api.get("/api/v1/envoy/sequences").respond(200, json=[SAMPLE_SEQUENCE])
-    result = invoke(["envoy", "sequences", "list"])
+    mock_api.get("/api/v1/sequences/sequences").respond(200, json=[SAMPLE_SEQUENCE])
+    result = invoke(["sequences", "sequences", "list"])
     assert result.exit_code == 0
     assert "Q1 Outreach" in result.output
 
 
 def test_sequences_list_json(invoke, mock_api):
-    mock_api.get("/api/v1/envoy/sequences").respond(200, json=[SAMPLE_SEQUENCE])
-    result = invoke(["envoy", "sequences", "list", "--json"])
+    mock_api.get("/api/v1/sequences/sequences").respond(200, json=[SAMPLE_SEQUENCE])
+    result = invoke(["sequences", "sequences", "list", "--json"])
     assert result.exit_code == 0
     parsed = json.loads(result.output)
     assert parsed[0]["name"] == "Q1 Outreach"
 
 
 def test_sequences_list_with_status(invoke, mock_api):
-    mock_api.get("/api/v1/envoy/sequences").respond(200, json=[])
-    result = invoke(["envoy", "sequences", "list", "--status", "active"])
+    mock_api.get("/api/v1/sequences/sequences").respond(200, json=[])
+    result = invoke(["sequences", "sequences", "list", "--status", "active"])
     assert result.exit_code == 0
 
 
 def test_sequences_get(invoke, mock_api):
-    mock_api.get("/api/v1/envoy/sequences/seq-1").respond(200, json=SAMPLE_SEQUENCE)
-    result = invoke(["envoy", "sequences", "get", "seq-1"])
+    mock_api.get("/api/v1/sequences/sequences/seq-1").respond(200, json=SAMPLE_SEQUENCE)
+    result = invoke(["sequences", "sequences", "get", "seq-1"])
     assert result.exit_code == 0
     assert "Q1 Outreach" in result.output
     assert "Skip Non-Working Days: True" in result.output
 
 
 def test_sequences_get_json(invoke, mock_api):
-    mock_api.get("/api/v1/envoy/sequences/seq-1").respond(200, json=SAMPLE_SEQUENCE)
-    result = invoke(["envoy", "sequences", "get", "seq-1", "--json"])
+    mock_api.get("/api/v1/sequences/sequences/seq-1").respond(200, json=SAMPLE_SEQUENCE)
+    result = invoke(["sequences", "sequences", "get", "seq-1", "--json"])
     assert result.exit_code == 0
     parsed = json.loads(result.output)
     assert parsed["id"] == "seq-1"
@@ -59,16 +59,16 @@ def test_sequences_get_json(invoke, mock_api):
 
 def test_sequences_create(invoke, mock_api):
     mock_api.get("/whoami").respond(200, json=WHOAMI_RESPONSE)
-    mock_api.post("/api/v1/envoy/sequences").respond(201, json=SAMPLE_SEQUENCE)
-    result = invoke(["envoy", "sequences", "create", "--name", "Q1 Outreach"])
+    mock_api.post("/api/v1/sequences/sequences").respond(201, json=SAMPLE_SEQUENCE)
+    result = invoke(["sequences", "sequences", "create", "--name", "Q1 Outreach"])
     assert result.exit_code == 0
     assert "Created sequence" in result.output
 
 
 def test_sequences_create_json(invoke, mock_api):
     mock_api.get("/whoami").respond(200, json=WHOAMI_RESPONSE)
-    mock_api.post("/api/v1/envoy/sequences").respond(201, json=SAMPLE_SEQUENCE)
-    result = invoke(["envoy", "sequences", "create", "--name", "Q1 Outreach", "--json"])
+    mock_api.post("/api/v1/sequences/sequences").respond(201, json=SAMPLE_SEQUENCE)
+    result = invoke(["sequences", "sequences", "create", "--name", "Q1 Outreach", "--json"])
     assert result.exit_code == 0
     parsed = json.loads(result.output)
     assert parsed["name"] == "Q1 Outreach"
@@ -76,29 +76,29 @@ def test_sequences_create_json(invoke, mock_api):
 
 def test_sequences_update(invoke, mock_api):
     updated = {**SAMPLE_SEQUENCE, "name": "Updated Sequence"}
-    mock_api.patch("/api/v1/envoy/sequences/seq-1").respond(200, json=updated)
-    result = invoke(["envoy", "sequences", "update", "seq-1", "--name", "Updated Sequence"])
+    mock_api.patch("/api/v1/sequences/sequences/seq-1").respond(200, json=updated)
+    result = invoke(["sequences", "sequences", "update", "seq-1", "--name", "Updated Sequence"])
     assert result.exit_code == 0
     assert "Updated sequence" in result.output
 
 
 def test_sequences_update_no_fields(invoke, mock_api):
-    result = invoke(["envoy", "sequences", "update", "seq-1"])
+    result = invoke(["sequences", "sequences", "update", "seq-1"])
     assert result.exit_code == 1
 
 
 def test_sequences_create_skip_non_working_days(invoke, mock_api):
     mock_api.get("/whoami").respond(200, json=WHOAMI_RESPONSE)
-    route = mock_api.post("/api/v1/envoy/sequences").respond(201, json=SAMPLE_SEQUENCE)
-    result = invoke(["envoy", "sequences", "create", "--name", "Q1", "--skip-non-working-days"])
+    route = mock_api.post("/api/v1/sequences/sequences").respond(201, json=SAMPLE_SEQUENCE)
+    result = invoke(["sequences", "sequences", "create", "--name", "Q1", "--skip-non-working-days"])
     assert result.exit_code == 0
     body = json.loads(route.calls.last.request.content)
     assert body["skip_non_working_days"] is True
 
 
 def test_sequences_update_skip_non_working_days(invoke, mock_api):
-    route = mock_api.patch("/api/v1/envoy/sequences/seq-1").respond(200, json=SAMPLE_SEQUENCE)
-    result = invoke(["envoy", "sequences", "update", "seq-1", "--no-skip-non-working-days"])
+    route = mock_api.patch("/api/v1/sequences/sequences/seq-1").respond(200, json=SAMPLE_SEQUENCE)
+    result = invoke(["sequences", "sequences", "update", "seq-1", "--no-skip-non-working-days"])
     assert result.exit_code == 0
     body = json.loads(route.calls.last.request.content)
     assert body["skip_non_working_days"] is False
@@ -106,8 +106,8 @@ def test_sequences_update_skip_non_working_days(invoke, mock_api):
 
 def test_sequences_create_auto_enrich(invoke, mock_api):
     mock_api.get("/whoami").respond(200, json=WHOAMI_RESPONSE)
-    route = mock_api.post("/api/v1/envoy/sequences").respond(201, json=SAMPLE_SEQUENCE)
-    result = invoke(["envoy", "sequences", "create", "--name", "Q1", "--no-auto-enrich"])
+    route = mock_api.post("/api/v1/sequences/sequences").respond(201, json=SAMPLE_SEQUENCE)
+    result = invoke(["sequences", "sequences", "create", "--name", "Q1", "--no-auto-enrich"])
     assert result.exit_code == 0
     body = json.loads(route.calls.last.request.content)
     assert body["auto_enrich_recipients"] is False
@@ -115,16 +115,16 @@ def test_sequences_create_auto_enrich(invoke, mock_api):
 
 def test_sequences_create_leaves_auto_enrich_to_the_server(invoke, mock_api):
     mock_api.get("/whoami").respond(200, json=WHOAMI_RESPONSE)
-    route = mock_api.post("/api/v1/envoy/sequences").respond(201, json=SAMPLE_SEQUENCE)
-    result = invoke(["envoy", "sequences", "create", "--name", "Q1"])
+    route = mock_api.post("/api/v1/sequences/sequences").respond(201, json=SAMPLE_SEQUENCE)
+    result = invoke(["sequences", "sequences", "create", "--name", "Q1"])
     assert result.exit_code == 0
     body = json.loads(route.calls.last.request.content)
     assert "auto_enrich_recipients" not in body
 
 
 def test_sequences_update_auto_enrich(invoke, mock_api):
-    route = mock_api.patch("/api/v1/envoy/sequences/seq-1").respond(200, json=SAMPLE_SEQUENCE)
-    result = invoke(["envoy", "sequences", "update", "seq-1", "--auto-enrich"])
+    route = mock_api.patch("/api/v1/sequences/sequences/seq-1").respond(200, json=SAMPLE_SEQUENCE)
+    result = invoke(["sequences", "sequences", "update", "seq-1", "--auto-enrich"])
     assert result.exit_code == 0
     body = json.loads(route.calls.last.request.content)
     assert body == {"auto_enrich_recipients": True}
@@ -138,16 +138,16 @@ def test_sequences_auto_enrich_help_names_every_contact_field():
     # A wide terminal keeps the help text on one line inside its box.
     runner = CliRunner(env={"COLUMNS": "240"})
     for command in ("create", "update"):
-        result = runner.invoke(app, ["envoy", "sequences", command, "--help"])
+        result = runner.invoke(app, ["sequences", "sequences", command, "--help"])
         assert result.exit_code == 0
         assert "email, phone or LinkedIn URL" in result.output
 
 
 def test_sequences_create_draft_feedback(invoke, mock_api):
     mock_api.get("/whoami").respond(200, json=WHOAMI_RESPONSE)
-    route = mock_api.post("/api/v1/envoy/sequences").respond(201, json=SAMPLE_SEQUENCE)
+    route = mock_api.post("/api/v1/sequences/sequences").respond(201, json=SAMPLE_SEQUENCE)
     result = invoke(
-        ["envoy", "sequences", "create", "--name", "Q1", "--draft-feedback", "No questions."]
+        ["sequences", "sequences", "create", "--name", "Q1", "--draft-feedback", "No questions."]
     )
     assert result.exit_code == 0
     body = json.loads(route.calls.last.request.content)
@@ -155,9 +155,16 @@ def test_sequences_create_draft_feedback(invoke, mock_api):
 
 
 def test_sequences_update_draft_feedback(invoke, mock_api):
-    route = mock_api.patch("/api/v1/envoy/sequences/seq-1").respond(200, json=SAMPLE_SEQUENCE)
+    route = mock_api.patch("/api/v1/sequences/sequences/seq-1").respond(200, json=SAMPLE_SEQUENCE)
     result = invoke(
-        ["envoy", "sequences", "update", "seq-1", "--draft-feedback", "Write in British English."]
+        [
+            "sequences",
+            "sequences",
+            "update",
+            "seq-1",
+            "--draft-feedback",
+            "Write in British English.",
+        ]
     )
     assert result.exit_code == 0
     body = json.loads(route.calls.last.request.content)
@@ -165,80 +172,84 @@ def test_sequences_update_draft_feedback(invoke, mock_api):
 
 
 def test_sequences_update_clears_draft_feedback(invoke, mock_api):
-    route = mock_api.patch("/api/v1/envoy/sequences/seq-1").respond(200, json=SAMPLE_SEQUENCE)
-    result = invoke(["envoy", "sequences", "update", "seq-1", "--draft-feedback", ""])
+    route = mock_api.patch("/api/v1/sequences/sequences/seq-1").respond(200, json=SAMPLE_SEQUENCE)
+    result = invoke(["sequences", "sequences", "update", "seq-1", "--draft-feedback", ""])
     assert result.exit_code == 0
     body = json.loads(route.calls.last.request.content)
     assert body == {"draft_feedback": ""}
 
 
 def test_sequences_delete_with_yes(invoke, mock_api):
-    mock_api.delete("/api/v1/envoy/sequences/seq-1").respond(204)
-    result = invoke(["envoy", "sequences", "delete", "seq-1", "--yes"])
+    mock_api.delete("/api/v1/sequences/sequences/seq-1").respond(204)
+    result = invoke(["sequences", "sequences", "delete", "seq-1", "--yes"])
     assert result.exit_code == 0
     assert "Deleted" in result.output
 
 
 def test_sequences_delete_aborted(invoke, mock_api):
-    result = invoke(["envoy", "sequences", "delete", "seq-1"], input="n\n")
+    result = invoke(["sequences", "sequences", "delete", "seq-1"], input="n\n")
     assert result.exit_code == 1
 
 
 def test_sequences_launch(invoke, mock_api):
-    mock_api.post("/api/v1/envoy/sequences/seq-1/launch").respond(200, json={"status": "active"})
-    result = invoke(["envoy", "sequences", "launch", "seq-1", "--workflow-id", "wf-1"])
+    mock_api.post("/api/v1/sequences/sequences/seq-1/launch").respond(
+        200, json={"status": "active"}
+    )
+    result = invoke(["sequences", "sequences", "launch", "seq-1", "--workflow-id", "wf-1"])
     assert result.exit_code == 0
     assert "Launched" in result.output
 
 
 def test_sequences_pause(invoke, mock_api):
-    mock_api.post("/api/v1/envoy/sequences/seq-1/pause").respond(200, json={"status": "paused"})
-    result = invoke(["envoy", "sequences", "pause", "seq-1"])
+    mock_api.post("/api/v1/sequences/sequences/seq-1/pause").respond(200, json={"status": "paused"})
+    result = invoke(["sequences", "sequences", "pause", "seq-1"])
     assert result.exit_code == 0
     assert "Paused" in result.output
 
 
 def test_sequences_resume(invoke, mock_api):
-    mock_api.post("/api/v1/envoy/sequences/seq-1/resume").respond(200, json={"status": "active"})
-    result = invoke(["envoy", "sequences", "resume", "seq-1", "--workflow-id", "wf-1"])
+    mock_api.post("/api/v1/sequences/sequences/seq-1/resume").respond(
+        200, json={"status": "active"}
+    )
+    result = invoke(["sequences", "sequences", "resume", "seq-1", "--workflow-id", "wf-1"])
     assert result.exit_code == 0
     assert "Resumed" in result.output
 
 
 def test_sequences_duplicate(invoke, mock_api):
-    mock_api.post("/api/v1/envoy/sequences/seq-1/duplicate").respond(
+    mock_api.post("/api/v1/sequences/sequences/seq-1/duplicate").respond(
         201, json={"id": "seq-2", "name": "Seq Copy"}
     )
-    result = invoke(["envoy", "sequences", "duplicate", "seq-1"])
+    result = invoke(["sequences", "sequences", "duplicate", "seq-1"])
     assert result.exit_code == 0
     assert "Duplicated" in result.output
 
 
 def test_sequences_archive(invoke, mock_api):
-    mock_api.post("/api/v1/envoy/sequences/seq-1/archive").respond(
+    mock_api.post("/api/v1/sequences/sequences/seq-1/archive").respond(
         200, json={"id": "seq-1", "archived_at": "2026-04-15T00:00:00Z"}
     )
-    result = invoke(["envoy", "sequences", "archive", "seq-1"])
+    result = invoke(["sequences", "sequences", "archive", "seq-1"])
     assert result.exit_code == 0
     assert "Archived" in result.output
 
 
 def test_sequences_restore(invoke, mock_api):
-    mock_api.post("/api/v1/envoy/sequences/seq-1/restore").respond(
+    mock_api.post("/api/v1/sequences/sequences/seq-1/restore").respond(
         200, json={"id": "seq-1", "archived_at": None}
     )
-    result = invoke(["envoy", "sequences", "restore", "seq-1"])
+    result = invoke(["sequences", "sequences", "restore", "seq-1"])
     assert result.exit_code == 0
     assert "Restored" in result.output
 
 
 def test_sequences_impact_preview(invoke, mock_api):
-    mock_api.post("/api/v1/envoy/sequences/seq-1/impact-preview").respond(
+    mock_api.post("/api/v1/sequences/sequences/seq-1/impact-preview").respond(
         200, json={"affected_recipients": 3, "pending_drafts": 5}
     )
     result = invoke(
         [
-            "envoy",
+            "sequences",
             "sequences",
             "impact-preview",
             "seq-1",
@@ -255,12 +266,12 @@ def test_sequences_impact_preview(invoke, mock_api):
 
 
 def test_sequences_bulk_remove_recipients(invoke, mock_api):
-    mock_api.post("/api/v1/envoy/sequences/seq-1/recipients/bulk-remove").respond(
+    mock_api.post("/api/v1/sequences/sequences/seq-1/recipients/bulk-remove").respond(
         200, json={"removed": 2}
     )
     result = invoke(
         [
-            "envoy",
+            "sequences",
             "sequences",
             "bulk-remove-recipients",
             "seq-1",
@@ -275,11 +286,11 @@ def test_sequences_bulk_remove_recipients(invoke, mock_api):
 
 
 def test_sequences_classify_step_subtype(invoke, mock_api):
-    mock_api.post("/api/v1/envoy/sequences/classify-step-subtype").respond(
+    mock_api.post("/api/v1/sequences/sequences/classify-step-subtype").respond(
         200, json={"subtype": "manual_email"}
     )
     result = invoke(
-        ["envoy", "sequences", "classify-step-subtype", "Send a manual follow-up", "--json"]
+        ["sequences", "sequences", "classify-step-subtype", "Send a manual follow-up", "--json"]
     )
     assert result.exit_code == 0
     parsed = json.loads(result.output)
@@ -287,22 +298,22 @@ def test_sequences_classify_step_subtype(invoke, mock_api):
 
 
 def test_sequences_outputs_list(invoke, mock_api):
-    mock_api.get("/api/v1/envoy/sequences/seq-1/outputs").respond(
+    mock_api.get("/api/v1/sequences/sequences/seq-1/outputs").respond(
         200, json={"data": [{"id": "out-1", "step_id": "step-1"}], "total": 1}
     )
-    result = invoke(["envoy", "sequences", "outputs", "seq-1", "--json"])
+    result = invoke(["sequences", "sequences", "outputs", "seq-1", "--json"])
     assert result.exit_code == 0
     parsed = json.loads(result.output)
     assert parsed["data"][0]["id"] == "out-1"
 
 
 def test_sequences_generate_drafts(invoke, mock_api):
-    mock_api.post("/api/v1/envoy/sequences/seq-1/steps/step-1/generate-drafts").respond(
+    mock_api.post("/api/v1/sequences/sequences/seq-1/steps/step-1/generate-drafts").respond(
         202, json={"run_id": "run-1", "status": "queued"}
     )
     result = invoke(
         [
-            "envoy",
+            "sequences",
             "sequences",
             "generate-drafts",
             "seq-1",
@@ -316,11 +327,11 @@ def test_sequences_generate_drafts(invoke, mock_api):
 
 
 def test_sequences_for_prospect(invoke, mock_api):
-    mock_api.get("/api/v1/envoy/sequences/by-prospect/p-1").respond(
+    mock_api.get("/api/v1/sequences/sequences/by-prospect/p-1").respond(
         200,
         json=[{"id": "s-1", "name": "Outreach", "status": "active"}],
     )
-    result = invoke(["envoy", "sequences", "for-prospect", "p-1"])
+    result = invoke(["sequences", "sequences", "for-prospect", "p-1"])
     assert result.exit_code == 0
     assert "Outreach" in result.output
 
@@ -329,13 +340,15 @@ def test_sequences_for_prospect_json(invoke, mock_api):
     import json as _json
 
     payload = [{"id": "s-1", "name": "Outreach", "status": "active"}]
-    mock_api.get("/api/v1/envoy/sequences/by-prospect/p-1").respond(200, json=payload)
-    result = invoke(["envoy", "sequences", "for-prospect", "p-1", "--json"])
+    mock_api.get("/api/v1/sequences/sequences/by-prospect/p-1").respond(200, json=payload)
+    result = invoke(["sequences", "sequences", "for-prospect", "p-1", "--json"])
     assert result.exit_code == 0
     assert _json.loads(result.output) == payload
 
 
 def test_sequences_for_prospect_not_found(invoke, mock_api):
-    mock_api.get("/api/v1/envoy/sequences/by-prospect/missing").respond(404, json={"detail": "no"})
-    result = invoke(["envoy", "sequences", "for-prospect", "missing"])
+    mock_api.get("/api/v1/sequences/sequences/by-prospect/missing").respond(
+        404, json={"detail": "no"}
+    )
+    result = invoke(["sequences", "sequences", "for-prospect", "missing"])
     assert result.exit_code == 3

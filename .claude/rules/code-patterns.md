@@ -18,13 +18,13 @@ paths:
 - Each command group is a `typer.Typer()` sub-app registered via `app.add_typer()` in `main.py`
 - All commands use `_api_request()` helper from `commands/_helpers.py` for HTTP calls with built-in error handling
 - Use `_build_body()` helper from `commands/_helpers.py` to construct request bodies from non-None fields (handles tags splitting)
-- Package-based domains (crm, envoy, workflows, admin) have their own `__init__.py` with prefix constant and a simple callback for context initialization
+- Package-based domains (crm, sequences, workflows, admin) have their own `__init__.py` with prefix constant and a simple callback for context initialization
 - Standalone domains (writing_styles, apps, nylas, notifications) are single-file modules with their own prefix constant and callback
 - `--json` is a subcommand-level option (not group-level) — use `JSON_OPTION` from `_helpers.py` on each command
 - IDs are positional `typer.Argument()`, optional fields are `typer.Option(None, ...)`
 - Tags: accept comma-separated string on CLI, `_build_body` splits to list automatically
 - Dates: ISO format strings (`2026-03-15`)
-- Standalone commands (not sub-apps) are registered via `app.command("name")(function)` — see `signals_command`, `dashboard_command` in envoy
+- Standalone commands (not sub-apps) are registered via `app.command("name")(function)` — see `signals_command`, `dashboard_command` in sequences
 
 ## API Route Prefix
 - Each domain defines its own prefix constant in its `__init__.py` or module file:
@@ -33,11 +33,11 @@ paths:
   - `_ANALYTICS = "/api/v1/analytics"` in `analytics.py`
   - `_APPS = "/api/v1/orgs"` in `apps.py`
   - `_BASE = f"{_ADMIN}/searches"` in `admin/searches.py`
-  - `_BATTLECARDS = "/api/v1/battlecards"` in `envoy/battlecards.py` (top-level since ENG-592)
+  - `_BATTLECARDS = "/api/v1/battlecards"` in `sequences/battlecards.py` (top-level since ENG-592)
   - `_CONVERSATIONS = "/api/v1/agentic/conversations"` in `conversations/__init__.py`
   - `_COPILOTS = f"{_ADMIN}/copilots"` in `admin/copilots.py`
   - `_CRM = "/api/v1/crm"` in `crm/__init__.py`
-  - `_ENVOY = "/api/v1/envoy"` in `envoy/__init__.py`
+  - `_SEQUENCES = "/api/v1/sequences"` in `sequences/__init__.py`
   - `_FILES = "/api/v1/files"` in `files/__init__.py`
   - `_IMPERSONATION = "/api/v1/impersonation"` in `admin/users.py`
   - `_INBOX = "/api/v1/inbox"` in `inbox.py`
@@ -52,7 +52,7 @@ paths:
   - `_ONBOARD = "/api/v1/managed-onboarding"` in `managed_onboarding.py`
   - `_ONBOARDING = f"{_ADMIN}/onboarding"` in `admin/onboarding.py`
   - `_OUTREACH = "/api/v1/agentic/outreach"` in `outreach/__init__.py`
-  - `_PLAYBOOKS = "/api/v1/playbooks"` in `envoy/playbooks.py` (top-level since ENG-592)
+  - `_PLAYBOOKS = "/api/v1/playbooks"` in `sequences/playbooks.py` (top-level since ENG-592)
   - `_PROFILES = "/api/v1/profiles"` in `profiles.py`
   - `_PROSPECTS = "/api/v1/agentic/prospects"` in `prospects/__init__.py`
   - `_RESOURCES = "/api/v1/resources"` in `resources.py`
@@ -118,7 +118,7 @@ paths:
 - List commands should accept `--limit` (default 50) and `--offset` (default 0) options, and always send both as query params
 - For endpoints returning paginated responses, extract items via `data.get("data", [])` and show server-reported total in table titles: `f"Title ({data.get('total', '?')} total)"`
 - Some legacy endpoints (communications list, thread, recipients) still return raw lists — use `isinstance(data, list)` fallback for those: `items = data if isinstance(data, list) else data.get("data", [])`
-- CRM, envoy inbox, and envoy outbox commands all follow the paginated pattern
+- CRM, sequences inbox, and sequences outbox commands all follow the paginated pattern
 
 ## Delete Commands
 - Always require `--yes` / `-y` flag or interactive `typer.confirm()` prompt

@@ -14,7 +14,6 @@ from ac_cli.commands import (
     auth,
     crm,
     env,
-    envoy,
     files,
     health,
     inbox,
@@ -27,6 +26,7 @@ from ac_cli.commands import (
     nylas,
     profiles,
     resources,
+    sequences,
     settings,
     tos,
     workflows,
@@ -83,7 +83,10 @@ app.add_typer(auth.app, name="auth")
 app.add_typer(crm.app, name="crm")
 app.add_typer(env.app, name="env")
 app.add_typer(health.app, name="health")
-app.add_typer(envoy.app, name="envoy")
+app.add_typer(sequences.app, name="sequences")
+# The group was `ac envoy` before ENG-2903. A script or an agent can still call it.
+# TODO: ENG-2906 - remove the hidden alias after one release.
+app.add_typer(sequences.app, name="envoy", hidden=True)
 app.add_typer(files.app, name="files")
 app.add_typer(inbox.app, name="inbox")
 app.add_typer(launchpad.app, name="launchpad")

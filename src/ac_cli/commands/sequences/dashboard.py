@@ -1,11 +1,11 @@
-"""Envoy dashboard command."""
+"""Sequences dashboard command."""
 
 import typer
 from rich import print as rprint
 
 from ac_cli.commands._helpers import JSON_OPTION, set_json_mode
 from ac_cli.commands.crm import _api_request
-from ac_cli.commands.envoy import _ENVOY
+from ac_cli.commands.sequences import _SEQUENCES
 from ac_cli.formatting import as_text, print_json
 
 
@@ -15,7 +15,7 @@ def dashboard_command(
 ) -> None:
     """Show Sequences dashboard stats."""
     set_json_mode(json_output)
-    resp = _api_request("get", f"{_ENVOY}/dashboard/stats")
+    resp = _api_request("get", f"{_SEQUENCES}/dashboard/stats")
 
     data = resp.json()
     if json_output:

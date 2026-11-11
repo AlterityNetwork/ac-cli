@@ -66,12 +66,12 @@ ac crm lists list
 ac crm import preview --file contacts.json
 ```
 
-## Sequences (`ac envoy`)
+## Sequences (`ac sequences`)
 
 ```bash
-ac envoy sequences list
-ac envoy outbox pending
-ac envoy dashboard
+ac sequences sequences list
+ac sequences outbox pending
+ac sequences dashboard
 ```
 
 ## Output Modes

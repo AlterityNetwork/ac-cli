@@ -20,10 +20,17 @@ _CONSTANT_NAME = re.compile(r"^_[A-Z][A-Z0-9_]*$")
 
 
 def registered_groups() -> set[str]:
-    """Reads every group name that `main.py` mounts on the root app."""
-    source = (CLI_ROOT / "src" / "ac_cli" / "main.py").read_text()
+    """Reads every visible group name that `main.py` mounts on the root app.
 
-    return set(re.findall(r'add_typer\([^)]*name="([^"]+)"', source))
+    A hidden group is an alias of a documented group, so the table omits it.
+    """
+    source = (CLI_ROOT / "src" / "ac_cli" / "main.py").read_text()
+    calls = re.findall(r"add_typer\([^)]*\)", source)
+    return {
+        re.search(r'name="([^"]+)"', call).group(1)  # type: ignore[union-attr]
+        for call in calls
+        if 'name="' in call and "hidden=True" not in call
+    }
 
 
 def documented_groups() -> set[str]:
