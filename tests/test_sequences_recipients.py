@@ -243,6 +243,13 @@ HISTORY = {
         },
         {"step_id": "s2", "step_order": 2, "type": "delay", "status": "upcoming"},
         {
+            "step_id": "s5",
+            "step_order": 5,
+            "type": "task",
+            "status": "sent",
+            "connection_status": "not_accepted",
+        },
+        {
             "step_id": "s4",
             "step_order": 4,
             "type": "task",
@@ -317,6 +324,7 @@ def test_recipients_history(invoke, mock_api):
     assert "Re: One gap at Nuveau" in result.output
     assert "Channel" in result.output
     assert "linkedin" in result.output
+    assert "Connection" in result.output
     assert "Tasks (2)" in result.output
     assert "call" in result.output
     assert "Call Jonah" in result.output
