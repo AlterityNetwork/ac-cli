@@ -987,7 +987,8 @@ class TestEnrollments:
             "1",
         )
         assert "Envoy enrollments 2-2 of 3" in result.output
-        assert table_column(result.output, 1) == "Jane Doe"
+        # Nine columns fold the name at 80 columns. The fold drops the space.
+        assert table_column(result.output, 1).replace(" ", "") == "JaneDoe"
         assert table_column(result.output, 2) == "jane@acme.test"
         # The fold drops the space at the end of a line part.
         assert table_column(result.output, 4).replace(" ", "") == "email·saved"
@@ -1398,7 +1399,7 @@ def _page(rows, *, total, offset, has_more, limit=100):
 
 
 def test_list_prints_a_row_with_no_decision_and_no_name_as_blank(invoke, mock_api, table_column):
-    """`_with_last_action` returns the row as it is when last_decision is None."""
+    """`_with_row_cells` adds no last-decision cell when last_decision is None."""
     bare = {**ENROLLMENT, "person_name": None, "email": None, "last_decision": None}
     mock_api.get(f"{BASE}/campaigns/{CAMPAIGN_ID}/enrollments").respond(
         200, json=_page([bare], total=1, offset=0, has_more=False)
@@ -1592,3 +1593,82 @@ class TestCampaignSummary:
         result = invoke(["agentic", "envoy", "campaigns", "summary"])
 
         assert result.exit_code == 4
+
+
+# ENG-2917: the row fields and the awaiting filter.
+
+RICH_ROW = {
+    **ROW,
+    "job_title": "CTO",
+    "company_name": "Acme",
+    "last_touch": {"channel": "email", "kind": "follow_up", "at": "2026-10-23T09:15:00Z"},
+    "reply": {"state": "replied", "at": "2026-10-24T08:00:00Z"},
+    "needs_email_reason": None,
+}
+
+
+@pytest.mark.parametrize("status", ["awaiting", "in_progress"])
+def test_list_sends_the_awaiting_and_in_progress_filters(invoke, mock_api, status):
+    route = mock_api.get(f"{BASE}/campaigns/{CAMPAIGN_ID}/enrollments").respond(
+        200, json=_page([], total=0, offset=0, has_more=False)
+    )
+
+    result = invoke([*LIST, "--status", status])
+
+    assert result.exit_code == 0, result.output
+    assert route.calls[0].request.url.params["status"] == status
+
+
+def test_list_refuses_an_unknown_status_and_names_the_new_values(invoke, mock_api):
+    route = mock_api.get(f"{BASE}/campaigns/{CAMPAIGN_ID}/enrollments")
+
+    result = invoke([*LIST, "--status", "paused"])
+
+    assert result.exit_code == 2
+    assert "awaiting" in result.output and "in_progress" in result.output
+    assert not route.called
+
+
+def test_list_prints_the_title_company_last_touch_and_reply(invoke, mock_api, table_column):
+    mock_api.get(f"{BASE}/campaigns/{CAMPAIGN_ID}/enrollments").respond(
+        200, json=_page([RICH_ROW], total=1, offset=0, has_more=False)
+    )
+
+    result = invoke(LIST)
+
+    assert result.exit_code == 0, result.output
+    assert table_column(result.output, 6).replace(" ", "") == "CTO·Acme"
+    assert table_column(result.output, 7).replace(" ", "") == "emailfollow_up·2026-10-23"
+    assert table_column(result.output, 8).replace(" ", "") == "replied·2026-10-24"
+
+
+def test_list_prints_the_needs_email_reason_in_the_status(invoke, mock_api, table_column):
+    row = {
+        **RICH_ROW,
+        "status": "needs_contact_data",
+        "job_title": None,
+        "last_touch": {"channel": "linkedin", "kind": "connection", "at": "2026-10-23T09:15:00Z"},
+        "reply": {"state": "none", "at": None},
+        "needs_email_reason": "bounced",
+    }
+    mock_api.get(f"{BASE}/campaigns/{CAMPAIGN_ID}/enrollments").respond(
+        200, json=_page([row], total=1, offset=0, has_more=False)
+    )
+
+    result = invoke(LIST)
+
+    assert result.exit_code == 0, result.output
+    assert table_column(result.output, 3).replace(" ", "") == "needs_contact_data(bounced)"
+    assert table_column(result.output, 6) == "Acme"
+    assert table_column(result.output, 7).replace(" ", "") == "linkedinconnection·2026-10-23"
+    assert table_column(result.output, 8) == ""
+    assert "None" not in result.output
+
+
+def test_list_json_passes_the_new_fields_through(invoke, mock_api):
+    page = _page([RICH_ROW], total=1, offset=0, has_more=False)
+    mock_api.get(f"{BASE}/campaigns/{CAMPAIGN_ID}/enrollments").respond(200, json=page)
+
+    result = invoke([*LIST, "--json"])
+
+    assert json.loads(result.output) == page
