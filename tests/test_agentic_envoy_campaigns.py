@@ -489,16 +489,20 @@ class TestCampaigns:
             "followup_max_days": 10,
         }
 
-    def test_create_requires_a_goal(self, invoke, mock_api):
-        route = mock_api.post(f"{BASE}/campaigns").respond(201, json=CAMPAIGN)
+    def test_create_without_a_goal_sends_only_the_name(self, invoke, mock_api):
+        route = mock_api.post(f"{BASE}/campaigns").respond(201, json={**CAMPAIGN, "goal": ""})
 
         result = invoke(["agentic", "envoy", "campaigns", "create", "--name", "Q4"])
-        as_json = invoke(["agentic", "envoy", "campaigns", "create", "--name", "Q4", "--json"])
 
-        assert result.exit_code == 2
-        assert as_json.exit_code == 2
-        assert json.loads(as_json.output)["error"] is True
-        assert not route.called
+        assert result.exit_code == 0, result.output
+        assert _body(route) == {"name": "Q4"}
+
+    def test_the_create_help_calls_the_goal_optional(self, invoke):
+        result = invoke(["agentic", "envoy", "campaigns", "create", "--help"])
+
+        assert result.exit_code == 0, result.output
+        assert "Required." not in result.output
+        assert "Optional." in result.output
 
     @pytest.mark.parametrize(
         "args",
