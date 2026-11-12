@@ -291,7 +291,9 @@ def drafts_reject(
 # Campaigns.
 
 _STATUSES = ("active", "paused", "archived")
-_ENROLLMENT_STATUSES = ("active", "needs_contact_data", "ended")
+# `awaiting` and `in_progress` split `active`: the rows with a draft that waits
+# on a review, and the other rows.
+_ENROLLMENT_STATUSES = ("active", "needs_contact_data", "ended", "awaiting", "in_progress")
 _PERSON_KINDS = ("crm.person", "prospect.person")
 _ENROLLMENT_PAGE_DEFAULT = 100
 _ENROLLMENT_PAGE_MAX = 200
@@ -357,6 +359,10 @@ _ENROLLMENT_LIST_FIELDS = [
     ("status", "Status"),
     ("last_action", "Last decision"),
     ("next_check_at", "Next check"),
+    # The title and the company of the person.
+    ("who", "Role"),
+    ("touch", "Last touch"),
+    ("replied", "Reply"),
 ]
 _ENROLLMENT_FIELDS = [
     ("id", "Enrollment ID"),
@@ -459,6 +465,33 @@ def _with_last_action(row: dict) -> dict:
         return row
     parts = [last.get("type"), last.get("status")]
     return {**row, "last_action": " · ".join(str(part) for part in parts if part)}
+
+
+def _day(value: object) -> str:
+    """Answers the `YYYY-MM-DD` date of an ISO time, or an empty text."""
+    return str(value)[:10] if value else ""
+
+
+def _joined(*parts: object) -> str:
+    return " · ".join(str(part) for part in parts if part)
+
+
+def _with_row_cells(row: dict) -> dict:
+    """Adds the title, last touch and reply cells, and the needs-email reason."""
+    row = _with_last_action(row)
+    cells: dict = {"who": _joined(row.get("job_title"), row.get("company_name"))}
+    touch = row.get("last_touch")
+    if isinstance(touch, dict):
+        cells["touch"] = _joined(
+            f"{touch.get('channel')} {touch.get('kind')}", _day(touch.get("at"))
+        )
+    reply = row.get("reply")
+    if isinstance(reply, dict) and reply.get("state") not in (None, "none"):
+        cells["replied"] = _joined(reply.get("state"), _day(reply.get("at")))
+    reason = row.get("needs_email_reason")
+    if reason:
+        cells["status"] = f"{row.get('status')} ({reason})"
+    return {**row, **cells}
 
 
 def _check_range(option: str, value: int | None, low: int, high: int) -> None:
@@ -877,7 +910,12 @@ def _print_batch(results: list[dict]) -> None:
 @enrollments_app.command("list")
 def enrollments_list(
     campaign_id: str = typer.Option(..., "--campaign-id", help="Campaign ID"),
-    status: str | None = typer.Option(None, "--status", help="active, needs_contact_data or ended"),
+    status: str | None = typer.Option(
+        None,
+        "--status",
+        help="active, needs_contact_data, ended, awaiting (active, waits on a review) "
+        "or in_progress (active, no review)",
+    ),
     search: str | None = typer.Option(
         None, "--search", help="Only the people whose name holds this text, in any case"
     ),
@@ -887,7 +925,12 @@ def enrollments_list(
     offset: int = typer.Option(0, "--offset", help="How many enrollments to skip first"),
     json_output: bool = JSON_OPTION,
 ) -> None:
-    """List the enrollments of one campaign, newest first, with each person and last decision."""
+    """List the enrollments of one campaign, newest first.
+
+    Each row shows the person, the title and company, the last decision, the
+    last touch and the reply. A needs_contact_data row names why the email
+    is missing.
+    """
     set_json_mode(json_output)
     if status is not None and status not in _ENROLLMENT_STATUSES:
         refuse_local(f"--status must be one of: {', '.join(_ENROLLMENT_STATUSES)}", status)
@@ -908,7 +951,7 @@ def enrollments_list(
     if json_output:
         print_json(data)
         return
-    rows = [_with_last_action(row) for row in data.get("data", [])]
+    rows = [_with_row_cells(row) for row in data.get("data", [])]
     total = data.get("total", len(rows))
     shown = f"{offset + 1}-{offset + len(rows)} of {total}" if rows else f"0 of {total}"
     print_table(rows, _ENROLLMENT_LIST_FIELDS, title=f"Envoy enrollments {shown}")
