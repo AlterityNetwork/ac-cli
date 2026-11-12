@@ -1399,7 +1399,7 @@ def _page(rows, *, total, offset, has_more, limit=100):
 
 
 def test_list_prints_a_row_with_no_decision_and_no_name_as_blank(invoke, mock_api, table_column):
-    """`_with_last_action` returns the row as it is when last_decision is None."""
+    """`_with_row_cells` adds no last-decision cell when last_decision is None."""
     bare = {**ENROLLMENT, "person_name": None, "email": None, "last_decision": None}
     mock_api.get(f"{BASE}/campaigns/{CAMPAIGN_ID}/enrollments").respond(
         200, json=_page([bare], total=1, offset=0, has_more=False)

@@ -458,15 +458,6 @@ def _percent(rate: object) -> str:
     return f"{rate if isinstance(rate, int | float) else 0.0:.1%}"
 
 
-def _with_last_action(row: dict) -> dict:
-    """Adds one cell that names the last decision of an enrollment row."""
-    last = row.get("last_decision")
-    if not isinstance(last, dict):
-        return row
-    parts = [last.get("type"), last.get("status")]
-    return {**row, "last_action": " · ".join(str(part) for part in parts if part)}
-
-
 def _day(value: object) -> str:
     """Answers the `YYYY-MM-DD` date of an ISO time, or an empty text."""
     return str(value)[:10] if value else ""
@@ -477,9 +468,11 @@ def _joined(*parts: object) -> str:
 
 
 def _with_row_cells(row: dict) -> dict:
-    """Adds the title, last touch and reply cells, and the needs-email reason."""
-    row = _with_last_action(row)
+    """Adds the last decision, title, last touch and reply cells, and the needs-email reason."""
     cells: dict = {"who": _joined(row.get("job_title"), row.get("company_name"))}
+    last = row.get("last_decision")
+    if isinstance(last, dict):
+        cells["last_action"] = _joined(last.get("type"), last.get("status"))
     touch = row.get("last_touch")
     if isinstance(touch, dict):
         cells["touch"] = _joined(
