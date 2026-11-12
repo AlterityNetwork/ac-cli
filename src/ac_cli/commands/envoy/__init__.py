@@ -3,7 +3,11 @@
 `ac agentic envoy campaigns` creates, edits, activates, pauses, resumes and
 archives a campaign, and enrolls one person (`enroll`) or up to 200 people in
 one request (`enroll-batch`). `list` and `get` print the count of live
-enrollments against the cap and the count per status.
+enrollments against the cap, the count per status and the actions to review.
+`get` also prints the channels, the people contacted and replied, the end
+reasons, the sends per channel, the failed sends and the last activity. `summary` prints the
+organization totals: the live enrollments against the cap, the sends of the
+last 7 days, and the contacts, replies and goals met of the last 30 days.
 `ac agentic envoy enrollments` lists the enrollments of a campaign (each row
 names the person, the email and the last decision; `--search` matches the
 name), reads one enrollment and its timeline, asks for a Run now (`evaluate`:
@@ -302,9 +306,9 @@ _CAMPAIGN_LIST_FIELDS = [
     ("id", "Campaign ID"),
     ("name", "Name"),
     ("status", "Status"),
-    ("channels", "Channels"),
     ("people", "People"),
     ("needs_email", "Needs email"),
+    ("to_review", "To review"),
     ("ended", "Ended"),
     ("created_at", "Created"),
 ]
@@ -328,6 +332,23 @@ _CAMPAIGN_READ_FIELDS = [
     ("active", "Active"),
     ("needs_email", "Needs email"),
     ("ended", "Ended"),
+    ("to_review", "To review"),
+    ("contacted", "Contacted"),
+    ("replied", "Replied"),
+    ("ended_by_reason", "Ended by reason"),
+    ("sent", "Sent"),
+    ("failed", "Failed sends"),
+    ("last_activity_at", "Last activity"),
+]
+_SUMMARY_FIELDS = [
+    ("active_campaigns", "Active campaigns"),
+    ("people", "Live people"),
+    ("sent_7d", "Sent, 7 days"),
+    ("contacted_30d", "Contacted, 30 days"),
+    ("replied_30d", "Replied, 30 days"),
+    ("reply_rate_30d", "Reply rate, 30 days"),
+    ("goal_met_30d", "Goal met, 30 days"),
+    ("goal_met_rate_30d", "Goal met rate, 30 days"),
 ]
 _ENROLLMENT_LIST_FIELDS = [
     ("id", "Enrollment ID"),
@@ -381,9 +402,39 @@ def _with_settings(campaign: dict) -> dict:
     return {**campaign, **cells}
 
 
+def _sent(sent: object) -> str | None:
+    """Names the sends per channel, such as `email 4, linkedin 2`."""
+    if not isinstance(sent, dict):
+        return None
+    return f"email {sent.get('email', 0)}, linkedin {sent.get('linkedin', 0)}"
+
+
+def _with_outcomes(campaign: dict) -> dict:
+    """Adds the outcome count cells to one campaign row."""
+    outcomes = campaign.get("outcome_counts")
+    if not isinstance(outcomes, dict):
+        return campaign
+    reasons = outcomes.get("ended_by_reason")
+    ended = (
+        ", ".join(f"{reason} {count}" for reason, count in reasons.items() if count)
+        if isinstance(reasons, dict)
+        else ""
+    )
+    return {
+        **campaign,
+        "to_review": outcomes.get("to_review"),
+        "contacted": outcomes.get("contacted"),
+        "replied": outcomes.get("replied"),
+        "ended_by_reason": ended,
+        "sent": _sent(outcomes.get("sent")),
+        "failed": outcomes.get("failed"),
+        "last_activity_at": outcomes.get("last_activity_at"),
+    }
+
+
 def _with_counts(campaign: dict) -> dict:
-    """Adds the enrollment count and setting cells to one campaign row."""
-    campaign = _with_settings(campaign)
+    """Adds the enrollment count, outcome and setting cells to one campaign row."""
+    campaign = _with_outcomes(_with_settings(campaign))
     counts = campaign.get("enrollment_counts")
     if not isinstance(counts, dict):
         return campaign
@@ -394,6 +445,11 @@ def _with_counts(campaign: dict) -> dict:
         "needs_email": counts.get("needs_contact_data"),
         "ended": counts.get("ended"),
     }
+
+
+def _percent(rate: object) -> str:
+    """Names a rate between 0 and 1 as a percent, such as `12.0%`."""
+    return f"{rate if isinstance(rate, int | float) else 0.0:.1%}"
 
 
 def _with_last_action(row: dict) -> dict:
@@ -513,13 +569,35 @@ def campaigns_get(
     campaign_id: str = typer.Argument(..., help="Campaign ID"),
     json_output: bool = JSON_OPTION,
 ) -> None:
-    """Read one campaign and the count of its enrollments per status."""
+    """Read one campaign, the count of its enrollments per status and its outcomes."""
     set_json_mode(json_output)
     data = _api_request("get", f"{_ENVOY}/campaigns/{campaign_id}").json()
     if json_output:
         print_json(data)
         return
     print_detail(_with_counts(data), _CAMPAIGN_READ_FIELDS)
+
+
+@campaigns_app.command("summary")
+def campaigns_summary(json_output: bool = JSON_OPTION) -> None:
+    """Read the Envoy totals of the organization for the last 7 and 30 days."""
+    set_json_mode(json_output)
+    data = _api_request("get", f"{_ENVOY}/campaigns/summary").json()
+    if json_output:
+        print_json(data)
+        return
+    print_detail(
+        {
+            **data,
+            "people": f"{data.get('live', 0)}/{data.get('cap', 0)}",
+            "sent_7d": _sent(data.get("sent_7d")),
+            # Each rate counts only the people contacted in the 30 days, so
+            # it is not the count above it divided by the contacts.
+            "reply_rate_30d": _percent(data.get("reply_rate_30d")),
+            "goal_met_rate_30d": _percent(data.get("goal_met_rate_30d")),
+        },
+        _SUMMARY_FIELDS,
+    )
 
 
 @campaigns_app.command("create")
