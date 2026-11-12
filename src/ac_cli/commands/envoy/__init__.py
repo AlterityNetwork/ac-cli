@@ -525,8 +525,9 @@ def campaigns_get(
 @campaigns_app.command("create")
 def campaigns_create(
     name: str = typer.Option(..., "--name", help="Campaign name"),
-    # Optional for Click, so a missing --goal answers the JSON refusal.
-    goal: str | None = typer.Option(None, "--goal", help=f"Required. {_GOAL_HELP}"),
+    goal: str | None = typer.Option(
+        None, "--goal", help=f"Optional. {_GOAL_HELP}. Left out, the campaign has no goal"
+    ),
     description: str | None = _DESCRIPTION_OPTION,
     channels: list[str] | None = _CHANNEL_OPTION,
     max_touches: int | None = _MAX_TOUCHES_OPTION,
@@ -536,11 +537,10 @@ def campaigns_create(
 ) -> None:
     """Create a paused campaign. You own it, and your mailbox sends its emails.
 
-    A limit left out takes the default: email only, 5 touches, 3 to 7 days.
+    Only `--name` is required. A limit left out takes the default: email only,
+    5 touches, 3 to 7 days.
     """
     set_json_mode(json_output)
-    if goal is None:
-        refuse_local("--goal is required")
     body = _campaign_body(
         name=name,
         description=description,
