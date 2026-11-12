@@ -187,9 +187,10 @@ class TestCampaigns:
         assert listed.exit_code == 0, listed.output
         assert read.exit_code == 0, read.output
         for output in (listed.output, read.output):
-            for text in ("140/200", "12", "41"):
+            for text in ("140/200", "41"):
                 assert text in output
         assert "Needs email" in read.output
+        assert "12" in read.output
         for output in (listed.output, read.output):
             assert "Awaiting" not in output
 
@@ -418,14 +419,15 @@ class TestCampaigns:
         ):
             assert text in result.output
 
-    def test_list_prints_the_channels(self, invoke, mock_api, table_column):
+    def test_list_leaves_the_channels_and_the_settings_to_get(self, invoke, mock_api):
+        """The list is a triage view; `get` prints the channels (ENG-2915)."""
         mock_api.get(f"{BASE}/campaigns").respond(200, json={"items": [CAMPAIGN]})
 
         result = invoke(["agentic", "envoy", "campaigns", "list"])
 
         assert result.exit_code == 0, result.output
-        # A narrow terminal folds the cell at the space, and the reader drops it.
-        assert table_column(result.output, 3).replace(" ", "") == "email,linkedin"
+        for header in ("Channels", "Needs email", "Created"):
+            assert header not in result.output
 
     def test_create_sends_the_context_options(self, invoke, mock_api):
         route = mock_api.post(f"{BASE}/campaigns").respond(201, json=CAMPAIGN)
@@ -1469,3 +1471,136 @@ def test_get_of_a_campaign_without_counts_prints_no_none(invoke, mock_api):
     assert result.exit_code == 0, result.output
     assert "None" not in result.output
     assert "Q4 intro" in result.output
+
+
+OUTCOMES = {
+    "to_review": 7,
+    "contacted": 93,
+    "replied": 17,
+    "ended_by_reason": {
+        "goal_met": 4,
+        "stop_decision": 0,
+        "max_touches": 9,
+        "stalled": 0,
+        "opted_out": 2,
+        "user_exit": 0,
+        "campaign_archived": 0,
+        "duplicate": 0,
+        "person_removed": 0,
+    },
+    "sent": {"email": 151, "linkedin": 38},
+    "failed": 3,
+    "last_activity_at": "2026-11-11T16:20:00Z",
+}
+SUMMARY = {
+    "active_campaigns": 3,
+    "live": 412,
+    "cap": 600,
+    "sent_7d": {"email": 220, "linkedin": 45},
+    "contacted_30d": 300,
+    "replied_30d": 36,
+    "reply_rate_30d": 0.12,
+    "goal_met_30d": 9,
+    "goal_met_rate_30d": 0.03,
+}
+
+
+class TestOutcomeCounts:
+    def test_list_prints_the_review_contact_and_reply_counts(self, invoke, mock_api, table_column):
+        counted = {**CAMPAIGN, "enrollment_counts": COUNTS, "outcome_counts": OUTCOMES}
+        mock_api.get(f"{BASE}/campaigns").respond(200, json={"items": [counted]})
+
+        result = invoke(["agentic", "envoy", "campaigns", "list"])
+
+        assert result.exit_code == 0, result.output
+        # Columns 4 to 6: To review, Contacted, Replied.
+        cells = [table_column(result.output, n) for n in (4, 5, 6)]
+        assert [cell.split()[-1] for cell in cells] == ["7", "93", "17"]
+
+    def test_get_prints_the_whole_outcome_block(self, invoke, mock_api):
+        counted = {**CAMPAIGN, "enrollment_counts": COUNTS, "outcome_counts": OUTCOMES}
+        mock_api.get(f"{BASE}/campaigns/{CAMPAIGN_ID}").respond(200, json=counted)
+
+        result = invoke(["agentic", "envoy", "campaigns", "get", CAMPAIGN_ID])
+
+        assert result.exit_code == 0, result.output
+        for text in (
+            "To review",
+            "Contacted",
+            "Replied",
+            "goal_met 4, max_touches 9, opted_out 2",
+            "email 151, linkedin 38",
+            "Failed sends",
+            "2026-11-11T16:20:00Z",
+        ):
+            assert text in result.output
+        # A reason with no enrollment is left out.
+        assert "stalled" not in result.output
+
+    def test_get_with_no_ended_enrollment_prints_none_ended(self, invoke, mock_api):
+        quiet = {
+            **OUTCOMES,
+            "ended_by_reason": dict.fromkeys(OUTCOMES["ended_by_reason"], 0),
+        }
+        counted = {**CAMPAIGN, "enrollment_counts": COUNTS, "outcome_counts": quiet}
+        mock_api.get(f"{BASE}/campaigns/{CAMPAIGN_ID}").respond(200, json=counted)
+
+        result = invoke(["agentic", "envoy", "campaigns", "get", CAMPAIGN_ID])
+
+        assert result.exit_code == 0, result.output
+        assert "goal_met" not in result.output
+        assert "None" not in result.output
+
+    def test_get_json_answers_the_outcome_counts_as_the_api_does(self, invoke, mock_api):
+        counted = {**CAMPAIGN, "enrollment_counts": COUNTS, "outcome_counts": OUTCOMES}
+        mock_api.get(f"{BASE}/campaigns/{CAMPAIGN_ID}").respond(200, json=counted)
+
+        result = invoke(["agentic", "envoy", "campaigns", "get", CAMPAIGN_ID, "--json"])
+
+        assert result.exit_code == 0, result.output
+        assert json.loads(result.output)["outcome_counts"] == OUTCOMES
+
+
+class TestCampaignSummary:
+    def test_summary_reads_the_organization_totals(self, invoke, mock_api):
+        route = mock_api.get(f"{BASE}/campaigns/summary").respond(200, json=SUMMARY)
+
+        result = invoke(["agentic", "envoy", "campaigns", "summary"])
+
+        assert result.exit_code == 0, result.output
+        assert route.called
+        for text in (
+            "Live people: 412/600",
+            "Sent, 7 days: email 220, linkedin 45",
+            "Contacted, 30 days: 300",
+            "Replied, 30 days: 36",
+            "Reply rate, 30 days: 12.0%",
+            "Goal met, 30 days: 9",
+            "Goal met rate, 30 days: 3.0%",
+        ):
+            assert text in result.output
+
+    def test_summary_prints_a_rate_of_no_contact_as_zero(self, invoke, mock_api):
+        quiet = {**SUMMARY, "contacted_30d": 0, "reply_rate_30d": 0.0, "goal_met_rate_30d": 0}
+        mock_api.get(f"{BASE}/campaigns/summary").respond(200, json=quiet)
+
+        result = invoke(["agentic", "envoy", "campaigns", "summary"])
+
+        assert result.exit_code == 0, result.output
+        assert "Reply rate, 30 days: 0.0%" in result.output
+        assert "Goal met rate, 30 days: 0.0%" in result.output
+
+    def test_summary_json_answers_the_api_body(self, invoke, mock_api):
+        mock_api.get(f"{BASE}/campaigns/summary").respond(200, json=SUMMARY)
+
+        result = invoke(["agentic", "envoy", "campaigns", "summary", "--json"])
+
+        assert result.exit_code == 0, result.output
+        assert json.loads(result.output) == SUMMARY
+
+    def test_summary_answers_an_auth_error_with_exit_4(self, invoke, mock_api):
+        mock_api.get(f"{BASE}/campaigns/summary").respond(403, json={"detail": "Forbidden"})
+
+        result = invoke(["agentic", "envoy", "campaigns", "summary"])
+
+        assert result.exit_code == 4
