@@ -187,10 +187,9 @@ class TestCampaigns:
         assert listed.exit_code == 0, listed.output
         assert read.exit_code == 0, read.output
         for output in (listed.output, read.output):
-            for text in ("140/200", "41"):
+            for text in ("140/200", "12", "41"):
                 assert text in output
         assert "Needs email" in read.output
-        assert "12" in read.output
         for output in (listed.output, read.output):
             assert "Awaiting" not in output
 
@@ -418,16 +417,6 @@ class TestCampaigns:
             "99999999-9999-4999-8999-999999999999",
         ):
             assert text in result.output
-
-    def test_list_leaves_the_channels_and_the_settings_to_get(self, invoke, mock_api):
-        """The list is a triage view; `get` prints the channels (ENG-2915)."""
-        mock_api.get(f"{BASE}/campaigns").respond(200, json={"items": [CAMPAIGN]})
-
-        result = invoke(["agentic", "envoy", "campaigns", "list"])
-
-        assert result.exit_code == 0, result.output
-        for header in ("Channels", "Needs email", "Created"):
-            assert header not in result.output
 
     def test_create_sends_the_context_options(self, invoke, mock_api):
         route = mock_api.post(f"{BASE}/campaigns").respond(201, json=CAMPAIGN)
@@ -1506,16 +1495,15 @@ SUMMARY = {
 
 
 class TestOutcomeCounts:
-    def test_list_prints_the_review_contact_and_reply_counts(self, invoke, mock_api, table_column):
+    def test_list_prints_the_review_count(self, invoke, mock_api, table_column):
         counted = {**CAMPAIGN, "enrollment_counts": COUNTS, "outcome_counts": OUTCOMES}
         mock_api.get(f"{BASE}/campaigns").respond(200, json={"items": [counted]})
 
         result = invoke(["agentic", "envoy", "campaigns", "list"])
 
         assert result.exit_code == 0, result.output
-        # Columns 4 to 6: To review, Contacted, Replied.
-        cells = [table_column(result.output, n) for n in (4, 5, 6)]
-        assert [cell.split()[-1] for cell in cells] == ["7", "93", "17"]
+        # The list has room for one outcome column. `get` prints the others.
+        assert table_column(result.output, 5) == "7"
 
     def test_get_prints_the_whole_outcome_block(self, invoke, mock_api):
         counted = {**CAMPAIGN, "enrollment_counts": COUNTS, "outcome_counts": OUTCOMES}

@@ -3,9 +3,9 @@
 `ac agentic envoy campaigns` creates, edits, activates, pauses, resumes and
 archives a campaign, and enrolls one person (`enroll`) or up to 200 people in
 one request (`enroll-batch`). `list` and `get` print the count of live
-enrollments against the cap, the count per status, the actions to review, and
-the people contacted and replied. `get` also prints the end reasons, the sends
-per channel, the failed sends and the last activity. `summary` prints the
+enrollments against the cap, the count per status and the actions to review.
+`get` also prints the channels, the people contacted and replied, the end
+reasons, the sends per channel, the failed sends and the last activity. `summary` prints the
 organization totals: the live enrollments against the cap, the sends of the
 last 7 days, and the contacts, replies and goals met of the last 30 days.
 `ac agentic envoy enrollments` lists the enrollments of a campaign (each row
@@ -307,10 +307,10 @@ _CAMPAIGN_LIST_FIELDS = [
     ("name", "Name"),
     ("status", "Status"),
     ("people", "People"),
+    ("needs_email", "Needs email"),
     ("to_review", "To review"),
-    ("contacted", "Contacted"),
-    ("replied", "Replied"),
     ("ended", "Ended"),
+    ("created_at", "Created"),
 ]
 _CAMPAIGN_FIELDS = [
     ("id", "Campaign ID"),
