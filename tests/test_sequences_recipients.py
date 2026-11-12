@@ -257,6 +257,14 @@ HISTORY = {
             "skip_reason": "No phone number",
         },
         {
+            "step_id": "s6",
+            "step_order": 6,
+            "type": "task",
+            "status": "task_created",
+            "task_done": False,
+            "task_completed_at": None,
+        },
+        {
             "step_id": "s3",
             "step_order": 3,
             "type": "message",
@@ -310,7 +318,10 @@ HISTORY = {
 }
 
 
-def test_recipients_history(invoke, mock_api):
+def test_recipients_history(monkeypatch, invoke, mock_api):
+    # The Steps table has nine columns. At 80 columns a cell folds over two
+    # lines, so a word test fails. Pin a width that holds each cell on one line.
+    monkeypatch.setenv("COLUMNS", "200")
     mock_api.get("/api/v1/sequences/sequences/seq-1/recipients/rec-1/history").respond(
         200, json=HISTORY
     )
@@ -325,6 +336,8 @@ def test_recipients_history(invoke, mock_api):
     assert "Channel" in result.output
     assert "linkedin" in result.output
     assert "Connection" in result.output
+    assert "Task done" in result.output
+    assert "False" in result.output
     assert "Tasks (2)" in result.output
     assert "call" in result.output
     assert "Call Jonah" in result.output

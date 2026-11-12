@@ -79,6 +79,7 @@ def recipients_history(
             ("awaiting_approval_count", "Waiting"),
             ("skip_reason", "Reason"),
             ("connection_status", "Connection"),
+            ("task_done", "Task done"),
         ],
         title=f"Steps ({len(steps)})",
     )
