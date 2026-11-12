@@ -61,6 +61,8 @@ def test_list_forwards_every_filter(invoke, mock_api):
             "--intent",
             "interested",
             "--intent",
+            "referral",
+            "--intent",
             "none",
             "--kind",
             "connection",
@@ -79,7 +81,7 @@ def test_list_forwards_every_filter(invoke, mock_api):
     assert result.exit_code == 0, result.output
     params = route.calls[0].request.url.params
     assert params.get_list("channel") == ["linkedin", "email"]
-    assert params.get_list("intent") == ["interested", "none"]
+    assert params.get_list("intent") == ["interested", "referral", "none"]
     assert params["kind"] == "connection"
     assert params["needs_reply"] == "true"
     assert params["unread"] == "true"
@@ -205,8 +207,10 @@ def test_read_unread_status_and_intent(invoke, mock_api):
         "status": "snoozed",
         "snoozed_until": "2026-11-09T09:00:00Z",
     }
+    assert invoke(["inbox", "intent", T1, "--intent", "opted_out"]).exit_code == 0
+    assert json.loads(intent.calls[-1].request.content) == {"intent": "opted_out"}
     assert invoke(["inbox", "intent", T1, "--intent", "none"]).exit_code == 0
-    assert json.loads(intent.calls[0].request.content) == {"intent": None}
+    assert json.loads(intent.calls[-1].request.content) == {"intent": None}
     assert read.called and unread.called
 
 

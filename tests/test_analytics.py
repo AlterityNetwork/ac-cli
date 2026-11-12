@@ -2,6 +2,8 @@
 
 import json
 
+import pytest
+
 OVERVIEW = {
     "start_date": "2026-06-21",
     "end_date": "2026-07-21",
@@ -192,3 +194,220 @@ def test_analytics_overview_without_searches_or_replies(invoke, mock_api):
     assert "Prospects pursued: -" in result.output
     assert "Average time to reply: -" in result.output
     assert "Email reply rate: -" in result.output
+
+
+_CATEGORIES = {
+    "interested": 1,
+    "referral": 0,
+    "out_of_office": 1,
+    "unclear": 1,
+    "not_interested": 0,
+    "opted_out": 0,
+}
+
+REPLIES = {
+    "start_date": "2026-06-21",
+    "end_date": "2026-07-21",
+    "period_days": 30,
+    "scope": "replies",
+    "channel": None,
+    "category": None,
+    "total": 3,
+    "by_category": _CATEGORIES,
+    "touches_by_category": None,
+    "items": [
+        {
+            "recipient_id": "r1",
+            "person_id": "p1",
+            "person_name": "Ann Lee",
+            "company_id": "c1",
+            "company_name": "Acme [beta]",
+            "sequence_id": "s1",
+            "sequence_name": "Q4 founders",
+            "channel": "email",
+            "category": "interested",
+            "intent_source": "model",
+            "excerpt": "Yes, send me the price.",
+            "replied_at": "2026-07-20T09:00:00+00:00",
+            "communication_id": "m1",
+            "inbox_thread_id": "t1",
+            "touches": 2,
+        },
+        {
+            "recipient_id": "r2",
+            "person_id": "p2",
+            "person_name": "Bo Kim",
+            "company_id": None,
+            "company_name": None,
+            "sequence_id": "s1",
+            "sequence_name": "Q4 founders",
+            "channel": "linkedin",
+            "category": "unclear",
+            "intent_source": None,
+            "excerpt": None,
+            "replied_at": "2026-07-19T09:00:00+00:00",
+            "communication_id": None,
+            "inbox_thread_id": None,
+            "touches": 1,
+        },
+    ],
+    "items_total": 3,
+    "truncated": True,
+    "auto_replies": [
+        {
+            "recipient_id": "r5",
+            "person_id": "p5",
+            "person_name": "Cy Moss",
+            "company_id": None,
+            "company_name": None,
+            "sequence_id": "s1",
+            "sequence_name": "Q4 founders",
+            "channel": "email",
+            "category": "out_of_office",
+            "intent_source": "rule",
+            "excerpt": "I am away until Monday.",
+            "replied_at": "2026-07-21T09:00:00+00:00",
+            "communication_id": "m5",
+            "inbox_thread_id": "t5",
+            "touches": 1,
+        }
+    ],
+    "auto_reply_count": 1,
+    "bounced": [
+        {
+            "recipient_id": "r6",
+            "person_id": "p6",
+            "person_name": "Di Park",
+            "company_id": None,
+            "company_name": None,
+            "sequence_id": "s1",
+            "sequence_name": "Q4 founders",
+            "email": "di@example.com",
+            "bounced_at": "2026-07-18T10:00:00+00:00",
+            "emails": 2,
+            "communication_id": "m6",
+        }
+    ],
+    "bounced_count": 1,
+    "bounced_emails": 2,
+}
+
+
+def test_analytics_replies(invoke, mock_api):
+    route = mock_api.get("/api/v1/analytics/replies").respond(200, json=REPLIES)
+    result = invoke(["analytics", "replies"])
+    assert result.exit_code == 0, result.output
+    assert dict(route.calls.last.request.url.params) == {"period_days": "30"}
+    assert "Replies: 3" in result.output
+    assert "Interested" in result.output
+    assert "Out of office" in result.output
+    assert "Ann Lee" in result.output
+    assert "Acme [beta]" in result.output
+    # The table can wrap the excerpt.
+    assert "Yes, send" in result.output
+    assert "LinkedIn" in result.output
+    assert "Showing 2 of 3" in result.output
+    assert "Automatic replies: 1 (not counted in Replies)" in result.output
+    assert "Cy Moss" in result.output
+    assert "Bounced: 1 prospects, 2 emails (not counted in Replies)" in result.output
+    assert "di@example.com" in result.output
+
+
+def test_analytics_replies_sends_every_option(invoke, mock_api):
+    touches = {
+        **REPLIES,
+        "scope": "touches",
+        "channel": "linkedin",
+        "category": "no_response",
+        "by_category": {**_CATEGORIES, "no_response": 4},
+        "touches_by_category": {**_CATEGORIES, "no_response": 9},
+    }
+    route = mock_api.get("/api/v1/analytics/replies").respond(200, json=touches)
+    result = invoke(
+        [
+            "analytics",
+            "replies",
+            "--period-days",
+            "7",
+            "--scope",
+            "touches",
+            "--channel",
+            "linkedin",
+            "--category",
+            "no_response",
+            "--limit",
+            "20",
+        ]
+    )
+    assert result.exit_code == 0, result.output
+    assert dict(route.calls.last.request.url.params) == {
+        "period_days": "7",
+        "scope": "touches",
+        "channel": "linkedin",
+        "category": "no_response",
+        "limit": "20",
+    }
+    assert "Prospects touched: 3" in result.output
+    assert "No response" in result.output
+
+
+def test_analytics_replies_json(invoke, mock_api):
+    mock_api.get("/api/v1/analytics/replies").respond(200, json=REPLIES)
+    result = invoke(["analytics", "replies", "--json"])
+    assert result.exit_code == 0
+    assert json.loads(result.output) == REPLIES
+
+
+def test_analytics_replies_with_no_replies(invoke, mock_api):
+    empty = {
+        **REPLIES,
+        "total": 0,
+        "by_category": dict.fromkeys(_CATEGORIES, 0),
+        "items": [],
+        "items_total": 0,
+        "truncated": False,
+        "auto_replies": [],
+        "auto_reply_count": 0,
+        "bounced": [],
+        "bounced_count": 0,
+        "bounced_emails": 0,
+    }
+    mock_api.get("/api/v1/analytics/replies").respond(200, json=empty)
+    result = invoke(["analytics", "replies"])
+    assert result.exit_code == 0
+    assert "Replies: 0" in result.output
+    assert "No replies in this period" in result.output
+    assert "Automatic replies: 0 (not counted in Replies)" in result.output
+
+
+def test_analytics_replies_touches_needs_a_channel_before_request(invoke, mock_api):
+    result = invoke(["analytics", "replies", "--scope", "touches", "--json"])
+    assert result.exit_code == 2
+    assert json.loads(result.output)["error"] is True
+    assert not mock_api.calls
+
+
+@pytest.mark.parametrize(
+    "args",
+    [
+        ["--scope", "people"],
+        ["--channel", "whatsapp"],
+        ["--category", "positive"],
+        ["--limit", "501"],
+        ["--period-days", "0"],
+    ],
+)
+def test_analytics_replies_refuses_a_bad_option_before_request(invoke, mock_api, args):
+    result = invoke(["analytics", "replies", *args, "--json"])
+    assert result.exit_code == 2
+    assert json.loads(result.output)["error"] is True
+    assert not mock_api.calls
+
+
+def test_analytics_replies_error_json(invoke, mock_api):
+    mock_api.get("/api/v1/analytics/replies").respond(400, json={"detail": "bad"})
+    result = invoke(["analytics", "replies", "--json"])
+    assert result.exit_code == 1
+    body = json.loads(result.output)
+    assert body["status_code"] == 400
+    assert body["detail"] == "bad"
