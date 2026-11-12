@@ -286,7 +286,7 @@ def drafts_reject(
 
 # Campaigns.
 
-_STATUSES = ("draft", "active", "paused", "archived")
+_STATUSES = ("active", "paused", "archived")
 _ENROLLMENT_STATUSES = ("active", "needs_contact_data", "ended")
 _PERSON_KINDS = ("crm.person", "prospect.person")
 _ENROLLMENT_PAGE_DEFAULT = 100
@@ -480,7 +480,7 @@ _DESCRIPTION_OPTION = typer.Option(
 
 @campaigns_app.command("list")
 def campaigns_list(
-    status: str | None = typer.Option(None, "--status", help="draft, active, paused or archived"),
+    status: str | None = typer.Option(None, "--status", help="active, paused or archived"),
     limit: int = typer.Option(_PAGE_DEFAULT, "--limit", help="How many campaigns, 1 to 100"),
     offset: int = typer.Option(0, "--offset", help="How many campaigns to skip first"),
     json_output: bool = JSON_OPTION,
@@ -534,7 +534,7 @@ def campaigns_create(
     max_days: int | None = _MAX_DAYS_OPTION,
     json_output: bool = JSON_OPTION,
 ) -> None:
-    """Create a draft campaign. You own it, and your mailbox sends its emails.
+    """Create a paused campaign. You own it, and your mailbox sends its emails.
 
     A limit left out takes the default: email only, 5 touches, 3 to 7 days.
     """
@@ -554,7 +554,7 @@ def campaigns_create(
     if json_output:
         print_json(data)
         return
-    rprint(styled("[green]Campaign {} is created as a draft.[/green]", data["id"]))
+    rprint(styled("[green]Campaign {} is created paused.[/green]", data["id"]))
     print_detail(_with_settings(data), _CAMPAIGN_FIELDS)
 
 
@@ -609,7 +609,7 @@ def campaigns_activate(
     campaign_id: str = typer.Argument(..., help="Campaign ID"),
     json_output: bool = JSON_OPTION,
 ) -> None:
-    """Start a draft campaign. Its enrollments get their first Run."""
+    """Start a new campaign. Its enrollments get their first Run."""
     set_json_mode(json_output)
     if _set_status(campaign_id, "active", json_output):
         rprint(styled("[green]Campaign {} is active.[/green]", campaign_id))
