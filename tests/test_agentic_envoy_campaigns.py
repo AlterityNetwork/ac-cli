@@ -13,7 +13,7 @@ PERSON_ID = "77777777-7777-4777-8777-777777777777"
 CAMPAIGN = {
     "id": CAMPAIGN_ID,
     "name": "Q4 intro",
-    "status": "draft",
+    "status": "paused",
     "description": "Heads of growth at Series A SaaS companies",
     "goal": "Book a 20 min intro call",
     "allowed_channels": ["email", "linkedin"],
@@ -139,12 +139,12 @@ class TestCampaigns:
         route = mock_api.get(f"{BASE}/campaigns").respond(200, json={"items": [CAMPAIGN]})
 
         result = invoke(
-            ["agentic", "envoy", "campaigns", "list", "--status", "draft", "--limit", "5"]
+            ["agentic", "envoy", "campaigns", "list", "--status", "paused", "--limit", "5"]
         )
 
         assert result.exit_code == 0, result.output
         params = route.calls[0].request.url.params
-        assert (params["status"], params["limit"]) == ("draft", "5")
+        assert (params["status"], params["limit"]) == ("paused", "5")
         assert "Q4 intro" in result.output
 
     def test_list_sends_the_offset_and_names_the_page(self, invoke, mock_api):
@@ -201,8 +201,18 @@ class TestCampaigns:
         )
 
         assert result.exit_code == 0, result.output
+        assert "is created paused" in result.output
         assert "Needs email" not in result.output
         assert "People" not in result.output
+
+    def test_list_refuses_the_draft_status_without_a_call(self, invoke, mock_api):
+        """A campaign has no draft status. A new campaign starts paused."""
+        route = mock_api.get(f"{BASE}/campaigns").respond(200, json={"items": []})
+
+        result = invoke(["agentic", "envoy", "campaigns", "list", "--status", "draft"])
+
+        assert result.exit_code == 2
+        assert not route.called
 
     def test_a_campaign_without_counts_prints_no_none(self, invoke, mock_api):
         mock_api.get(f"{BASE}/campaigns").respond(200, json={"items": [CAMPAIGN]})
