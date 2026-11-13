@@ -44,7 +44,6 @@ asks first unless `--yes`. A retry of the same reject answers the same action.
 from __future__ import annotations
 
 import uuid
-from datetime import datetime
 from pathlib import Path
 
 import typer
@@ -53,6 +52,7 @@ from rich import print as rprint
 from ac_cli.commands._helpers import (
     JSON_OPTION,
     _api_request,
+    checked_since,
     refuse_local,
     set_json_mode,
     should_skip_confirm,
@@ -210,19 +210,12 @@ def drafts_list(
     ),
     json_output: bool = JSON_OPTION,
 ) -> None:
-    """List the proposed actions that wait for review, oldest first, with the queue total."""
+    """List the proposed actions, oldest first by default, with the total."""
     set_json_mode(json_output)
     for one in status or []:
         if one not in _ACTION_STATUSES:
             refuse_local(f"--status must be one of: {', '.join(_ACTION_STATUSES)}", one)
-    if since is not None:
-        try:
-            # Python 3.10 reads no trailing Z.
-            datetime.fromisoformat(
-                since.removesuffix("Z") + "+00:00" if since.endswith("Z") else since
-            )
-        except ValueError:
-            refuse_local("--since is not an ISO date and time", since)
+    since = checked_since(since)
     if sort is not None and sort not in _ACTION_SORTS:
         refuse_local(f"--sort must be one of: {', '.join(_ACTION_SORTS)}", sort)
     if action_type is not None and action_type not in _ACTION_TYPES:

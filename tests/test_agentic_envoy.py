@@ -203,7 +203,7 @@ def test_list_sends_each_status_and_the_handled_window(invoke, mock_api):
     assert result.exit_code == 0, result.output
     params = route.calls[0].request.url.params
     assert params.get_list("status") == ["approved", "sending"]
-    assert params["since"] == "2026-11-01T00:00:00Z"
+    assert params["since"] == "2026-11-01T00:00:00+00:00"
     assert params["sort"] == "newest_decided"
 
 
