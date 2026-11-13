@@ -176,7 +176,10 @@ def _linkedin_text(linkedin: dict | None) -> str | None:
 
 
 def _print_action(item: dict) -> None:
-    """Print one proposed action, the reply it answers, and its draft."""
+    """Print one proposed action, the reply it answers, and its draft.
+
+    The draft can hold the writer's reasoning for the reviewer. It is never sent.
+    """
     print_detail(_flat(item), _ACTION_FIELDS)
     reply = item.get("replying_to")
     if reply:
@@ -187,6 +190,9 @@ def _print_action(item: dict) -> None:
         if draft.get(key) is not None:
             rprint(styled("[bold]{}:[/bold]", label))
             rprint(as_text(draft[key]))
+    if draft.get("ai_reasoning"):
+        rprint(styled("[bold]{}:[/bold]", "Reasoning"))
+        rprint(as_text(draft["ai_reasoning"]))
 
 
 @drafts_app.command("list")
