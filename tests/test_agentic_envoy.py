@@ -308,6 +308,32 @@ def test_get_prints_a_linkedin_note(invoke, mock_api):
     assert "https://www.linkedin.com/in/jane" in result.output
 
 
+def test_get_prints_the_reasoning_of_a_linkedin_draft(invoke, mock_api):
+    message = {
+        **ACTION,
+        "type": "linkedin_message",
+        "replying_to": None,
+        "draft_payload": {"body": "Hi Jane.", "ai_reasoning": "Angle: her new role."},
+    }
+    mock_api.get(f"{ACTIONS}/{ACTION_ID}").respond(200, json=message)
+
+    result = invoke(["agentic", "envoy", "drafts", "get", ACTION_ID])
+
+    assert result.exit_code == 0, result.output
+    assert "Reasoning:" in result.output
+    assert "Angle: her new role." in result.output
+    assert result.output.index("Hi Jane.") < result.output.index("Reasoning:")
+
+
+def test_get_of_a_draft_with_no_reasoning_prints_no_label(invoke, mock_api):
+    mock_api.get(f"{ACTIONS}/{ACTION_ID}").respond(200, json=ACTION)
+
+    result = invoke(["agentic", "envoy", "drafts", "get", ACTION_ID])
+
+    assert result.exit_code == 0, result.output
+    assert "Reasoning" not in result.output
+
+
 def test_list_and_get_print_the_touch_and_the_sentiment(invoke, mock_api, table_column):
     mock_api.get(ACTIONS).respond(200, json=_page(ACTION))
     mock_api.get(f"{ACTIONS}/{ACTION_ID}").respond(200, json=ACTION)
