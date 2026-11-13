@@ -107,6 +107,7 @@ _ACTION_FIELDS = [
     ("touch", "Touch"),
     ("sentiment", "Sentiment"),
     ("to", "To"),
+    ("linkedin", "LinkedIn"),
     ("created_at", "Created"),
     ("rationale", "Why"),
     ("objective", "Objective"),
@@ -135,7 +136,28 @@ def _flat(item: dict) -> dict:
         "campaign_status": campaign.get("status"),
         "touch": touch,
         "sentiment": reply.get("sentiment"),
+        "linkedin": _linkedin_text(item.get("linkedin")),
     }
+
+
+def _linkedin_text(linkedin: dict | None) -> str | None:
+    """Answers the LinkedIn state as one line, e.g. `connected · 1st · 2026-11-11`.
+
+    The date is the accept date when connected, the invite date when invited.
+    An email has no state, so the line is None.
+    """
+    if not linkedin:
+        return None
+    state = linkedin.get("state")
+    if state == "connected":
+        stamp = linkedin.get("connected_at")
+    elif state == "invited":
+        stamp = linkedin.get("invited_at")
+    else:
+        stamp = None
+    degree = "1st" if linkedin.get("degree") == 1 else None
+    parts = [state, degree, stamp[:10] if stamp else None]
+    return " · ".join(str(part) for part in parts if part)
 
 
 def _print_action(item: dict) -> None:
@@ -998,6 +1020,8 @@ def _timeline_text(item: dict) -> str:
         parts = [item.get("direction"), item.get("status"), item.get("subject")]
     elif kind == "linkedin_message":
         parts = [item.get("direction"), item.get("text")]
+    elif kind == "linkedin_connection":
+        parts = [item.get("status")]
     elif kind == "ended":
         parts = [item.get("ended_reason")]
     else:
@@ -1016,7 +1040,8 @@ def enrollments_timeline(
     """Read the Envoy items of one enrollment, newest first.
 
     The items are the start, each decision, each proposed action, the thread
-    emails, the LinkedIn messages and the end. No CRM activity is in it.
+    emails, the LinkedIn invitations and messages, and the end. No CRM
+    activity is in it.
     """
     set_json_mode(json_output)
     if not _PAGE_MIN <= limit <= _PAGE_MAX:

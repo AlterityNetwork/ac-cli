@@ -260,6 +260,63 @@ def test_the_sentiment_cell_reads_the_reply():
     assert _flat(unclassified)["sentiment"] is None
 
 
+@pytest.mark.parametrize(
+    ("linkedin", "shown"),
+    [
+        (
+            {
+                "state": "connected",
+                "degree": 1,
+                "invited_at": "2026-11-09T08:00:00Z",
+                "connected_at": "2026-11-11T09:30:00Z",
+            },
+            "connected · 1st · 2026-11-11",
+        ),
+        (
+            {
+                "state": "invited",
+                "degree": None,
+                "invited_at": "2026-11-09T08:00:00Z",
+                "connected_at": None,
+            },
+            "invited · 2026-11-09",
+        ),
+        (
+            {
+                "state": "declined",
+                "degree": None,
+                "invited_at": "2026-11-09T08:00:00Z",
+                "connected_at": None,
+            },
+            "declined",
+        ),
+        (
+            {"state": "none", "degree": None, "invited_at": None, "connected_at": None},
+            "none",
+        ),
+    ],
+)
+def test_get_prints_the_linkedin_state(invoke, mock_api, linkedin, shown):
+    message = {**MESSAGE, "replying_to": None, "linkedin": linkedin}
+    mock_api.get(f"{ACTIONS}/{ACTION_ID}").respond(200, json=message)
+
+    result = invoke(["agentic", "envoy", "drafts", "get", ACTION_ID])
+
+    assert result.exit_code == 0, result.output
+    [line] = [one for one in result.output.splitlines() if "LinkedIn" in one]
+    assert line.split("LinkedIn", 1)[1].strip(" │:") == shown
+
+
+def test_get_of_an_email_prints_no_linkedin_state(invoke, mock_api):
+    mock_api.get(f"{ACTIONS}/{ACTION_ID}").respond(200, json={**ACTION, "linkedin": None})
+
+    result = invoke(["agentic", "envoy", "drafts", "get", ACTION_ID])
+
+    assert result.exit_code == 0, result.output
+    [line] = [one for one in result.output.splitlines() if "LinkedIn" in one]
+    assert line.split("LinkedIn", 1)[1].strip(" │:") == ""
+
+
 def test_get_json_keeps_the_item(invoke, mock_api):
     mock_api.get(f"{ACTIONS}/{ACTION_ID}").respond(200, json=ACTION)
 
