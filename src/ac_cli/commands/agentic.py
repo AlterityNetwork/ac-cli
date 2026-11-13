@@ -31,7 +31,6 @@ from __future__ import annotations
 import json
 import shlex
 import uuid
-from datetime import datetime
 from enum import Enum
 from urllib.parse import quote
 
@@ -46,6 +45,7 @@ from ac_cli.commands._helpers import (
     _handle_connection_error,
     _handle_error,
     checked_header_key,
+    checked_since,
     refuse_local,
     set_json_mode,
     should_skip_confirm,
@@ -384,42 +384,6 @@ def runs_list(
         )
 
 
-def _checked_since(since: str | None) -> str | None:
-    """Refuses a `--since` the API would refuse, and answers what to send.
-
-    The API answers `400` for a stamp with no time zone: Postgres resolves a
-    naive literal in the session time zone, so the boundary of the filter moves
-    by that offset and no error says so. The refusal costs an authenticated
-    round trip and names the flag only in prose.
-
-    ⚠️ **It normalises a `Z` suffix, because `fromisoformat` reads one only
-    from Python 3.11.** This package supports 3.10, the API writes `Z`, and the
-    `Reconnect with:` line prints what the API wrote. Parsing the raw value
-    would make this command refuse its own output on 3.10, and every test that
-    passes `+00:00` would stay green while the loop cannot run.
-
-    Args:
-        since: What the caller typed, or None.
-
-    Returns:
-        The value to send, with a `Z` suffix written as `+00:00`. None stays
-        None.
-
-    Raises:
-        typer.Exit: The value is not ISO 8601, or it carries no time zone.
-    """
-    if since is None:
-        return None
-    normalized = f"{since[:-1]}+00:00" if since.endswith(("Z", "z")) else since
-    try:
-        parsed = datetime.fromisoformat(normalized)
-    except ValueError:
-        refuse_local("--since is not ISO 8601", since)
-    if parsed.tzinfo is None:
-        refuse_local("--since carries no time zone, so it names no instant", since)
-    return normalized
-
-
 def _checked_limit(limit: int) -> int:
     """Refuses a page size the API refuses, before the request.
 
@@ -674,7 +638,7 @@ def runs_spans(
     """
     set_json_mode(json_output)
     _checked_limit(limit)
-    since = _checked_since(since)
+    since = checked_since(since)
     params: dict = {"limit": limit}
     # `is not None`, and not a truth test. A reconnect loop builds this value
     # from the last page, and an empty one means the extraction failed. Sent

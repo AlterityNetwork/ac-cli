@@ -18,10 +18,15 @@ whole organization. Only an organization admin stops or resumes.
 `ac agentic envoy drafts list` and `get` read the Review queue: the
 proposed actions (an email, a LinkedIn note or a LinkedIn message) that wait
 for a person. `list` reads the `pending_approval` actions by default, oldest
-first, and filters by `--status`, `--campaign-id` and `--type`. `get` reads one
-action by its action id. Each item names the person, the company, the campaign,
-the touch (`2 of 5`), the address read fresh, the reply it answers and its
-sentiment, and the draft.
+first, and filters by `--status`, `--campaign-id` and `--type`. `--status`
+repeats, and each value is literal: the approved group of the Handled view
+passes `--status approved --status sending`. `--since` keeps the actions
+decided at or after a time, and `--sort newest_decided` puts the newest
+decision first; that sort needs a `--since` of the last 31 days. `get` reads
+one action by its action id. Each item names the person, the company, the
+campaign, the touch (`2 of 5`), the address read fresh, the reply it answers
+and its sentiment, the draft, and the decision: its time, who made it and the
+reject or failure reason.
 
 `approve` takes an action id. With no edit flag it approves the draft as it
 is and sends no payload. An edit flag reads the action first and sends the
@@ -47,6 +52,7 @@ from rich import print as rprint
 from ac_cli.commands._helpers import (
     JSON_OPTION,
     _api_request,
+    checked_since,
     refuse_local,
     set_json_mode,
     should_skip_confirm,
@@ -75,6 +81,7 @@ _ACTION_STATUSES = (
     "failed",
 )
 _ACTION_TYPES = ("email", "linkedin_connection", "linkedin_message")
+_ACTION_SORTS = ("oldest", "newest_decided")
 
 # The edit flags each action takes. A reply email keeps no subject.
 _EDIT_FLAGS = {
@@ -94,6 +101,8 @@ _LIST_FIELDS = [
     ("sentiment", "Sentiment"),
     ("status", "Status"),
     ("created_at", "Created"),
+    ("decided_at", "Decided"),
+    ("reason", "Reason"),
 ]
 _ACTION_FIELDS = [
     ("id", "Action ID"),
@@ -109,6 +118,10 @@ _ACTION_FIELDS = [
     ("to", "To"),
     ("linkedin", "LinkedIn"),
     ("created_at", "Created"),
+    ("decided_at", "Decided"),
+    ("decided_by", "Decided by"),
+    ("reject_then", "Then"),
+    ("reason", "Reason"),
     ("rationale", "Why"),
     ("objective", "Objective"),
 ]
@@ -119,7 +132,8 @@ def _flat(item: dict) -> dict:
 
     A person with no name, or a deleted one, shows the address instead. A
     deleted person also has no address, so the cell is blank. The touch cell
-    reads `2 of 5`, or `2` when the campaign names no max.
+    reads `2 of 5`, or `2` when the campaign names no max. The reason cell
+    reads the reject reason, else the failure reason.
     """
     person = item.get("person") or {}
     campaign = item.get("campaign") or {}
@@ -137,6 +151,7 @@ def _flat(item: dict) -> dict:
         "touch": touch,
         "sentiment": reply.get("sentiment"),
         "linkedin": _linkedin_text(item.get("linkedin")),
+        "reason": item.get("reject_reason") or item.get("failure_reason"),
     }
 
 
@@ -176,8 +191,10 @@ def _print_action(item: dict) -> None:
 
 @drafts_app.command("list")
 def drafts_list(
-    status: str | None = typer.Option(
-        None, "--status", help="Only this status. The API default is pending_approval"
+    status: list[str] | None = typer.Option(
+        None,
+        "--status",
+        help="Only this status; repeat for more. The API default is pending_approval",
     ),
     campaign_id: str | None = typer.Option(None, "--campaign-id", help="Only this campaign"),
     action_type: str | None = typer.Option(
@@ -185,12 +202,22 @@ def drafts_list(
     ),
     limit: int = typer.Option(_PAGE_DEFAULT, "--limit", help="How many actions, 1 to 100"),
     offset: int = typer.Option(0, "--offset", help="How many actions to skip first"),
+    since: str | None = typer.Option(
+        None, "--since", help="Only the actions decided at or after this ISO time"
+    ),
+    sort: str | None = typer.Option(
+        None, "--sort", help="oldest (the default) or newest_decided, which needs --since"
+    ),
     json_output: bool = JSON_OPTION,
 ) -> None:
-    """List the proposed actions that wait for review, oldest first, with the queue total."""
+    """List the proposed actions, oldest first by default, with the total."""
     set_json_mode(json_output)
-    if status is not None and status not in _ACTION_STATUSES:
-        refuse_local(f"--status must be one of: {', '.join(_ACTION_STATUSES)}", status)
+    for one in status or []:
+        if one not in _ACTION_STATUSES:
+            refuse_local(f"--status must be one of: {', '.join(_ACTION_STATUSES)}", one)
+    since = checked_since(since)
+    if sort is not None and sort not in _ACTION_SORTS:
+        refuse_local(f"--sort must be one of: {', '.join(_ACTION_SORTS)}", sort)
     if action_type is not None and action_type not in _ACTION_TYPES:
         refuse_local(f"--type must be one of: {', '.join(_ACTION_TYPES)}", action_type)
     if not _PAGE_MIN <= limit <= _PAGE_MAX:
@@ -198,8 +225,12 @@ def drafts_list(
     if offset < 0:
         refuse_local("--offset may not be negative", offset)
     params: dict[str, object] = {"limit": limit, "offset": offset}
-    if status is not None:
+    if status:
         params["status"] = status
+    if since is not None:
+        params["since"] = since
+    if sort is not None:
+        params["sort"] = sort
     if campaign_id is not None:
         params["campaign_id"] = campaign_id
     if action_type is not None:

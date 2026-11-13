@@ -2,6 +2,7 @@
 
 import contextvars
 import os
+from datetime import datetime
 from typing import Final, NoReturn
 
 import httpx
@@ -357,3 +358,39 @@ def checked_header_key(key: str) -> str:
     if header_safe_key(key):
         return key
     refuse_local(f"{_KEY_FLAG} must contain 1–{HEADER_KEY_MAX_LENGTH} header-safe ASCII characters")
+
+
+def checked_since(since: str | None) -> str | None:
+    """Refuses a `--since` the API would refuse, and answers what to send.
+
+    The API answers `400` for a stamp with no time zone: Postgres resolves a
+    naive literal in the session time zone, so the boundary of the filter moves
+    by that offset and no error says so. The refusal costs an authenticated
+    round trip and names the flag only in prose.
+
+    ⚠️ **It normalises a `Z` suffix, because `fromisoformat` reads one only
+    from Python 3.11.** This package supports 3.10, the API writes `Z`, and the
+    `Reconnect with:` line prints what the API wrote. Parsing the raw value
+    would make this command refuse its own output on 3.10, and every test that
+    passes `+00:00` would stay green while the loop cannot run.
+
+    Args:
+        since: What the caller typed, or None.
+
+    Returns:
+        The value to send, with a `Z` suffix written as `+00:00`. None stays
+        None.
+
+    Raises:
+        typer.Exit: The value is not ISO 8601, or it carries no time zone.
+    """
+    if since is None:
+        return None
+    normalized = f"{since[:-1]}+00:00" if since.endswith(("Z", "z")) else since
+    try:
+        parsed = datetime.fromisoformat(normalized)
+    except ValueError:
+        refuse_local("--since is not ISO 8601", since)
+    if parsed.tzinfo is None:
+        refuse_local("--since carries no time zone, so it names no instant", since)
+    return normalized

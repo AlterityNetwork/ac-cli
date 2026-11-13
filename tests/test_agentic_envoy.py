@@ -180,6 +180,96 @@ def test_list_refuses_an_unknown_status_and_type(invoke, mock_api):
     assert not route.called
 
 
+def test_list_sends_each_status_and_the_handled_window(invoke, mock_api):
+    route = mock_api.get(ACTIONS).respond(200, json=_page())
+
+    result = invoke(
+        [
+            "agentic",
+            "envoy",
+            "drafts",
+            "list",
+            "--status",
+            "approved",
+            "--status",
+            "sending",
+            "--since",
+            "2026-11-01T00:00:00Z",
+            "--sort",
+            "newest_decided",
+        ]
+    )
+
+    assert result.exit_code == 0, result.output
+    params = route.calls[0].request.url.params
+    assert params.get_list("status") == ["approved", "sending"]
+    assert params["since"] == "2026-11-01T00:00:00+00:00"
+    assert params["sort"] == "newest_decided"
+
+
+def test_list_sends_no_since_and_no_sort_by_default(invoke, mock_api):
+    route = mock_api.get(ACTIONS).respond(200, json=_page())
+
+    result = invoke(["agentic", "envoy", "drafts", "list"])
+
+    assert result.exit_code == 0, result.output
+    params = route.calls[0].request.url.params
+    assert "since" not in params
+    assert "sort" not in params
+
+
+@pytest.mark.parametrize(
+    "flags",
+    [
+        ["--status", "approved", "--status", "pending"],
+        ["--since", "last week"],
+        ["--sort", "newest"],
+    ],
+)
+def test_list_refuses_a_bad_status_since_or_sort_before_the_request(invoke, mock_api, flags):
+    route = mock_api.get(ACTIONS).respond(200, json=_page())
+
+    result = invoke(["agentic", "envoy", "drafts", "list", *flags, "--json"])
+
+    assert result.exit_code == 2
+    assert not route.called
+
+
+HANDLED = {
+    **ACTION,
+    "status": "rejected",
+    "decided_at": "2026-10-22T09:30:00Z",
+    "decided_by": "Ann Lee",
+    "reject_then": "regenerate",
+    "reject_reason": "Too formal.",
+    "failure_reason": None,
+}
+
+
+def test_list_and_get_print_the_decision(invoke, mock_api, table_column):
+    mock_api.get(ACTIONS).respond(200, json=_page(HANDLED))
+    mock_api.get(f"{ACTIONS}/{ACTION_ID}").respond(200, json=HANDLED)
+
+    listed = invoke(["agentic", "envoy", "drafts", "list"])
+    got = invoke(["agentic", "envoy", "drafts", "get", ACTION_ID])
+
+    assert listed.exit_code == 0, listed.output
+    assert table_column(listed.output, COLUMN["decided_at"]).replace(" ", "") == (
+        "2026-10-22T09:30:00Z"
+    )
+    assert table_column(listed.output, COLUMN["reason"]).replace(" ", "") == "Tooformal."
+    assert got.exit_code == 0, got.output
+    assert "Ann Lee" in got.output
+    assert "Too formal." in got.output
+
+
+def test_the_reason_cell_reads_the_reject_or_the_failure():
+    assert _flat(HANDLED)["reason"] == "Too formal."
+    failed = {**HANDLED, "status": "failed", "reject_reason": None}
+    assert _flat({**failed, "failure_reason": "not_connected"})["reason"] == "not_connected"
+    assert _flat(ACTION)["reason"] is None
+
+
 def test_get_prints_the_item_the_reply_and_the_draft(invoke, mock_api):
     mock_api.get(f"{ACTIONS}/{ACTION_ID}").respond(200, json=ACTION)
 
@@ -226,7 +316,8 @@ def test_list_and_get_print_the_touch_and_the_sentiment(invoke, mock_api, table_
     got = invoke(["agentic", "envoy", "drafts", "get", ACTION_ID])
 
     assert listed.exit_code == 0, listed.output
-    assert table_column(listed.output, COLUMN["touch"]) == "2 of 5"
+    # A cell folds over lines, so the reader joins its parts.
+    assert table_column(listed.output, COLUMN["touch"]).replace(" ", "") == "2of5"
     assert table_column(listed.output, COLUMN["sentiment"]) == "positive"
     assert got.exit_code == 0, got.output
     assert "2 of 5" in got.output
