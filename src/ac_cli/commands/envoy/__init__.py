@@ -7,7 +7,10 @@ enrollments against the cap, the count per status and the actions to review.
 `get` also prints the channels, the people contacted and replied, the end
 reasons, the sends per channel, the failed sends and the last activity, and
 the reject reasons the campaign remembers, newest first. `forget` deletes one
-remembered reason, so the later drafts no longer follow it. `summary` prints the
+remembered reason, so the later drafts no longer follow it. `activity` pages
+the sends, replies and decisions of one campaign, newest first, with
+`--cursor`. `results` prints the sends per day and the reply rate of each
+touch. `summary` prints the
 organization totals: the live enrollments against the cap, the sends of the
 last 7 days, and the contacts, replies and goals met of the last 30 days.
 `ac agentic envoy enrollments` lists the enrollments of a campaign (each row
@@ -742,6 +745,125 @@ def campaigns_summary(json_output: bool = JSON_OPTION) -> None:
         },
         _SUMMARY_FIELDS,
     )
+
+
+_ACTIVITY_KINDS = ("send", "reply", "decision")
+_ACTIVITY_CHANNELS = ("email", "linkedin")
+_RESULTS_DAYS_DEFAULT = 30
+_RESULTS_DAYS_MAX = 90
+_ACTIVITY_FIELDS = [
+    ("when", "When"),
+    ("who", "Who"),
+    ("what", "What"),
+]
+_DAY_FIELDS = [
+    ("day", "Day"),
+    ("email", "Email"),
+    ("linkedin", "LinkedIn"),
+]
+_TOUCH_FIELDS = [
+    ("touch", "Touch"),
+    ("sends", "Sends"),
+    ("replies", "Replies"),
+    ("rate", "Reply rate"),
+]
+_CHANNEL_NAMES = {"email": "Email", "linkedin": "LinkedIn"}
+
+
+def _activity_text(item: dict) -> str:
+    """Answers one line that says what an activity item is."""
+    kind = item.get("kind")
+    if kind == "send":
+        channel = _CHANNEL_NAMES.get(str(item.get("channel")), "Message")
+        parts = [f"{channel} sent", item.get("subject") or item.get("trigger_reason")]
+    elif kind == "reply":
+        parts = ["Reply received", item.get("type")]
+    else:
+        parts = [f"Decided {item.get('type') or 'nothing'}", item.get("rationale")]
+    return " · ".join(str(part) for part in parts if part)
+
+
+def _activity_row(item: dict) -> dict:
+    """Adds the When, Who and What cells to one activity item."""
+    person = item.get("person") or {}
+    return {
+        "when": str(item.get("at") or "")[:16].replace("T", " "),
+        "who": person.get("name") or person.get("kind") or "",
+        "what": _activity_text(item),
+    }
+
+
+@campaigns_app.command("activity")
+def campaigns_activity(
+    campaign_id: str = typer.Argument(..., help="Campaign ID"),
+    kind: str | None = typer.Option(None, "--kind", help="send, reply or decision"),
+    channel: str | None = typer.Option(None, "--channel", help="email or linkedin"),
+    limit: int = typer.Option(_PAGE_DEFAULT, "--limit", help="How many items, 1 to 100"),
+    cursor: str | None = typer.Option(
+        None, "--cursor", help="The next cursor that the previous page printed"
+    ),
+    json_output: bool = JSON_OPTION,
+) -> None:
+    """List the sends, replies and decisions of one campaign, newest first.
+
+    A channel filter drops each decision with no channel, such as wait.
+    """
+    set_json_mode(json_output)
+    if kind is not None and kind not in _ACTIVITY_KINDS:
+        refuse_local(f"--kind must be one of: {', '.join(_ACTIVITY_KINDS)}", kind)
+    if channel is not None and channel not in _ACTIVITY_CHANNELS:
+        refuse_local(f"--channel must be one of: {', '.join(_ACTIVITY_CHANNELS)}", channel)
+    if not _PAGE_MIN <= limit <= _PAGE_MAX:
+        refuse_local(f"--limit is not between {_PAGE_MIN} and {_PAGE_MAX}", limit)
+    params: dict[str, object] = {"limit": limit}
+    for name, value in (("kind", kind), ("channel", channel), ("cursor", cursor)):
+        if value is not None:
+            params[name] = value
+    data = _api_request("get", f"{_ENVOY}/campaigns/{campaign_id}/activity", params=params).json()
+    if json_output:
+        print_json(data)
+        return
+    rows = [_activity_row(item) for item in data.get("items", [])]
+    print_table(rows, _ACTIVITY_FIELDS, title="Envoy campaign activity (newest first)")
+    if data.get("next_cursor"):
+        rprint(styled("[dim]More items wait: --cursor {}[/dim]", data["next_cursor"]))
+
+
+@campaigns_app.command("results")
+def campaigns_results(
+    campaign_id: str = typer.Argument(..., help="Campaign ID"),
+    days: int = typer.Option(
+        _RESULTS_DAYS_DEFAULT, "--days", help="The days of sends to show, 1 to 90"
+    ),
+    json_output: bool = JSON_OPTION,
+) -> None:
+    """Read the sends per day and the reply rate of each touch of one campaign.
+
+    A touch is the place of a send in the sends to one person. The first
+    reply of a person counts for the newest touch before it.
+    """
+    set_json_mode(json_output)
+    if not 1 <= days <= _RESULTS_DAYS_MAX:
+        refuse_local(f"--days is not between 1 and {_RESULTS_DAYS_MAX}", days)
+    data = _api_request(
+        "get", f"{_ENVOY}/campaigns/{campaign_id}/results", params={"days": days}
+    ).json()
+    if json_output:
+        print_json(data)
+        return
+    print_table(
+        data.get("sends_per_day", []),
+        _DAY_FIELDS,
+        title=f"Sends per day, {data.get('from') or ''} to {data.get('to') or ''}",
+    )
+    touches = [{**row, "rate": _percent(row.get("reply_rate"))} for row in data.get("by_touch", [])]
+    print_table(touches, _TOUCH_FIELDS, title="Reply rate by touch (all time)")
+    if data.get("truncated"):
+        rprint(
+            as_text(
+                "The campaign has more rows than one read scans. The counts hold only the newest."
+            )
+        )
 
 
 @campaigns_app.command("create")
