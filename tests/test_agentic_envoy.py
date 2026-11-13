@@ -334,6 +334,58 @@ def test_get_of_a_draft_with_no_reasoning_prints_no_label(invoke, mock_api):
     assert "Reasoning" not in result.output
 
 
+def test_get_prints_what_envoy_used(invoke, mock_api):
+    # ENG-2925: one line per fact, source then label.
+    item = {
+        **ACTION,
+        "facts_used": [
+            {
+                "source": "signals",
+                "label": "hiring · Hires 2 [analysts]",
+                "ref_kind": "intel.signal",
+                "ref_id": "sig-1",
+            },
+            {
+                "source": "crm",
+                "label": "title: CMO",
+                "ref_kind": "crm.person",
+                "ref_id": None,
+            },
+        ],
+    }
+    mock_api.get(f"{ACTIONS}/{ACTION_ID}").respond(200, json=item)
+
+    result = invoke(["agentic", "envoy", "drafts", "get", ACTION_ID])
+
+    assert result.exit_code == 0, result.output
+    assert "What Envoy used:" in result.output
+    assert "signals · hiring · Hires 2 [analysts]" in result.output
+    assert "crm · title: CMO" in result.output
+
+
+@pytest.mark.parametrize("facts", [[], None, "absent"])
+def test_get_with_no_facts_prints_no_block(invoke, mock_api, facts):
+    item = {**ACTION}
+    if facts != "absent":
+        item["facts_used"] = facts
+    mock_api.get(f"{ACTIONS}/{ACTION_ID}").respond(200, json=item)
+
+    result = invoke(["agentic", "envoy", "drafts", "get", ACTION_ID])
+
+    assert result.exit_code == 0, result.output
+    assert "What Envoy used" not in result.output
+
+
+def test_get_json_passes_the_facts_through(invoke, mock_api):
+    fact = {"source": "crm", "label": "title: CMO", "ref_kind": "crm.person", "ref_id": "p"}
+    mock_api.get(f"{ACTIONS}/{ACTION_ID}").respond(200, json={**ACTION, "facts_used": [fact]})
+
+    result = invoke(["agentic", "envoy", "drafts", "get", ACTION_ID, "--json"])
+
+    assert result.exit_code == 0, result.output
+    assert json.loads(result.output)["facts_used"] == [fact]
+
+
 def test_list_and_get_print_the_touch_and_the_sentiment(invoke, mock_api, table_column):
     mock_api.get(ACTIONS).respond(200, json=_page(ACTION))
     mock_api.get(f"{ACTIONS}/{ACTION_ID}").respond(200, json=ACTION)

@@ -25,8 +25,8 @@ decided at or after a time, and `--sort newest_decided` puts the newest
 decision first; that sort needs a `--since` of the last 31 days. `get` reads
 one action by its action id. Each item names the person, the company, the
 campaign, the touch (`2 of 5`), the address read fresh, the reply it answers
-and its sentiment, the draft, and the decision: its time, who made it and the
-reject or failure reason.
+and its sentiment, the draft, and the decision: its time, who made it, the
+reject or failure reason, and the facts Envoy used (`source · label`).
 
 `approve` takes an action id. With no edit flag it approves the draft as it
 is and sends no payload. An edit flag reads the action first and sends the
@@ -176,9 +176,11 @@ def _linkedin_text(linkedin: dict | None) -> str | None:
 
 
 def _print_action(item: dict) -> None:
-    """Print one proposed action, the reply it answers, and its draft.
+    """Print one proposed action, the reply it answers, its draft and its facts.
 
     The draft can hold the writer's reasoning for the reviewer. It is never sent.
+    Each fact the decision used prints as `source · label`. No fact prints no
+    block.
     """
     print_detail(_flat(item), _ACTION_FIELDS)
     reply = item.get("replying_to")
@@ -193,6 +195,11 @@ def _print_action(item: dict) -> None:
     if draft.get("ai_reasoning"):
         rprint(styled("[bold]{}:[/bold]", "Reasoning"))
         rprint(as_text(draft["ai_reasoning"]))
+    facts = item.get("facts_used") or []
+    if facts:
+        rprint("[bold]What Envoy used:[/bold]")
+        for fact in facts:
+            rprint(as_text(f"{fact.get('source')} · {fact.get('label')}"))
 
 
 @drafts_app.command("list")
