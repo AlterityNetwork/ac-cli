@@ -1279,6 +1279,12 @@ TIMELINE = {
             "text": "Happy to chat.",
         },
         {
+            "kind": "linkedin_connection",
+            "at": "2026-10-22T11:00:00Z",
+            "id": "12121212-1212-4121-8121-121212121212",
+            "status": "declined",
+        },
+        {
             "kind": "action",
             "at": "2026-10-22T10:00:00Z",
             "id": "77777777-7777-4777-8777-777777777777",
@@ -1338,6 +1344,7 @@ class TestEnrollmentTimeline:
             "email · rejected · Too long.",
             "email · saved · She asked.",
             "inbound · received · Re: Hello",
+            "declined",
             "linkedin_message",
             "action",
             "enrolled",
