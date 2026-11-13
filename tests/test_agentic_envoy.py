@@ -4,6 +4,11 @@ import json
 
 import pytest
 
+from ac_cli.commands.envoy import _LIST_FIELDS, _flat
+
+# The column index of each list cell, for the `table_column` reader.
+COLUMN = {key: index for index, (key, _) in enumerate(_LIST_FIELDS)}
+
 DECISION_ID = "11111111-1111-4111-8111-111111111111"
 ENROLLMENT_ID = "22222222-2222-4222-8222-222222222222"
 CAMPAIGN_ID = "33333333-3333-4333-8333-333333333333"
@@ -24,13 +29,15 @@ ACTION = {
         "name": "Jane Doe",
     },
     "company_name": "Acme",
-    "campaign": {"id": CAMPAIGN_ID, "name": "Q4 intro", "status": "active"},
+    "touch_number": 2,
+    "campaign": {"id": CAMPAIGN_ID, "name": "Q4 intro", "status": "active", "max_touches": 5},
     "rationale": "She asked for the deck.",
     "objective": "Book a call.",
     "to": "jane@acme.example",
     "replying_to": {
         "communication_id": "99999999-9999-4999-8999-999999999999",
         "text": "Can you send the deck?",
+        "sentiment": "positive",
     },
     "draft_payload": {"subject": "The deck", "body": "Hi Jane, here is the deck."},
 }
@@ -55,7 +62,7 @@ CONFLICT = {
 }
 
 
-def test_list_sends_the_filters_and_prints_the_actions(invoke, mock_api):
+def test_list_sends_the_filters_and_prints_the_actions(invoke, mock_api, table_column):
     route = mock_api.get(ACTIONS).respond(200, json=_page(ACTION, total=11, offset=10))
 
     result = invoke(
@@ -84,9 +91,14 @@ def test_list_sends_the_filters_and_prints_the_actions(invoke, mock_api):
     assert params["type"] == "email"
     assert params["limit"] == "5"
     assert params["offset"] == "10"
-    # The table folds the action id over two lines, so only its start is whole.
-    for shown in (ACTION_ID[:9], "Jane Doe", "Q4 intro", "email"):
-        assert shown in result.output
+    # A cell folds over lines, so the reader joins its parts.
+    for key, shown in (
+        ("id", ACTION_ID),
+        ("person_name", "JaneDoe"),
+        ("campaign_name", "Q4intro"),
+        ("type", "email"),
+    ):
+        assert table_column(result.output, COLUMN[key]).replace(" ", "") == shown
 
 
 def test_list_sends_no_status_by_default(invoke, mock_api):
@@ -111,14 +123,14 @@ def test_list_names_the_page_and_the_next_offset(invoke, mock_api):
     assert "--offset 1" in result.output
 
 
-def test_list_names_the_address_when_the_person_has_no_name(invoke, mock_api):
+def test_list_names_the_address_when_the_person_has_no_name(invoke, mock_api, table_column):
     nameless = {**ACTION, "person": {**ACTION["person"], "name": None}, "to": "ann@x.io"}
     mock_api.get(ACTIONS).respond(200, json=_page(nameless))
 
     result = invoke(["agentic", "envoy", "drafts", "list"])
 
     assert result.exit_code == 0, result.output
-    assert "ann@x.io" in result.output
+    assert table_column(result.output, COLUMN["person_name"]) == "ann@x.io"
     assert "None" not in result.output
 
 
@@ -204,6 +216,48 @@ def test_get_prints_a_linkedin_note(invoke, mock_api):
     assert result.exit_code == 0, result.output
     assert "Hi Jane, let us connect." in result.output
     assert "https://www.linkedin.com/in/jane" in result.output
+
+
+def test_list_and_get_print_the_touch_and_the_sentiment(invoke, mock_api, table_column):
+    mock_api.get(ACTIONS).respond(200, json=_page(ACTION))
+    mock_api.get(f"{ACTIONS}/{ACTION_ID}").respond(200, json=ACTION)
+
+    listed = invoke(["agentic", "envoy", "drafts", "list"])
+    got = invoke(["agentic", "envoy", "drafts", "get", ACTION_ID])
+
+    assert listed.exit_code == 0, listed.output
+    assert table_column(listed.output, COLUMN["touch"]) == "2 of 5"
+    assert table_column(listed.output, COLUMN["sentiment"]) == "positive"
+    assert got.exit_code == 0, got.output
+    assert "2 of 5" in got.output
+    assert "positive" in got.output
+
+
+@pytest.mark.parametrize(
+    ("touch_number", "max_touches", "touch"),
+    [(2, 5, "2 of 5"), (3, None, "3"), (None, 5, None)],
+)
+def test_the_touch_cell_names_the_number_and_the_max(touch_number, max_touches, touch):
+    item = {**ACTION, "campaign": {**ACTION["campaign"], "max_touches": max_touches}}
+    if touch_number is None:
+        del item["touch_number"]
+    else:
+        item["touch_number"] = touch_number
+
+    assert _flat(item)["touch"] == touch
+
+
+def test_the_touch_cell_names_the_number_when_the_campaign_has_no_max():
+    item = {**ACTION, "campaign": {"id": CAMPAIGN_ID, "name": None, "status": None}}
+
+    assert _flat(item)["touch"] == "2"
+
+
+def test_the_sentiment_cell_reads_the_reply():
+    assert _flat(ACTION)["sentiment"] == "positive"
+    assert _flat({**ACTION, "replying_to": None})["sentiment"] is None
+    unclassified = {**ACTION, "replying_to": {**ACTION["replying_to"], "sentiment": None}}
+    assert _flat(unclassified)["sentiment"] is None
 
 
 def test_get_json_keeps_the_item(invoke, mock_api):
