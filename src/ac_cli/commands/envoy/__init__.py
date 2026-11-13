@@ -20,7 +20,8 @@ proposed actions (an email, a LinkedIn note or a LinkedIn message) that wait
 for a person. `list` reads the `pending_approval` actions by default, oldest
 first, and filters by `--status`, `--campaign-id` and `--type`. `get` reads one
 action by its action id. Each item names the person, the company, the campaign,
-the address read fresh, the reply it answers and the draft.
+the touch (`2 of 5`), the address read fresh, the reply it answers and its
+sentiment, and the draft.
 
 `approve` takes an action id. With no edit flag it approves the draft as it
 is and sends no payload. An edit flag reads the action first and sends the
@@ -89,6 +90,8 @@ _LIST_FIELDS = [
     ("type", "Type"),
     ("to", "To"),
     ("campaign_name", "Campaign"),
+    ("touch", "Touch"),
+    ("sentiment", "Sentiment"),
     ("status", "Status"),
     ("created_at", "Created"),
 ]
@@ -101,6 +104,8 @@ _ACTION_FIELDS = [
     ("company_name", "Company"),
     ("campaign_name", "Campaign"),
     ("campaign_status", "Campaign status"),
+    ("touch", "Touch"),
+    ("sentiment", "Sentiment"),
     ("to", "To"),
     ("created_at", "Created"),
     ("rationale", "Why"),
@@ -112,15 +117,24 @@ def _flat(item: dict) -> dict:
     """One action with the person and the campaign names at the top level.
 
     A person with no name, or a deleted one, shows the address instead. A
-    deleted person also has no address, so the cell is blank.
+    deleted person also has no address, so the cell is blank. The touch cell
+    reads `2 of 5`, or `2` when the campaign names no max.
     """
     person = item.get("person") or {}
     campaign = item.get("campaign") or {}
+    reply = item.get("replying_to") or {}
+    number, most = item.get("touch_number"), campaign.get("max_touches")
+    if number is None:
+        touch = None
+    else:
+        touch = str(number) if most is None else f"{number} of {most}"
     return {
         **item,
         "person_name": person.get("name") or item.get("to"),
         "campaign_name": campaign.get("name"),
         "campaign_status": campaign.get("status"),
+        "touch": touch,
+        "sentiment": reply.get("sentiment"),
     }
 
 
