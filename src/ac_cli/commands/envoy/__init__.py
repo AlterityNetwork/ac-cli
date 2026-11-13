@@ -124,9 +124,10 @@ def _flat(item: dict) -> dict:
     campaign = item.get("campaign") or {}
     reply = item.get("replying_to") or {}
     number, most = item.get("touch_number"), campaign.get("max_touches")
-    touch = None if number is None else str(number)
-    if touch is not None and most is not None:
-        touch = f"{number} of {most}"
+    if number is None:
+        touch = None
+    else:
+        touch = str(number) if most is None else f"{number} of {most}"
     return {
         **item,
         "person_name": person.get("name") or item.get("to"),
