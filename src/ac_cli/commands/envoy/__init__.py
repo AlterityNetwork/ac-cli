@@ -5,7 +5,9 @@ archives a campaign, and enrolls one person (`enroll`) or up to 200 people in
 one request (`enroll-batch`). `list` and `get` print the count of live
 enrollments against the cap, the count per status and the actions to review.
 `get` also prints the channels, the people contacted and replied, the end
-reasons, the sends per channel, the failed sends and the last activity. `summary` prints the
+reasons, the sends per channel, the failed sends and the last activity, and
+the reject reasons the campaign remembers, newest first. `forget` deletes one
+remembered reason, so the later drafts no longer follow it. `summary` prints the
 organization totals: the live enrollments against the cap, the sends of the
 last 7 days, and the contacts, replies and goals met of the last 30 days.
 `ac agentic envoy enrollments` lists the enrollments of a campaign (each row
@@ -37,8 +39,10 @@ takes `--subject` and `--body` (a reply `--body` only), a LinkedIn note
 and their hash. A retry of the same approve answers the same action.
 
 `reject` takes an action id and `--then`. `regenerate` needs `--reason`
-and asks for one new draft that reads it. `stop` ends the enrollment, and
-asks first unless `--yes`. A retry of the same reject answers the same action.
+and asks for one new draft that reads it. `--remember` also keeps the reason
+for the campaign, so each later draft of every person in it follows the
+reason; it is refused with `stop`. `stop` ends the enrollment, and asks first
+unless `--yes`. A retry of the same reject answers the same action.
 """
 
 from __future__ import annotations
@@ -346,6 +350,11 @@ def drafts_reject(
         "--reason",
         help="What the next draft must change (1 to 1000 chars). Required for regenerate.",
     ),
+    remember: bool = typer.Option(
+        False,
+        "--remember",
+        help="Regenerate only: every later draft of the campaign follows the reason.",
+    ),
     yes: bool = typer.Option(False, "--yes", "-y", help="Skip confirmation for --then stop"),
     json_output: bool = JSON_OPTION,
 ) -> None:
@@ -355,16 +364,22 @@ def drafts_reject(
         refuse_local(f"--then must be one of: {', '.join(_THENS)}", then)
     if then == "regenerate" and reason is None:
         refuse_local("--then regenerate needs --reason")
+    if then == "stop" and remember:
+        refuse_local("--remember needs --then regenerate")
     if then == "stop" and not should_skip_confirm(yes):
         typer.confirm("End this person's enrollment in the campaign?", abort=True)
-    body: dict[str, str] = {"then": then}
+    body: dict[str, object] = {"then": then}
     if reason is not None:
         body["reason"] = reason
+    if remember:
+        body["remember"] = True
     data = _api_request("post", f"{_ENVOY}/actions/{action_id}/reject", json=body).json()
     if json_output:
         print_json(data)
         return
     rprint(styled("[yellow]Action {} is rejected ({}).[/yellow]", action_id, then))
+    if remember:
+        rprint("[yellow]The campaign remembers the reason for each later draft.[/yellow]")
     _print_action(data)
 
 
@@ -675,13 +690,36 @@ def campaigns_get(
     campaign_id: str = typer.Argument(..., help="Campaign ID"),
     json_output: bool = JSON_OPTION,
 ) -> None:
-    """Read one campaign, the count of its enrollments per status and its outcomes."""
+    """Read one campaign, its counts, its outcomes and its remembered feedback."""
     set_json_mode(json_output)
     data = _api_request("get", f"{_ENVOY}/campaigns/{campaign_id}").json()
     if json_output:
         print_json(data)
         return
     print_detail(_with_counts(data), _CAMPAIGN_READ_FIELDS)
+    feedback = data.get("remembered_feedback") or []
+    if feedback:
+        rprint("[bold]Remembered feedback (newest first):[/bold]")
+        for one in feedback:
+            rprint(as_text(_joined(one.get("id"), _day(one.get("created_at")), one.get("reason"))))
+
+
+@campaigns_app.command("forget")
+def campaigns_forget(
+    campaign_id: str = typer.Argument(..., help="Campaign ID"),
+    feedback_id: str = typer.Argument(..., help="Remembered feedback ID, from `campaigns get`"),
+    yes: bool = typer.Option(False, "--yes", "-y", help="Skip confirmation"),
+    json_output: bool = JSON_OPTION,
+) -> None:
+    """Delete one remembered reject reason. The later drafts no longer follow it."""
+    set_json_mode(json_output)
+    if not should_skip_confirm(yes):
+        typer.confirm(f"Forget feedback {feedback_id}?", abort=True)
+    _api_request("delete", f"{_ENVOY}/campaigns/{campaign_id}/feedback/{feedback_id}")
+    if json_output:
+        print_json({"ok": True, "id": feedback_id, "action": "forget"})
+        return
+    rprint(styled("[green]Forgot feedback {}[/green]", feedback_id))
 
 
 @campaigns_app.command("summary")

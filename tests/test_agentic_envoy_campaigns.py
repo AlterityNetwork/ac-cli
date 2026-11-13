@@ -1679,3 +1679,113 @@ def test_list_json_passes_the_new_fields_through(invoke, mock_api):
     result = invoke([*LIST, "--json"])
 
     assert json.loads(result.output) == page
+
+
+FEEDBACK_ID = "66666666-6666-4666-8666-666666666666"
+REMEMBERED = {
+    **CAMPAIGN,
+    "remembered_feedback": [
+        {
+            "id": FEEDBACK_ID,
+            "reason": "No pricing in the first email.",
+            "created_by": "99999999-9999-4999-8999-999999999999",
+            "created_at": "2026-11-13T10:00:00Z",
+        },
+        {
+            "id": "55555555-5555-4555-8555-555555555555",
+            "reason": "Keep it [short].",
+            "created_by": None,
+            "created_at": "2026-11-12T10:00:00Z",
+        },
+    ],
+}
+
+
+class TestRememberedFeedback:
+    def test_get_prints_the_remembered_feedback_newest_first(self, invoke, mock_api):
+        mock_api.get(f"{BASE}/campaigns/{CAMPAIGN_ID}").respond(200, json=REMEMBERED)
+
+        result = invoke(["agentic", "envoy", "campaigns", "get", CAMPAIGN_ID])
+
+        assert result.exit_code == 0, result.output
+        # A long row wraps at the terminal width.
+        output = " ".join(result.output.split())
+        assert "Remembered feedback" in output
+        newest = output.index(f"{FEEDBACK_ID} · 2026-11-13 · No pricing in the first email.")
+        assert newest < output.index("Keep it [short].")
+
+    def test_get_with_no_remembered_feedback_prints_no_block(self, invoke, mock_api):
+        mock_api.get(f"{BASE}/campaigns/{CAMPAIGN_ID}").respond(
+            200, json={**CAMPAIGN, "remembered_feedback": []}
+        )
+
+        result = invoke(["agentic", "envoy", "campaigns", "get", CAMPAIGN_ID])
+
+        assert result.exit_code == 0, result.output
+        assert "Remembered feedback" not in result.output
+
+    def test_get_json_passes_the_remembered_feedback_through(self, invoke, mock_api):
+        mock_api.get(f"{BASE}/campaigns/{CAMPAIGN_ID}").respond(200, json=REMEMBERED)
+
+        result = invoke(["agentic", "envoy", "campaigns", "get", CAMPAIGN_ID, "--json"])
+
+        assert json.loads(result.output) == REMEMBERED
+
+    def test_forget_deletes_the_feedback(self, invoke, mock_api):
+        route = mock_api.delete(f"{BASE}/campaigns/{CAMPAIGN_ID}/feedback/{FEEDBACK_ID}").respond(
+            204
+        )
+
+        result = invoke(
+            ["agentic", "envoy", "campaigns", "forget", CAMPAIGN_ID, FEEDBACK_ID, "--yes"]
+        )
+
+        assert result.exit_code == 0, result.output
+        assert route.called
+        assert FEEDBACK_ID in result.output
+
+    def test_forget_asks_first(self, invoke, mock_api):
+        route = mock_api.delete(f"{BASE}/campaigns/{CAMPAIGN_ID}/feedback/{FEEDBACK_ID}").respond(
+            204
+        )
+
+        result = invoke(
+            ["agentic", "envoy", "campaigns", "forget", CAMPAIGN_ID, FEEDBACK_ID], input="n\n"
+        )
+
+        assert result.exit_code == 1
+        assert not route.called
+
+    def test_forget_json(self, invoke, mock_api):
+        mock_api.delete(f"{BASE}/campaigns/{CAMPAIGN_ID}/feedback/{FEEDBACK_ID}").respond(204)
+
+        result = invoke(
+            [
+                "agentic",
+                "envoy",
+                "campaigns",
+                "forget",
+                CAMPAIGN_ID,
+                FEEDBACK_ID,
+                "--yes",
+                "--json",
+            ]
+        )
+
+        assert result.exit_code == 0, result.output
+        assert json.loads(result.output) == {
+            "ok": True,
+            "id": FEEDBACK_ID,
+            "action": "forget",
+        }
+
+    def test_forget_of_an_unknown_row_gets_the_404_exit_code(self, invoke, mock_api):
+        mock_api.delete(f"{BASE}/campaigns/{CAMPAIGN_ID}/feedback/{FEEDBACK_ID}").respond(
+            404, json={"detail": "Envoy campaign feedback not found"}
+        )
+
+        result = invoke(
+            ["agentic", "envoy", "campaigns", "forget", CAMPAIGN_ID, FEEDBACK_ID, "--yes"]
+        )
+
+        assert result.exit_code == 3

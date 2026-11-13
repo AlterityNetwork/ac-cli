@@ -746,3 +746,36 @@ def test_the_v2_save_is_gone(invoke, mock_api):
 
     assert result.exit_code == 2
     assert "No such command" in result.output
+
+
+def test_reject_remember_sends_remember_with_the_reason(invoke, mock_api):
+    route = mock_api.post(f"{ACTIONS}/{ACTION_ID}/reject").respond(200, json=REJECTED)
+
+    result = invoke(
+        _reject("--then", "regenerate", "--reason", "No pricing.", "--remember", "--json")
+    )
+
+    assert result.exit_code == 0, result.output
+    assert json.loads(route.calls[0].request.content) == {
+        "then": "regenerate",
+        "reason": "No pricing.",
+        "remember": True,
+    }
+
+
+def test_reject_remember_says_the_campaign_keeps_the_reason(invoke, mock_api):
+    mock_api.post(f"{ACTIONS}/{ACTION_ID}/reject").respond(200, json=REJECTED)
+
+    result = invoke(_reject("--then", "regenerate", "--reason", "No pricing.", "--remember"))
+
+    assert result.exit_code == 0, result.output
+    assert "campaign remembers" in result.output
+
+
+def test_reject_with_stop_refuses_remember_before_the_request(invoke, mock_api):
+    route = mock_api.post(f"{ACTIONS}/{ACTION_ID}/reject").respond(200, json=REJECTED)
+
+    result = invoke(_reject("--then", "stop", "--remember", "--yes", "--json"))
+
+    assert result.exit_code == 2
+    assert not route.called
