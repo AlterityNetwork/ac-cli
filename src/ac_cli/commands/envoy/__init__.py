@@ -17,6 +17,8 @@ last 7 days, and the contacts, replies and goals met of the last 30 days.
 names the person, the email and the last decision; `--search` matches the
 name), reads one enrollment and its timeline, asks for a Run now (`evaluate`:
 re-evaluate, retry, or retry after an added email) and ends it (`exit`).
+`move` moves one enrollment or up to 50 to another campaign: each old
+enrollment ends as moved, and the person is enrolled in the target.
 `ac agentic envoy organization` reads, stops and resumes Envoy for the
 whole organization. Only an organization admin stops or resumes.
 
@@ -69,7 +71,7 @@ from ac_cli.formatting import as_text, print_detail, print_json, print_table, st
 app = typer.Typer(help="Envoy (agentic): campaigns, enrollments and the Review queue")
 drafts_app = typer.Typer(help="Read, approve and reject Envoy drafts")
 campaigns_app = typer.Typer(help="Create, edit, pause and archive Envoy campaigns")
-enrollments_app = typer.Typer(help="Read, re-evaluate and end Envoy enrollments")
+enrollments_app = typer.Typer(help="Read, re-evaluate, move and end Envoy enrollments")
 organization_app = typer.Typer(help="Stop or resume Envoy for the organization")
 
 _ENVOY = "/api/v1/agentic/envoy"
@@ -474,6 +476,7 @@ _ENROLLMENT_FIELDS = [
     ("context_version", "Context version"),
     ("enrolled_at", "Enrolled"),
     ("ended_at", "Ended at"),
+    ("moved_to_enrollment_id", "Moved to"),
 ]
 _STOP_FIELDS = [("stopped", "Stopped"), ("stopped_at", "Since")]
 # The most people one enroll-batch run names: the live cap of a campaign.
@@ -1299,6 +1302,83 @@ def enrollments_exit(
         print_json(data)
         return
     rprint(styled("[yellow]Enrollment {} ended.[/yellow]", enrollment_id))
+
+
+_MOVE_FIELDS = [
+    ("enrollment_id", "Enrollment"),
+    ("outcome", "Outcome"),
+    ("detail", "Detail"),
+]
+_MOVE_DETAILS = {
+    **_OUTCOME_DETAILS,
+    "not_found": "The organization holds no such enrollment or person",
+    "enrollment_ended": "The enrollment ended",
+    "same_campaign": "The enrollment is already in that campaign",
+    "campaign_archived": "The campaign is archived",
+    "already_enrolled": "The person is live in another campaign",
+    "run_in_progress": "A Run decides for this enrollment now. Retry later",
+}
+
+
+@enrollments_app.command("move")
+def enrollments_move(
+    enrollment_ids: list[str] = typer.Argument(..., help="Enrollment IDs, 1 to 50"),
+    campaign_id: str = typer.Option(..., "--campaign", help="The target campaign ID"),
+    json_output: bool = JSON_OPTION,
+) -> None:
+    """Move enrollments to another campaign, and print one result per enrollment.
+
+    Each old enrollment ends as moved, and its waiting drafts are not sent.
+    The person is enrolled in the target with the refusals of an enroll. One
+    refused enrollment never blocks the others.
+    """
+    set_json_mode(json_output)
+    for one in enrollment_ids:
+        try:
+            uuid.UUID(one)
+        except ValueError:
+            refuse_local("each enrollment ID must be a UUID", one)
+    if len(enrollment_ids) > _BATCH_CHUNK:
+        refuse_local(f"one move takes at most {_BATCH_CHUNK} enrollments", len(enrollment_ids))
+    if len(enrollment_ids) == 1:
+        moved = _api_request(
+            "post",
+            f"{_ENVOY}/enrollments/{enrollment_ids[0]}/move",
+            json={"campaign_id": campaign_id},
+        ).json()
+        if json_output:
+            print_json(moved)
+            return
+        results = [
+            {
+                "enrollment_id": enrollment_ids[0],
+                "outcome": "moved",
+                "moved_to_enrollment_id": moved["id"],
+            }
+        ]
+    else:
+        data = _api_request(
+            "post",
+            f"{_ENVOY}/enrollments/move",
+            json={"campaign_id": campaign_id, "enrollment_ids": enrollment_ids},
+        ).json()
+        if json_output:
+            print_json(data)
+            return
+        results = data.get("results", [])
+    rows = [
+        {
+            **one,
+            "detail": (
+                f"Enrollment {one.get('moved_to_enrollment_id')}"
+                if one.get("outcome") == "moved"
+                else _MOVE_DETAILS.get(str(one.get("outcome")), "")
+            ),
+        }
+        for one in results
+    ]
+    moved_count = sum(1 for one in results if one.get("outcome") == "moved")
+    print_table(rows, _MOVE_FIELDS, title=f"{moved_count} of {len(results)} moved")
 
 
 # The organization stop.
