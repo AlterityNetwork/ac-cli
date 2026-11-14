@@ -689,7 +689,7 @@ def test_reject_regenerate_needs_a_reason_before_the_request(invoke, mock_api):
 def test_reject_refuses_an_unknown_then_before_the_request(invoke, mock_api):
     route = mock_api.post(f"{ACTIONS}/{ACTION_ID}/reject").respond(200, json=REJECTED)
 
-    result = invoke(_reject("--then", "skip", "--reason", "Later.", "--json"))
+    result = invoke(_reject("--then", "resend", "--reason", "Later.", "--json"))
 
     assert result.exit_code == 2
     assert not route.called
@@ -772,10 +772,71 @@ def test_reject_remember_says_the_campaign_keeps_the_reason(invoke, mock_api):
     assert "campaign remembers" in result.output
 
 
-def test_reject_with_stop_refuses_remember_before_the_request(invoke, mock_api):
+@pytest.mark.parametrize("then", ["stop", "skip", "switch_channel"])
+def test_reject_refuses_remember_without_regenerate_before_the_request(invoke, mock_api, then):
     route = mock_api.post(f"{ACTIONS}/{ACTION_ID}/reject").respond(200, json=REJECTED)
 
-    result = invoke(_reject("--then", "stop", "--remember", "--yes", "--json"))
+    result = invoke(_reject("--then", then, "--remember", "--yes", "--json"))
 
     assert result.exit_code == 2
     assert not route.called
+
+
+@pytest.mark.parametrize("then", ["skip", "switch_channel"])
+def test_reject_skip_and_switch_channel_send_no_reason_and_ask_nothing(invoke, mock_api, then):
+    route = mock_api.post(f"{ACTIONS}/{ACTION_ID}/reject").respond(
+        200, json={**REJECTED, "reject_then": then}
+    )
+
+    result = invoke(_reject("--then", then, "--json"))
+
+    assert result.exit_code == 0, result.output
+    assert json.loads(route.calls[0].request.content) == {"then": then}
+    assert json.loads(result.output)["reject_then"] == then
+
+
+@pytest.mark.parametrize("then", ["skip", "switch_channel"])
+def test_reject_skip_and_switch_channel_send_an_optional_reason(invoke, mock_api, then):
+    route = mock_api.post(f"{ACTIONS}/{ACTION_ID}/reject").respond(200, json=REJECTED)
+
+    result = invoke(_reject("--then", then, "--reason", "Not this week.", "--json"))
+
+    assert result.exit_code == 0, result.output
+    assert json.loads(route.calls[0].request.content) == {
+        "then": then,
+        "reason": "Not this week.",
+    }
+
+
+@pytest.mark.parametrize(
+    ("then", "args", "said"),
+    [
+        ("regenerate", ["--reason", "Shorter."], "Envoy writes a new draft"),
+        ("stop", ["--yes"], "The enrollment ends"),
+        ("skip", [], "Envoy sends nothing now"),
+        ("switch_channel", [], "a new draft on the other channel"),
+    ],
+)
+def test_reject_says_what_follows_each_then(invoke, mock_api, then, args, said):
+    mock_api.post(f"{ACTIONS}/{ACTION_ID}/reject").respond(200, json=REJECTED)
+
+    result = invoke(_reject("--then", then, *args))
+
+    assert result.exit_code == 0, result.output
+    assert said in " ".join(result.output.split())
+
+
+def test_a_switch_the_campaign_cannot_make_exits_5_with_the_code(invoke, mock_api):
+    mock_api.post(f"{ACTIONS}/{ACTION_ID}/reject").respond(
+        409,
+        json={
+            **CONFLICT,
+            "code": "channel_unavailable",
+            "context": {"code": "channel_unavailable"},
+        },
+    )
+
+    result = invoke(_reject("--then", "switch_channel", "--json"))
+
+    assert result.exit_code == 5
+    assert json.loads(result.output)["context"] == {"code": "channel_unavailable"}
