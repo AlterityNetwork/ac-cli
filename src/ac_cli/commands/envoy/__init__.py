@@ -46,8 +46,13 @@ and their hash. A retry of the same approve answers the same action.
 `reject` takes an action id and `--then`. `regenerate` needs `--reason`
 and asks for one new draft that reads it. `--remember` also keeps the reason
 for the campaign, so each later draft of every person in it follows the
-reason; it is refused with `stop`. `stop` ends the enrollment, and asks first
-unless `--yes`. A retry of the same reject answers the same action.
+reason; it is refused with any other `--then`. `stop` ends the enrollment,
+and asks first unless `--yes`. `skip` sends nothing now: Envoy looks again
+after the shortest follow-up wait of the campaign. `switch_channel` asks for
+one new draft on the other channel; the API answers `channel_unavailable`
+when the campaign does not allow both channels or the person has no address
+on the other one. `--reason` is optional for `stop`, `skip` and
+`switch_channel`. A retry of the same reject answers the same action.
 """
 
 from __future__ import annotations
@@ -78,7 +83,14 @@ _ENVOY = "/api/v1/agentic/envoy"
 _PAGE_DEFAULT = 50
 _PAGE_MIN = 1
 _PAGE_MAX = 100
-_THENS = ("regenerate", "stop")
+_THENS = ("regenerate", "stop", "skip", "switch_channel")
+# What follows each reject, as the success message says it.
+_THEN_MEANINGS = {
+    "regenerate": "Envoy writes a new draft that follows the reason.",
+    "stop": "The enrollment ends.",
+    "skip": "Envoy sends nothing now and looks again at the next follow-up.",
+    "switch_channel": "Envoy writes a new draft on the other channel.",
+}
 
 _ACTION_STATUSES = (
     "pending_approval",
@@ -348,12 +360,19 @@ def drafts_reject(
     then: str = typer.Option(
         ...,
         "--then",
-        help="regenerate: ask for one new draft. stop: end the enrollment.",
+        help=(
+            "regenerate: ask for one new draft. stop: end the enrollment. "
+            "skip: send nothing now. switch_channel: ask for one new draft "
+            "on the other channel."
+        ),
     ),
     reason: str | None = typer.Option(
         None,
         "--reason",
-        help="What the next draft must change (1 to 1000 chars). Required for regenerate.",
+        help=(
+            "What the next draft must change (1 to 1000 chars). Required for "
+            "regenerate, optional for the others."
+        ),
     ),
     remember: bool = typer.Option(
         False,
@@ -363,13 +382,13 @@ def drafts_reject(
     yes: bool = typer.Option(False, "--yes", "-y", help="Skip confirmation for --then stop"),
     json_output: bool = JSON_OPTION,
 ) -> None:
-    """Reject one proposed action, then ask for a new draft or stop."""
+    """Reject one proposed action, then regenerate, stop, skip or switch channel."""
     set_json_mode(json_output)
     if then not in _THENS:
         refuse_local(f"--then must be one of: {', '.join(_THENS)}", then)
     if then == "regenerate" and reason is None:
         refuse_local("--then regenerate needs --reason")
-    if then == "stop" and remember:
+    if then != "regenerate" and remember:
         refuse_local("--remember needs --then regenerate")
     if then == "stop" and not should_skip_confirm(yes):
         typer.confirm("End this person's enrollment in the campaign?", abort=True)
@@ -383,6 +402,7 @@ def drafts_reject(
         print_json(data)
         return
     rprint(styled("[yellow]Action {} is rejected ({}).[/yellow]", action_id, then))
+    rprint(f"[yellow]{_THEN_MEANINGS[then]}[/yellow]")
     if remember:
         rprint("[yellow]The campaign remembers the reason for each later draft.[/yellow]")
     _print_action(data)
