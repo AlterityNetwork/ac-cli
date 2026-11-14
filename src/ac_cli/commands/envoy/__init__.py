@@ -1317,6 +1317,7 @@ _MOVE_DETAILS = {
     "campaign_archived": "The campaign is archived",
     "already_enrolled": "The person is live in another campaign",
     "run_in_progress": "A Run decides for this enrollment now. Retry later",
+    "enroll_failed": "The enrollment ended, but the enroll failed. Add the person again",
 }
 
 

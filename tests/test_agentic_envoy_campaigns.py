@@ -1861,6 +1861,34 @@ class TestMove:
         assert MOVED_ID in table_column(result.output, 2)
         assert json.loads(as_json.output) == {"results": results}
 
+    def test_a_failed_enroll_says_to_add_the_person_again(self, invoke, mock_api):
+        results = [
+            {
+                "enrollment_id": ENROLLMENT_ID,
+                "outcome": "enroll_failed",
+                "moved_to_enrollment_id": None,
+            },
+            {"enrollment_id": OTHER_ID, "outcome": "enroll_failed", "moved_to_enrollment_id": None},
+        ]
+        mock_api.post(f"{BASE}/enrollments/move").respond(200, json={"results": results})
+
+        result = invoke(
+            [
+                "agentic",
+                "envoy",
+                "enrollments",
+                "move",
+                ENROLLMENT_ID,
+                OTHER_ID,
+                "--campaign",
+                TARGET_ID,
+            ]
+        )
+
+        assert result.exit_code == 0, result.output
+        assert "0 of 2 moved" in result.output
+        assert "again" in " ".join(result.output.split())
+
     @pytest.mark.parametrize(("status", "code"), [(409, 5), (404, 3)])
     def test_a_refused_single_move_gets_the_exit_code(self, invoke, mock_api, status, code):
         mock_api.post(f"{BASE}/enrollments/{ENROLLMENT_ID}/move").respond(
