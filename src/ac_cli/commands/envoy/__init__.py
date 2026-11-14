@@ -29,7 +29,9 @@ first, and filters by `--status`, `--campaign-id` and `--type`. `--status`
 repeats, and each value is literal: the approved group of the Handled view
 passes `--status approved --status sending`. `--since` keeps the actions
 decided at or after a time, and `--sort newest_decided` puts the newest
-decision first; that sort needs a `--since` of the last 31 days. `get` reads
+decision first; that sort needs a `--since` of the last 31 days. The queue
+(`pending_approval` only) also prints how many people come due in the next
+24 hours: the API `due_soon`, which follows `--campaign-id`. `get` reads
 one action by its action id. Each item names the person, the company, the
 campaign, the touch (`2 of 5`), the address read fresh, the reply it answers
 and its sentiment, the draft, and the decision: its time, who made it, the
@@ -280,6 +282,10 @@ def drafts_list(
     print_table(rows, _LIST_FIELDS, title=f"Envoy actions {shown}")
     if data.get("has_more"):
         rprint(styled("[dim]More actions wait: --offset {}[/dim]", offset + len(rows)))
+    due_soon = data.get("due_soon")
+    if due_soon is not None:
+        people = "1 person comes" if due_soon == 1 else f"{due_soon} people come"
+        rprint(styled("[dim]{} due in the next 24 hours[/dim]", people))
 
 
 @drafts_app.command("get")
