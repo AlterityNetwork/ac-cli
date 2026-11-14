@@ -51,8 +51,9 @@ and asks first unless `--yes`. `skip` sends nothing now: Envoy looks again
 after the shortest follow-up wait of the campaign. `switch_channel` asks for
 one new draft on the other channel; the API answers `channel_unavailable`
 when the campaign does not allow both channels, the person has no address on
-the other one, or a switch to LinkedIn has no LinkedIn action. `--reason` is optional for `stop`, `skip` and
-`switch_channel`. A retry of the same reject answers the same action.
+the other one, or a switch to LinkedIn has no LinkedIn action. `--reason` is
+optional for `stop`, `skip` and `switch_channel`. A retry of the same reject
+answers the same action.
 """
 
 from __future__ import annotations
