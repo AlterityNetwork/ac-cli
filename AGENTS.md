@@ -31,8 +31,7 @@ Python CLI for AgencyCore. Built with Typer + httpx + Rich + Supabase auth.
 ## Setup
 
 ```bash
-uv sync                    # Install all dependencies
-uv sync --all-extras       # Install with dev dependencies (pytest, respx)
+uv sync                    # Install all dependencies, dev group included (pytest, respx)
 ```
 
 ## Command Groups
@@ -119,7 +118,8 @@ Pytest defaults (`pyproject.toml`): `-n auto --dist worksteal --maxfail=1 --cov-
 
 `audit_endpoints.py` requires the API on `localhost:8008` (or pass `--api-url`).
 Run before merging changes that touch routers or `_api_request` calls — exits
-nonzero on stale CLI paths or new API endpoints not yet covered.
+nonzero on stale CLI paths (CLI-ONLY) or stale `OUT_OF_SCOPE` entries; API-ONLY
+endpoints are reported but do not fail the run.
 
 ## TDD Workflow
 
