@@ -13,10 +13,14 @@ the sends, replies and decisions of one campaign, newest first, with
 touch. `summary` prints the
 organization totals: the live enrollments against the cap, the sends of the
 last 7 days, and the contacts, replies and goals met of the last 30 days.
-`ac agentic envoy enrollments` lists the enrollments of a campaign (each row
-names the person, the email and the last decision; `--search` matches the
-name), reads one enrollment and its timeline, asks for a Run now (`evaluate`:
-re-evaluate, retry, or retry after an added email) and ends it (`exit`).
+`ac agentic envoy enrollments` lists the enrollments of a campaign, the
+people who wait on a review first, then by the next step. Each row names the
+person, the email, the title and company, the last decision, the last touch,
+the reply and, for needs_contact_data, why the email is missing. `--status`
+also takes `awaiting` and `in_progress`, the two parts of active, and
+`--search` matches the name. It also reads one enrollment and its timeline,
+asks for a Run now (`evaluate`: re-evaluate, retry, or retry after an added
+email) and ends it (`exit`).
 `move` moves one enrollment or up to 50 to another campaign: each old
 enrollment ends as moved, and the person is enrolled in the target.
 `ac agentic envoy organization` reads, stops and resumes Envoy for the
@@ -1188,11 +1192,13 @@ def enrollments_list(
     offset: int = typer.Option(0, "--offset", help="How many enrollments to skip first"),
     json_output: bool = JSON_OPTION,
 ) -> None:
-    """List the enrollments of one campaign, newest first.
+    """List the enrollments of one campaign: awaiting you first, then next step.
 
-    Each row shows the person, the title and company, the last decision, the
-    last touch and the reply. A needs_contact_data row names why the email
-    is missing.
+    The people who wait on a review come first. Then the rows go by the next
+    step, soonest first, and a row with no next step comes last. Each row
+    shows the person, the title and company, the last decision, the last
+    touch and the reply. A needs_contact_data row names why the email is
+    missing.
     """
     set_json_mode(json_output)
     if status is not None and status not in _ENROLLMENT_STATUSES:
