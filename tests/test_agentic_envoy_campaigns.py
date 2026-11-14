@@ -1797,42 +1797,44 @@ OTHER_ID = "55555555-5555-4555-8555-555555555555"
 
 
 class TestMove:
-    """`enrollments move` sends one id to the single route, more to the batch route."""
+    """`enrollments move` posts every id, one or up to 50, to the batch route."""
 
-    def test_one_id_posts_the_single_route_and_prints_the_result(
+    def test_one_id_posts_the_batch_route_and_prints_the_result(
         self, invoke, mock_api, table_column
     ):
-        moved = {**ENROLLMENT, "id": MOVED_ID, "campaign_id": TARGET_ID}
-        route = mock_api.post(f"{BASE}/enrollments/{ENROLLMENT_ID}/move").respond(200, json=moved)
+        results = [
+            {"enrollment_id": ENROLLMENT_ID, "outcome": "moved", "moved_to_enrollment_id": MOVED_ID}
+        ]
+        route = mock_api.post(f"{BASE}/enrollments/move").respond(200, json={"results": results})
 
         result = invoke(
             ["agentic", "envoy", "enrollments", "move", ENROLLMENT_ID, "--campaign", TARGET_ID]
         )
 
         assert result.exit_code == 0, result.output
-        assert _body(route) == {"campaign_id": TARGET_ID}
+        assert _body(route) == {"campaign_id": TARGET_ID, "enrollment_ids": [ENROLLMENT_ID]}
         assert "1 of 1 moved" in result.output
         assert table_column(result.output, 1) == "moved"
         assert MOVED_ID in table_column(result.output, 2)
 
-    def test_one_id_prints_the_new_enrollment_as_json(self, invoke, mock_api):
-        moved = {**ENROLLMENT, "id": MOVED_ID, "campaign_id": TARGET_ID}
-        mock_api.post(f"{BASE}/enrollments/{ENROLLMENT_ID}/move").respond(200, json=moved)
+    def test_one_refused_id_prints_why(self, invoke, mock_api, table_column):
+        results = [
+            {
+                "enrollment_id": ENROLLMENT_ID,
+                "outcome": "same_campaign",
+                "moved_to_enrollment_id": None,
+            }
+        ]
+        mock_api.post(f"{BASE}/enrollments/move").respond(200, json={"results": results})
+        args = ["agentic", "envoy", "enrollments", "move", ENROLLMENT_ID, "--campaign", TARGET_ID]
 
-        result = invoke(
-            [
-                "agentic",
-                "envoy",
-                "enrollments",
-                "move",
-                ENROLLMENT_ID,
-                "--campaign",
-                TARGET_ID,
-                "--json",
-            ]
-        )
+        result = invoke(args)
+        as_json = invoke([*args, "--json"])
 
-        assert json.loads(result.output) == moved
+        assert result.exit_code == 0, result.output
+        assert "0 of 1 moved" in result.output
+        assert "same_campaign" in table_column(result.output, 1)
+        assert json.loads(as_json.output) == {"results": results}
 
     def test_several_ids_post_the_batch_route_and_print_each_result(
         self, invoke, mock_api, table_column
@@ -1890,9 +1892,10 @@ class TestMove:
         assert "again" in " ".join(result.output.split())
 
     @pytest.mark.parametrize(("status", "code"), [(409, 5), (404, 3)])
-    def test_a_refused_single_move_gets_the_exit_code(self, invoke, mock_api, status, code):
-        mock_api.post(f"{BASE}/enrollments/{ENROLLMENT_ID}/move").respond(
-            status, json={"detail": {"message": "refused", "code": "same_campaign"}}
+    def test_a_refused_target_gets_the_exit_code(self, invoke, mock_api, status, code):
+        """An archived or unknown target refuses the whole request."""
+        mock_api.post(f"{BASE}/enrollments/move").respond(
+            status, json={"detail": {"message": "refused", "code": "campaign_archived"}}
         )
 
         result = invoke(
@@ -1902,7 +1905,6 @@ class TestMove:
         assert result.exit_code == code
 
     def test_a_bad_id_or_more_than_50_are_refused_before_any_call(self, invoke, mock_api):
-        single = mock_api.post(f"{BASE}/enrollments/{ENROLLMENT_ID}/move")
         batch = mock_api.post(f"{BASE}/enrollments/move")
         many = [f"{n:08d}-0000-4000-8000-000000000000" for n in range(51)]
 
@@ -1912,5 +1914,4 @@ class TestMove:
         )
 
         assert (bad.exit_code, too_many.exit_code) == (2, 2)
-        assert not single.called
         assert not batch.called

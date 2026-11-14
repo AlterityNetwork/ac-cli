@@ -1368,32 +1368,15 @@ def enrollments_move(
             refuse_local("each enrollment ID must be a UUID", one)
     if len(enrollment_ids) > _BATCH_CHUNK:
         refuse_local(f"one move takes at most {_BATCH_CHUNK} enrollments", len(enrollment_ids))
-    if len(enrollment_ids) == 1:
-        moved = _api_request(
-            "post",
-            f"{_ENVOY}/enrollments/{enrollment_ids[0]}/move",
-            json={"campaign_id": campaign_id},
-        ).json()
-        if json_output:
-            print_json(moved)
-            return
-        results = [
-            {
-                "enrollment_id": enrollment_ids[0],
-                "outcome": "moved",
-                "moved_to_enrollment_id": moved["id"],
-            }
-        ]
-    else:
-        data = _api_request(
-            "post",
-            f"{_ENVOY}/enrollments/move",
-            json={"campaign_id": campaign_id, "enrollment_ids": enrollment_ids},
-        ).json()
-        if json_output:
-            print_json(data)
-            return
-        results = data.get("results", [])
+    data = _api_request(
+        "post",
+        f"{_ENVOY}/enrollments/move",
+        json={"campaign_id": campaign_id, "enrollment_ids": enrollment_ids},
+    ).json()
+    if json_output:
+        print_json(data)
+        return
+    results = data.get("results", [])
     rows = [
         {
             **one,
