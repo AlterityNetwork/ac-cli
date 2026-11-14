@@ -152,6 +152,43 @@ def test_list_json_keeps_the_page(invoke, mock_api):
     assert json.loads(result.output) == _page(ACTION)
 
 
+@pytest.mark.parametrize(
+    ("due_soon", "line"),
+    [
+        (6, "6 people come due in the next 24 hours"),
+        (1, "1 person comes due in the next 24 hours"),
+        (0, "0 people come due in the next 24 hours"),
+    ],
+)
+def test_list_names_the_people_due_soon(invoke, mock_api, due_soon, line):
+    mock_api.get(ACTIONS).respond(200, json={**_page(), "due_soon": due_soon})
+
+    result = invoke(["agentic", "envoy", "drafts", "list"])
+
+    assert result.exit_code == 0, result.output
+    assert line in " ".join(result.output.split())
+
+
+@pytest.mark.parametrize("page", [{**_page(ACTION), "due_soon": None}, _page(ACTION)])
+def test_list_prints_no_due_line_without_due_soon(invoke, mock_api, page):
+    mock_api.get(ACTIONS).respond(200, json=page)
+
+    result = invoke(["agentic", "envoy", "drafts", "list"])
+
+    assert result.exit_code == 0, result.output
+    assert "come due" not in result.output
+    assert "comes due" not in result.output
+
+
+def test_list_json_passes_due_soon_through(invoke, mock_api):
+    page = {**_page(ACTION), "due_soon": 6}
+    mock_api.get(ACTIONS).respond(200, json=page)
+
+    result = invoke(["agentic", "envoy", "drafts", "list", "--json"])
+
+    assert json.loads(result.output)["due_soon"] == 6
+
+
 def test_list_refuses_a_negative_offset(invoke, mock_api):
     route = mock_api.get(ACTIONS).respond(200, json=_page())
 
