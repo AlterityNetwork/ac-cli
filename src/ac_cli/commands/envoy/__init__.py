@@ -403,7 +403,7 @@ def drafts_reject(
         print_json(data)
         return
     rprint(styled("[yellow]Action {} is rejected ({}).[/yellow]", action_id, then))
-    rprint(f"[yellow]{_THEN_MEANINGS[then]}[/yellow]")
+    rprint(styled("[yellow]{}[/yellow]", _THEN_MEANINGS[then]))
     if remember:
         rprint("[yellow]The campaign remembers the reason for each later draft.[/yellow]")
     _print_action(data)
