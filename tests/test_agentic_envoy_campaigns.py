@@ -1789,3 +1789,128 @@ class TestRememberedFeedback:
         )
 
         assert result.exit_code == 3
+
+
+TARGET_ID = "66666666-6666-4666-8666-666666666666"
+MOVED_ID = "11111111-1111-4111-8111-111111111111"
+OTHER_ID = "55555555-5555-4555-8555-555555555555"
+
+
+class TestMove:
+    """`enrollments move` sends one id to the single route, more to the batch route."""
+
+    def test_one_id_posts_the_single_route_and_prints_the_result(
+        self, invoke, mock_api, table_column
+    ):
+        moved = {**ENROLLMENT, "id": MOVED_ID, "campaign_id": TARGET_ID}
+        route = mock_api.post(f"{BASE}/enrollments/{ENROLLMENT_ID}/move").respond(200, json=moved)
+
+        result = invoke(
+            ["agentic", "envoy", "enrollments", "move", ENROLLMENT_ID, "--campaign", TARGET_ID]
+        )
+
+        assert result.exit_code == 0, result.output
+        assert _body(route) == {"campaign_id": TARGET_ID}
+        assert "1 of 1 moved" in result.output
+        assert table_column(result.output, 1) == "moved"
+        assert MOVED_ID in table_column(result.output, 2)
+
+    def test_one_id_prints_the_new_enrollment_as_json(self, invoke, mock_api):
+        moved = {**ENROLLMENT, "id": MOVED_ID, "campaign_id": TARGET_ID}
+        mock_api.post(f"{BASE}/enrollments/{ENROLLMENT_ID}/move").respond(200, json=moved)
+
+        result = invoke(
+            [
+                "agentic",
+                "envoy",
+                "enrollments",
+                "move",
+                ENROLLMENT_ID,
+                "--campaign",
+                TARGET_ID,
+                "--json",
+            ]
+        )
+
+        assert json.loads(result.output) == moved
+
+    def test_several_ids_post_the_batch_route_and_print_each_result(
+        self, invoke, mock_api, table_column
+    ):
+        results = [
+            {
+                "enrollment_id": ENROLLMENT_ID,
+                "outcome": "moved",
+                "moved_to_enrollment_id": MOVED_ID,
+            },
+            {"enrollment_id": OTHER_ID, "outcome": "campaign_full", "moved_to_enrollment_id": None},
+        ]
+        route = mock_api.post(f"{BASE}/enrollments/move").respond(200, json={"results": results})
+        args = ["agentic", "envoy", "enrollments", "move", ENROLLMENT_ID, OTHER_ID]
+
+        result = invoke([*args, "--campaign", TARGET_ID])
+        as_json = invoke([*args, "--campaign", TARGET_ID, "--json"])
+
+        assert result.exit_code == 0, result.output
+        assert _body(route) == {
+            "campaign_id": TARGET_ID,
+            "enrollment_ids": [ENROLLMENT_ID, OTHER_ID],
+        }
+        assert "1 of 2 moved" in result.output
+        assert "campaign_full" in table_column(result.output, 1)
+        assert MOVED_ID in table_column(result.output, 2)
+        assert json.loads(as_json.output) == {"results": results}
+
+    def test_a_failed_enroll_says_to_add_the_person_again(self, invoke, mock_api):
+        results = [
+            {
+                "enrollment_id": ENROLLMENT_ID,
+                "outcome": "enroll_failed",
+                "moved_to_enrollment_id": None,
+            },
+            {"enrollment_id": OTHER_ID, "outcome": "enroll_failed", "moved_to_enrollment_id": None},
+        ]
+        mock_api.post(f"{BASE}/enrollments/move").respond(200, json={"results": results})
+
+        result = invoke(
+            [
+                "agentic",
+                "envoy",
+                "enrollments",
+                "move",
+                ENROLLMENT_ID,
+                OTHER_ID,
+                "--campaign",
+                TARGET_ID,
+            ]
+        )
+
+        assert result.exit_code == 0, result.output
+        assert "0 of 2 moved" in result.output
+        assert "again" in " ".join(result.output.split())
+
+    @pytest.mark.parametrize(("status", "code"), [(409, 5), (404, 3)])
+    def test_a_refused_single_move_gets_the_exit_code(self, invoke, mock_api, status, code):
+        mock_api.post(f"{BASE}/enrollments/{ENROLLMENT_ID}/move").respond(
+            status, json={"detail": {"message": "refused", "code": "same_campaign"}}
+        )
+
+        result = invoke(
+            ["agentic", "envoy", "enrollments", "move", ENROLLMENT_ID, "--campaign", TARGET_ID]
+        )
+
+        assert result.exit_code == code
+
+    def test_a_bad_id_or_more_than_50_are_refused_before_any_call(self, invoke, mock_api):
+        single = mock_api.post(f"{BASE}/enrollments/{ENROLLMENT_ID}/move")
+        batch = mock_api.post(f"{BASE}/enrollments/move")
+        many = [f"{n:08d}-0000-4000-8000-000000000000" for n in range(51)]
+
+        bad = invoke(["agentic", "envoy", "enrollments", "move", "nope", "--campaign", TARGET_ID])
+        too_many = invoke(
+            ["agentic", "envoy", "enrollments", "move", *many, "--campaign", TARGET_ID]
+        )
+
+        assert (bad.exit_code, too_many.exit_code) == (2, 2)
+        assert not single.called
+        assert not batch.called
