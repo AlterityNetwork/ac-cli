@@ -24,7 +24,7 @@ paths:
 - IDs are positional `typer.Argument()`, optional fields are `typer.Option(None, ...)`
 - Tags: accept comma-separated string on CLI, `_build_body` splits to list automatically
 - Dates: ISO format strings (`2026-03-15`)
-- Standalone commands (not sub-apps) are registered via `app.command("name")(function)` — see `signals_command`, `dashboard_command` in sequences
+- Standalone commands (not sub-apps) are registered via `app.command("name")(function)` — see `dashboard_command` in sequences
 
 ## API Route Prefix
 - Each domain defines its own prefix constant in its `__init__.py` or module file:

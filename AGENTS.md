@@ -44,12 +44,13 @@ uv sync --all-extras       # Install with dev dependencies (pytest, respx)
 | `crm` | Companies, people, deals, activities, comms (incl. approvals), lists, imports |
 | `sequences` | Sequences (incl. lifecycle), steps, recipients, outbox, playbooks, battlecards, inbox |
 | `files` | Image upload/delete |
+| `inbox` | Inbox: one row per person on email and LinkedIn, Sent, Drafts and Scheduled views, reply, new message, AI draft, done, read state, intent, counts |
 | `workflows` | Runs, schedules, presets, csv-parse |
 | `apps` | Organization app install/config |
 | `settings` | Organization settings: the copilot approval framework, targeting, the Company dossier, your memory lines and the suggestions learned from your edits |
 | `agentic` | Agentic platform: capabilities, runs, definitions, tools, approvals, conversations, prospects, saved-searches, envoy, triggers, policies, connections, limits |
-| `analytics` | Customer-facing organization analytics overview |
-| `admin` | Users, orgs, queues, demo, onboarding, copilots, app-usage, ai-usage, platform-activity, legal-docs, resources, apps, subscriptions, subscription-plans, entitlement-grants, credit-prices (super admin) |
+| `analytics` | Customer-facing organization analytics: the overview, and the replies by category |
+| `admin` | Users, orgs, queues, demo, onboarding, copilots, app-usage, ai-usage, platform-activity, legal-docs, resources, apps, subscriptions, billing (incl. credit top-ups and credit usage), subscription-plans, entitlement-grants, credit-prices, limit-overrides (super admin) |
 | `profiles` | User profile (incl. set-organization, set-password, subscription) |
 | `resources` | Knowledge base resource management |
 | `styles` | Writing styles |
@@ -77,7 +78,7 @@ The table documents the branch it is read on.
 The CLI is designed to be consumed by AI agents and scripts:
 
 - **Structured JSON errors**: When `--json` is active, errors return `{"error": true, "status_code": ..., "detail": ...}` instead of Rich text
-- **Semantic exit codes**: `0`=success, `1`=general error, `2`=validation (422), `3`=not found (404), `4`=auth/permission (401/403), `5`=conflict (409), `6`=payment required (402)
+- **Semantic exit codes**: `0`=success, `1`=general error, `2`=validation (422), `3`=not found (404), `4`=auth/permission (401/403), `5`=conflict (409), `6`=plan refusal (402)
 - **`AC_YES=1` env var**: Skips all `typer.confirm()` prompts for non-interactive use
 - **`--json` on all groups**: Every group callback calls `set_json_mode()` so errors also respect JSON mode
 
