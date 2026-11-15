@@ -36,10 +36,11 @@ decided at or after a time, and `--sort newest_decided` puts the newest
 decision first; that sort needs a `--since` of the last 31 days. The queue
 (`pending_approval` only) also prints how many people come due in the next
 24 hours: the API `due_soon`, which follows `--campaign-id`. `get` reads
-one action by its action id. Each item names the person, the company, the
-campaign, the touch (`2 of 5`), the address read fresh, the reply it answers
-and its sentiment, the draft, and the decision: its time, who made it, the
-reject or failure reason, and the facts Envoy used (`source · label`).
+one action by its action id. Each item names the person and the photo URL,
+the company and the logo URL, the campaign, the touch (`2 of 5`), the
+address read fresh, the reply it answers and its sentiment, the draft, and
+the decision: its time, who made it, the reject or failure reason, and the
+facts Envoy used (`source · label`).
 
 `approve` takes an action id. With no edit flag it approves the draft as it
 is and sends no payload. An edit flag reads the action first and sends the
@@ -138,7 +139,9 @@ _ACTION_FIELDS = [
     ("type", "Type"),
     ("status", "Status"),
     ("person_name", "Person"),
+    ("avatar_url", "Photo"),
     ("company_name", "Company"),
+    ("company_logo_url", "Logo"),
     ("campaign_name", "Campaign"),
     ("campaign_status", "Campaign status"),
     ("touch", "Touch"),
@@ -156,7 +159,7 @@ _ACTION_FIELDS = [
 
 
 def _flat(item: dict) -> dict:
-    """One action with the person and the campaign names at the top level.
+    """One action with the person and the campaign fields at the top level.
 
     A person with no name, or a deleted one, shows the address instead. A
     deleted person also has no address, so the cell is blank. The touch cell
@@ -174,6 +177,7 @@ def _flat(item: dict) -> dict:
     return {
         **item,
         "person_name": person.get("name") or item.get("to"),
+        "avatar_url": person.get("avatar_url"),
         "campaign_name": campaign.get("name"),
         "campaign_status": campaign.get("status"),
         "touch": touch,
