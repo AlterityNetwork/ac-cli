@@ -27,8 +27,10 @@ ACTION = {
         "kind": "crm.person",
         "id": "77777777-7777-4777-8777-777777777777",
         "name": "Jane Doe",
+        "avatar_url": "https://cdn.example/jane.png",
     },
     "company_name": "Acme",
+    "company_logo_url": "https://cdn.example/acme.png",
     "touch_number": 2,
     "campaign": {"id": CAMPAIGN_ID, "name": "Q4 intro", "status": "active", "max_touches": 5},
     "rationale": "She asked for the deck.",
@@ -511,6 +513,23 @@ def test_get_prints_the_linkedin_state(invoke, mock_api, linkedin, shown):
     assert result.exit_code == 0, result.output
     [line] = [one for one in result.output.splitlines() if "LinkedIn" in one]
     assert line.split("LinkedIn", 1)[1].strip(" │:") == shown
+
+
+@pytest.mark.parametrize(
+    ("photo", "logo"),
+    [("https://cdn.example/jane.png", "https://cdn.example/acme.png"), (None, None)],
+)
+def test_get_prints_the_photo_and_the_logo(invoke, mock_api, photo, logo):
+    person = {**ACTION["person"], "avatar_url": photo}
+    item = {**ACTION, "person": person, "company_logo_url": logo}
+    mock_api.get(f"{ACTIONS}/{ACTION_ID}").respond(200, json=item)
+
+    result = invoke(["agentic", "envoy", "drafts", "get", ACTION_ID])
+
+    assert result.exit_code == 0, result.output
+    for label, url in (("Photo", photo), ("Logo", logo)):
+        [line] = [one for one in result.output.splitlines() if label in one]
+        assert line.split(label, 1)[1].strip(" │:") == (url or "")
 
 
 def test_get_of_an_email_prints_no_linkedin_state(invoke, mock_api):
