@@ -513,6 +513,8 @@ _ENROLLMENT_FIELDS = [
     ("ended_at", "Ended at"),
     ("moved_to_enrollment_id", "Moved to"),
 ]
+# Only the read of one enrollment names the Signals prospect of the person.
+_ENROLLMENT_DETAIL_FIELDS = [*_ENROLLMENT_FIELDS, ("prospect_id", "Prospect")]
 _STOP_FIELDS = [("stopped", "Stopped"), ("stopped_at", "Since")]
 # The most people one enroll-batch run names: the live cap of a campaign.
 _BATCH_MAX = 200
@@ -1237,13 +1239,13 @@ def enrollments_get(
     enrollment_id: str = typer.Argument(..., help="Enrollment ID"),
     json_output: bool = JSON_OPTION,
 ) -> None:
-    """Read one enrollment."""
+    """Read one enrollment and the Signals prospect of its person."""
     set_json_mode(json_output)
     data = _api_request("get", f"{_ENVOY}/enrollments/{enrollment_id}").json()
     if json_output:
         print_json(data)
         return
-    print_detail(data, _ENROLLMENT_FIELDS)
+    print_detail(data, _ENROLLMENT_DETAIL_FIELDS)
 
 
 _TIMELINE_FIELDS = [
