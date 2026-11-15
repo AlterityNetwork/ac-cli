@@ -1263,11 +1263,18 @@ def _timeline_text(item: dict) -> str:
     elif kind == "action":
         parts = [item.get("type"), item.get("status"), item.get("reject_reason")]
     elif kind == "email":
-        parts = [item.get("direction"), item.get("status"), item.get("subject")]
+        parts = [
+            item.get("direction"),
+            item.get("status"),
+            item.get("subject"),
+            # An outbound email always comes from the campaign mailbox.
+            item.get("from_email") if item.get("direction") == "inbound" else None,
+        ]
     elif kind == "linkedin_message":
         parts = [item.get("direction"), item.get("text")]
     elif kind == "linkedin_connection":
-        parts = [item.get("status")]
+        note = "no note" if item.get("note_sent") is False else item.get("text")
+        parts = [item.get("status"), note]
     elif kind == "ended":
         parts = [item.get("ended_reason")]
     else:

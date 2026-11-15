@@ -1383,6 +1383,60 @@ class TestEnrollmentTimeline:
         ):
             assert line in result.output
 
+    def test_timeline_prints_the_invite_note_and_the_sender_of_a_reply(self, invoke, mock_api):
+        items = [
+            {
+                "kind": "linkedin_connection",
+                "at": "2026-10-22T09:00:00Z",
+                "id": ENROLLMENT_ID,
+                "status": "sent",
+                "note_sent": False,
+                "text": None,
+            },
+            {
+                "kind": "linkedin_connection",
+                "at": "2026-10-23T09:00:00Z",
+                "id": ENROLLMENT_ID,
+                "status": "sent",
+                "note_sent": True,
+                "text": "Glad to connect.",
+            },
+            {
+                "kind": "email",
+                "at": "2026-10-21T15:00:00Z",
+                "id": ENROLLMENT_ID,
+                "direction": "inbound",
+                "subject": "Re: Hello",
+                "status": "received",
+                "from_email": "jane@acme.com",
+            },
+            {
+                "kind": "email",
+                "at": "2026-10-20T15:00:00Z",
+                "id": ENROLLMENT_ID,
+                "direction": "outbound",
+                "subject": "Hello",
+                "status": "sent",
+                "from_email": "mailbox@agency.example",
+            },
+        ]
+        mock_api.get(f"{BASE}/enrollments/{ENROLLMENT_ID}/timeline").respond(
+            200, json={**TIMELINE, "items": items}
+        )
+
+        result = invoke(["agentic", "envoy", "enrollments", "timeline", ENROLLMENT_ID])
+
+        assert result.exit_code == 0, result.output
+        output = " ".join(result.output.split())
+        for line in (
+            "sent · no note",
+            "sent · Glad to connect.",
+            "jane@acme.com",
+        ):
+            assert line in output
+        # An outbound email comes from the campaign mailbox, so the line leaves it out.
+        assert "mailbox@agency.example" not in output
+
     def test_timeline_has_no_order_option(self, invoke, mock_api):
         route = mock_api.get(f"{BASE}/enrollments/{ENROLLMENT_ID}/timeline")
 
