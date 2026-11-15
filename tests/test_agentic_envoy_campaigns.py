@@ -1060,6 +1060,38 @@ class TestEnrollments:
         assert "2026-10-21T10:30:00Z" in result.output
         assert "Run holding it" not in result.output
 
+    def test_get_prints_the_signals_prospect(self, invoke, mock_api):
+        prospect_id = "99999999-9999-4999-8999-999999999999"
+        mock_api.get(f"{BASE}/enrollments/{ENROLLMENT_ID}").respond(
+            200, json={**ENROLLMENT, "prospect_id": prospect_id}
+        )
+
+        result = invoke(["agentic", "envoy", "enrollments", "get", ENROLLMENT_ID])
+
+        assert result.exit_code == 0, result.output
+        assert "Prospect:" in result.output
+        assert prospect_id in result.output
+
+    def test_enroll_prints_no_prospect_row(self, invoke, mock_api):
+        mock_api.post(f"{BASE}/campaigns/{CAMPAIGN_ID}/enrollments").respond(201, json=ENROLLMENT)
+
+        result = invoke(
+            [
+                "agentic",
+                "envoy",
+                "campaigns",
+                "enroll",
+                CAMPAIGN_ID,
+                "--person-kind",
+                "crm.person",
+                "--person-id",
+                ENROLLMENT["person_id"],
+            ]
+        )
+
+        assert result.exit_code == 0, result.output
+        assert "Prospect:" not in result.output
+
     def test_list_refuses_awaiting_approval_without_a_call(self, invoke, mock_api):
         route = mock_api.get(f"{BASE}/campaigns/{CAMPAIGN_ID}/enrollments").respond(200, json=PAGE)
 
