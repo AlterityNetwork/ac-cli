@@ -66,11 +66,19 @@ def tos_status(
 @app.command("accept")
 def tos_accept(
     ctx: typer.Context,
+    version: str | None = typer.Option(
+        None, "--version", help="TOS version to accept. Default: the current version"
+    ),
     json_output: bool = JSON_OPTION,
 ) -> None:
     """Accept the current TOS version."""
     set_json_mode(json_output)
-    resp = _api_request("post", f"{_TOS}/accept")
+    if version is None:
+        version = _api_request("get", f"{_TOS}/config").json().get("current_version")
+    if not version:
+        rprint("[yellow]No TOS version is published.[/yellow]")
+        raise typer.Exit(code=1)
+    resp = _api_request("post", f"{_TOS}/accept", json={"tos_version": version})
 
     data = resp.json()
     if json_output:

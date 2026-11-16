@@ -38,18 +38,44 @@ def test_status_json(invoke, mock_api):
 
 
 def test_accept(invoke, mock_api):
-    mock_api.post("/api/v1/tos/accept").respond(200, json={"accepted": True})
+    mock_api.get("/api/v1/tos/config").respond(
+        200, json={"current_version": "3.0", "termly_embed_url": ""}
+    )
+    route = mock_api.post("/api/v1/tos/accept").respond(200, json={"accepted": True})
     result = invoke(["tos", "accept"])
     assert result.exit_code == 0
     assert "accepted" in result.output.lower()
+    assert json.loads(route.calls.last.request.content) == {"tos_version": "3.0"}
 
 
 def test_accept_json(invoke, mock_api):
+    mock_api.get("/api/v1/tos/config").respond(
+        200, json={"current_version": "3.0", "termly_embed_url": ""}
+    )
     mock_api.post("/api/v1/tos/accept").respond(200, json={"accepted": True})
     result = invoke(["tos", "accept", "--json"])
     assert result.exit_code == 0
     parsed = json.loads(result.output)
     assert parsed["accepted"] is True
+
+
+def test_accept_a_named_version_skips_the_config_read(invoke, mock_api):
+    config = mock_api.get("/api/v1/tos/config")
+    route = mock_api.post("/api/v1/tos/accept").respond(200, json={"accepted": True})
+    result = invoke(["tos", "accept", "--version", "2.1"])
+    assert result.exit_code == 0
+    assert not config.called
+    assert json.loads(route.calls.last.request.content) == {"tos_version": "2.1"}
+
+
+def test_accept_with_no_current_version_stops(invoke, mock_api):
+    mock_api.get("/api/v1/tos/config").respond(
+        200, json={"current_version": "", "termly_embed_url": ""}
+    )
+    route = mock_api.post("/api/v1/tos/accept")
+    result = invoke(["tos", "accept"])
+    assert result.exit_code == 1
+    assert not route.called
 
 
 def test_update_config(invoke, mock_api):
