@@ -248,3 +248,13 @@ def test_steps_update_can_lift_the_hold(invoke, mock_api):
     assert result.exit_code == 0
     body = json.loads(route.calls.last.request.content)
     assert body == {"wait_for_acceptance": False}
+
+
+def test_steps_reorder_sends_step_ids_in_order(invoke, mock_api):
+    route = mock_api.put("/api/v1/sequences/sequences/seq-1/steps/reorder").respond(
+        200, json=[SAMPLE_STEP]
+    )
+    result = invoke(["sequences", "steps", "reorder", "seq-1", "--step-ids", "s-2, s-1"])
+    assert result.exit_code == 0
+    body = json.loads(route.calls.last.request.content)
+    assert body == {"step_ids_in_order": ["s-2", "s-1"]}

@@ -91,7 +91,7 @@ def resources_upload(
 
     form_data: dict = {"source_name": name}
     if description is not None:
-        form_data["description"] = description
+        form_data["source_description"] = description
     if tags is not None:
         form_data["tags"] = tags
 

@@ -2,6 +2,8 @@
 
 import json
 
+import pytest
+
 SAMPLE_SUMMARY = {
     "total_opens": 150,
     "total_runs": 80,
@@ -126,3 +128,29 @@ def test_app_usage_user_json(invoke, mock_api):
     parsed = json.loads(result.output)
     assert parsed["email"] == "alice@example.com"
     assert len(parsed["by_app"]) == 1
+
+
+@pytest.mark.parametrize(
+    ("args", "path", "body"),
+    [
+        (["summary"], "/api/v1/admin/app-usage/summary", {}),
+        (["users"], "/api/v1/admin/app-usage/users", {"data": []}),
+        (["user", "user-123"], "/api/v1/admin/app-usage/users/user-123", {}),
+    ],
+)
+def test_app_usage_org_id_sends_organization_id(invoke, mock_api, args, path, body):
+    route = mock_api.get(path).respond(200, json=body)
+    result = invoke(["admin", "app-usage", *args, "--org-id", "org-123", "--json"])
+    assert result.exit_code == 0
+    params = route.calls.last.request.url.params
+    assert params["organization_id"] == "org-123"
+    assert "org_id" not in params
+
+
+def test_app_usage_users_search_sends_q(invoke, mock_api):
+    route = mock_api.get("/api/v1/admin/app-usage/users").respond(200, json=SAMPLE_USERS)
+    result = invoke(["admin", "app-usage", "users", "--search", "alice"])
+    assert result.exit_code == 0
+    params = route.calls.last.request.url.params
+    assert params["q"] == "alice"
+    assert "search" not in params

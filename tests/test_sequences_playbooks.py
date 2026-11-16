@@ -123,3 +123,23 @@ def test_playbooks_duplicate(invoke, mock_api):
     result = invoke(["sequences", "playbooks", "duplicate", "pb-1"])
     assert result.exit_code == 0
     assert "Duplicated playbook" in result.output
+
+
+def test_playbooks_create_sends_only_request_fields(invoke, mock_api):
+    route = mock_api.post("/api/v1/playbooks").respond(201, json=SAMPLE_PLAYBOOK)
+    result = invoke(["sequences", "playbooks", "create", "--name", "Outbound"])
+    assert result.exit_code == 0
+    body = json.loads(route.calls.last.request.content)
+    assert body == {"name": "Outbound"}
+
+
+def test_playbooks_create_has_no_unread_options(invoke, mock_api):
+    for flag in ("--description", "--status", "--competitor-name"):
+        result = invoke(["sequences", "playbooks", "create", "--name", "Outbound", flag, "v"])
+        assert result.exit_code == 2
+
+
+def test_playbooks_update_has_no_unread_options(invoke, mock_api):
+    for flag in ("--description", "--status", "--competitor-name"):
+        result = invoke(["sequences", "playbooks", "update", "pb-1", flag, "v"])
+        assert result.exit_code == 2

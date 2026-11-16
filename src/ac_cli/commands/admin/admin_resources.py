@@ -15,16 +15,13 @@ admin_resources_app = typer.Typer(help="Admin resource management")
 @admin_resources_app.command("list")
 def resources_list(
     ctx: typer.Context,
-    org_id: str | None = typer.Option(None, "--org-id", help="Filter by organization ID"),
-    limit: int = typer.Option(50, help="Max results"),
-    offset: int = typer.Option(0, help="Offset"),
+    page: int = typer.Option(1, help="Page number"),
+    page_size: int = typer.Option(25, "--page-size", help="Page size"),
     json_output: bool = JSON_OPTION,
 ) -> None:
     """List knowledge base resources."""
     set_json_mode(json_output)
-    params: dict = {"limit": limit, "offset": offset}
-    if org_id:
-        params["org_id"] = org_id
+    params: dict = {"page": page, "page_size": page_size}
 
     resp = _api_request("get", f"{_ADMIN}/resources", params=params)
 
@@ -73,16 +70,14 @@ def resources_upload(
     ctx: typer.Context,
     file_path: str = typer.Argument(..., help="Path to file to upload"),
     org_id: str = typer.Option(..., "--org-id", help="Organization ID"),
-    name: str | None = typer.Option(None, "--name", help="Resource name"),
+    name: str = typer.Option(..., "--name", help="Resource name"),
     json_output: bool = JSON_OPTION,
 ) -> None:
     """Upload a knowledge base resource."""
     set_json_mode(json_output)
     with open(file_path, "rb") as f:
         files = {"file": (file_path.split("/")[-1], f)}
-        data_fields: dict = {"organization_id": org_id}
-        if name:
-            data_fields["name"] = name
+        data_fields: dict = {"organization_id": org_id, "source_name": name}
         resp = _api_request("post", f"{_ADMIN}/resources/upload", files=files, data=data_fields)
 
     data = resp.json()
@@ -143,7 +138,7 @@ def resources_update(
     set_json_mode(json_output)
     from ac_cli.commands._helpers import _build_body
 
-    body = _build_body(name=name)
+    body = _build_body(source_name=name)
     if not body:
         rprint("[yellow]No fields to update.[/yellow]")
         raise typer.Exit(code=1)

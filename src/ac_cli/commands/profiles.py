@@ -233,13 +233,11 @@ def profiles_usage(
 @app.command("members")
 def profiles_members(
     ctx: typer.Context,
-    limit: int = typer.Option(50, help="Max items to return"),
-    offset: int = typer.Option(0, help="Offset for pagination"),
     json_output: bool = JSON_OPTION,
 ) -> None:
     """List organization members."""
     set_json_mode(json_output)
-    resp = _api_request("get", f"{_PROFILES}/members", params={"limit": limit, "offset": offset})
+    resp = _api_request("get", f"{_PROFILES}/members")
 
     data = resp.json()
     if json_output:

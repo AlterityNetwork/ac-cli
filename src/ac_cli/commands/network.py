@@ -92,7 +92,9 @@ def referrals_get(
 def referrals_create(
     ctx: typer.Context,
     company_name: str = typer.Option(..., "--company-name", help="Referred company name"),
-    description: str | None = typer.Option(None, "--description", help="Referral description"),
+    description: str = typer.Option(
+        ..., "--description", help="Description of the referral opportunity"
+    ),
     contact_name: str | None = typer.Option(None, "--contact-name", help="Contact person name"),
     contact_email: str | None = typer.Option(None, "--contact-email", help="Contact email"),
     json_output: bool = JSON_OPTION,
@@ -101,7 +103,7 @@ def referrals_create(
     set_json_mode(json_output)
     body = _build_body(
         company_name=company_name,
-        description=description,
+        opportunity_description=description,
         contact_name=contact_name,
         contact_email=contact_email,
     )
@@ -120,12 +122,14 @@ def referrals_update(
     ctx: typer.Context,
     referral_id: str = typer.Argument(..., help="Referral ID"),
     status: str | None = typer.Option(None, "--status", help="Referral status"),
-    description: str | None = typer.Option(None, "--description", help="Description"),
+    description: str | None = typer.Option(
+        None, "--description", help="Description of the referral opportunity"
+    ),
     json_output: bool = JSON_OPTION,
 ) -> None:
     """Update a referral."""
     set_json_mode(json_output)
-    body = _build_body(status=status, description=description)
+    body = _build_body(status=status, opportunity_description=description)
     if not body:
         rprint("[yellow]No fields to update.[/yellow]")
         raise typer.Exit(code=1)
@@ -217,13 +221,14 @@ def news_list(
 @news_app.command("create")
 def news_create(
     ctx: typer.Context,
-    title: str = typer.Option(..., "--title", help="News title"),
-    content: str = typer.Option(..., "--content", help="News content"),
+    title: str = typer.Option(..., "--title", help="News headline"),
+    summary: str = typer.Option(..., "--summary", help="Short summary of the news item"),
+    content: str | None = typer.Option(None, "--content", help="Full article text"),
     json_output: bool = JSON_OPTION,
 ) -> None:
     """Create a news item."""
     set_json_mode(json_output)
-    body = _build_body(title=title, content=content)
+    body = _build_body(headline=title, summary=summary, article=content)
 
     resp = _api_request("post", f"{_NET}/news", json=body)
 
@@ -238,13 +243,14 @@ def news_create(
 def news_update(
     ctx: typer.Context,
     news_id: str = typer.Argument(..., help="News ID"),
-    title: str | None = typer.Option(None, "--title", help="Title"),
-    content: str | None = typer.Option(None, "--content", help="Content"),
+    title: str | None = typer.Option(None, "--title", help="News headline"),
+    summary: str | None = typer.Option(None, "--summary", help="Short summary of the news item"),
+    content: str | None = typer.Option(None, "--content", help="Full article text"),
     json_output: bool = JSON_OPTION,
 ) -> None:
     """Update a news item."""
     set_json_mode(json_output)
-    body = _build_body(title=title, content=content)
+    body = _build_body(headline=title, summary=summary, article=content)
     if not body:
         rprint("[yellow]No fields to update.[/yellow]")
         raise typer.Exit(code=1)

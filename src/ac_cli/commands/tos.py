@@ -90,7 +90,7 @@ def tos_update_config(
     set_json_mode(json_output)
     from ac_cli.commands._helpers import _build_body
 
-    body = _build_body(version=version, embed_url=embed_url)
+    body = _build_body(current_version=version, termly_embed_url=embed_url)
     if not body:
         rprint("[yellow]No fields to update.[/yellow]")
         raise typer.Exit(code=1)

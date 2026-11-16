@@ -9,7 +9,6 @@ from ac_cli.commands._helpers import (
     JSON_OPTION,
     _api_request,
     _build_body,
-    _get_org_id,
     set_json_mode,
     should_skip_confirm,
 )
@@ -91,9 +90,6 @@ def playbooks_get(
 def playbooks_create(
     ctx: typer.Context,
     name: str = typer.Option(..., help="Playbook name"),
-    description: str | None = typer.Option(None, help="Description"),
-    status: str | None = typer.Option(None, help="Status"),
-    competitor_name: str | None = typer.Option(None, "--competitor-name", help="Competitor name"),
     icp_ids: list[str] | None = typer.Option(
         None, "--icp-id", help="Ideal customer profile id. Repeat for several."
     ),
@@ -103,13 +99,8 @@ def playbooks_create(
     set_json_mode(json_output)
     body = _build_body(
         name=name,
-        description=description,
-        status=status,
-        competitor_name=competitor_name,
         icp_ids=icp_ids,
     )
-
-    body["organization_id"] = _get_org_id()
 
     resp = _api_request("post", f"{_PLAYBOOKS}", json=body)
 
@@ -125,9 +116,6 @@ def playbooks_update(
     ctx: typer.Context,
     playbook_id: str = typer.Argument(..., help="Playbook ID"),
     name: str | None = typer.Option(None, help="Playbook name"),
-    description: str | None = typer.Option(None, help="Description"),
-    status: str | None = typer.Option(None, help="Status"),
-    competitor_name: str | None = typer.Option(None, "--competitor-name", help="Competitor name"),
     icp_ids: list[str] | None = typer.Option(
         None, "--icp-id", help="Ideal customer profile id. Repeat for several."
     ),
@@ -137,9 +125,6 @@ def playbooks_update(
     set_json_mode(json_output)
     body = _build_body(
         name=name,
-        description=description,
-        status=status,
-        competitor_name=competitor_name,
         icp_ids=icp_ids,
     )
 

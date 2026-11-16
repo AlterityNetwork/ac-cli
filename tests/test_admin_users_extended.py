@@ -30,7 +30,7 @@ def test_suspend_user(invoke, mock_api):
     mock_api.post("/api/v1/admin/users/u-1/suspend").respond(
         200, json={"id": "u-1", "status": "suspended"}
     )
-    result = invoke(["admin", "users", "suspend", "u-1", "--yes"])
+    result = invoke(["admin", "users", "suspend", "u-1", "--yes", "--reason", "misconduct"])
     assert result.exit_code == 0
     assert "Suspended" in result.output
 
@@ -39,7 +39,9 @@ def test_suspend_user_json(invoke, mock_api):
     mock_api.post("/api/v1/admin/users/u-1/suspend").respond(
         200, json={"id": "u-1", "status": "suspended"}
     )
-    result = invoke(["admin", "users", "suspend", "u-1", "--yes", "--json"])
+    result = invoke(
+        ["admin", "users", "suspend", "u-1", "--yes", "--json", "--reason", "misconduct"]
+    )
     assert result.exit_code == 0
     parsed = json.loads(result.output)
     assert parsed["status"] == "suspended"
@@ -47,7 +49,7 @@ def test_suspend_user_json(invoke, mock_api):
 
 def test_suspend_user_404(invoke, mock_api):
     mock_api.post("/api/v1/admin/users/bad/suspend").respond(404, json={"detail": "Not found"})
-    result = invoke(["admin", "users", "suspend", "bad", "--yes"])
+    result = invoke(["admin", "users", "suspend", "bad", "--yes", "--reason", "misconduct"])
     assert result.exit_code == 3
 
 
@@ -117,3 +119,26 @@ def test_impersonation_status_not_found(invoke, mock_api):
     mock_api.get("/api/v1/impersonation/me").respond(404, json={"detail": "no"})
     result = invoke(["admin", "users", "impersonation-status", "--session-id", "missing"])
     assert result.exit_code == 3
+
+
+def test_suspend_user_sends_reason_only(invoke, mock_api):
+    route = mock_api.post("/api/v1/admin/users/u-1/suspend").respond(200, json={"id": "u-1"})
+    result = invoke(["admin", "users", "suspend", "u-1", "--reason", "non_payment", "--yes"])
+    assert result.exit_code == 0
+    assert json.loads(route.calls.last.request.content) == {"reason": "non_payment"}
+
+
+def test_suspend_user_requires_reason(invoke, mock_api):
+    route = mock_api.post("/api/v1/admin/users/u-1/suspend").respond(200, json={"id": "u-1"})
+    result = invoke(["admin", "users", "suspend", "u-1", "--yes"])
+    assert result.exit_code == 2
+    assert not route.called
+
+
+def test_suspend_user_rejects_message_id(invoke, mock_api):
+    route = mock_api.post("/api/v1/admin/users/u-1/suspend").respond(200, json={"id": "u-1"})
+    result = invoke(
+        ["admin", "users", "suspend", "u-1", "--reason", "misconduct", "--message-id", "m", "--yes"]
+    )
+    assert result.exit_code == 2
+    assert not route.called

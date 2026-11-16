@@ -27,7 +27,7 @@ def ai_usage_summary(
     if end_date:
         params["end_date"] = end_date
     if org_id:
-        params["org_id"] = org_id
+        params["organization_id"] = org_id
 
     resp = _api_request("get", f"{_ADMIN}/ai-usage/summary", params=params)
 
@@ -85,9 +85,9 @@ def ai_usage_users(
     if order:
         params["order"] = order
     if search:
-        params["search"] = search
+        params["q"] = search
     if org_id:
-        params["org_id"] = org_id
+        params["organization_id"] = org_id
 
     resp = _api_request("get", f"{_ADMIN}/ai-usage/users", params=params)
 
@@ -127,7 +127,7 @@ def ai_usage_user(
     if end_date:
         params["end_date"] = end_date
     if org_id:
-        params["org_id"] = org_id
+        params["organization_id"] = org_id
 
     resp = _api_request("get", f"{_ADMIN}/ai-usage/users/{user_id}", params=params)
 
@@ -191,7 +191,7 @@ def ai_usage_by_model(
     if end_date:
         params["end_date"] = end_date
     if org_id:
-        params["org_id"] = org_id
+        params["organization_id"] = org_id
 
     resp = _api_request("get", f"{_ADMIN}/ai-usage/by-model", params=params)
 
@@ -230,7 +230,7 @@ def ai_usage_by_workflow(
     if end_date:
         params["end_date"] = end_date
     if org_id:
-        params["org_id"] = org_id
+        params["organization_id"] = org_id
 
     resp = _api_request("get", f"{_ADMIN}/ai-usage/by-workflow", params=params)
 
@@ -268,7 +268,7 @@ def ai_usage_by_app(
     if end_date:
         params["end_date"] = end_date
     if org_id:
-        params["org_id"] = org_id
+        params["organization_id"] = org_id
 
     resp = _api_request("get", f"{_ADMIN}/ai-usage/by-app", params=params)
 
@@ -313,7 +313,7 @@ def ai_usage_details(
     if end_date:
         params["end_date"] = end_date
     if org_id:
-        params["org_id"] = org_id
+        params["organization_id"] = org_id
     if model_id:
         params["model_id"] = model_id
     if user_id:

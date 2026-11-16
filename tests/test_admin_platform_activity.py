@@ -2,6 +2,8 @@
 
 import json
 
+import pytest
+
 SAMPLE_SUMMARY = {
     "total_events": 5000,
     "unique_users": 150,
@@ -105,3 +107,29 @@ def test_platform_activity_user_json(invoke, mock_api):
     parsed = json.loads(result.output)
     assert parsed["email"] == "alice@example.com"
     assert len(parsed["recent_events"]) == 2
+
+
+@pytest.mark.parametrize(
+    ("args", "path", "body"),
+    [
+        (["summary"], "/api/v1/admin/platform-activity/summary", {}),
+        (["users"], "/api/v1/admin/platform-activity/users", {"data": []}),
+        (["user", "user-123"], "/api/v1/admin/platform-activity/users/user-123", {}),
+    ],
+)
+def test_platform_activity_org_id_sends_organization_id(invoke, mock_api, args, path, body):
+    route = mock_api.get(path).respond(200, json=body)
+    result = invoke(["admin", "platform-activity", *args, "--org-id", "org-123", "--json"])
+    assert result.exit_code == 0
+    params = route.calls.last.request.url.params
+    assert params["organization_id"] == "org-123"
+    assert "org_id" not in params
+
+
+def test_platform_activity_users_query_sends_q(invoke, mock_api):
+    route = mock_api.get("/api/v1/admin/platform-activity/users").respond(200, json={"data": []})
+    result = invoke(["admin", "platform-activity", "users", "--query", "alice", "--json"])
+    assert result.exit_code == 0
+    params = route.calls.last.request.url.params
+    assert params["q"] == "alice"
+    assert "query" not in params

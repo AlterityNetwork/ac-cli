@@ -116,3 +116,49 @@ def test_resources_get_404(invoke, mock_api):
     mock_api.get("/api/v1/admin/resources/bad").respond(404, json={"detail": "Not found"})
     result = invoke(["admin", "resources", "get", "bad"])
     assert result.exit_code == 3
+
+
+def test_resources_list_sends_page_params(invoke, mock_api):
+    route = mock_api.get("/api/v1/admin/resources").respond(200, json={"items": []})
+    result = invoke(["admin", "resources", "list", "--page", "3", "--page-size", "10"])
+    assert result.exit_code == 0
+    assert dict(route.calls.last.request.url.params) == {"page": "3", "page_size": "10"}
+
+
+def test_resources_list_rejects_org_id(invoke, mock_api):
+    route = mock_api.get("/api/v1/admin/resources").respond(200, json={"items": []})
+    result = invoke(["admin", "resources", "list", "--org-id", "org-1"])
+    assert result.exit_code == 2
+    assert not route.called
+
+
+def test_resources_upload_sends_source_name(invoke, mock_api, tmp_path):
+    path = tmp_path / "guide.pdf"
+    path.write_bytes(b"%PDF-1.4")
+    route = mock_api.post("/api/v1/admin/resources/upload").respond(
+        200, json={"id": "r-1", "status": "processing", "source_name": "Guide"}
+    )
+    result = invoke(
+        ["admin", "resources", "upload", str(path), "--org-id", "org-1", "--name", "Guide"]
+    )
+    assert result.exit_code == 0
+    content = route.calls.last.request.content
+    assert b'name="source_name"\r\n\r\nGuide' in content
+    assert b'name="organization_id"\r\n\r\norg-1' in content
+    assert b'name="name"' not in content
+
+
+def test_resources_upload_requires_name(invoke, mock_api, tmp_path):
+    path = tmp_path / "guide.pdf"
+    path.write_bytes(b"%PDF-1.4")
+    route = mock_api.post("/api/v1/admin/resources/upload").respond(200, json={"id": "r-1"})
+    result = invoke(["admin", "resources", "upload", str(path), "--org-id", "org-1"])
+    assert result.exit_code == 2
+    assert not route.called
+
+
+def test_resources_update_sends_source_name(invoke, mock_api):
+    route = mock_api.patch("/api/v1/admin/resources/r-1").respond(200, json=SAMPLE_RESOURCE)
+    result = invoke(["admin", "resources", "update", "r-1", "--name", "Updated.pdf"])
+    assert result.exit_code == 0
+    assert json.loads(route.calls.last.request.content) == {"source_name": "Updated.pdf"}

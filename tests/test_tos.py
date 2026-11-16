@@ -70,3 +70,15 @@ def test_update_config_json(invoke, mock_api):
 def test_update_config_no_fields(invoke, mock_api):
     result = invoke(["tos", "update-config"])
     assert result.exit_code == 1
+
+
+def test_update_config_sends_api_field_names(invoke, mock_api):
+    route = mock_api.patch("/api/v1/admin/tos/config").respond(200, json={})
+    result = invoke(
+        ["tos", "update-config", "--version", "4.0", "--embed-url", "https://example.com/tos"]
+    )
+    assert result.exit_code == 0
+    assert json.loads(route.calls.last.request.content) == {
+        "current_version": "4.0",
+        "termly_embed_url": "https://example.com/tos",
+    }

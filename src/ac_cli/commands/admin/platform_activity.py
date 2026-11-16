@@ -27,7 +27,7 @@ def platform_activity_summary(
     if end_date:
         params["end_date"] = end_date
     if org_id:
-        params["org_id"] = org_id
+        params["organization_id"] = org_id
 
     resp = _api_request("get", f"{_ADMIN}/platform-activity/summary", params=params)
 
@@ -81,9 +81,9 @@ def platform_activity_users(
     if order:
         params["order"] = order
     if query:
-        params["query"] = query
+        params["q"] = query
     if org_id:
-        params["org_id"] = org_id
+        params["organization_id"] = org_id
 
     resp = _api_request("get", f"{_ADMIN}/platform-activity/users", params=params)
 
@@ -121,7 +121,7 @@ def platform_activity_user(
     if end_date:
         params["end_date"] = end_date
     if org_id:
-        params["org_id"] = org_id
+        params["organization_id"] = org_id
 
     resp = _api_request("get", f"{_ADMIN}/platform-activity/users/{user_id}", params=params)
 

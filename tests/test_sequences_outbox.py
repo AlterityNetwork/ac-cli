@@ -157,10 +157,33 @@ def test_outbox_step_drafts_with_offset(invoke, mock_api):
 
 def test_outbox_update_draft(invoke, mock_api):
     updated = {**SAMPLE_PENDING, "subject": "New subject"}
-    mock_api.patch("/api/v1/sequences/outbox/pending/draft-1").respond(200, json=updated)
+    route = mock_api.patch("/api/v1/crm/communications/draft-1").respond(200, json=updated)
     result = invoke(["sequences", "outbox", "update-draft", "draft-1", "--subject", "New subject"])
     assert result.exit_code == 0
     assert "Updated draft" in result.output
+    assert json.loads(route.calls.last.request.content) == {"subject": "New subject"}
+
+
+def test_outbox_update_draft_sends_the_body_as_content(invoke, mock_api):
+    """The draft lives in crm_communications, whose edit route reads `content`."""
+    route = mock_api.patch("/api/v1/crm/communications/draft-1").respond(200, json={})
+    result = invoke(
+        [
+            "sequences",
+            "outbox",
+            "update-draft",
+            "draft-1",
+            "--subject",
+            "Hello again",
+            "--body",
+            "New body",
+        ]
+    )
+    assert result.exit_code == 0
+    assert json.loads(route.calls.last.request.content) == {
+        "subject": "Hello again",
+        "content": "New body",
+    }
 
 
 def test_outbox_update_draft_no_fields(invoke, mock_api):
@@ -169,18 +192,26 @@ def test_outbox_update_draft_no_fields(invoke, mock_api):
 
 
 def test_outbox_approve(invoke, mock_api):
-    mock_api.post("/api/v1/sequences/outbox/pending/draft-1/approve").respond(
+    route = mock_api.post("/api/v1/crm/communications/draft-1/approve").respond(
         200, json={"sent": True}
     )
     result = invoke(["sequences", "outbox", "approve", "draft-1"])
     assert result.exit_code == 0
     assert "Approved" in result.output
+    assert route.calls.last.request.content == b""
+
+
+def test_outbox_approve_sends_overrides_as_subject_and_content(invoke, mock_api):
+    route = mock_api.post("/api/v1/crm/communications/draft-1/approve").respond(
+        200, json={"sent": True}
+    )
+    result = invoke(["sequences", "outbox", "approve", "draft-1", "--subject", "S", "--body", "B"])
+    assert result.exit_code == 0
+    assert json.loads(route.calls.last.request.content) == {"subject": "S", "content": "B"}
 
 
 def test_outbox_approve_json(invoke, mock_api):
-    mock_api.post("/api/v1/sequences/outbox/pending/draft-1/approve").respond(
-        200, json={"sent": True}
-    )
+    mock_api.post("/api/v1/crm/communications/draft-1/approve").respond(200, json={"sent": True})
     result = invoke(["sequences", "outbox", "approve", "draft-1", "--json"])
     assert result.exit_code == 0
     parsed = json.loads(result.output)

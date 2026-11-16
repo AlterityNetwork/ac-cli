@@ -49,7 +49,7 @@ def organizations_list(
     set_json_mode(json_output)
     params: dict = {"limit": limit, "offset": offset}
     if query:
-        params["query"] = query
+        params["q"] = query
     if sort:
         params["sort"] = sort
     if order:
@@ -107,8 +107,6 @@ def organizations_get(
 def organizations_create(
     ctx: typer.Context,
     name: str = typer.Option(..., help="Organization name"),
-    slug: str | None = typer.Option(None, help="Organization slug"),
-    plan: str | None = typer.Option(None, help="Plan"),
     icps_file: Path | None = typer.Option(
         None, "--icps-file", help="JSON file of ideal customer profiles; [] clears the list"
     ),
@@ -116,7 +114,7 @@ def organizations_create(
 ) -> None:
     """Create a new organization."""
     set_json_mode(json_output)
-    body = _build_body(name=name, slug=slug, plan=plan)
+    body = _build_body(name=name)
 
     if icps_file is not None:
         body["ideal_customer_profiles"] = _read_icps(icps_file)
@@ -135,8 +133,6 @@ def organizations_update(
     ctx: typer.Context,
     org_id: str = typer.Argument(..., help="Organization ID"),
     name: str | None = typer.Option(None, help="Organization name"),
-    slug: str | None = typer.Option(None, help="Organization slug"),
-    plan: str | None = typer.Option(None, help="Plan"),
     logo_url: str | None = typer.Option(None, "--logo-url", help="Organization logo URL"),
     target_customers: str | None = typer.Option(
         None, "--target-customers", help="Who the organization sells to, as prose"
@@ -175,8 +171,6 @@ def organizations_update(
         )
     body = _build_body(
         name=name,
-        slug=slug,
-        plan=plan,
         logo_url=logo_url,
         target_customers=target_customers,
         is_comped=comped,
@@ -273,6 +267,46 @@ def organizations_add_member(
         print_json(data)
     else:
         rprint(styled("[green]Added user {} to organization {}[/green]", user_id, org_id))
+
+
+@organizations_app.command("create-user")
+def organizations_create_user(
+    ctx: typer.Context,
+    org_id: str = typer.Argument(..., help="Organization ID"),
+    email: str = typer.Option(..., "--email", help="Email of the new user"),
+    first_name: str = typer.Option(..., "--first-name", help="First name"),
+    last_name: str = typer.Option(..., "--last-name", help="Last name"),
+    role: str | None = typer.Option(None, help="Member role. The API uses member."),
+    job_title: str | None = typer.Option(None, "--job-title", help="Job title"),
+    send_email: bool = typer.Option(
+        True, "--send-email/--no-send-email", help="Send the welcome email"
+    ),
+    json_output: bool = JSON_OPTION,
+) -> None:
+    """Create a user and add them to an active organization."""
+    set_json_mode(json_output)
+    body = _build_body(
+        email=email,
+        first_name=first_name,
+        last_name=last_name,
+        role=role,
+        job_title=job_title,
+        send_email=send_email,
+    )
+
+    resp = _api_request("post", f"{_ADMIN}/organizations/{org_id}/users", json=body)
+
+    data = resp.json()
+    if json_output:
+        print_json(data)
+    else:
+        rprint(
+            styled(
+                "[green]Created user {} in organization {}[/green]",
+                data.get("user_id"),
+                org_id,
+            )
+        )
 
 
 @organizations_app.command("update-member")

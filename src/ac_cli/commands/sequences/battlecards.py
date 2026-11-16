@@ -9,7 +9,6 @@ from ac_cli.commands._helpers import (
     JSON_OPTION,
     _api_request,
     _build_body,
-    _get_org_id,
     set_json_mode,
     should_skip_confirm,
 )
@@ -95,8 +94,6 @@ def battlecards_create(
     ctx: typer.Context,
     name: str = typer.Option(..., help="Battlecard name"),
     description: str | None = typer.Option(None, help="Description"),
-    competitor_name: str | None = typer.Option(None, "--competitor-name", help="Competitor name"),
-    status: str | None = typer.Option(None, help="Status"),
     json_output: bool = JSON_OPTION,
 ) -> None:
     """Create a new battlecard."""
@@ -104,11 +101,7 @@ def battlecards_create(
     body = _build_body(
         name=name,
         description=description,
-        competitor_name=competitor_name,
-        status=status,
     )
-
-    body["organization_id"] = _get_org_id()
 
     resp = _api_request("post", f"{_BATTLECARDS}", json=body)
 
@@ -125,8 +118,6 @@ def battlecards_update(
     battlecard_id: str = typer.Argument(..., help="Battlecard ID"),
     name: str | None = typer.Option(None, help="Battlecard name"),
     description: str | None = typer.Option(None, help="Description"),
-    competitor_name: str | None = typer.Option(None, "--competitor-name", help="Competitor name"),
-    status: str | None = typer.Option(None, help="Status"),
     json_output: bool = JSON_OPTION,
 ) -> None:
     """Update a battlecard."""
@@ -134,8 +125,6 @@ def battlecards_update(
     body = _build_body(
         name=name,
         description=description,
-        competitor_name=competitor_name,
-        status=status,
     )
 
     if not body:

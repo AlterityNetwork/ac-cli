@@ -45,17 +45,48 @@ def test_referrals_get_json(invoke, mock_api):
 
 
 def test_referrals_create(invoke, mock_api):
-    mock_api.post("/api/v1/network/referrals").respond(
+    route = mock_api.post("/api/v1/network/referrals").respond(
         201, json={"id": "ref-2", "company_name": "NewCo"}
     )
-    result = invoke(["network", "referrals", "create", "--company-name", "NewCo"])
+    result = invoke(
+        [
+            "network",
+            "referrals",
+            "create",
+            "--company-name",
+            "NewCo",
+            "--description",
+            "Needs a CRM rollout",
+        ]
+    )
     assert result.exit_code == 0
     assert "Created" in result.output
+    assert json.loads(route.calls.last.request.content) == {
+        "company_name": "NewCo",
+        "opportunity_description": "Needs a CRM rollout",
+    }
+
+
+def test_referrals_create_requires_description(invoke, mock_api):
+    result = invoke(["network", "referrals", "create", "--company-name", "NewCo"])
+    assert result.exit_code == 2
+    assert "Missing option" in result.output
 
 
 def test_referrals_create_json(invoke, mock_api):
     mock_api.post("/api/v1/network/referrals").respond(201, json={"id": "ref-2"})
-    result = invoke(["network", "referrals", "create", "--company-name", "NewCo", "--json"])
+    result = invoke(
+        [
+            "network",
+            "referrals",
+            "create",
+            "--company-name",
+            "NewCo",
+            "--description",
+            "Needs a CRM rollout",
+            "--json",
+        ]
+    )
     assert result.exit_code == 0
     parsed = json.loads(result.output)
     assert parsed["id"] == "ref-2"
@@ -68,6 +99,13 @@ def test_referrals_update(invoke, mock_api):
     result = invoke(["network", "referrals", "update", "ref-1", "--status", "claimed"])
     assert result.exit_code == 0
     assert "Updated" in result.output
+
+
+def test_referrals_update_sends_opportunity_description(invoke, mock_api):
+    route = mock_api.patch("/api/v1/network/referrals/ref-1").respond(200, json=SAMPLE_REFERRAL)
+    result = invoke(["network", "referrals", "update", "ref-1", "--description", "New scope"])
+    assert result.exit_code == 0
+    assert json.loads(route.calls.last.request.content) == {"opportunity_description": "New scope"}
 
 
 def test_referrals_update_no_fields(invoke, mock_api):
@@ -124,16 +162,41 @@ def test_news_list_json(invoke, mock_api):
 
 
 def test_news_create(invoke, mock_api):
-    mock_api.post("/api/v1/network/news").respond(201, json={"id": "news-2", "title": "New Post"})
-    result = invoke(["network", "news", "create", "--title", "New Post", "--content", "Body text"])
+    route = mock_api.post("/api/v1/network/news").respond(
+        201, json={"id": "news-2", "headline": "New Post"}
+    )
+    result = invoke(
+        [
+            "network",
+            "news",
+            "create",
+            "--title",
+            "New Post",
+            "--summary",
+            "Short text",
+            "--content",
+            "Body text",
+        ]
+    )
     assert result.exit_code == 0
     assert "Created" in result.output
+    assert json.loads(route.calls.last.request.content) == {
+        "headline": "New Post",
+        "summary": "Short text",
+        "article": "Body text",
+    }
+
+
+def test_news_create_requires_summary(invoke, mock_api):
+    result = invoke(["network", "news", "create", "--title", "New Post", "--content", "Body"])
+    assert result.exit_code == 2
+    assert "Missing option" in result.output
 
 
 def test_news_create_json(invoke, mock_api):
     mock_api.post("/api/v1/network/news").respond(201, json={"id": "news-2"})
     result = invoke(
-        ["network", "news", "create", "--title", "New Post", "--content", "Body", "--json"]
+        ["network", "news", "create", "--title", "New Post", "--summary", "Short", "--json"]
     )
     assert result.exit_code == 0
     parsed = json.loads(result.output)
@@ -146,6 +209,30 @@ def test_news_update(invoke, mock_api):
     )
     result = invoke(["network", "news", "update", "news-1", "--title", "Updated"])
     assert result.exit_code == 0
+
+
+def test_news_update_sends_headline_summary_and_article(invoke, mock_api):
+    route = mock_api.patch("/api/v1/network/news/news-1").respond(200, json=SAMPLE_NEWS)
+    result = invoke(
+        [
+            "network",
+            "news",
+            "update",
+            "news-1",
+            "--title",
+            "Updated",
+            "--summary",
+            "New short text",
+            "--content",
+            "New text",
+        ]
+    )
+    assert result.exit_code == 0
+    assert json.loads(route.calls.last.request.content) == {
+        "headline": "Updated",
+        "summary": "New short text",
+        "article": "New text",
+    }
 
 
 def test_news_update_no_fields(invoke, mock_api):

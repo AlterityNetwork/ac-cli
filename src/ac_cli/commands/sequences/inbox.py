@@ -8,7 +8,6 @@ from rich import print as rprint
 from ac_cli.commands._helpers import (
     JSON_OPTION,
     _api_request,
-    _build_body,
     _handle_connection_error,
     set_json_mode,
 )
@@ -149,7 +148,7 @@ def inbox_assign(
     """Assign a thread to a user."""
     set_json_mode(json_output)
     resp = _api_request(
-        "post", f"{_SEQUENCES}/inbox/threads/{thread_id}/assign", json={"assigned_to": user_id}
+        "post", f"{_SEQUENCES}/inbox/threads/{thread_id}/assign", json={"user_id": user_id}
     )
 
     data = resp.json()
@@ -169,7 +168,7 @@ def inbox_snooze(
     """Snooze a thread until a given time."""
     set_json_mode(json_output)
     resp = _api_request(
-        "post", f"{_SEQUENCES}/inbox/threads/{thread_id}/snooze", json={"snooze_until": until}
+        "post", f"{_SEQUENCES}/inbox/threads/{thread_id}/snooze", json={"snoozed_until": until}
     )
 
     data = resp.json()
@@ -292,13 +291,13 @@ def inbox_reply(
     ctx: typer.Context,
     thread_id: str = typer.Argument(..., help="Thread ID"),
     body: str = typer.Option(..., "--body", help="Reply body"),
-    subject: str | None = typer.Option(None, "--subject", help="Reply subject"),
     json_output: bool = JSON_OPTION,
 ) -> None:
     """Reply to a thread."""
     set_json_mode(json_output)
-    req_body = _build_body(body=body, subject=subject)
-    resp = _api_request("post", f"{_SEQUENCES}/inbox/threads/{thread_id}/reply", json=req_body)
+    resp = _api_request(
+        "post", f"{_SEQUENCES}/inbox/threads/{thread_id}/reply", json={"body_text": body}
+    )
 
     data = resp.json()
     if json_output:

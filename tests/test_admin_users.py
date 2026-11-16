@@ -301,3 +301,28 @@ def test_users_list_query_param(invoke, mock_api):
     request_url = str(route.calls[0].request.url)
     assert "q=admin" in request_url
     assert "query=admin" not in request_url
+
+
+def test_users_list_sends_limit_and_offset(invoke, mock_api):
+    route = mock_api.get("/api/v1/admin/users").respond(200, json={"items": [], "total": 0})
+    result = invoke(["admin", "users", "list", "--page", "3", "--page-size", "20"])
+    assert result.exit_code == 0
+    assert dict(route.calls.last.request.url.params) == {"limit": "20", "offset": "40"}
+
+
+def test_users_generate_link_rejects_send_email(invoke, mock_api):
+    route = mock_api.post("/api/v1/admin/users/u-1/generate-impersonation-link").respond(
+        200, json={"link": "https://app.example.com"}
+    )
+    result = invoke(["admin", "users", "generate-link", "u-1", "--send-email"])
+    assert result.exit_code == 2
+    assert not route.called
+
+
+def test_users_generate_link_sends_no_query(invoke, mock_api):
+    route = mock_api.post("/api/v1/admin/users/u-1/generate-impersonation-link").respond(
+        200, json={"link": "https://app.example.com"}
+    )
+    result = invoke(["admin", "users", "generate-link", "u-1"])
+    assert result.exit_code == 0
+    assert dict(route.calls.last.request.url.params) == {}

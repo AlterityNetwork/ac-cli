@@ -175,35 +175,46 @@ def styles_delete(
 def styles_train(
     ctx: typer.Context,
     style_id: str = typer.Argument(..., help="Writing style ID"),
-    sample_text: str = typer.Option(..., "--sample-text", help="Sample text for training"),
+    num_examples: int = typer.Option(
+        3, "--num-examples", min=1, max=10, help="Number of example emails to generate"
+    ),
     json_output: bool = JSON_OPTION,
 ) -> None:
     """Start a training session for a writing style."""
     set_json_mode(json_output)
-    resp = _api_request("post", f"{_STYLES}/{style_id}/train", json={"sample_text": sample_text})
+    resp = _api_request("post", f"{_STYLES}/{style_id}/train", json={"num_examples": num_examples})
 
     data = resp.json()
     if json_output:
         print_json(data)
     else:
-        rprint(styled("[green]Training session started:[/green] {}", data["session_id"]))
+        rprint(styled("[green]Training session started:[/green] {}", data["session"]["id"]))
 
 
 @app.command("feedback")
 def styles_feedback(
     ctx: typer.Context,
     session_id: str = typer.Argument(..., help="Training session ID"),
-    rating: int = typer.Option(..., help="Rating for the training session"),
-    comments: str | None = typer.Option(None, help="Optional comments"),
+    email_id: str = typer.Option(
+        ...,
+        "--email-id",
+        help=(
+            "ID of the generated email to rate. "
+            "Get it from 'styles train --json' or 'styles iterate --json'."
+        ),
+    ),
+    rating: int = typer.Option(..., min=1, max=5, help="Rating for the email, 1 to 5"),
+    comments: str | None = typer.Option(None, help="What to change in the style"),
     json_output: bool = JSON_OPTION,
 ) -> None:
     """Submit feedback for a training session."""
     set_json_mode(json_output)
-    body: dict = {"rating": rating}
-    if comments is not None:
-        body["comments"] = comments
-
-    resp = _api_request("post", f"{_STYLES}/training-sessions/{session_id}/feedback", json=body)
+    item = _build_body(email_id=email_id, overall_rating=rating, what_to_change=comments)
+    resp = _api_request(
+        "post",
+        f"{_STYLES}/training-sessions/{session_id}/feedback",
+        json={"session_id": session_id, "feedback_items": [item]},
+    )
 
     data = resp.json()
     if json_output:
@@ -216,13 +227,25 @@ def styles_feedback(
 def styles_iterate(
     ctx: typer.Context,
     session_id: str = typer.Argument(..., help="Training session ID"),
-    feedback: str = typer.Option(..., help="Feedback for iteration"),
+    email_id: str = typer.Option(
+        ...,
+        "--email-id",
+        help=(
+            "ID of the generated email to rate. "
+            "Get it from 'styles train --json' or 'styles iterate --json'."
+        ),
+    ),
+    feedback: str = typer.Option(..., help="What to change in the style"),
+    rating: int = typer.Option(3, min=1, max=5, help="Rating for the email, 1 to 5"),
     json_output: bool = JSON_OPTION,
 ) -> None:
     """Iterate on a training session."""
     set_json_mode(json_output)
+    item = _build_body(email_id=email_id, overall_rating=rating, what_to_change=feedback)
     resp = _api_request(
-        "post", f"{_STYLES}/training-sessions/{session_id}/iterate", json={"feedback": feedback}
+        "post",
+        f"{_STYLES}/training-sessions/{session_id}/iterate",
+        json={"feedback_item": item},
     )
 
     data = resp.json()
@@ -235,12 +258,14 @@ def styles_iterate(
 @app.command("analyze")
 def styles_analyze(
     ctx: typer.Context,
-    text: str = typer.Option(..., help="Text to analyze"),
+    text: list[str] = typer.Option(
+        ..., help="Sample email text to analyze. Repeat for more samples."
+    ),
     json_output: bool = JSON_OPTION,
 ) -> None:
     """Analyze text for writing style characteristics."""
     set_json_mode(json_output)
-    resp = _api_request("post", f"{_STYLES}/analyze", json={"text": text})
+    resp = _api_request("post", f"{_STYLES}/analyze", json={"sample_emails": text})
 
     data = resp.json()
     if json_output:

@@ -90,6 +90,20 @@ def test_profiles_members(invoke, mock_api):
     assert "Bob" in result.output
 
 
+def test_profiles_members_sends_no_query_params(invoke, mock_api):
+    """The members route has no pagination, so the CLI sends no query params."""
+    route = mock_api.get("/api/v1/profiles/members").respond(200, json=SAMPLE_MEMBERS)
+    result = invoke(["profiles", "members"])
+    assert result.exit_code == 0
+    assert dict(route.calls.last.request.url.params) == {}
+
+
+def test_profiles_members_has_no_limit_option(invoke, mock_api):
+    result = invoke(["profiles", "members", "--limit", "10"])
+    assert result.exit_code == 2
+    assert "No such option" in result.output
+
+
 def test_profiles_members_shows_the_role(invoke, mock_api):
     """The team list marks a copilot seat, so the role column is printed."""
     members = {
