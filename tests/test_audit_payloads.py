@@ -106,6 +106,18 @@ class TestKeyResolution:
         )
         assert call.unresolved == ["json=payload", "params=make()"]
 
+    def test_a_keyword_spread_is_unresolved(self, tmp_path: Path) -> None:
+        call = _call(
+            tmp_path,
+            """
+            def go():
+                kwargs = {"json": {"a": 1}}
+                _api_request("post", f"{_CRM}/companies", **kwargs)
+            """,
+        )
+        assert call.body_keys is None
+        assert call.unresolved == ["**kwargs"]
+
     def test_a_computed_key_is_unresolved(self, tmp_path: Path) -> None:
         call = _call(
             tmp_path,
@@ -281,6 +293,25 @@ class TestMismatches:
     def test_a_required_key_the_cli_never_sends_is_reported(self) -> None:
         findings = payloads.find_mismatches([_cli(body={"body_text"})], _spec(_REF))
         assert [(f.kind, f.keys) for f in findings] == [("BODY-MISSING", ["subject"])]
+
+    def test_a_call_with_no_body_to_a_required_body_is_reported(self) -> None:
+        spec = _spec(_REF)
+        spec["paths"]["/api/v1/sequences/outbox/pending/{draft_id}"]["patch"]["requestBody"][
+            "required"
+        ] = True
+        findings = payloads.find_mismatches([_cli(body=None)], spec)
+        assert [(f.kind, f.keys) for f in findings] == [("BODY-MISSING", ["subject"])]
+
+    def test_a_call_with_no_body_to_an_optional_body_is_not_reported(self) -> None:
+        assert payloads.find_mismatches([_cli(body=None)], _spec(_REF)) == []
+
+    def test_a_call_with_a_keyword_spread_is_not_judged_for_missing_keys(self) -> None:
+        spec = _spec(_REF)
+        spec["paths"]["/api/v1/sequences/outbox/pending/{draft_id}"]["patch"]["requestBody"][
+            "required"
+        ] = True
+        call = _cli(body=None, unresolved=["**kwargs"])
+        assert payloads.find_mismatches([call], spec) == []
 
     def test_missing_keys_are_not_judged_when_the_body_is_partly_unknown(self) -> None:
         call = _cli(body={"body_text"}, unresolved=["json=extra"])

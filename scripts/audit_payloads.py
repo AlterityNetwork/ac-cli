@@ -376,6 +376,8 @@ def _read_call(
             found[keyword.arg] = keys.keys
             if not keys.complete:
                 unresolved.append(text)
+        elif keyword.arg is None:
+            unresolved.append(f"**{ast.get_source_segment(source, keyword.value)}")
         elif keyword.arg in {"data", "files", "content"}:
             unresolved.append(text)
     return CliCall(
@@ -458,11 +460,13 @@ def _body_findings(spec: dict, call: CliCall, operation: dict) -> Iterator[Findi
     def finding(kind: str, keys: Iterable[str]) -> Finding:
         return Finding(kind, call.method, call.path, call.location, sorted(keys))
 
-    if not call.body_keys:
-        return
     body = operation.get("requestBody")
+    sent = call.body_keys or set()
     if body is None:
-        yield finding("BODY-UNEXPECTED", call.body_keys)
+        if sent:
+            yield finding("BODY-UNEXPECTED", sent)
+        return
+    if not sent and not body.get("required"):
         return
     content = body.get("content", {})
     if _JSON_MEDIA not in content:
@@ -471,11 +475,11 @@ def _body_findings(spec: dict, call: CliCall, operation: dict) -> Iterator[Findi
     if fields is None:
         return
     names, required = fields
-    unknown = call.body_keys - names
+    unknown = sent - names
     if unknown:
         yield finding("BODY-KEY", unknown)
-    body_known = not any(text.startswith("json=") for text in call.unresolved)
-    missing = required - call.body_keys
+    body_known = not any(text.startswith(("json=", "**")) for text in call.unresolved)
+    missing = required - sent
     if body_known and missing:
         yield finding("BODY-MISSING", missing)
 
