@@ -73,9 +73,12 @@ def test_accept_with_no_current_version_stops(invoke, mock_api):
         200, json={"current_version": "", "termly_embed_url": ""}
     )
     route = mock_api.post("/api/v1/tos/accept")
-    result = invoke(["tos", "accept"])
-    assert result.exit_code == 1
+    result = invoke(["tos", "accept", "--json"])
+    assert result.exit_code == 2
     assert not route.called
+    parsed = json.loads(result.output)
+    assert parsed["error"] is True
+    assert "--version" in parsed["detail"]
 
 
 def test_update_config(invoke, mock_api):

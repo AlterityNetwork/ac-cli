@@ -5,7 +5,12 @@ from __future__ import annotations
 import typer
 from rich import print as rprint
 
-from ac_cli.commands._helpers import JSON_OPTION, _api_request, set_json_mode
+from ac_cli.commands._helpers import (
+    JSON_OPTION,
+    _api_request,
+    refuse_local,
+    set_json_mode,
+)
 from ac_cli.formatting import as_text, print_detail, print_json
 
 app = typer.Typer(help="Terms of service")
@@ -76,8 +81,7 @@ def tos_accept(
     if version is None:
         version = _api_request("get", f"{_TOS}/config").json().get("current_version")
     if not version:
-        rprint("[yellow]No TOS version is published.[/yellow]")
-        raise typer.Exit(code=1)
+        refuse_local("No TOS version is published. Pass --version")
     resp = _api_request("post", f"{_TOS}/accept", json={"tos_version": version})
 
     data = resp.json()
