@@ -341,9 +341,14 @@ def main() -> int:
     )
     p.add_argument("--strict", action="store_true", help="exit nonzero if CLI-only paths exist")
     p.add_argument("--show-matches", action="store_true", help="print verbatim-match list too")
+    p.add_argument(
+        "--spec-file",
+        type=Path,
+        help="read the OpenAPI spec from this file instead of a running API",
+    )
     args = p.parse_args()
 
-    spec = fetch_openapi(args.api_url)
+    spec = json.loads(args.spec_file.read_text()) if args.spec_file else fetch_openapi(args.api_url)
     if spec is None:
         print(
             f"ERROR: could not reach {args.api_url}/openapi.json — start the API "
@@ -396,7 +401,16 @@ def main() -> int:
         for m, p in matches:
             print(f"  {m:6s} {p}")
 
-    if args.strict and (cli_only or stale_scope):
+    # Imported here: audit_payloads imports helpers from this module.
+    import audit_payloads
+
+    payload_calls = audit_payloads.collect_cli_payloads(CLI_ROOT)
+    findings = audit_payloads.find_mismatches(payload_calls, spec)
+    print()
+    audit_payloads.print_report(payload_calls, findings)
+    strict_findings = [f for f in findings if f.kind in audit_payloads.STRICT_KINDS]
+
+    if args.strict and (cli_only or stale_scope or strict_findings):
         return 1
     return 0
 
