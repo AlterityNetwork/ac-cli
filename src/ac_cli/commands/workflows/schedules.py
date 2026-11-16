@@ -83,11 +83,16 @@ def schedules_create(
     cron: str = typer.Option(..., "--cron", help="Cron expression"),
     timezone: str = typer.Option("UTC", "--timezone", help="Timezone"),
     input_json: str | None = typer.Option(None, "--input", help="Input JSON string"),
+    preset_id: str | None = typer.Option(
+        None, "--preset-id", help="Preset whose saved input the schedule uses"
+    ),
     json_output: bool = JSON_OPTION,
 ) -> None:
     """Create a schedule for a workflow."""
     set_json_mode(json_output)
     body: dict = {"type": "cron", "cron_expression": cron, "timezone": timezone}
+    if preset_id:
+        body["preset_id"] = preset_id
     if input_json:
         try:
             body["input_config"] = json.loads(input_json)
@@ -112,11 +117,14 @@ def schedules_update(
     cron: str | None = typer.Option(None, "--cron", help="Cron expression"),
     timezone: str | None = typer.Option(None, "--timezone", help="Timezone"),
     input_json: str | None = typer.Option(None, "--input", help="Input JSON string"),
+    preset_id: str | None = typer.Option(
+        None, "--preset-id", help="Preset whose saved input the schedule uses"
+    ),
     json_output: bool = JSON_OPTION,
 ) -> None:
     """Update a workflow schedule."""
     set_json_mode(json_output)
-    body = _build_body(cron_expression=cron, timezone=timezone)
+    body = _build_body(cron_expression=cron, timezone=timezone, preset_id=preset_id)
     if input_json:
         try:
             body["input_config"] = json.loads(input_json)

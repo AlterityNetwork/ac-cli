@@ -183,3 +183,24 @@ def test_schedules_preview_caps_runs_in_json_mode(invoke, mock_api):
         "next_runs": ["2026-01-06T09:00:00Z"],
         "description": "At 09:00 on weekdays",
     }
+
+
+def test_schedules_create_binds_a_preset(invoke, mock_api):
+    route = mock_api.post("/api/v1/workflows/wf-1/schedule").respond(201, json=SAMPLE_SCHEDULE)
+    result = invoke(
+        ["workflows", "schedules", "create", "wf-1", "--cron", "0 9 * * 1"]
+        + ["--timezone", "UTC", "--preset-id", "preset-1"]
+    )
+    assert result.exit_code == 0
+    assert json.loads(route.calls.last.request.content)["preset_id"] == "preset-1"
+
+
+def test_schedules_update_binds_a_preset(invoke, mock_api):
+    route = mock_api.patch("/api/v1/workflows/wf-1/schedules/sched-1").respond(
+        200, json=SAMPLE_SCHEDULE
+    )
+    result = invoke(
+        ["workflows", "schedules", "update", "wf-1", "sched-1", "--preset-id", "preset-2"]
+    )
+    assert result.exit_code == 0
+    assert json.loads(route.calls.last.request.content) == {"preset_id": "preset-2"}
