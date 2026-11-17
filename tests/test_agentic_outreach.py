@@ -1,10 +1,10 @@
-"""Tests for the Envoy Review queue commands."""
+"""Tests for the Outreach Review queue commands."""
 
 import json
 
 import pytest
 
-from ac_cli.commands.envoy import _LIST_FIELDS, _flat
+from ac_cli.commands.outreach import _LIST_FIELDS, _flat
 
 # The column index of each list cell, for the `table_column` reader.
 COLUMN = {key: index for index, (key, _) in enumerate(_LIST_FIELDS)}
@@ -13,7 +13,7 @@ DECISION_ID = "11111111-1111-4111-8111-111111111111"
 ENROLLMENT_ID = "22222222-2222-4222-8222-222222222222"
 CAMPAIGN_ID = "33333333-3333-4333-8333-333333333333"
 
-ACTIONS = "/api/v1/agentic/envoy/actions"
+ACTIONS = "/api/v1/agentic/outreach/actions"
 ACTION_ID = "88888888-8888-4888-8888-888888888888"
 
 ACTION = {
@@ -70,7 +70,7 @@ def test_list_sends_the_filters_and_prints_the_actions(invoke, mock_api, table_c
     result = invoke(
         [
             "agentic",
-            "envoy",
+            "outreach",
             "drafts",
             "list",
             "--status",
@@ -106,7 +106,7 @@ def test_list_sends_the_filters_and_prints_the_actions(invoke, mock_api, table_c
 def test_list_sends_no_status_by_default(invoke, mock_api):
     route = mock_api.get(ACTIONS).respond(200, json=_page(ACTION))
 
-    result = invoke(["agentic", "envoy", "drafts", "list"])
+    result = invoke(["agentic", "outreach", "drafts", "list"])
 
     assert result.exit_code == 0, result.output
     params = route.calls[0].request.url.params
@@ -118,7 +118,7 @@ def test_list_sends_no_status_by_default(invoke, mock_api):
 def test_list_names_the_page_and_the_next_offset(invoke, mock_api):
     mock_api.get(ACTIONS).respond(200, json=_page(ACTION, total=3, has_more=True))
 
-    result = invoke(["agentic", "envoy", "drafts", "list", "--limit", "1"])
+    result = invoke(["agentic", "outreach", "drafts", "list", "--limit", "1"])
 
     assert result.exit_code == 0, result.output
     assert "1-1 of 3" in result.output
@@ -129,7 +129,7 @@ def test_list_names_the_address_when_the_person_has_no_name(invoke, mock_api, ta
     nameless = {**ACTION, "person": {**ACTION["person"], "name": None}, "to": "ann@x.io"}
     mock_api.get(ACTIONS).respond(200, json=_page(nameless))
 
-    result = invoke(["agentic", "envoy", "drafts", "list"])
+    result = invoke(["agentic", "outreach", "drafts", "list"])
 
     assert result.exit_code == 0, result.output
     assert table_column(result.output, COLUMN["person_name"]) == "ann@x.io"
@@ -139,7 +139,7 @@ def test_list_names_the_address_when_the_person_has_no_name(invoke, mock_api, ta
 def test_list_of_an_empty_queue_names_the_total(invoke, mock_api):
     mock_api.get(ACTIONS).respond(200, json=_page(total=4, offset=10))
 
-    result = invoke(["agentic", "envoy", "drafts", "list", "--offset", "10"])
+    result = invoke(["agentic", "outreach", "drafts", "list", "--offset", "10"])
 
     assert result.exit_code == 0, result.output
     assert "0 of 4" in result.output
@@ -149,7 +149,7 @@ def test_list_of_an_empty_queue_names_the_total(invoke, mock_api):
 def test_list_json_keeps_the_page(invoke, mock_api):
     mock_api.get(ACTIONS).respond(200, json=_page(ACTION))
 
-    result = invoke(["agentic", "envoy", "drafts", "list", "--json"])
+    result = invoke(["agentic", "outreach", "drafts", "list", "--json"])
 
     assert json.loads(result.output) == _page(ACTION)
 
@@ -165,7 +165,7 @@ def test_list_json_keeps_the_page(invoke, mock_api):
 def test_list_names_the_people_due_soon(invoke, mock_api, due_soon, line):
     mock_api.get(ACTIONS).respond(200, json={**_page(), "due_soon": due_soon})
 
-    result = invoke(["agentic", "envoy", "drafts", "list"])
+    result = invoke(["agentic", "outreach", "drafts", "list"])
 
     assert result.exit_code == 0, result.output
     assert line in " ".join(result.output.split())
@@ -175,7 +175,7 @@ def test_list_names_the_people_due_soon(invoke, mock_api, due_soon, line):
 def test_list_prints_no_due_line_without_due_soon(invoke, mock_api, page):
     mock_api.get(ACTIONS).respond(200, json=page)
 
-    result = invoke(["agentic", "envoy", "drafts", "list"])
+    result = invoke(["agentic", "outreach", "drafts", "list"])
 
     assert result.exit_code == 0, result.output
     assert "come due" not in result.output
@@ -186,7 +186,7 @@ def test_list_json_passes_due_soon_through(invoke, mock_api):
     page = {**_page(ACTION), "due_soon": 6}
     mock_api.get(ACTIONS).respond(200, json=page)
 
-    result = invoke(["agentic", "envoy", "drafts", "list", "--json"])
+    result = invoke(["agentic", "outreach", "drafts", "list", "--json"])
 
     assert json.loads(result.output)["due_soon"] == 6
 
@@ -194,7 +194,7 @@ def test_list_json_passes_due_soon_through(invoke, mock_api):
 def test_list_refuses_a_negative_offset(invoke, mock_api):
     route = mock_api.get(ACTIONS).respond(200, json=_page())
 
-    result = invoke(["agentic", "envoy", "drafts", "list", "--offset", "-1", "--json"])
+    result = invoke(["agentic", "outreach", "drafts", "list", "--offset", "-1", "--json"])
 
     assert result.exit_code == 2
     assert not route.called
@@ -203,7 +203,7 @@ def test_list_refuses_a_negative_offset(invoke, mock_api):
 def test_list_refuses_a_limit_the_api_refuses(invoke, mock_api):
     route = mock_api.get(ACTIONS).respond(200, json=_page())
 
-    result = invoke(["agentic", "envoy", "drafts", "list", "--limit", "101", "--json"])
+    result = invoke(["agentic", "outreach", "drafts", "list", "--limit", "101", "--json"])
 
     assert result.exit_code == 2
     assert not route.called
@@ -212,8 +212,8 @@ def test_list_refuses_a_limit_the_api_refuses(invoke, mock_api):
 def test_list_refuses_an_unknown_status_and_type(invoke, mock_api):
     route = mock_api.get(ACTIONS).respond(200, json=_page())
 
-    status = invoke(["agentic", "envoy", "drafts", "list", "--status", "pending", "--json"])
-    kind = invoke(["agentic", "envoy", "drafts", "list", "--type", "wait", "--json"])
+    status = invoke(["agentic", "outreach", "drafts", "list", "--status", "pending", "--json"])
+    kind = invoke(["agentic", "outreach", "drafts", "list", "--type", "wait", "--json"])
 
     assert (status.exit_code, kind.exit_code) == (2, 2)
     assert not route.called
@@ -225,7 +225,7 @@ def test_list_sends_each_status_and_the_handled_window(invoke, mock_api):
     result = invoke(
         [
             "agentic",
-            "envoy",
+            "outreach",
             "drafts",
             "list",
             "--status",
@@ -249,7 +249,7 @@ def test_list_sends_each_status_and_the_handled_window(invoke, mock_api):
 def test_list_sends_no_since_and_no_sort_by_default(invoke, mock_api):
     route = mock_api.get(ACTIONS).respond(200, json=_page())
 
-    result = invoke(["agentic", "envoy", "drafts", "list"])
+    result = invoke(["agentic", "outreach", "drafts", "list"])
 
     assert result.exit_code == 0, result.output
     params = route.calls[0].request.url.params
@@ -268,7 +268,7 @@ def test_list_sends_no_since_and_no_sort_by_default(invoke, mock_api):
 def test_list_refuses_a_bad_status_since_or_sort_before_the_request(invoke, mock_api, flags):
     route = mock_api.get(ACTIONS).respond(200, json=_page())
 
-    result = invoke(["agentic", "envoy", "drafts", "list", *flags, "--json"])
+    result = invoke(["agentic", "outreach", "drafts", "list", *flags, "--json"])
 
     assert result.exit_code == 2
     assert not route.called
@@ -289,8 +289,8 @@ def test_list_and_get_print_the_decision(invoke, mock_api, table_column):
     mock_api.get(ACTIONS).respond(200, json=_page(HANDLED))
     mock_api.get(f"{ACTIONS}/{ACTION_ID}").respond(200, json=HANDLED)
 
-    listed = invoke(["agentic", "envoy", "drafts", "list"])
-    got = invoke(["agentic", "envoy", "drafts", "get", ACTION_ID])
+    listed = invoke(["agentic", "outreach", "drafts", "list"])
+    got = invoke(["agentic", "outreach", "drafts", "get", ACTION_ID])
 
     assert listed.exit_code == 0, listed.output
     assert table_column(listed.output, COLUMN["decided_at"]).replace(" ", "") == (
@@ -312,7 +312,7 @@ def test_the_reason_cell_reads_the_reject_or_the_failure():
 def test_get_prints_the_item_the_reply_and_the_draft(invoke, mock_api):
     mock_api.get(f"{ACTIONS}/{ACTION_ID}").respond(200, json=ACTION)
 
-    result = invoke(["agentic", "envoy", "drafts", "get", ACTION_ID])
+    result = invoke(["agentic", "outreach", "drafts", "get", ACTION_ID])
 
     assert result.exit_code == 0, result.output
     for shown in (
@@ -340,7 +340,7 @@ def test_get_prints_a_linkedin_note(invoke, mock_api):
     }
     mock_api.get(f"{ACTIONS}/{ACTION_ID}").respond(200, json=note)
 
-    result = invoke(["agentic", "envoy", "drafts", "get", ACTION_ID])
+    result = invoke(["agentic", "outreach", "drafts", "get", ACTION_ID])
 
     assert result.exit_code == 0, result.output
     assert "Hi Jane, let us connect." in result.output
@@ -356,7 +356,7 @@ def test_get_prints_the_reasoning_of_a_linkedin_draft(invoke, mock_api):
     }
     mock_api.get(f"{ACTIONS}/{ACTION_ID}").respond(200, json=message)
 
-    result = invoke(["agentic", "envoy", "drafts", "get", ACTION_ID])
+    result = invoke(["agentic", "outreach", "drafts", "get", ACTION_ID])
 
     assert result.exit_code == 0, result.output
     assert "Reasoning:" in result.output
@@ -367,13 +367,13 @@ def test_get_prints_the_reasoning_of_a_linkedin_draft(invoke, mock_api):
 def test_get_of_a_draft_with_no_reasoning_prints_no_label(invoke, mock_api):
     mock_api.get(f"{ACTIONS}/{ACTION_ID}").respond(200, json=ACTION)
 
-    result = invoke(["agentic", "envoy", "drafts", "get", ACTION_ID])
+    result = invoke(["agentic", "outreach", "drafts", "get", ACTION_ID])
 
     assert result.exit_code == 0, result.output
     assert "Reasoning" not in result.output
 
 
-def test_get_prints_what_envoy_used(invoke, mock_api):
+def test_get_prints_what_outreach_used(invoke, mock_api):
     # ENG-2925: one line per fact, source then label.
     item = {
         **ACTION,
@@ -394,10 +394,10 @@ def test_get_prints_what_envoy_used(invoke, mock_api):
     }
     mock_api.get(f"{ACTIONS}/{ACTION_ID}").respond(200, json=item)
 
-    result = invoke(["agentic", "envoy", "drafts", "get", ACTION_ID])
+    result = invoke(["agentic", "outreach", "drafts", "get", ACTION_ID])
 
     assert result.exit_code == 0, result.output
-    assert "What Envoy used:" in result.output
+    assert "What Outreach used:" in result.output
     assert "signals · hiring · Hires 2 [analysts]" in result.output
     assert "crm · title: CMO" in result.output
 
@@ -409,17 +409,17 @@ def test_get_with_no_facts_prints_no_block(invoke, mock_api, facts):
         item["facts_used"] = facts
     mock_api.get(f"{ACTIONS}/{ACTION_ID}").respond(200, json=item)
 
-    result = invoke(["agentic", "envoy", "drafts", "get", ACTION_ID])
+    result = invoke(["agentic", "outreach", "drafts", "get", ACTION_ID])
 
     assert result.exit_code == 0, result.output
-    assert "What Envoy used" not in result.output
+    assert "What Outreach used" not in result.output
 
 
 def test_get_json_passes_the_facts_through(invoke, mock_api):
     fact = {"source": "crm", "label": "title: CMO", "ref_kind": "crm.person", "ref_id": "p"}
     mock_api.get(f"{ACTIONS}/{ACTION_ID}").respond(200, json={**ACTION, "facts_used": [fact]})
 
-    result = invoke(["agentic", "envoy", "drafts", "get", ACTION_ID, "--json"])
+    result = invoke(["agentic", "outreach", "drafts", "get", ACTION_ID, "--json"])
 
     assert result.exit_code == 0, result.output
     assert json.loads(result.output)["facts_used"] == [fact]
@@ -429,8 +429,8 @@ def test_list_and_get_print_the_touch_and_the_sentiment(invoke, mock_api, table_
     mock_api.get(ACTIONS).respond(200, json=_page(ACTION))
     mock_api.get(f"{ACTIONS}/{ACTION_ID}").respond(200, json=ACTION)
 
-    listed = invoke(["agentic", "envoy", "drafts", "list"])
-    got = invoke(["agentic", "envoy", "drafts", "get", ACTION_ID])
+    listed = invoke(["agentic", "outreach", "drafts", "list"])
+    got = invoke(["agentic", "outreach", "drafts", "get", ACTION_ID])
 
     assert listed.exit_code == 0, listed.output
     # A cell folds over lines, so the reader joins its parts.
@@ -508,7 +508,7 @@ def test_get_prints_the_linkedin_state(invoke, mock_api, linkedin, shown):
     message = {**MESSAGE, "replying_to": None, "linkedin": linkedin}
     mock_api.get(f"{ACTIONS}/{ACTION_ID}").respond(200, json=message)
 
-    result = invoke(["agentic", "envoy", "drafts", "get", ACTION_ID])
+    result = invoke(["agentic", "outreach", "drafts", "get", ACTION_ID])
 
     assert result.exit_code == 0, result.output
     [line] = [one for one in result.output.splitlines() if "LinkedIn" in one]
@@ -524,7 +524,7 @@ def test_get_prints_the_photo_and_the_logo(invoke, mock_api, photo, logo):
     item = {**ACTION, "person": person, "company_logo_url": logo}
     mock_api.get(f"{ACTIONS}/{ACTION_ID}").respond(200, json=item)
 
-    result = invoke(["agentic", "envoy", "drafts", "get", ACTION_ID])
+    result = invoke(["agentic", "outreach", "drafts", "get", ACTION_ID])
 
     assert result.exit_code == 0, result.output
     for label, url in (("Photo", photo), ("Logo", logo)):
@@ -535,7 +535,7 @@ def test_get_prints_the_photo_and_the_logo(invoke, mock_api, photo, logo):
 def test_get_of_an_email_prints_no_linkedin_state(invoke, mock_api):
     mock_api.get(f"{ACTIONS}/{ACTION_ID}").respond(200, json={**ACTION, "linkedin": None})
 
-    result = invoke(["agentic", "envoy", "drafts", "get", ACTION_ID])
+    result = invoke(["agentic", "outreach", "drafts", "get", ACTION_ID])
 
     assert result.exit_code == 0, result.output
     [line] = [one for one in result.output.splitlines() if "LinkedIn" in one]
@@ -545,7 +545,7 @@ def test_get_of_an_email_prints_no_linkedin_state(invoke, mock_api):
 def test_get_json_keeps_the_item(invoke, mock_api):
     mock_api.get(f"{ACTIONS}/{ACTION_ID}").respond(200, json=ACTION)
 
-    result = invoke(["agentic", "envoy", "drafts", "get", ACTION_ID, "--json"])
+    result = invoke(["agentic", "outreach", "drafts", "get", ACTION_ID, "--json"])
 
     assert json.loads(result.output) == ACTION
 
@@ -553,7 +553,7 @@ def test_get_json_keeps_the_item(invoke, mock_api):
 def test_get_of_an_unknown_action_exits_3(invoke, mock_api):
     mock_api.get(f"{ACTIONS}/{ACTION_ID}").respond(404, json={"detail": "not found"})
 
-    result = invoke(["agentic", "envoy", "drafts", "get", ACTION_ID, "--json"])
+    result = invoke(["agentic", "outreach", "drafts", "get", ACTION_ID, "--json"])
 
     assert result.exit_code == 3
 
@@ -562,7 +562,7 @@ APPROVED = {**ACTION, "status": "approved"}
 
 
 def _approve(*flags):
-    return ["agentic", "envoy", "drafts", "approve", ACTION_ID, *flags]
+    return ["agentic", "outreach", "drafts", "approve", ACTION_ID, *flags]
 
 
 def test_approve_without_an_edit_sends_no_payload(invoke, mock_api):
@@ -717,7 +717,7 @@ REJECTED = {**ACTION, "status": "rejected"}
 
 
 def _reject(*args):
-    return ["agentic", "envoy", "drafts", "reject", ACTION_ID, *args]
+    return ["agentic", "outreach", "drafts", "reject", ACTION_ID, *args]
 
 
 def test_reject_regenerate_sends_then_and_the_reason_to_the_action(invoke, mock_api):
@@ -798,7 +798,7 @@ def test_a_reject_that_is_not_pending_exits_5_with_the_code(invoke, mock_api):
 
 
 def test_the_v2_save_is_gone(invoke, mock_api):
-    result = invoke(["agentic", "envoy", "drafts", "save", DECISION_ID, "--body", "x"])
+    result = invoke(["agentic", "outreach", "drafts", "save", DECISION_ID, "--body", "x"])
 
     assert result.exit_code == 2
     assert "No such command" in result.output
@@ -867,9 +867,9 @@ def test_reject_skip_and_switch_channel_send_an_optional_reason(invoke, mock_api
 @pytest.mark.parametrize(
     ("then", "args", "said"),
     [
-        ("regenerate", ["--reason", "Shorter."], "Envoy writes a new draft"),
+        ("regenerate", ["--reason", "Shorter."], "Outreach writes a new draft"),
         ("stop", ["--yes"], "The enrollment ends"),
-        ("skip", [], "Envoy sends nothing now"),
+        ("skip", [], "Outreach sends nothing now"),
         ("switch_channel", [], "a new draft on the other channel"),
     ],
 )
