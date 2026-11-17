@@ -1485,10 +1485,6 @@ app.add_typer(conversations_app, name="conversations")
 app.add_typer(prospects_app, name="prospects")
 app.add_typer(saved_searches_app, name="saved-searches")
 app.add_typer(envoy_app, name="envoy")
-# The group was `ac agentic outreach` before ENG-2904. A script or an agent can
-# still call it.
-# TODO: ENG-2906 - remove the hidden alias after one release.
-app.add_typer(envoy_app, name="outreach", hidden=True)
 
 
 connections_app = typer.Typer(help="Agentic provider connections")
