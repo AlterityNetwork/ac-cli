@@ -145,7 +145,7 @@ def signals_create(
         None, "--workflow-run-id", help="Originating workflow run"
     ),
     source_agent: str | None = typer.Option(
-        None, "--source-agent", help="sonar | envoy | manual (default: manual)"
+        None, "--source-agent", help="sonar | sequences | manual (default: manual)"
     ),
     attach_score: int | None = typer.Option(None, "--attach-score", help="Relevance score 0-100"),
     json_output: bool = JSON_OPTION,
