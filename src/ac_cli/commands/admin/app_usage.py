@@ -27,7 +27,7 @@ def app_usage_summary(
     if end_date:
         params["end_date"] = end_date
     if org_id:
-        params["org_id"] = org_id
+        params["organization_id"] = org_id
 
     resp = _api_request("get", f"{_ADMIN}/app-usage/summary", params=params)
 
@@ -72,9 +72,9 @@ def app_usage_users(
     if order:
         params["order"] = order
     if search:
-        params["search"] = search
+        params["q"] = search
     if org_id:
-        params["org_id"] = org_id
+        params["organization_id"] = org_id
 
     resp = _api_request("get", f"{_ADMIN}/app-usage/users", params=params)
 
@@ -114,7 +114,7 @@ def app_usage_user(
     if end_date:
         params["end_date"] = end_date
     if org_id:
-        params["org_id"] = org_id
+        params["organization_id"] = org_id
 
     resp = _api_request("get", f"{_ADMIN}/app-usage/users/{user_id}", params=params)
 

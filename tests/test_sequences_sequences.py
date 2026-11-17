@@ -298,13 +298,35 @@ def test_sequences_classify_step_subtype(invoke, mock_api):
 
 
 def test_sequences_outputs_list(invoke, mock_api):
-    mock_api.get("/api/v1/sequences/sequences/seq-1/outputs").respond(
-        200, json={"data": [{"id": "out-1", "step_id": "step-1"}], "total": 1}
+    route = mock_api.get("/api/v1/sequences/sequences/seq-1/outputs").respond(
+        200, json={"emails": [{"id": "out-1", "step_id": "step-1"}], "tasks": []}
     )
     result = invoke(["sequences", "sequences", "outputs", "seq-1", "--json"])
     assert result.exit_code == 0
     parsed = json.loads(result.output)
-    assert parsed["data"][0]["id"] == "out-1"
+    assert parsed["emails"][0]["id"] == "out-1"
+    assert not route.calls.last.request.url.params
+
+
+def test_sequences_outputs_table_shows_emails_and_tasks(invoke, mock_api):
+    """The route answers `emails` and `tasks`, not a paginated `data` list."""
+    mock_api.get("/api/v1/sequences/sequences/seq-1/outputs").respond(
+        200,
+        json={
+            "emails": [{"id": "em-1", "step_id": "step-1", "subject": "Hello Roxy"}],
+            "tasks": [{"id": "task-1", "step_id": "step-2", "activity": {}}],
+        },
+    )
+    result = invoke(["sequences", "sequences", "outputs", "seq-1"])
+    assert result.exit_code == 0
+    assert "Hello Roxy" in result.output
+    assert "task-1" in result.output
+
+
+def test_sequences_outputs_has_no_paging_options(invoke, mock_api):
+    """The route takes no query parameters, so paging options did nothing."""
+    result = invoke(["sequences", "sequences", "outputs", "seq-1", "--limit", "5"])
+    assert result.exit_code == 2
 
 
 def test_sequences_generate_drafts(invoke, mock_api):
@@ -352,3 +374,11 @@ def test_sequences_for_prospect_not_found(invoke, mock_api):
     )
     result = invoke(["sequences", "sequences", "for-prospect", "missing"])
     assert result.exit_code == 3
+
+
+def test_sequences_create_does_not_send_organization_id(invoke, mock_api):
+    route = mock_api.post("/api/v1/sequences/sequences").respond(201, json=SAMPLE_SEQUENCE)
+    result = invoke(["sequences", "sequences", "create", "--name", "Q1"])
+    assert result.exit_code == 0
+    body = json.loads(route.calls.last.request.content)
+    assert body == {"name": "Q1"}

@@ -2,6 +2,8 @@
 
 import json
 
+import pytest
+
 SAMPLE_SUMMARY = {
     "total_requests": 1000,
     "total_tokens": 500000,
@@ -243,3 +245,33 @@ def test_ai_usage_details_with_filters(invoke, mock_api):
         ]
     )
     assert result.exit_code == 0
+
+
+@pytest.mark.parametrize(
+    ("args", "path", "body"),
+    [
+        (["summary"], "/api/v1/admin/ai-usage/summary", {}),
+        (["users"], "/api/v1/admin/ai-usage/users", {"items": []}),
+        (["user", "user-123"], "/api/v1/admin/ai-usage/users/user-123", {}),
+        (["by-model"], "/api/v1/admin/ai-usage/by-model", []),
+        (["by-workflow"], "/api/v1/admin/ai-usage/by-workflow", []),
+        (["by-app"], "/api/v1/admin/ai-usage/by-app", []),
+        (["details"], "/api/v1/admin/ai-usage/details", {"items": []}),
+    ],
+)
+def test_ai_usage_org_id_sends_organization_id(invoke, mock_api, args, path, body):
+    route = mock_api.get(path).respond(200, json=body)
+    result = invoke(["admin", "ai-usage", *args, "--org-id", "org-123", "--json"])
+    assert result.exit_code == 0
+    params = route.calls.last.request.url.params
+    assert params["organization_id"] == "org-123"
+    assert "org_id" not in params
+
+
+def test_ai_usage_users_search_sends_q(invoke, mock_api):
+    route = mock_api.get("/api/v1/admin/ai-usage/users").respond(200, json=SAMPLE_USERS)
+    result = invoke(["admin", "ai-usage", "users", "--search", "alice"])
+    assert result.exit_code == 0
+    params = route.calls.last.request.url.params
+    assert params["q"] == "alice"
+    assert "search" not in params

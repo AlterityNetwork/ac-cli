@@ -44,7 +44,7 @@ def apps_update(
 ) -> None:
     """Update an app."""
     set_json_mode(json_output)
-    body = _build_body(name=name, status=status)
+    body = _build_body(display_name=name, status=status)
     if not body:
         rprint("[yellow]No fields to update.[/yellow]")
         raise typer.Exit(code=1)

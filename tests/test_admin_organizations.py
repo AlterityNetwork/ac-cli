@@ -2,6 +2,8 @@
 
 import json
 
+import pytest
+
 SAMPLE_ORG = {
     "id": "org-1",
     "name": "Test Corp",
@@ -341,3 +343,111 @@ def test_orgs_update_refuses_a_cap_and_a_clear_together(invoke, mock_api):
 def test_orgs_update_refuses_a_negative_cap(invoke, mock_api):
     result = invoke(["admin", "orgs", "update", "org-1", "--prospect-emails-per-day", "-1"])
     assert result.exit_code != 0
+
+
+def test_orgs_list_query_sends_q(invoke, mock_api):
+    route = mock_api.get("/api/v1/admin/organizations").respond(200, json={"data": [], "total": 0})
+    result = invoke(["admin", "orgs", "list", "--query", "acme", "--json"])
+    assert result.exit_code == 0
+    params = route.calls.last.request.url.params
+    assert params["q"] == "acme"
+    assert "query" not in params
+
+
+@pytest.mark.parametrize("flag", ["--slug", "--plan"])
+def test_orgs_create_rejects_dead_flags(invoke, mock_api, flag):
+    route = mock_api.post("/api/v1/admin/organizations").respond(201, json=SAMPLE_ORG)
+    result = invoke(["admin", "orgs", "create", "--name", "Test Corp", flag, "x"])
+    assert result.exit_code == 2
+    assert not route.called
+
+
+@pytest.mark.parametrize("flag", ["--slug", "--plan"])
+def test_orgs_update_rejects_dead_flags(invoke, mock_api, flag):
+    route = mock_api.patch("/api/v1/admin/organizations/org-1").respond(200, json=SAMPLE_ORG)
+    result = invoke(["admin", "orgs", "update", "org-1", flag, "x"])
+    assert result.exit_code == 2
+    assert not route.called
+
+
+def test_orgs_create_user_sends_the_api_fields(invoke, mock_api):
+    route = mock_api.post("/api/v1/admin/organizations/org-1/users").respond(
+        201, json={"user_id": "u-9", "role": "member", "email_sent": False}
+    )
+    result = invoke(
+        [
+            "admin",
+            "orgs",
+            "create-user",
+            "org-1",
+            "--email",
+            "new@example.com",
+            "--first-name",
+            "Ada",
+            "--last-name",
+            "Lovelace",
+            "--job-title",
+            "CTO",
+            "--no-send-email",
+        ]
+    )
+    assert result.exit_code == 0
+    assert "u-9" in result.output
+    assert json.loads(route.calls.last.request.content) == {
+        "email": "new@example.com",
+        "first_name": "Ada",
+        "last_name": "Lovelace",
+        "job_title": "CTO",
+        "send_email": False,
+    }
+
+
+def test_orgs_create_user_json_and_role(invoke, mock_api):
+    route = mock_api.post("/api/v1/admin/organizations/org-1/users").respond(
+        201, json={"user_id": "u-9", "role": "admin", "email_sent": True}
+    )
+    result = invoke(
+        [
+            "admin",
+            "orgs",
+            "create-user",
+            "org-1",
+            "--email",
+            "a@example.com",
+            "--first-name",
+            "A",
+            "--last-name",
+            "B",
+            "--role",
+            "admin",
+            "--json",
+        ]
+    )
+    assert result.exit_code == 0
+    assert json.loads(result.output)["email_sent"] is True
+    sent = json.loads(route.calls.last.request.content)
+    assert sent["role"] == "admin"
+    assert sent["send_email"] is True
+
+
+def test_orgs_create_user_conflict_exit_code(invoke, mock_api):
+    mock_api.post("/api/v1/admin/organizations/org-1/users").respond(
+        409, json={"detail": "A user with this email already exists"}
+    )
+    result = invoke(
+        [
+            "admin",
+            "orgs",
+            "create-user",
+            "org-1",
+            "--email",
+            "a@example.com",
+            "--first-name",
+            "A",
+            "--last-name",
+            "B",
+            "--json",
+        ]
+    )
+    assert result.exit_code == 5
+    assert json.loads(result.output)["status_code"] == 409

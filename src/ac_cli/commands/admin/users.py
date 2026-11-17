@@ -27,13 +27,13 @@ def users_list(
     query: str | None = typer.Option(None, "--query", "-q", help="Search query"),
     sort: str | None = typer.Option(None, help="Sort field"),
     order: str | None = typer.Option(None, help="Sort order (asc/desc)"),
-    page: int = typer.Option(1, help="Page number"),
-    page_size: int = typer.Option(50, "--page-size", help="Page size"),
+    page: int = typer.Option(1, min=1, help="Page number"),
+    page_size: int = typer.Option(50, "--page-size", min=1, help="Page size"),
     json_output: bool = JSON_OPTION,
 ) -> None:
     """List users."""
     set_json_mode(json_output)
-    params: dict = {"page": page, "page_size": page_size}
+    params: dict = {"limit": page_size, "offset": (page - 1) * page_size}
     if query:
         params["q"] = query
     if sort:
@@ -311,14 +311,9 @@ def users_impersonation_end(
 @users_app.command("generate-link")
 def users_generate_link(
     user_id: str = typer.Argument(..., help="User ID"),
-    send_email: bool = typer.Option(False, "--send-email", help="Send email with link"),
 ) -> None:
     """Generate an impersonation link for a user."""
-    resp = _api_request(
-        "post",
-        f"{_ADMIN}/users/{user_id}/generate-impersonation-link",
-        params={"send_email": send_email},
-    )
+    resp = _api_request("post", f"{_ADMIN}/users/{user_id}/generate-impersonation-link")
 
     data = resp.json()
     rprint(styled("[green]Impersonation link:[/green] {}", data.get("link", data)))
@@ -346,8 +341,9 @@ def users_suspension_messages(
 def users_suspend(
     ctx: typer.Context,
     user_id: str = typer.Argument(..., help="User ID"),
-    reason: str | None = typer.Option(None, "--reason", help="Suspension reason"),
-    message_id: str | None = typer.Option(None, "--message-id", help="Suspension message ID"),
+    reason: str = typer.Option(
+        ..., "--reason", help="Suspension reason: trial_expired, non_payment or misconduct"
+    ),
     yes: bool = typer.Option(False, "--yes", "-y", help="Skip confirmation"),
     json_output: bool = JSON_OPTION,
 ) -> None:
@@ -356,8 +352,7 @@ def users_suspend(
     if not should_skip_confirm(yes):
         typer.confirm(f"Suspend user {user_id}?", abort=True)
 
-    body = _build_body(reason=reason, message_id=message_id)
-    resp = _api_request("post", f"{_ADMIN}/users/{user_id}/suspend", json=body)
+    resp = _api_request("post", f"{_ADMIN}/users/{user_id}/suspend", json={"reason": reason})
 
     data = resp.json()
     if json_output:

@@ -101,3 +101,106 @@ def test_schedules_toggle_disable(invoke, mock_api):
     result = invoke(["workflows", "schedules", "toggle", "wf-1", "sched-1", "--disabled"])
     assert result.exit_code == 0
     assert "disabled" in result.output
+
+
+def test_schedules_create_sends_cron_type_and_input_config(invoke, mock_api):
+    route = mock_api.post("/api/v1/workflows/wf-1/schedule").respond(201, json=SAMPLE_SCHEDULE)
+    result = invoke(
+        ["workflows", "schedules", "create", "wf-1", "--cron", "0 9 * * 1-5"]
+        + ["--timezone", "Europe/London", "--input", '{"list_id": "l-1"}']
+    )
+    assert result.exit_code == 0
+    body = json.loads(route.calls.last.request.content)
+    assert body == {
+        "type": "cron",
+        "cron_expression": "0 9 * * 1-5",
+        "timezone": "Europe/London",
+        "input_config": {"list_id": "l-1"},
+    }
+
+
+def test_schedules_update_sends_input_config(invoke, mock_api):
+    route = mock_api.patch("/api/v1/workflows/wf-1/schedules/sched-1").respond(
+        200, json=SAMPLE_SCHEDULE
+    )
+    result = invoke(
+        ["workflows", "schedules", "update", "wf-1", "sched-1", "--input", '{"list_id": "l-2"}']
+    )
+    assert result.exit_code == 0
+    body = json.loads(route.calls.last.request.content)
+    assert body == {"input_config": {"list_id": "l-2"}}
+
+
+def test_schedules_preview_caps_runs_on_the_client(invoke, mock_api):
+    route = mock_api.post("/api/v1/workflows/wf-1/schedule/preview").respond(
+        200,
+        json={
+            "next_runs": [
+                "2026-01-06T09:00:00Z",
+                "2026-01-07T09:00:00Z",
+                "2026-01-08T09:00:00Z",
+            ]
+        },
+    )
+    result = invoke(
+        ["workflows", "schedules", "preview", "wf-1", "--cron", "0 9 * * 1-5", "--count", "2"]
+    )
+    assert result.exit_code == 0
+    body = json.loads(route.calls.last.request.content)
+    assert body == {"cron_expression": "0 9 * * 1-5", "timezone": "UTC"}
+    assert "2026-01-07T09:00:00Z" in result.output
+    assert "2026-01-08T09:00:00Z" not in result.output
+
+
+def test_schedules_toggle_sends_is_active(invoke, mock_api):
+    route = mock_api.post("/api/v1/workflows/wf-1/schedules/sched-1/toggle").respond(
+        200, json=SAMPLE_SCHEDULE
+    )
+    assert (
+        invoke(["workflows", "schedules", "toggle", "wf-1", "sched-1", "--enabled"]).exit_code == 0
+    )
+    assert json.loads(route.calls.last.request.content) == {"is_active": True}
+    assert (
+        invoke(["workflows", "schedules", "toggle", "wf-1", "sched-1", "--disabled"]).exit_code == 0
+    )
+    assert json.loads(route.calls.last.request.content) == {"is_active": False}
+
+
+def test_schedules_preview_caps_runs_in_json_mode(invoke, mock_api):
+    mock_api.post("/api/v1/workflows/wf-1/schedule/preview").respond(
+        200,
+        json={
+            "next_runs": ["2026-01-06T09:00:00Z", "2026-01-07T09:00:00Z"],
+            "description": "At 09:00 on weekdays",
+        },
+    )
+    result = invoke(
+        ["workflows", "schedules", "preview", "wf-1", "--cron", "0 9 * * 1-5"]
+        + ["--count", "1", "--json"]
+    )
+    assert result.exit_code == 0
+    assert json.loads(result.output) == {
+        "next_runs": ["2026-01-06T09:00:00Z"],
+        "description": "At 09:00 on weekdays",
+    }
+
+
+def test_schedules_create_binds_a_preset(invoke, mock_api):
+    route = mock_api.post("/api/v1/workflows/wf-1/schedule").respond(201, json=SAMPLE_SCHEDULE)
+    result = invoke(
+        ["workflows", "schedules", "create", "wf-1", "--cron", "0 9 * * 1"]
+        + ["--timezone", "UTC", "--preset-id", "preset-1"]
+    )
+    assert result.exit_code == 0
+    assert json.loads(route.calls.last.request.content)["preset_id"] == "preset-1"
+
+
+def test_schedules_update_binds_a_preset(invoke, mock_api):
+    route = mock_api.patch("/api/v1/workflows/wf-1/schedules/sched-1").respond(
+        200, json=SAMPLE_SCHEDULE
+    )
+    result = invoke(
+        ["workflows", "schedules", "update", "wf-1", "sched-1", "--preset-id", "preset-2"]
+    )
+    assert result.exit_code == 0
+    assert json.loads(route.calls.last.request.content) == {"preset_id": "preset-2"}

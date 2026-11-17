@@ -5,7 +5,7 @@ from __future__ import annotations
 import typer
 from rich import print as rprint
 
-from ac_cli.commands._helpers import JSON_OPTION, _get_org_id, set_json_mode, should_skip_confirm
+from ac_cli.commands._helpers import JSON_OPTION, set_json_mode, should_skip_confirm
 from ac_cli.commands.crm import _api_request, _build_body
 from ac_cli.commands.sequences import _SEQUENCES
 from ac_cli.formatting import print_detail, print_json, print_table, styled
@@ -130,8 +130,6 @@ def sequences_create(
         skip_non_working_days=skip_non_working_days,
         auto_enrich_recipients=auto_enrich,
     )
-
-    body["organization_id"] = _get_org_id()
 
     resp = _api_request("post", f"{_SEQUENCES}/sequences", json=body)
 
@@ -402,31 +400,31 @@ def sequences_classify_step_subtype(
 def sequences_outputs(
     ctx: typer.Context,
     sequence_id: str = typer.Argument(..., help="Sequence ID"),
-    limit: int = typer.Option(50, help="Max results"),
-    offset: int = typer.Option(0, help="Pagination offset"),
     json_output: bool = JSON_OPTION,
 ) -> None:
-    """List sequence outputs (generated drafts/results)."""
+    """List the emails and tasks a sequence made."""
     set_json_mode(json_output)
-    resp = _api_request(
-        "get",
-        f"{_SEQUENCES}/sequences/{sequence_id}/outputs",
-        params={"limit": limit, "offset": offset},
-    )
+    resp = _api_request("get", f"{_SEQUENCES}/sequences/{sequence_id}/outputs")
     data = resp.json()
     if json_output:
         print_json(data)
         return
-    items = data if isinstance(data, list) else data.get("data", [])
+    emails = data.get("emails", [])
+    tasks = data.get("tasks", [])
     print_table(
-        items,
+        emails,
         [
             ("id", "ID"),
             ("step_id", "Step"),
-            ("status", "Status"),
-            ("created_at", "Created"),
+            ("recipient_id", "Recipient"),
+            ("subject", "Subject"),
         ],
-        title=f"Outputs ({data.get('total', len(items))} total)",
+        title=f"Emails ({len(emails)})",
+    )
+    print_table(
+        tasks,
+        [("id", "ID"), ("step_id", "Step")],
+        title=f"Tasks ({len(tasks)})",
     )
 
 

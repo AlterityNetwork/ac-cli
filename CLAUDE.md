@@ -71,7 +71,8 @@ tests/                 → One test file per command group (test_<domain>_<group
 scripts/               → bump.sh (manual version), auto-version-tag.sh (post-commit hook),
                          lint.sh (ruff lint + format + markup gate),
                          check_markup.py (no unwrapped value reaches rich markup),
-                         audit_endpoints.py (CLI vs API endpoint diff)
+                         audit_endpoints.py (CLI vs API endpoint diff),
+                         audit_payloads.py (CLI vs API body and query keys)
 ```
 
 ## Running Checks
@@ -86,14 +87,21 @@ uv run python scripts/check_markup.py      # No unwrapped value reaches rich mar
 uv run vulture src/                        # Dead-code scan
 uv run deptry src/                         # Dependency hygiene
 python scripts/audit_endpoints.py --strict # Diff CLI calls vs live OpenAPI
+python scripts/audit_endpoints.py --strict --spec-file openapi.json  # Same, from an exported spec
 ```
 
 Pytest defaults (`pyproject.toml`): `-n auto --dist worksteal --maxfail=1 --cov-fail-under=90`. No mypy/type-check tooling is configured.
 
-`audit_endpoints.py` requires the API on `localhost:8008` (or pass `--api-url`).
-Run before merging changes that touch routers or `_api_request` calls — exits
-nonzero on stale CLI paths (CLI-ONLY) or stale `OUT_OF_SCOPE` entries; API-ONLY
-endpoints are reported but do not fail the run.
+`audit_endpoints.py` reads the spec from the API on `localhost:8008` (or
+`--api-url`), or from a file with `--spec-file`. Run it before you merge a change
+to a router or an `_api_request` call. It exits nonzero on stale CLI paths
+(CLI-ONLY), stale `OUT_OF_SCOPE` entries and PAYLOAD findings. API-ONLY endpoints
+are reported but do not fail the run.
+
+The PAYLOAD check (`scripts/audit_payloads.py`) compares the body keys and query
+parameters each call sends with the request schema of its route. FastAPI drops an
+unknown key with no error, so a wrong key name makes an option do nothing. A call
+whose keys the check cannot follow is listed as UNRESOLVED. Check those by hand.
 
 ## TDD Workflow
 

@@ -236,3 +236,37 @@ def test_inbox_list_not_found(invoke, mock_api):
     mock_api.get("/api/v1/sequences/inbox/threads").respond(404, json={"detail": "Not found"})
     result = invoke(["sequences", "inbox", "list"])
     assert result.exit_code == 3
+
+
+def test_inbox_assign_sends_user_id(invoke, mock_api):
+    route = mock_api.post("/api/v1/sequences/inbox/threads/t-1/assign").respond(
+        200, json=SAMPLE_THREAD
+    )
+    result = invoke(["sequences", "inbox", "assign", "t-1", "--user-id", "user-456"])
+    assert result.exit_code == 0
+    assert json.loads(route.calls.last.request.content) == {"user_id": "user-456"}
+
+
+def test_inbox_snooze_sends_snoozed_until(invoke, mock_api):
+    route = mock_api.post("/api/v1/sequences/inbox/threads/t-1/snooze").respond(
+        200, json=SAMPLE_THREAD
+    )
+    result = invoke(["sequences", "inbox", "snooze", "t-1", "--until", "2026-03-15T09:00:00Z"])
+    assert result.exit_code == 0
+    assert json.loads(route.calls.last.request.content) == {"snoozed_until": "2026-03-15T09:00:00Z"}
+
+
+def test_inbox_reply_sends_body_text(invoke, mock_api):
+    route = mock_api.post("/api/v1/sequences/inbox/threads/t-1/reply").respond(
+        200, json=SAMPLE_MESSAGE
+    )
+    result = invoke(["sequences", "inbox", "reply", "t-1", "--body", "Thanks for reaching out"])
+    assert result.exit_code == 0
+    assert json.loads(route.calls.last.request.content) == {"body_text": "Thanks for reaching out"}
+
+
+def test_inbox_reply_has_no_subject_option(invoke, mock_api):
+    result = invoke(
+        ["sequences", "inbox", "reply", "t-1", "--body", "Thanks for this", "--subject", "Re"]
+    )
+    assert result.exit_code == 2

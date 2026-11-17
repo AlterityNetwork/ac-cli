@@ -72,6 +72,33 @@ def test_nylas_send(invoke, mock_api):
     assert "Email sent" in result.output
 
 
+def test_nylas_send_sends_the_api_field_names(invoke, mock_api):
+    route = mock_api.post("/api/v1/nylas/email/send").respond(200, json={"message_id": "msg-2"})
+    result = invoke(
+        [
+            "nylas",
+            "send",
+            "--to",
+            "a@b.com",
+            "--to",
+            "c@d.com",
+            "--subject",
+            "Re: Hi",
+            "--body",
+            "Hello",
+            "--reply-to-message-id",
+            "msg-1",
+        ]
+    )
+    assert result.exit_code == 0
+    assert json.loads(route.calls.last.request.content) == {
+        "to": ["a@b.com", "c@d.com"],
+        "subject": "Re: Hi",
+        "text": "Hello",
+        "reply_message_id": "msg-1",
+    }
+
+
 def test_nylas_update_signature(invoke, mock_api):
     mock_api.put("/api/v1/nylas/email/account/signature").respond(
         200, json={"signature": "<b>My Sig</b>"}

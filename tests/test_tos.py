@@ -38,18 +38,47 @@ def test_status_json(invoke, mock_api):
 
 
 def test_accept(invoke, mock_api):
-    mock_api.post("/api/v1/tos/accept").respond(200, json={"accepted": True})
+    mock_api.get("/api/v1/tos/config").respond(
+        200, json={"current_version": "3.0", "termly_embed_url": ""}
+    )
+    route = mock_api.post("/api/v1/tos/accept").respond(200, json={"accepted": True})
     result = invoke(["tos", "accept"])
     assert result.exit_code == 0
     assert "accepted" in result.output.lower()
+    assert json.loads(route.calls.last.request.content) == {"tos_version": "3.0"}
 
 
 def test_accept_json(invoke, mock_api):
+    mock_api.get("/api/v1/tos/config").respond(
+        200, json={"current_version": "3.0", "termly_embed_url": ""}
+    )
     mock_api.post("/api/v1/tos/accept").respond(200, json={"accepted": True})
     result = invoke(["tos", "accept", "--json"])
     assert result.exit_code == 0
     parsed = json.loads(result.output)
     assert parsed["accepted"] is True
+
+
+def test_accept_a_named_version_skips_the_config_read(invoke, mock_api):
+    config = mock_api.get("/api/v1/tos/config")
+    route = mock_api.post("/api/v1/tos/accept").respond(200, json={"accepted": True})
+    result = invoke(["tos", "accept", "--version", "2.1"])
+    assert result.exit_code == 0
+    assert not config.called
+    assert json.loads(route.calls.last.request.content) == {"tos_version": "2.1"}
+
+
+def test_accept_with_no_current_version_stops(invoke, mock_api):
+    mock_api.get("/api/v1/tos/config").respond(
+        200, json={"current_version": "", "termly_embed_url": ""}
+    )
+    route = mock_api.post("/api/v1/tos/accept")
+    result = invoke(["tos", "accept", "--json"])
+    assert result.exit_code == 2
+    assert not route.called
+    parsed = json.loads(result.output)
+    assert parsed["error"] is True
+    assert "--version" in parsed["detail"]
 
 
 def test_update_config(invoke, mock_api):
@@ -70,3 +99,15 @@ def test_update_config_json(invoke, mock_api):
 def test_update_config_no_fields(invoke, mock_api):
     result = invoke(["tos", "update-config"])
     assert result.exit_code == 1
+
+
+def test_update_config_sends_api_field_names(invoke, mock_api):
+    route = mock_api.patch("/api/v1/admin/tos/config").respond(200, json={})
+    result = invoke(
+        ["tos", "update-config", "--version", "4.0", "--embed-url", "https://example.com/tos"]
+    )
+    assert result.exit_code == 0
+    assert json.loads(route.calls.last.request.content) == {
+        "current_version": "4.0",
+        "termly_embed_url": "https://example.com/tos",
+    }

@@ -39,13 +39,12 @@ def demo_scrape_website(
 @demo_app.command("generate-org")
 def demo_generate_org(
     ctx: typer.Context,
-    industry: str | None = typer.Option(None, help="Industry"),
-    size: str | None = typer.Option(None, help="Organization size"),
+    industry: str = typer.Option(..., help="Industry"),
     json_output: bool = JSON_OPTION,
 ) -> None:
     """Generate a random demo organization."""
     set_json_mode(json_output)
-    body = _build_body(industry=industry, size=size)
+    body = {"industry": industry}
 
     resp = _api_request("post", f"{_ADMIN}/demo/generate-random-org", json=body)
 
@@ -59,12 +58,13 @@ def demo_generate_org(
 @demo_app.command("generate-profile")
 def demo_generate_profile(
     ctx: typer.Context,
+    role: str = typer.Option(..., help="Job role of the profile"),
     industry: str | None = typer.Option(None, help="Industry"),
     json_output: bool = JSON_OPTION,
 ) -> None:
     """Generate a random demo profile."""
     set_json_mode(json_output)
-    body = _build_body(industry=industry)
+    body = _build_body(role=role, industry=industry)
 
     resp = _api_request("post", f"{_ADMIN}/demo/generate-random-profile", json=body)
 
@@ -79,7 +79,11 @@ def demo_generate_profile(
 def demo_prepare_account(
     ctx: typer.Context,
     org_name: str = typer.Option(..., "--org-name", help="Organization name"),
-    template: str | None = typer.Option(None, help="Account template"),
+    user_email: str = typer.Option(..., "--user-email", help="Email of the demo user"),
+    user_first_name: str = typer.Option(
+        ..., "--user-first-name", help="First name of the demo user"
+    ),
+    user_last_name: str = typer.Option(..., "--user-last-name", help="Last name of the demo user"),
     empty: bool = typer.Option(
         False,
         "--empty",
@@ -91,8 +95,10 @@ def demo_prepare_account(
     """Prepare a demo account."""
     set_json_mode(json_output)
     body = _build_body(
-        org_name=org_name,
-        template=template,
+        company_name=org_name,
+        user_email=user_email,
+        user_first_name=user_first_name,
+        user_last_name=user_last_name,
         skip_crm_data=True if empty else None,
     )
 
@@ -162,13 +168,24 @@ def demo_get_account(
 def demo_update_account(
     ctx: typer.Context,
     org_id: str = typer.Argument(..., help="Organization ID"),
-    status: str | None = typer.Option(None, help="Account status"),
-    notes: str | None = typer.Option(None, help="Account notes"),
+    first_name: str | None = typer.Option(None, "--first-name", help="First name of the demo user"),
+    last_name: str | None = typer.Option(None, "--last-name", help="Last name of the demo user"),
+    job_title: str | None = typer.Option(None, "--job-title", help="Job title of the demo user"),
+    bio: str | None = typer.Option(None, "--bio", help="Bio of the demo user"),
+    avatar_url: str | None = typer.Option(None, "--avatar-url", help="Avatar URL of the demo user"),
+    website: str | None = typer.Option(None, "--website", help="Website of the demo user"),
     json_output: bool = JSON_OPTION,
 ) -> None:
-    """Update a demo account."""
+    """Update the profile of the demo account user."""
     set_json_mode(json_output)
-    body = _build_body(status=status, notes=notes)
+    body = _build_body(
+        first_name=first_name,
+        last_name=last_name,
+        job_title=job_title,
+        bio=bio,
+        avatar_url=avatar_url,
+        website=website,
+    )
 
     if not body:
         rprint("[yellow]No fields to update.[/yellow]")
@@ -206,7 +223,7 @@ def demo_cleanup(
     if not should_skip_confirm(yes):
         typer.confirm("Clean up old demo accounts?", abort=True)
 
-    body = _build_body(max_age_days=max_age_days)
+    body = _build_body(days_old=max_age_days)
 
     resp = _api_request("post", f"{_ADMIN}/demo/cleanup", json=body)
 

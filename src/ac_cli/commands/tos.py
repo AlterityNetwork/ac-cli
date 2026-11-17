@@ -5,7 +5,12 @@ from __future__ import annotations
 import typer
 from rich import print as rprint
 
-from ac_cli.commands._helpers import JSON_OPTION, _api_request, set_json_mode
+from ac_cli.commands._helpers import (
+    JSON_OPTION,
+    _api_request,
+    refuse_local,
+    set_json_mode,
+)
 from ac_cli.formatting import as_text, print_detail, print_json
 
 app = typer.Typer(help="Terms of service")
@@ -66,11 +71,18 @@ def tos_status(
 @app.command("accept")
 def tos_accept(
     ctx: typer.Context,
+    version: str | None = typer.Option(
+        None, "--version", help="TOS version to accept. Default: the current version"
+    ),
     json_output: bool = JSON_OPTION,
 ) -> None:
     """Accept the current TOS version."""
     set_json_mode(json_output)
-    resp = _api_request("post", f"{_TOS}/accept")
+    if version is None:
+        version = _api_request("get", f"{_TOS}/config").json().get("current_version")
+    if not version:
+        refuse_local("No TOS version is published. Pass --version")
+    resp = _api_request("post", f"{_TOS}/accept", json={"tos_version": version})
 
     data = resp.json()
     if json_output:
@@ -90,7 +102,7 @@ def tos_update_config(
     set_json_mode(json_output)
     from ac_cli.commands._helpers import _build_body
 
-    body = _build_body(version=version, embed_url=embed_url)
+    body = _build_body(current_version=version, termly_embed_url=embed_url)
     if not body:
         rprint("[yellow]No fields to update.[/yellow]")
         raise typer.Exit(code=1)

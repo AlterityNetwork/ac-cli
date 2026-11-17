@@ -269,7 +269,7 @@ def communications_archive(
         rprint("[red]Must specify --thread-id or --comm-id[/red]")
         raise typer.Exit(code=1)
 
-    body = _build_body(thread_id=thread_id, communication_id=comm_id)
+    body = _build_body(thread_id=thread_id, single_comm_id=comm_id)
     resp = _api_request("post", f"{_CRM}/communications/archive", json=body)
 
     data = resp.json()
@@ -293,7 +293,7 @@ def communications_unarchive(
         rprint("[red]Must specify --thread-id or --comm-id[/red]")
         raise typer.Exit(code=1)
 
-    body = _build_body(thread_id=thread_id, communication_id=comm_id)
+    body = _build_body(thread_id=thread_id, single_comm_id=comm_id)
     resp = _api_request("post", f"{_CRM}/communications/unarchive", json=body)
 
     data = resp.json()
@@ -409,9 +409,6 @@ def communications_generate_draft(
     ),
     company_name: str | None = typer.Option(None, "--company-name", help="Company name"),
     sender_name: str | None = typer.Option(None, "--sender-name", help="Sender name"),
-    sender_signature: str | None = typer.Option(
-        None, "--sender-signature", help="Sender email signature"
-    ),
     original_subject: str | None = typer.Option(
         None, "--original-subject", help="Original subject (for replies)"
     ),
@@ -432,7 +429,6 @@ def communications_generate_draft(
         recipient_title=recipient_title,
         company_name=company_name,
         sender_name=sender_name,
-        sender_signature=sender_signature,
         original_subject=original_subject,
         user_draft_subject=user_draft_subject,
         user_draft_body=user_draft_body,

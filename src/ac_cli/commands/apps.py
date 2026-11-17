@@ -221,7 +221,7 @@ def apps_update_config(
     resp = _api_request(
         "put",
         f"{_APPS}/{oid}/apps/{app_slug}/configs/{config_key}",
-        json={"value": value},
+        json={"config_key": config_key, "config_value": value},
     )
 
     data = resp.json()

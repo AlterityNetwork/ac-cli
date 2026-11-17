@@ -121,6 +121,20 @@ def test_apps_update_config(invoke, mock_api):
     assert "Updated config" in result.output
 
 
+def test_apps_update_config_sends_config_key_and_config_value(invoke, mock_api):
+    mock_api.get("/whoami").respond(200, json=WHOAMI_RESPONSE)
+    route = mock_api.put("/api/v1/orgs/org-456/apps/email-finder/configs/api_key").respond(
+        200,
+        json={"config_key": "api_key", "config_value": "sk-new", "is_secret": True},
+    )
+    result = invoke(["apps", "update-config", "email-finder", "api_key", "--value", "sk-new"])
+    assert result.exit_code == 0
+    assert json.loads(route.calls.last.request.content) == {
+        "config_key": "api_key",
+        "config_value": "sk-new",
+    }
+
+
 def test_apps_delete_config_with_yes(invoke, mock_api):
     mock_api.get("/whoami").respond(200, json=WHOAMI_RESPONSE)
     mock_api.delete("/api/v1/orgs/org-456/apps/email-finder/configs/api_key").respond(204)

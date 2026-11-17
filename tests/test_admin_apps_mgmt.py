@@ -53,3 +53,13 @@ def test_apps_sync_icons_json(invoke, mock_api):
     assert result.exit_code == 0
     parsed = json.loads(result.output)
     assert parsed["synced"] == 5
+
+
+def test_apps_update_sends_display_name(invoke, mock_api):
+    route = mock_api.patch("/api/v1/admin/apps/app-1").respond(200, json=SAMPLE_APP)
+    result = invoke(["admin", "apps", "update", "app-1", "--name", "Updated", "--status", "live"])
+    assert result.exit_code == 0
+    assert json.loads(route.calls.last.request.content) == {
+        "display_name": "Updated",
+        "status": "live",
+    }

@@ -137,15 +137,18 @@ def outbox_update_draft(
     body: str | None = typer.Option(None, help="New body content"),
     json_output: bool = JSON_OPTION,
 ) -> None:
-    """Update a pending draft."""
+    """Update a pending draft without sending it.
+
+    The draft is a communication, so the edit goes to the communications route.
+    """
     set_json_mode(json_output)
-    update_body = _build_body(subject=subject, body=body)
+    update_body = _build_body(subject=subject, content=body)
 
     if not update_body:
         rprint("[yellow]No fields to update.[/yellow]")
         raise typer.Exit(code=1)
 
-    resp = _api_request("patch", f"{_SEQUENCES}/outbox/pending/{draft_id}", json=update_body)
+    resp = _api_request("patch", f"{_CRM}/communications/{draft_id}", json=update_body)
 
     data = resp.json()
     if json_output:
@@ -206,8 +209,8 @@ def outbox_approve(
 ) -> None:
     """Approve and send a pending draft."""
     set_json_mode(json_output)
-    req_body = _build_body(subject=subject, body=body)
-    resp = _api_request("post", f"{_SEQUENCES}/outbox/pending/{draft_id}/approve", json=req_body)
+    req_body = _build_body(subject=subject, content=body)
+    resp = _api_request("post", f"{_CRM}/communications/{draft_id}/approve", json=req_body or None)
 
     data = resp.json()
     if json_output:

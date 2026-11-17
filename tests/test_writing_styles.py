@@ -161,38 +161,151 @@ def test_styles_delete_aborted(invoke, mock_api):
     assert result.exit_code == 1
 
 
+SAMPLE_TRAINING_SESSION_RESPONSE = {
+    "session": {
+        "id": "ts-1",
+        "created_at": "2026-01-01T00:00:00+00:00",
+        "style_id": "ws-1",
+        "user_id": "user-1",
+        "session_status": "in_progress",
+        "generated_emails": [],
+        "user_feedback": [],
+        "updated_prompt": None,
+        "prompt_changes": None,
+        "completed_at": None,
+    },
+    "generated_emails": [],
+    "can_submit_feedback": True,
+    "suggested_next_steps": "Review the generated emails and provide feedback.",
+}
+
+
 def test_styles_train(invoke, mock_api):
-    mock_api.post("/api/v1/writing-styles/ws-1/train").respond(
-        200, json={"session_id": "ts-1", "status": "started"}
+    route = mock_api.post("/api/v1/writing-styles/ws-1/train").respond(
+        200, json=SAMPLE_TRAINING_SESSION_RESPONSE
     )
-    result = invoke(["styles", "train", "ws-1", "--sample-text", "This is a sample."])
+    result = invoke(["styles", "train", "ws-1"])
     assert result.exit_code == 0
-    assert "Training session" in result.output
+    assert "Training session started" in result.output
+    assert "ts-1" in result.output
+    assert json.loads(route.calls.last.request.content) == {"num_examples": 3}
+
+
+def test_styles_train_sends_num_examples(invoke, mock_api):
+    route = mock_api.post("/api/v1/writing-styles/ws-1/train").respond(
+        200, json=SAMPLE_TRAINING_SESSION_RESPONSE
+    )
+    result = invoke(["styles", "train", "ws-1", "--num-examples", "5"])
+    assert result.exit_code == 0
+    assert json.loads(route.calls.last.request.content) == {"num_examples": 5}
+
+
+def test_styles_train_has_no_sample_text_option(invoke, mock_api):
+    result = invoke(["styles", "train", "ws-1", "--sample-text", "This is a sample."])
+    assert result.exit_code == 2
+    assert "No such option" in result.output
 
 
 def test_styles_feedback(invoke, mock_api):
-    mock_api.post("/api/v1/writing-styles/training-sessions/ts-1/feedback").respond(
-        200, json={"status": "received"}
+    route = mock_api.post("/api/v1/writing-styles/training-sessions/ts-1/feedback").respond(
+        200, json={"message": "ok", "style_updated": True}
     )
-    result = invoke(["styles", "feedback", "ts-1", "--rating", "5", "--comments", "Great"])
+    result = invoke(
+        [
+            "styles",
+            "feedback",
+            "ts-1",
+            "--email-id",
+            "email-1",
+            "--rating",
+            "5",
+            "--comments",
+            "Great",
+        ]
+    )
     assert result.exit_code == 0
     assert "Feedback submitted" in result.output
+    assert json.loads(route.calls.last.request.content) == {
+        "session_id": "ts-1",
+        "feedback_items": [{"email_id": "email-1", "overall_rating": 5, "what_to_change": "Great"}],
+    }
+
+
+def test_styles_feedback_requires_email_id(invoke, mock_api):
+    result = invoke(["styles", "feedback", "ts-1", "--rating", "5"])
+    assert result.exit_code == 2
+    assert "Missing option" in result.output
 
 
 def test_styles_iterate(invoke, mock_api):
-    mock_api.post("/api/v1/writing-styles/training-sessions/ts-1/iterate").respond(
-        200, json={"status": "iterating"}
+    route = mock_api.post("/api/v1/writing-styles/training-sessions/ts-1/iterate").respond(
+        200,
+        json={
+            "email": {
+                "id": "email-2",
+                "subject": "Hi",
+                "content": "Hello",
+                "recipient_context": {},
+                "generated_at": "2026-01-01T00:00:00+00:00",
+            },
+            "style_updated": True,
+            "updated_prompt": None,
+        },
     )
-    result = invoke(["styles", "iterate", "ts-1", "--feedback", "More formal please"])
+    result = invoke(
+        [
+            "styles",
+            "iterate",
+            "ts-1",
+            "--email-id",
+            "email-1",
+            "--feedback",
+            "More formal please",
+        ]
+    )
     assert result.exit_code == 0
     assert "Iteration submitted" in result.output
+    assert json.loads(route.calls.last.request.content) == {
+        "feedback_item": {
+            "email_id": "email-1",
+            "overall_rating": 3,
+            "what_to_change": "More formal please",
+        }
+    }
+
+
+def test_styles_iterate_sends_rating(invoke, mock_api):
+    route = mock_api.post("/api/v1/writing-styles/training-sessions/ts-1/iterate").respond(
+        200, json={"style_updated": True}
+    )
+    result = invoke(
+        [
+            "styles",
+            "iterate",
+            "ts-1",
+            "--email-id",
+            "email-1",
+            "--feedback",
+            "Shorter",
+            "--rating",
+            "2",
+        ]
+    )
+    assert result.exit_code == 0
+    body = json.loads(route.calls.last.request.content)
+    assert body["feedback_item"]["overall_rating"] == 2
 
 
 def test_styles_analyze(invoke, mock_api):
-    mock_api.post("/api/v1/writing-styles/analyze").respond(200, json={"analysis": "Good tone"})
-    result = invoke(["styles", "analyze", "--text", "Hello world"])
+    route = mock_api.post("/api/v1/writing-styles/analyze").respond(
+        200, json={"analysis": "Good tone"}
+    )
+    result = invoke(["styles", "analyze", "--text", "Hello world", "--text", "Second email"])
     assert result.exit_code == 0
     assert "Good tone" in result.output
+    assert json.loads(route.calls.last.request.content) == {
+        "sample_emails": ["Hello world", "Second email"]
+    }
 
 
 def test_styles_analyze_json(invoke, mock_api):

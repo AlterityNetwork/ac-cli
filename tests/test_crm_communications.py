@@ -308,10 +308,13 @@ def test_comms_archive_thread(invoke, mock_api):
 
 
 def test_comms_archive_comm(invoke, mock_api):
-    mock_api.post("/api/v1/crm/communications/archive").respond(200, json={"archived": True})
+    route = mock_api.post("/api/v1/crm/communications/archive").respond(
+        200, json={"archived": True}
+    )
     result = invoke(["crm", "comms", "archive", "--comm-id", "comm1"])
     assert result.exit_code == 0
     assert "Archived" in result.output
+    assert json.loads(route.calls.last.request.content) == {"single_comm_id": "comm1"}
 
 
 def test_comms_archive_missing_id(invoke, mock_api):
@@ -325,6 +328,15 @@ def test_comms_unarchive_thread(invoke, mock_api):
     result = invoke(["crm", "comms", "unarchive", "--thread-id", "thread_jane_001"])
     assert result.exit_code == 0
     assert "Unarchived" in result.output
+
+
+def test_comms_unarchive_comm_sends_single_comm_id(invoke, mock_api):
+    route = mock_api.post("/api/v1/crm/communications/unarchive").respond(
+        200, json={"archived": False}
+    )
+    result = invoke(["crm", "comms", "unarchive", "--comm-id", "comm1"])
+    assert result.exit_code == 0
+    assert json.loads(route.calls.last.request.content) == {"single_comm_id": "comm1"}
 
 
 def test_comms_unarchive_missing_id(invoke, mock_api):
@@ -500,8 +512,10 @@ def test_comms_generate_draft_with_user_draft(invoke, mock_api):
 
 
 def test_comms_generate_draft_with_extra_options(invoke, mock_api):
-    """Recipient title and sender signature are sent to API."""
-    mock_api.post("/api/v1/crm/communications/generate-draft").respond(200, json=SAMPLE_GENERATED)
+    """The recipient title goes to the API."""
+    route = mock_api.post("/api/v1/crm/communications/generate-draft").respond(
+        200, json=SAMPLE_GENERATED
+    )
     result = invoke(
         [
             "crm",
@@ -513,12 +527,34 @@ def test_comms_generate_draft_with_extra_options(invoke, mock_api):
             "Jane Doe",
             "--recipient-title",
             "VP Sales",
-            "--sender-signature",
-            "Best regards, Alex",
         ]
     )
     assert result.exit_code == 0
     assert "Generated Draft" in result.output
+    assert json.loads(route.calls.last.request.content) == {
+        "mode": "compose",
+        "recipient_name": "Jane Doe",
+        "recipient_title": "VP Sales",
+    }
+
+
+def test_comms_generate_draft_has_no_sender_signature_option(invoke, mock_api):
+    """The API reads no signature field, so the CLI offers no such option."""
+    result = invoke(
+        [
+            "crm",
+            "comms",
+            "generate-draft",
+            "--mode",
+            "compose",
+            "--recipient-name",
+            "Jane Doe",
+            "--sender-signature",
+            "Best regards, Alex",
+        ]
+    )
+    assert result.exit_code == 2
+    assert "No such option" in result.output
 
 
 # -- unread-thread-ids --

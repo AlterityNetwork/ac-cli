@@ -154,7 +154,9 @@ def steps_reorder(
     set_json_mode(json_output)
     ids_list = [s.strip() for s in step_ids.split(",")]
     resp = _api_request(
-        "put", f"{_SEQUENCES}/sequences/{sequence_id}/steps/reorder", json={"step_ids": ids_list}
+        "put",
+        f"{_SEQUENCES}/sequences/{sequence_id}/steps/reorder",
+        json={"step_ids_in_order": ids_list},
     )
 
     data = resp.json()

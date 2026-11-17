@@ -58,6 +58,32 @@ def test_resources_upload(invoke, mock_api, tmp_path):
     assert result.exit_code == 0
 
 
+def test_resources_upload_sends_the_form_fields_the_api_reads(invoke, mock_api, tmp_path):
+    """The description goes in source_description, the form field the API reads."""
+    route = mock_api.post("/api/v1/resources/upload").respond(200, json=SAMPLE_UPLOAD)
+    test_file = tmp_path / "test.pdf"
+    test_file.write_bytes(b"%PDF-1.4 fake pdf content")
+    result = invoke(
+        [
+            "resources",
+            "upload",
+            str(test_file),
+            "--name",
+            "Test PDF",
+            "--description",
+            "Pricing guide",
+            "--tags",
+            "pricing,guide",
+        ]
+    )
+    assert result.exit_code == 0, result.output
+    body = route.calls.last.request.content.decode("latin-1")
+    assert 'name="source_name"\r\n\r\nTest PDF\r\n' in body
+    assert 'name="source_description"\r\n\r\nPricing guide\r\n' in body
+    assert 'name="tags"\r\n\r\npricing,guide\r\n' in body
+    assert 'name="description"' not in body
+
+
 def test_resources_upload_bad_extension(invoke, tmp_path):
     test_file = tmp_path / "malware.exe"
     test_file.write_bytes(b"bad content")

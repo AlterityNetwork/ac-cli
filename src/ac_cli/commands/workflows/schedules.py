@@ -83,14 +83,19 @@ def schedules_create(
     cron: str = typer.Option(..., "--cron", help="Cron expression"),
     timezone: str = typer.Option("UTC", "--timezone", help="Timezone"),
     input_json: str | None = typer.Option(None, "--input", help="Input JSON string"),
+    preset_id: str | None = typer.Option(
+        None, "--preset-id", help="Preset whose saved input the schedule uses"
+    ),
     json_output: bool = JSON_OPTION,
 ) -> None:
     """Create a schedule for a workflow."""
     set_json_mode(json_output)
-    body: dict = {"cron_expression": cron, "timezone": timezone}
+    body: dict = {"type": "cron", "cron_expression": cron, "timezone": timezone}
+    if preset_id:
+        body["preset_id"] = preset_id
     if input_json:
         try:
-            body["input"] = json.loads(input_json)
+            body["input_config"] = json.loads(input_json)
         except json.JSONDecodeError:
             rprint("[red]Invalid JSON for --input[/red]")
             raise typer.Exit(code=1)
@@ -112,14 +117,17 @@ def schedules_update(
     cron: str | None = typer.Option(None, "--cron", help="Cron expression"),
     timezone: str | None = typer.Option(None, "--timezone", help="Timezone"),
     input_json: str | None = typer.Option(None, "--input", help="Input JSON string"),
+    preset_id: str | None = typer.Option(
+        None, "--preset-id", help="Preset whose saved input the schedule uses"
+    ),
     json_output: bool = JSON_OPTION,
 ) -> None:
     """Update a workflow schedule."""
     set_json_mode(json_output)
-    body = _build_body(cron_expression=cron, timezone=timezone)
+    body = _build_body(cron_expression=cron, timezone=timezone, preset_id=preset_id)
     if input_json:
         try:
-            body["input"] = json.loads(input_json)
+            body["input_config"] = json.loads(input_json)
         except json.JSONDecodeError:
             rprint("[red]Invalid JSON for --input[/red]")
             raise typer.Exit(code=1)
@@ -158,20 +166,23 @@ def schedules_preview(
     workflow_id: str = typer.Argument(..., help="Workflow ID"),
     cron: str = typer.Option(..., "--cron", help="Cron expression"),
     timezone: str = typer.Option("UTC", "--timezone", help="Timezone"),
-    count: int = typer.Option(5, "--count", help="Number of upcoming runs to preview"),
+    count: int = typer.Option(
+        5, "--count", help="Number of upcoming runs to show. The API returns at most 5."
+    ),
     json_output: bool = JSON_OPTION,
 ) -> None:
     """Preview upcoming run times for a cron schedule."""
     set_json_mode(json_output)
-    body = {"cron_expression": cron, "timezone": timezone, "count": count}
+    body = {"cron_expression": cron, "timezone": timezone}
     resp = _api_request("post", f"{_WORKFLOWS}/{workflow_id}/schedule/preview", json=body)
 
     data = resp.json()
+    next_runs = data.get("next_runs", [])[:count]
+    data["next_runs"] = next_runs
     if json_output:
         print_json(data)
         return
 
-    next_runs = data.get("next_runs", [])
     rprint(styled("[bold]Next {} runs:[/bold]", len(next_runs)))
     for run_time in next_runs:
         rprint(as_text(f"  {run_time}"))
@@ -190,7 +201,7 @@ def schedules_toggle(
     resp = _api_request(
         "post",
         f"{_WORKFLOWS}/{workflow_id}/schedules/{schedule_id}/toggle",
-        json={"enabled": enabled},
+        json={"is_active": enabled},
     )
 
     data = resp.json()

@@ -94,3 +94,25 @@ def test_battlecards_duplicate(invoke, mock_api):
     result = invoke(["sequences", "battlecards", "duplicate", "bc-1"])
     assert result.exit_code == 0
     assert "Duplicated battlecard" in result.output
+
+
+def test_battlecards_create_sends_only_request_fields(invoke, mock_api):
+    route = mock_api.post("/api/v1/battlecards").respond(201, json=SAMPLE_BATTLECARD)
+    result = invoke(
+        ["sequences", "battlecards", "create", "--name", "vs X", "--description", "Positioning"]
+    )
+    assert result.exit_code == 0
+    body = json.loads(route.calls.last.request.content)
+    assert body == {"name": "vs X", "description": "Positioning"}
+
+
+def test_battlecards_create_has_no_competitor_or_status_option(invoke, mock_api):
+    for flag in ("--competitor-name", "--status"):
+        result = invoke(["sequences", "battlecards", "create", "--name", "vs X", flag, "v"])
+        assert result.exit_code == 2
+
+
+def test_battlecards_update_has_no_competitor_or_status_option(invoke, mock_api):
+    for flag in ("--competitor-name", "--status"):
+        result = invoke(["sequences", "battlecards", "update", "bc-1", flag, "v"])
+        assert result.exit_code == 2
