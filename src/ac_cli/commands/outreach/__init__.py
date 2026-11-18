@@ -1,6 +1,6 @@
-"""Commands for Envoy: campaigns, enrollments, the stop and the Review queue.
+"""Commands for Outreach: campaigns, enrollments, the stop and the Review queue.
 
-`ac agentic envoy campaigns` creates, edits, activates, pauses, resumes and
+`ac agentic outreach campaigns` creates, edits, activates, pauses, resumes and
 archives a campaign, and enrolls one person (`enroll`) or up to 200 people in
 one request (`enroll-batch`). `list` and `get` print the count of live
 enrollments against the cap, the count per status and the actions to review.
@@ -13,7 +13,7 @@ the sends, replies and decisions of one campaign, newest first, with
 touch. `summary` prints the
 organization totals: the live enrollments against the cap, the sends of the
 last 7 days, and the contacts, replies and goals met of the last 30 days.
-`ac agentic envoy enrollments` lists the enrollments of a campaign, the
+`ac agentic outreach enrollments` lists the enrollments of a campaign, the
 people who wait on a review first, then by the next step. Each row names the
 person, the email, the title and company, the last decision, the last touch,
 the reply and, for needs_contact_data, why the email is missing. `--status`
@@ -23,10 +23,10 @@ asks for a Run now (`evaluate`: re-evaluate, retry, or retry after an added
 email) and ends it (`exit`).
 `move` moves one enrollment or up to 50 to another campaign: each old
 enrollment ends as moved, and the person is enrolled in the target.
-`ac agentic envoy organization` reads, stops and resumes Envoy for the
+`ac agentic outreach organization` reads, stops and resumes Outreach for the
 whole organization. Only an organization admin stops or resumes.
 
-`ac agentic envoy drafts list` and `get` read the Review queue: the
+`ac agentic outreach drafts list` and `get` read the Review queue: the
 proposed actions (an email, a LinkedIn note or a LinkedIn message) that wait
 for a person. `list` reads the `pending_approval` actions by default, oldest
 first, and filters by `--status`, `--campaign-id` and `--type`. `--status`
@@ -40,7 +40,7 @@ one action by its action id. Each item names the person and the photo URL,
 the company and the logo URL, the campaign, the touch (`2 of 5`), the
 address read fresh, the reply it answers and its sentiment, the draft, and
 the decision: its time, who made it, the reject or failure reason, and the
-facts Envoy used (`source · label`).
+facts Outreach used (`source · label`).
 
 `approve` takes an action id. With no edit flag it approves the draft as it
 is and sends no payload. An edit flag reads the action first and sends the
@@ -54,7 +54,7 @@ and their hash. A retry of the same approve answers the same action.
 and asks for one new draft that reads it. `--remember` also keeps the reason
 for the campaign, so each later draft of every person in it follows the
 reason; it is refused with any other `--then`. `stop` ends the enrollment,
-and asks first unless `--yes`. `skip` sends nothing now: Envoy looks again
+and asks first unless `--yes`. `skip` sends nothing now: Outreach looks again
 after the shortest follow-up wait of the campaign. `switch_channel` asks for
 one new draft on the other channel; the API answers `channel_unavailable`
 when the campaign does not allow both channels, the person has no open address
@@ -81,23 +81,23 @@ from ac_cli.commands._helpers import (
 )
 from ac_cli.formatting import as_text, print_detail, print_json, print_table, styled
 
-app = typer.Typer(help="Envoy (agentic): campaigns, enrollments and the Review queue")
-drafts_app = typer.Typer(help="Read, approve and reject Envoy drafts")
-campaigns_app = typer.Typer(help="Create, edit, pause and archive Envoy campaigns")
-enrollments_app = typer.Typer(help="Read, re-evaluate, move and end Envoy enrollments")
-organization_app = typer.Typer(help="Stop or resume Envoy for the organization")
+app = typer.Typer(help="Outreach (agentic): campaigns, enrollments and the Review queue")
+drafts_app = typer.Typer(help="Read, approve and reject Outreach drafts")
+campaigns_app = typer.Typer(help="Create, edit, pause and archive Outreach campaigns")
+enrollments_app = typer.Typer(help="Read, re-evaluate, move and end Outreach enrollments")
+organization_app = typer.Typer(help="Stop or resume Outreach for the organization")
 
-_ENVOY = "/api/v1/agentic/envoy"
+_OUTREACH = "/api/v1/agentic/outreach"
 _PAGE_DEFAULT = 50
 _PAGE_MIN = 1
 _PAGE_MAX = 100
 _THENS = ("regenerate", "stop", "skip", "switch_channel")
 # What follows each reject, as the success message says it.
 _THEN_MEANINGS = {
-    "regenerate": "Envoy writes a new draft that follows the reason.",
+    "regenerate": "Outreach writes a new draft that follows the reason.",
     "stop": "The enrollment ends.",
-    "skip": "Envoy sends nothing now and looks again at the next follow-up.",
-    "switch_channel": "Envoy writes a new draft on the other channel.",
+    "skip": "Outreach sends nothing now and looks again at the next follow-up.",
+    "switch_channel": "Outreach writes a new draft on the other channel.",
 }
 
 _ACTION_STATUSES = (
@@ -229,7 +229,7 @@ def _print_action(item: dict) -> None:
         rprint(as_text(draft["ai_reasoning"]))
     facts = item.get("facts_used") or []
     if facts:
-        rprint("[bold]What Envoy used:[/bold]")
+        rprint("[bold]What Outreach used:[/bold]")
         for fact in facts:
             rprint(as_text(f"{fact.get('source')} · {fact.get('label')}"))
 
@@ -280,14 +280,14 @@ def drafts_list(
         params["campaign_id"] = campaign_id
     if action_type is not None:
         params["type"] = action_type
-    data = _api_request("get", f"{_ENVOY}/actions", params=params).json()
+    data = _api_request("get", f"{_OUTREACH}/actions", params=params).json()
     if json_output:
         print_json(data)
         return
     rows = [_flat(item) for item in data.get("data", [])]
     total = data.get("total", len(rows))
     shown = f"{offset + 1}-{offset + len(rows)} of {total}" if rows else f"0 of {total}"
-    print_table(rows, _LIST_FIELDS, title=f"Envoy actions {shown}")
+    print_table(rows, _LIST_FIELDS, title=f"Outreach actions {shown}")
     if data.get("has_more"):
         rprint(styled("[dim]More actions wait: --offset {}[/dim]", offset + len(rows)))
     due_soon = data.get("due_soon")
@@ -303,7 +303,7 @@ def drafts_get(
 ) -> None:
     """Read one proposed action: the person, the address, the reply and the draft."""
     set_json_mode(json_output)
-    data = _api_request("get", f"{_ENVOY}/actions/{action_id}").json()
+    data = _api_request("get", f"{_OUTREACH}/actions/{action_id}").json()
     if json_output:
         print_json(data)
         return
@@ -348,7 +348,7 @@ def drafts_approve(
     }
     request: dict[str, object] = {}
     if given:
-        action = _api_request("get", f"{_ENVOY}/actions/{action_id}").json()
+        action = _api_request("get", f"{_OUTREACH}/actions/{action_id}").json()
         kind = action.get("type")
         if kind == "email" and action.get("replying_to"):
             kind = "email_reply"
@@ -361,7 +361,7 @@ def drafts_approve(
             )
         edits = dict(given.values())
         request["payload"] = {**(action.get("draft_payload") or {}), **edits}
-    data = _api_request("post", f"{_ENVOY}/actions/{action_id}/approve", json=request).json()
+    data = _api_request("post", f"{_OUTREACH}/actions/{action_id}/approve", json=request).json()
     if json_output:
         print_json(data)
         return
@@ -412,7 +412,7 @@ def drafts_reject(
         body["reason"] = reason
     if remember:
         body["remember"] = True
-    data = _api_request("post", f"{_ENVOY}/actions/{action_id}/reject", json=body).json()
+    data = _api_request("post", f"{_OUTREACH}/actions/{action_id}/reject", json=body).json()
     if json_output:
         print_json(data)
         return
@@ -716,14 +716,14 @@ def campaigns_list(
     params: dict[str, object] = {"limit": limit, "offset": offset}
     if status is not None:
         params["status"] = status
-    data = _api_request("get", f"{_ENVOY}/campaigns", params=params).json()
+    data = _api_request("get", f"{_OUTREACH}/campaigns", params=params).json()
     if json_output:
         print_json(data)
         return
     rows = [_with_counts(item) for item in data.get("items", [])]
     total = data.get("total", len(rows))
     shown = f"{offset + 1}-{offset + len(rows)} of {total}" if rows else f"0 of {total}"
-    print_table(rows, _CAMPAIGN_LIST_FIELDS, title=f"Envoy campaigns {shown}")
+    print_table(rows, _CAMPAIGN_LIST_FIELDS, title=f"Outreach campaigns {shown}")
     if data.get("has_more"):
         rprint(styled("[dim]More campaigns wait: --offset {}[/dim]", offset + len(rows)))
 
@@ -735,7 +735,7 @@ def campaigns_get(
 ) -> None:
     """Read one campaign, its counts, its outcomes and its remembered feedback."""
     set_json_mode(json_output)
-    data = _api_request("get", f"{_ENVOY}/campaigns/{campaign_id}").json()
+    data = _api_request("get", f"{_OUTREACH}/campaigns/{campaign_id}").json()
     if json_output:
         print_json(data)
         return
@@ -758,7 +758,7 @@ def campaigns_forget(
     set_json_mode(json_output)
     if not should_skip_confirm(yes):
         typer.confirm(f"Forget feedback {feedback_id}?", abort=True)
-    _api_request("delete", f"{_ENVOY}/campaigns/{campaign_id}/feedback/{feedback_id}")
+    _api_request("delete", f"{_OUTREACH}/campaigns/{campaign_id}/feedback/{feedback_id}")
     if json_output:
         print_json({"ok": True, "id": feedback_id, "action": "forget"})
         return
@@ -767,9 +767,9 @@ def campaigns_forget(
 
 @campaigns_app.command("summary")
 def campaigns_summary(json_output: bool = JSON_OPTION) -> None:
-    """Read the Envoy totals of the organization for the last 7 and 30 days."""
+    """Read the Outreach totals of the organization for the last 7 and 30 days."""
     set_json_mode(json_output)
-    data = _api_request("get", f"{_ENVOY}/campaigns/summary").json()
+    data = _api_request("get", f"{_OUTREACH}/campaigns/summary").json()
     if json_output:
         print_json(data)
         return
@@ -859,12 +859,14 @@ def campaigns_activity(
     for name, value in (("kind", kind), ("channel", channel), ("cursor", cursor)):
         if value is not None:
             params[name] = value
-    data = _api_request("get", f"{_ENVOY}/campaigns/{campaign_id}/activity", params=params).json()
+    data = _api_request(
+        "get", f"{_OUTREACH}/campaigns/{campaign_id}/activity", params=params
+    ).json()
     if json_output:
         print_json(data)
         return
     rows = [_activity_row(item) for item in data.get("items", [])]
-    print_table(rows, _ACTIVITY_FIELDS, title="Envoy campaign activity (newest first)")
+    print_table(rows, _ACTIVITY_FIELDS, title="Outreach campaign activity (newest first)")
     if data.get("next_cursor"):
         rprint(styled("[dim]More items wait: --cursor {}[/dim]", data["next_cursor"]))
 
@@ -886,7 +888,7 @@ def campaigns_results(
     if not 1 <= days <= _RESULTS_DAYS_MAX:
         refuse_local(f"--days is not between 1 and {_RESULTS_DAYS_MAX}", days)
     data = _api_request(
-        "get", f"{_ENVOY}/campaigns/{campaign_id}/results", params={"days": days}
+        "get", f"{_OUTREACH}/campaigns/{campaign_id}/results", params={"days": days}
     ).json()
     if json_output:
         print_json(data)
@@ -934,7 +936,7 @@ def campaigns_create(
         min_days=min_days,
         max_days=max_days,
     )
-    data = _api_request("post", f"{_ENVOY}/campaigns", json=body).json()
+    data = _api_request("post", f"{_OUTREACH}/campaigns", json=body).json()
     if json_output:
         print_json(data)
         return
@@ -970,7 +972,7 @@ def campaigns_update(
     )
     if not body:
         refuse_local("nothing to update: give at least one option")
-    data = _api_request("patch", f"{_ENVOY}/campaigns/{campaign_id}", json=body).json()
+    data = _api_request("patch", f"{_OUTREACH}/campaigns/{campaign_id}", json=body).json()
     if json_output:
         print_json(data)
         return
@@ -980,7 +982,7 @@ def campaigns_update(
 def _set_status(campaign_id: str, status: str, json_output: bool) -> bool:
     """Post the status. Answer True when the caller prints the text line."""
     data = _api_request(
-        "post", f"{_ENVOY}/campaigns/{campaign_id}/status", json={"status": status}
+        "post", f"{_OUTREACH}/campaigns/{campaign_id}/status", json={"status": status}
     ).json()
     if json_output:
         print_json(data)
@@ -1048,7 +1050,7 @@ def campaigns_enroll(
         refuse_local(f"--person-kind must be one of: {', '.join(_PERSON_KINDS)}", person_kind)
     data = _api_request(
         "post",
-        f"{_ENVOY}/campaigns/{campaign_id}/enrollments",
+        f"{_OUTREACH}/campaigns/{campaign_id}/enrollments",
         json={"person_kind": person_kind, "person_id": person_id},
     ).json()
     if json_output:
@@ -1151,7 +1153,7 @@ def campaigns_enroll_batch(
             chunk = found[start : start + _BATCH_CHUNK]
             data = _api_request(
                 "post",
-                f"{_ENVOY}/campaigns/{campaign_id}/enrollments/batch",
+                f"{_OUTREACH}/campaigns/{campaign_id}/enrollments/batch",
                 json={"people": chunk},
             ).json()
             results.extend(data.get("results", []))
@@ -1221,7 +1223,7 @@ def enrollments_list(
     if search is not None:
         params["search"] = search
     data = _api_request(
-        "get", f"{_ENVOY}/campaigns/{campaign_id}/enrollments", params=params
+        "get", f"{_OUTREACH}/campaigns/{campaign_id}/enrollments", params=params
     ).json()
     if json_output:
         print_json(data)
@@ -1229,7 +1231,7 @@ def enrollments_list(
     rows = [_with_row_cells(row) for row in data.get("data", [])]
     total = data.get("total", len(rows))
     shown = f"{offset + 1}-{offset + len(rows)} of {total}" if rows else f"0 of {total}"
-    print_table(rows, _ENROLLMENT_LIST_FIELDS, title=f"Envoy enrollments {shown}")
+    print_table(rows, _ENROLLMENT_LIST_FIELDS, title=f"Outreach enrollments {shown}")
     if data.get("has_more"):
         rprint(styled("[dim]More rows wait: --offset {}[/dim]", offset + len(rows)))
 
@@ -1241,7 +1243,7 @@ def enrollments_get(
 ) -> None:
     """Read one enrollment and the Signals prospect of its person."""
     set_json_mode(json_output)
-    data = _api_request("get", f"{_ENVOY}/enrollments/{enrollment_id}").json()
+    data = _api_request("get", f"{_OUTREACH}/enrollments/{enrollment_id}").json()
     if json_output:
         print_json(data)
         return
@@ -1290,7 +1292,7 @@ def enrollments_timeline(
     ),
     json_output: bool = JSON_OPTION,
 ) -> None:
-    """Read the Envoy items of one enrollment, newest first.
+    """Read the Outreach items of one enrollment, newest first.
 
     The items are the start, each decision, each proposed action, the thread
     emails, the LinkedIn invitations and messages, and the end. No CRM
@@ -1301,7 +1303,7 @@ def enrollments_timeline(
         refuse_local(f"--limit is not between {_PAGE_MIN} and {_PAGE_MAX}", limit)
     data = _api_request(
         "get",
-        f"{_ENVOY}/enrollments/{enrollment_id}/timeline",
+        f"{_OUTREACH}/enrollments/{enrollment_id}/timeline",
         params={"limit": limit},
     ).json()
     if json_output:
@@ -1311,7 +1313,7 @@ def enrollments_timeline(
     print_table(
         rows,
         _TIMELINE_FIELDS,
-        title=f"Envoy timeline: {data.get('campaign_name') or ''} (newest first)",
+        title=f"Outreach timeline: {data.get('campaign_name') or ''} (newest first)",
     )
 
 
@@ -1326,7 +1328,9 @@ def enrollments_evaluate(
     """Ask for a Run now: re-evaluate, retry, or retry after you added an email."""
     set_json_mode(json_output)
     body: dict[str, str] = {} if request_id is None else {"request_id": request_id}
-    data = _api_request("post", f"{_ENVOY}/enrollments/{enrollment_id}/evaluate", json=body).json()
+    data = _api_request(
+        "post", f"{_OUTREACH}/enrollments/{enrollment_id}/evaluate", json=body
+    ).json()
     if json_output:
         print_json(data)
         return
@@ -1343,7 +1347,7 @@ def enrollments_exit(
     set_json_mode(json_output)
     if not should_skip_confirm(yes):
         typer.confirm("End this person's enrollment in the campaign?", abort=True)
-    data = _api_request("post", f"{_ENVOY}/enrollments/{enrollment_id}/exit").json()
+    data = _api_request("post", f"{_OUTREACH}/enrollments/{enrollment_id}/exit").json()
     if json_output:
         print_json(data)
         return
@@ -1389,7 +1393,7 @@ def enrollments_move(
         refuse_local(f"one move takes at most {_BATCH_CHUNK} enrollments", len(enrollment_ids))
     data = _api_request(
         "post",
-        f"{_ENVOY}/enrollments/move",
+        f"{_OUTREACH}/enrollments/move",
         json={"campaign_id": campaign_id, "enrollment_ids": enrollment_ids},
     ).json()
     if json_output:
@@ -1423,9 +1427,9 @@ def _print_stop(data: dict[str, object], json_output: bool) -> None:
 
 @organization_app.command("status")
 def organization_status(json_output: bool = JSON_OPTION) -> None:
-    """Read whether the organization stopped Envoy."""
+    """Read whether the organization stopped Outreach."""
     set_json_mode(json_output)
-    _print_stop(_api_request("get", f"{_ENVOY}/organization").json(), json_output)
+    _print_stop(_api_request("get", f"{_OUTREACH}/organization").json(), json_output)
 
 
 @organization_app.command("stop")
@@ -1433,18 +1437,18 @@ def organization_stop(
     yes: bool = typer.Option(False, "--yes", "-y", help="Skip confirmation"),
     json_output: bool = JSON_OPTION,
 ) -> None:
-    """Stop every Envoy campaign of the organization from planning or sending."""
+    """Stop every Outreach campaign of the organization from planning or sending."""
     set_json_mode(json_output)
     if not should_skip_confirm(yes):
-        typer.confirm("Stop Envoy for the whole organization?", abort=True)
-    _print_stop(_api_request("post", f"{_ENVOY}/organization/stop").json(), json_output)
+        typer.confirm("Stop Outreach for the whole organization?", abort=True)
+    _print_stop(_api_request("post", f"{_OUTREACH}/organization/stop").json(), json_output)
 
 
 @organization_app.command("resume")
 def organization_resume(json_output: bool = JSON_OPTION) -> None:
-    """Resume Envoy for the organization. Due Runs restart."""
+    """Resume Outreach for the organization. Due Runs restart."""
     set_json_mode(json_output)
-    _print_stop(_api_request("post", f"{_ENVOY}/organization/resume").json(), json_output)
+    _print_stop(_api_request("post", f"{_OUTREACH}/organization/resume").json(), json_output)
 
 
 app.add_typer(drafts_app, name="drafts")
