@@ -1,8 +1,8 @@
-"""Tests for `ac agentic envoy campaigns activity` and `campaigns results`."""
+"""Tests for `ac agentic outreach campaigns activity` and `campaigns results`."""
 
 import json
 
-BASE = "/api/v1/agentic/envoy"
+BASE = "/api/v1/agentic/outreach"
 CAMPAIGN_ID = "33333333-3333-4333-8333-333333333333"
 ENROLLMENT_ID = "22222222-2222-4222-8222-222222222222"
 PERSON_ID = "77777777-7777-4777-8777-777777777777"
@@ -57,8 +57,8 @@ RESULTS = {
     ],
     "truncated": False,
 }
-ACTIVITY_CMD = ["agentic", "envoy", "campaigns", "activity", CAMPAIGN_ID]
-RESULTS_CMD = ["agentic", "envoy", "campaigns", "results", CAMPAIGN_ID]
+ACTIVITY_CMD = ["agentic", "outreach", "campaigns", "activity", CAMPAIGN_ID]
+RESULTS_CMD = ["agentic", "outreach", "campaigns", "results", CAMPAIGN_ID]
 
 
 class TestCampaignActivity:
@@ -126,7 +126,7 @@ class TestCampaignActivity:
 
     def test_activity_of_an_unknown_campaign_gets_the_404_exit_code(self, invoke, mock_api):
         mock_api.get(f"{BASE}/campaigns/{CAMPAIGN_ID}/activity").respond(
-            404, json={"detail": "Envoy campaign not found"}
+            404, json={"detail": "Outreach campaign not found"}
         )
 
         assert invoke(ACTIVITY_CMD).exit_code == 3
