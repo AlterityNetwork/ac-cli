@@ -25,6 +25,10 @@ email) and ends it (`exit`).
 enrollment ends as moved, and the person is enrolled in the target.
 `ac agentic outreach organization` reads, stops and resumes Outreach for the
 whole organization. Only an organization admin stops or resumes.
+`ac agentic outreach strategies` lists, reads, creates, edits and archives the
+strategies that campaigns follow (`strategies.py`). `campaigns create` and
+`update` take `--strategy`. A create without it makes a strategy from the
+name and the goal.
 
 `ac agentic outreach drafts list` and `get` read the Review queue: the
 proposed actions (an email, a LinkedIn note or a LinkedIn message) that wait
@@ -79,6 +83,7 @@ from ac_cli.commands._helpers import (
     set_json_mode,
     should_skip_confirm,
 )
+from ac_cli.commands.outreach.strategies import strategies_app
 from ac_cli.formatting import as_text, print_detail, print_json, print_table, styled
 
 app = typer.Typer(help="Outreach (agentic): campaigns, enrollments and the Review queue")
@@ -455,6 +460,8 @@ _CAMPAIGN_FIELDS = [
     ("status", "Status"),
     ("description", "Description"),
     ("goal", "Goal"),
+    ("strategy_name", "Strategy"),
+    ("strategy_id", "Strategy ID"),
     ("channels", "Channels"),
     ("max_touches", "Max touches"),
     ("followup", "Follow-up"),
@@ -640,6 +647,7 @@ def _campaign_body(
     max_touches: int | None = None,
     min_days: int | None = None,
     max_days: int | None = None,
+    strategy: str | None = None,
 ) -> dict[str, object]:
     """Build a campaign body from the given options. An empty description clears it.
 
@@ -649,6 +657,8 @@ def _campaign_body(
         refuse_local(
             f"--description is longer than {_DESCRIPTION_MAX} characters", len(description)
         )
+    if goal is not None and strategy is not None:
+        refuse_local("give --goal or --strategy, not both: the campaign takes the strategy goal")
     if goal is not None and not goal.strip():
         refuse_local("--goal may not be blank")
     if goal is not None and len(goal) > _GOAL_MAX:
@@ -671,6 +681,7 @@ def _campaign_body(
             ("max_touches", max_touches),
             ("followup_min_days", min_days),
             ("followup_max_days", max_days),
+            ("strategy_id", strategy),
         )
         if value is not None
     }
@@ -691,6 +702,11 @@ _MIN_DAYS_OPTION = typer.Option(
 )
 _MAX_DAYS_OPTION = typer.Option(
     None, "--max-days", help="The most days between two touches, 1 to 30"
+)
+_STRATEGY_OPTION = typer.Option(
+    None,
+    "--strategy",
+    help="The ID of the live strategy the campaign follows. See `strategies list`",
 )
 _DESCRIPTION_OPTION = typer.Option(
     None,
@@ -920,12 +936,14 @@ def campaigns_create(
     max_touches: int | None = _MAX_TOUCHES_OPTION,
     min_days: int | None = _MIN_DAYS_OPTION,
     max_days: int | None = _MAX_DAYS_OPTION,
+    strategy: str | None = _STRATEGY_OPTION,
     json_output: bool = JSON_OPTION,
 ) -> None:
     """Create a paused campaign. You own it, and your mailbox sends its emails.
 
     Only `--name` is required. A limit left out takes the default: email only,
-    5 touches, 3 to 7 days.
+    5 touches, 3 to 7 days. Without `--strategy`, the API makes a strategy
+    from the name and `--goal`, with no offer and no research.
     """
     set_json_mode(json_output)
     body = _campaign_body(
@@ -936,6 +954,7 @@ def campaigns_create(
         max_touches=max_touches,
         min_days=min_days,
         max_days=max_days,
+        strategy=strategy,
     )
     data = _api_request("post", f"{_OUTREACH}/campaigns", json=body).json()
     if json_output:
@@ -955,6 +974,7 @@ def campaigns_update(
     max_touches: int | None = _MAX_TOUCHES_OPTION,
     min_days: int | None = _MIN_DAYS_OPTION,
     max_days: int | None = _MAX_DAYS_OPTION,
+    strategy: str | None = _STRATEGY_OPTION,
     json_output: bool = JSON_OPTION,
 ) -> None:
     """Edit a campaign. Pass an empty `--description` to clear the description.
@@ -970,6 +990,7 @@ def campaigns_update(
         max_touches=max_touches,
         min_days=min_days,
         max_days=max_days,
+        strategy=strategy,
     )
     if not body:
         refuse_local("nothing to update: give at least one option")
@@ -1457,3 +1478,4 @@ app.add_typer(drafts_app, name="drafts")
 app.add_typer(campaigns_app, name="campaigns")
 app.add_typer(enrollments_app, name="enrollments")
 app.add_typer(organization_app, name="organization")
+app.add_typer(strategies_app, name="strategies")
