@@ -675,6 +675,29 @@ class TestCampaigns:
         ):
             assert text in result.output
 
+    def test_enroll_batch_names_a_person_in_an_active_sequence(self, invoke, mock_api):
+        """ENG-3010: the API refuses a person in an active legacy sequence."""
+        refused = {**BATCH_RESULTS[2], "outcome": "in_sequence"}
+        mock_api.post(f"{BASE}/campaigns/{CAMPAIGN_ID}/enrollments/batch").respond(
+            200, json={"results": [refused]}
+        )
+
+        result = invoke(
+            [
+                "agentic",
+                "outreach",
+                "campaigns",
+                "enroll-batch",
+                CAMPAIGN_ID,
+                "--person",
+                f"crm.person:{PERSON_ID}",
+            ]
+        )
+
+        assert result.exit_code == 0, result.output
+        for text in ("in_sequence", "there first", "0 of 1 added"):
+            assert text in result.output
+
     def test_enroll_batch_prints_the_json_answer(self, invoke, mock_api):
         mock_api.post(f"{BASE}/campaigns/{CAMPAIGN_ID}/enrollments/batch").respond(
             200, json={"results": BATCH_RESULTS[:1]}

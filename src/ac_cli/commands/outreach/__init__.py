@@ -529,6 +529,7 @@ _BATCH_FIELDS = [
 _OUTCOME_DETAILS = {
     "campaign_full": "The campaign holds its 200 live enrollments",
     "opted_out": "The address is on the do-not-contact list",
+    "in_sequence": "The person is in an active sequence. Remove the person there first",
     "not_found": "The organization holds no such person",
     "not_sent": "Not sent: an earlier request of this run failed",
 }
@@ -1140,7 +1141,8 @@ def campaigns_enroll_batch(
 
     The people go in requests of 50, one after another. One refused person
     never blocks the others. Each result is added, already_enrolled (in
-    another campaign), campaign_full, opted_out or not_found. A person
+    another campaign), campaign_full, opted_out, in_sequence (in an active
+    sequence) or not_found. A person
     already in this campaign answers added. When a request fails, the run
     stops: the table shows the people already sent and marks the rest
     not_sent. A repeat of the run is safe.
