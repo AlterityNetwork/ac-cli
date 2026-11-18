@@ -18,8 +18,9 @@ people who wait on a review first, then by the next step. Each row names the
 person, the email, the title and company, the last decision, the last touch,
 the reply and, for needs_contact_data, why the email is missing. `--status`
 also takes `awaiting` and `in_progress`, the two parts of active, and
-`--search` matches the name. It also reads one enrollment and its timeline,
-asks for a Run now (`evaluate`: re-evaluate, retry, or retry after an added
+`--search` matches the name. It also reads one enrollment, its timeline and
+its research (`research`: the status, the hook and each finding with its date
+and source URL), asks for a Run now (`evaluate`: re-evaluate, retry, or retry after an added
 email) and ends it (`exit`).
 `move` moves one enrollment or up to 50 to another campaign: each old
 enrollment ends as moved, and the person is enrolled in the target.
@@ -44,7 +45,8 @@ one action by its action id. Each item names the person and the photo URL,
 the company and the logo URL, the campaign, the touch (`2 of 5`), the
 address read fresh, the reply it answers and its sentiment, the draft, and
 the decision: its time, who made it, the reject or failure reason, and the
-facts Outreach used (`source · label`).
+facts Outreach used (`source · label`; a research fact adds its URL), and
+the research the decision read (`Research: status · hook`).
 
 `approve` takes an action id. With no edit flag it approves the draft as it
 is and sends no payload. An edit flag reads the action first and sends the
@@ -236,7 +238,12 @@ def _print_action(item: dict) -> None:
     if facts:
         rprint("[bold]What Outreach used:[/bold]")
         for fact in facts:
-            rprint(as_text(f"{fact.get('source')} · {fact.get('label')}"))
+            parts = [fact.get("source"), fact.get("label"), fact.get("url")]
+            rprint(as_text(" · ".join(str(part) for part in parts if part)))
+    research = item.get("research")
+    if research:
+        line = " · ".join(str(p) for p in (research.get("status"), research.get("hook")) if p)
+        rprint(styled("[bold]Research:[/bold] {}", line))
 
 
 @drafts_app.command("list")
@@ -1338,6 +1345,45 @@ def enrollments_timeline(
         _TIMELINE_FIELDS,
         title=f"Outreach timeline: {data.get('campaign_name') or ''} (newest first)",
     )
+
+
+_RESEARCH_FIELDS = [
+    ("status", "Status"),
+    ("hook", "Hook"),
+    ("strategy_version", "Strategy version"),
+    ("cost_cents", "Cost (cents)"),
+    ("created_at", "Researched"),
+]
+_FINDING_FIELDS = [
+    ("date", "Date"),
+    ("text", "Finding"),
+    ("source_url", "Source"),
+]
+
+
+@enrollments_app.command("research")
+def enrollments_research(
+    enrollment_id: str = typer.Argument(..., help="Enrollment ID"),
+    json_output: bool = JSON_OPTION,
+) -> None:
+    """Read the research of one enrollment: the status, the hook and the findings.
+
+    Each finding prints its date (`undated` when it has none) and its source
+    URL. A `thin` or `failed` research holds no finding. An enrollment with no
+    research answers 404.
+    """
+    set_json_mode(json_output)
+    data = _api_request("get", f"{_OUTREACH}/enrollments/{enrollment_id}/research").json()
+    if json_output:
+        print_json(data)
+        return
+    print_detail(data, _RESEARCH_FIELDS)
+    findings = data.get("findings") or []
+    if not findings:
+        rprint("[dim]No finding[/dim]")
+        return
+    rows = [{**one, "date": one.get("observed_at") or "undated"} for one in findings]
+    print_table(rows, _FINDING_FIELDS, title="Research findings")
 
 
 @enrollments_app.command("evaluate")
