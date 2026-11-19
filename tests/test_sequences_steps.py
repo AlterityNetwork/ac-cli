@@ -258,3 +258,80 @@ def test_steps_reorder_sends_step_ids_in_order(invoke, mock_api):
     assert result.exit_code == 0
     body = json.loads(route.calls.last.request.content)
     assert body == {"step_ids_in_order": ["s-2", "s-1"]}
+
+
+def test_steps_create_sends_the_message_mode_and_the_subject(invoke, mock_api):
+    """A template email step names its mode and its subject template."""
+    route = mock_api.post("/api/v1/sequences/sequences/seq-1/steps").respond(201, json=SAMPLE_STEP)
+    result = invoke(
+        [
+            "sequences",
+            "steps",
+            "create",
+            "seq-1",
+            "--type",
+            "message",
+            "--message-mode",
+            "template",
+            "--message-template",
+            "Hi {{ firstName }}",
+            "--subject-template",
+            "Hello {{ company }}",
+        ]
+    )
+    assert result.exit_code == 0
+    body = json.loads(route.calls.last.request.content)
+    assert body["message_mode"] == "template"
+    assert body["subject_template"] == "Hello {{ company }}"
+
+
+def test_steps_update_switches_the_message_mode(invoke, mock_api):
+    route = mock_api.patch("/api/v1/sequences/sequences/seq-1/steps/step-1").respond(
+        200, json=SAMPLE_STEP
+    )
+    result = invoke(
+        ["sequences", "steps", "update", "seq-1", "step-1", "--message-mode", "instruction"]
+    )
+    assert result.exit_code == 0
+    body = json.loads(route.calls.last.request.content)
+    assert body == {"message_mode": "instruction"}
+
+
+def test_steps_update_clears_the_subject_template(invoke, mock_api):
+    route = mock_api.patch("/api/v1/sequences/sequences/seq-1/steps/step-1").respond(
+        200, json=SAMPLE_STEP
+    )
+    result = invoke(["sequences", "steps", "update", "seq-1", "step-1", "--subject-template", ""])
+    assert result.exit_code == 0
+    body = json.loads(route.calls.last.request.content)
+    assert body == {"subject_template": ""}
+
+
+def test_steps_update_message_mode_json(invoke, mock_api):
+    mock_api.patch("/api/v1/sequences/sequences/seq-1/steps/step-1").respond(
+        200, json={**SAMPLE_STEP, "message_mode": "template"}
+    )
+    result = invoke(
+        [
+            "sequences",
+            "steps",
+            "update",
+            "seq-1",
+            "step-1",
+            "--message-mode",
+            "template",
+            "--json",
+        ]
+    )
+    assert result.exit_code == 0
+    assert json.loads(result.output)["message_mode"] == "template"
+
+
+def test_steps_create_refused_mode_exits_with_validation_code(invoke, mock_api):
+    mock_api.post("/api/v1/sequences/sequences/seq-1/steps").respond(
+        422, json={"detail": "message_mode must be template or instruction"}
+    )
+    result = invoke(
+        ["sequences", "steps", "create", "seq-1", "--type", "message", "--message-mode", "freeform"]
+    )
+    assert result.exit_code == 2
