@@ -22,7 +22,7 @@ SAMPLE_PERSON = {
 
 SAMPLE_SOURCE = {
     "id": "src-1",
-    "provider": "explorium",
+    "provider": "hunter",
     "kind": "company",
     "cost_usd": 0.02,
     "fetched_at": "2026-07-01T00:00:00Z",
@@ -91,7 +91,7 @@ def test_companies_get(invoke, mock_api):
     result = invoke(["admin", "intelligence", "companies", "get", "co-1"])
     assert result.exit_code == 0
     assert "Acme" in result.output
-    assert "explorium" in result.output
+    assert "hunter" in result.output
 
 
 def test_companies_get_not_found(invoke, mock_api):
