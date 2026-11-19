@@ -35,6 +35,7 @@ class EnrichmentProvider(str, Enum):
     """Selectable enrichment providers for ``ac crm companies enrich`` (ENG-1060)."""
 
     hunter = "hunter"
+    fullenrich = "fullenrich"
 
 
 companies_app = typer.Typer(help="Company operations")
@@ -541,7 +542,7 @@ def companies_enrich(
     provider: EnrichmentProvider | None = typer.Option(
         None,
         "--provider",
-        help="Override the configured enrichment provider (hunter)",
+        help="Override the configured enrichment provider (hunter | fullenrich). Default: hunter.",
     ),
     json_output: bool = JSON_OPTION,
 ) -> None:

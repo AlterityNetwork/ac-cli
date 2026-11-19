@@ -761,10 +761,30 @@ def test_companies_enrich_json(invoke, mock_api):
     assert payload["data"]["company_name"] == "Reddit, Inc."
 
 
-def test_companies_enrich_provider_choices_are_hunter_only():
+def test_companies_enrich_with_fullenrich_provider(invoke, mock_api):
+    route = mock_api.post("/api/v1/crm/companies/enrich").respond(
+        200, json={**SAMPLE_ENRICH_RESPONSE, "source": "fullenrich"}
+    )
+    result = invoke(
+        [
+            "crm",
+            "companies",
+            "enrich",
+            "https://reddit.com",
+            "--provider",
+            "fullenrich",
+        ]
+    )
+    assert result.exit_code == 0, result.output
+    assert "Enriched via fullenrich" in result.output
+    body = json.loads(route.calls.last.request.content)
+    assert body == {"url": "https://reddit.com", "provider": "fullenrich"}
+
+
+def test_companies_enrich_provider_choices():
     from ac_cli.commands.crm.companies import EnrichmentProvider
 
-    assert [provider.value for provider in EnrichmentProvider] == ["hunter"]
+    assert [provider.value for provider in EnrichmentProvider] == ["hunter", "fullenrich"]
 
 
 def test_companies_enrich_unknown_provider_rejected(invoke, mock_api):
