@@ -13,7 +13,8 @@ and starts one of them,
 `ac agentic policies` writes the rules an organization governs its agents with,
 `ac agentic connections` links and revokes the provider accounts its agents act
 through, and `ac agentic limits` reads and writes what it may spend in a day and
-how many actions each connection may take. All twelve
+how many actions each connection may take. `ac agentic people` reads what the
+global people cache holds for one person. All thirteen
 sit beside the live `ac agents runs` and replace none of it: the two stacks are
 branch isolated until the cutover, so the alias and the deletion of the old
 commands belong to Phase 7.
@@ -1952,6 +1953,74 @@ def limits_set_budget(
 
 
 app.add_typer(limits_app, name="limits")
+
+
+people_app = typer.Typer(help="Read what the people cache holds for one person")
+
+_PROFILE_FIELDS = [
+    ("linkedin_url", "LinkedIn URL"),
+    ("affiliations_checked_at", "Affiliations checked"),
+]
+
+_EXPERIENCE_FIELDS = [
+    ("title", "Title"),
+    ("company", "Company"),
+    ("kind", "Kind"),
+    ("start_date", "Start"),
+    ("end_date", "End"),
+]
+
+_AFFILIATION_FIELDS = [
+    ("kind", "Kind"),
+    ("name", "Name"),
+    ("role", "Role"),
+    ("current", "Current"),
+    ("source_url", "Source"),
+]
+
+
+@people_app.command("profile")
+def people_profile(
+    ctx: typer.Context,
+    linkedin_url: str = typer.Option(
+        ..., "--linkedin-url", help="The LinkedIn profile URL of the person"
+    ),
+    json_output: bool = JSON_OPTION,
+) -> None:
+    """Read the work history and the affiliations of one person.
+
+    The read is free. It answers 404 when the cache holds no row for the URL.
+    People Enrich with the `affiliations` field fills the affiliations.
+    """
+    set_json_mode(json_output)
+    resp = _api_request("get", f"{_AGENTIC}/people/profile", params={"linkedin_url": linkedin_url})
+
+    data = resp.json()
+    if json_output:
+        print_json(data)
+        return
+    print_detail(data, _PROFILE_FIELDS)
+
+    experience = data.get("experience_history") or []
+    if experience:
+        print_table(experience, _EXPERIENCE_FIELDS, title="Experience")
+    else:
+        rprint("[yellow]No experience history[/yellow]")
+
+    affiliations = [
+        {**entry, "current": "yes" if entry.get("current") else "no"}
+        for entry in data.get("affiliations") or []
+    ]
+    if affiliations:
+        print_table(affiliations, _AFFILIATION_FIELDS, title="Affiliations")
+    elif data.get("affiliations_checked_at"):
+        rprint("[yellow]No affiliations found[/yellow]")
+    else:
+        # No check time means that no deep dive ran for this person.
+        rprint("[yellow]Affiliations not checked yet[/yellow]")
+
+
+app.add_typer(people_app, name="people")
 
 
 policies_app = typer.Typer(help="Agentic policy rules")
