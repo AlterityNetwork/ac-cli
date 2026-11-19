@@ -721,7 +721,7 @@ SAMPLE_ENRICH_RESPONSE = {
         "city": "San Francisco",
         "region": "California",
     },
-    "source": "explorium",
+    "source": "hunter",
 }
 
 
@@ -730,7 +730,7 @@ def test_companies_enrich(invoke, mock_api):
     result = invoke(["crm", "companies", "enrich", "https://reddit.com"])
     assert result.exit_code == 0, result.output
     assert "Reddit, Inc." in result.output
-    assert "explorium" in result.output  # source label surfaced
+    assert "Enriched via hunter" in result.output  # source label surfaced
     body = json.loads(route.calls.last.request.content)
     assert body == {"url": "https://reddit.com"}
 
@@ -757,15 +757,20 @@ def test_companies_enrich_json(invoke, mock_api):
     result = invoke(["crm", "companies", "enrich", "https://reddit.com", "--json"])
     assert result.exit_code == 0
     payload = json.loads(result.output)
-    assert payload["source"] == "explorium"
+    assert payload["source"] == "hunter"
     assert payload["data"]["company_name"] == "Reddit, Inc."
 
 
+def test_companies_enrich_provider_choices_are_hunter_only():
+    from ac_cli.commands.crm.companies import EnrichmentProvider
+
+    assert [provider.value for provider in EnrichmentProvider] == ["hunter"]
+
+
 def test_companies_enrich_unknown_provider_rejected(invoke, mock_api):
-    # Validation happens at the API layer (422). The CLI surfaces semantic
-    # exit code 2.
-    mock_api.post("/api/v1/crm/companies/enrich").respond(
-        422, json={"detail": [{"msg": "Invalid provider"}]}
-    )
+    # Typer refuses a value outside the provider choices with exit code 2,
+    # before the CLI sends a request.
+    route = mock_api.post("/api/v1/crm/companies/enrich").respond(200, json=SAMPLE_ENRICH_RESPONSE)
     result = invoke(["crm", "companies", "enrich", "https://reddit.com", "--provider", "banana"])
     assert result.exit_code == 2
+    assert not route.called
