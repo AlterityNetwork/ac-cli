@@ -21,6 +21,10 @@ def recipients_list(
     sequence_id: str = typer.Argument(..., help="Sequence ID"),
     status: str | None = typer.Option(None, help="Filter by status"),
     step_id: str | None = typer.Option(None, "--step-id", help="Filter by step"),
+    limit: int | None = typer.Option(
+        None, "--limit", min=1, max=1000, help="Page size, 1 to 1000. Default: every row"
+    ),
+    offset: int = typer.Option(0, "--offset", min=0, help="Rows to skip"),
     json_output: bool = JSON_OPTION,
 ) -> None:
     """List recipients of a sequence."""
@@ -30,6 +34,10 @@ def recipients_list(
         params["status_filter"] = status
     if step_id:
         params["step_id"] = step_id
+    if limit is not None:
+        params["limit"] = limit
+    if offset:
+        params["offset"] = offset
 
     resp = _api_request("get", f"{_SEQUENCES}/sequences/{sequence_id}/recipients", params=params)
 

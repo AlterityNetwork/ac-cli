@@ -382,3 +382,15 @@ def test_sequences_create_does_not_send_organization_id(invoke, mock_api):
     assert result.exit_code == 0
     body = json.loads(route.calls.last.request.content)
     assert body == {"name": "Q1"}
+
+
+def test_sequences_for_prospect_pages_with_limit_and_offset(invoke, mock_api):
+    """ENG-3050: the API answers one page when the CLI names it."""
+    route = mock_api.get("/api/v1/sequences/sequences/by-prospect/p-1").respond(200, json=[])
+    result = invoke(
+        ["sequences", "sequences", "for-prospect", "p-1", "--limit", "5", "--offset", "10"]
+    )
+    assert result.exit_code == 0
+    params = route.calls.last.request.url.params
+    assert params["limit"] == "5"
+    assert params["offset"] == "10"
