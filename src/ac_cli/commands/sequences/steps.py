@@ -23,6 +23,19 @@ def steps_create(
         None, "--message-template", help="Message template"
     ),
     prompt: str | None = typer.Option(None, help="AI prompt for message generation"),
+    message_mode: str | None = typer.Option(
+        None,
+        "--message-mode",
+        help=(
+            "template sends the template as written and fills each {{ }} part; "
+            "instruction writes the email from the prompt"
+        ),
+    ),
+    subject_template: str | None = typer.Option(
+        None,
+        "--subject-template",
+        help="Subject of a template step, with the same {{ }} rule. Blank lets the AI write it",
+    ),
     delay_value: int | None = typer.Option(None, "--delay-value", help="Delay value"),
     delay_unit: str | None = typer.Option(None, "--delay-unit", help="Delay unit (hours, days)"),
     step_subtype: str | None = typer.Option(
@@ -50,6 +63,8 @@ def steps_create(
         step_order=step_order,
         message_template=message_template,
         prompt=prompt,
+        message_mode=message_mode,
+        subject_template=subject_template,
         delay_value=delay_value,
         delay_unit=delay_unit,
         step_subtype=step_subtype,
@@ -80,6 +95,19 @@ def steps_update(
         None, "--message-template", help="Message template"
     ),
     prompt: str | None = typer.Option(None, help="AI prompt"),
+    message_mode: str | None = typer.Option(
+        None,
+        "--message-mode",
+        help=(
+            "template sends the template as written and fills each {{ }} part; "
+            "instruction writes the email from the prompt"
+        ),
+    ),
+    subject_template: str | None = typer.Option(
+        None,
+        "--subject-template",
+        help="Subject of a template step, with the same {{ }} rule. Blank lets the AI write it",
+    ),
     delay_value: int | None = typer.Option(None, "--delay-value", help="Delay value"),
     delay_unit: str | None = typer.Option(None, "--delay-unit", help="Delay unit"),
     step_subtype: str | None = typer.Option(
@@ -105,6 +133,8 @@ def steps_update(
     body = _build_body(
         message_template=message_template,
         prompt=prompt,
+        message_mode=message_mode,
+        subject_template=subject_template,
         delay_value=delay_value,
         delay_unit=delay_unit,
         step_subtype=step_subtype,
