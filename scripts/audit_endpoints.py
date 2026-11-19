@@ -410,7 +410,16 @@ def main() -> int:
     audit_payloads.print_report(payload_calls, findings)
     strict_findings = [f for f in findings if f.kind in audit_payloads.STRICT_KINDS]
 
-    if args.strict and (cli_only or stale_scope or strict_findings):
+    import audit_responses
+
+    reads = audit_responses.collect_response_reads(CLI_ROOT)
+    response_findings = audit_responses.find_unknown_reads(reads, spec)
+    print()
+    audit_responses.print_report(reads, spec, response_findings)
+    strict_findings += [f for f in response_findings if f.kind in audit_responses.STRICT_KINDS]
+    stale_allowed = audit_responses.stale_allowlist(reads, spec)
+
+    if args.strict and (cli_only or stale_scope or strict_findings or stale_allowed):
         return 1
     return 0
 

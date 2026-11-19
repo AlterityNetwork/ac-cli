@@ -72,7 +72,9 @@ scripts/               → bump.sh (manual version), auto-version-tag.sh (post-c
                          lint.sh (ruff lint + format + markup gate),
                          check_markup.py (no unwrapped value reaches rich markup),
                          audit_endpoints.py (CLI vs API endpoint diff),
-                         audit_payloads.py (CLI vs API body and query keys)
+                         audit_payloads.py (CLI vs API body and query keys),
+                         audit_responses.py (response keys the CLI reads vs the API returns),
+                         sync_api_spec.py (copy the API spec into contracts/)
 ```
 
 ## Running Checks
@@ -87,7 +89,8 @@ uv run python scripts/check_markup.py      # No unwrapped value reaches rich mar
 uv run vulture src/                        # Dead-code scan
 uv run deptry src/                         # Dependency hygiene
 python scripts/audit_endpoints.py --strict # Diff CLI calls vs live OpenAPI
-python scripts/audit_endpoints.py --strict --spec-file openapi.json  # Same, from an exported spec
+python scripts/audit_endpoints.py --strict --spec-file contracts/ac-python-api.openapi.json  # Same, from the vendored spec (what CI runs)
+uv run python scripts/sync_api_spec.py      # Refresh contracts/ from ../ac-python-api/openapi.json
 ```
 
 Pytest defaults (`pyproject.toml`): `-n auto --dist worksteal --maxfail=1 --cov-fail-under=90`. No mypy/type-check tooling is configured.
@@ -102,6 +105,19 @@ The PAYLOAD check (`scripts/audit_payloads.py`) compares the body keys and query
 parameters each call sends with the request schema of its route. FastAPI drops an
 unknown key with no error, so a wrong key name makes an option do nothing. A call
 whose keys the check cannot follow is listed as UNRESOLVED. Check those by hand.
+
+The RESPONSE check (`scripts/audit_responses.py`) compares the keys each command
+reads from `resp.json()` (`.get`, `[]`, `print_table`/`print_detail` columns) with
+the response schema of its route. A renamed response field would otherwise print
+`?` with no error. Reads of an untyped response are listed as RESPONSE-UNRESOLVED
+and never fail. `scripts/audit_responses_allowlist.json` lists the reads that
+existed when the check landed; fix a read, then remove its entry (a stale entry
+fails `--strict`).
+
+The `Contract audit` workflow runs all three checks with `--strict` on every PR,
+against `contracts/ac-python-api.openapi.json`. The API repo is private and this
+repo holds no token for it, so the spec travels as a file: after an API route or
+model change merges, run `scripts/sync_api_spec.py` and commit the copy.
 
 ## TDD Workflow
 
