@@ -86,6 +86,35 @@ def users_get(
     )
 
 
+@users_app.command("organizations")
+def users_organizations(
+    ctx: typer.Context,
+    user_id: str = typer.Argument(..., help="User ID"),
+    json_output: bool = JSON_OPTION,
+) -> None:
+    """List the organizations of a user. The current organization is first."""
+    set_json_mode(json_output)
+    resp = _api_request("get", f"{_ADMIN}/users/{user_id}/organizations")
+
+    data = resp.json()
+    if json_output:
+        print_json(data)
+        return
+
+    print_table(
+        data.get("organizations", []),
+        [
+            ("name", "Name"),
+            ("id", "ID"),
+            ("role", "Role"),
+            ("is_current", "Current"),
+            ("subscription_status", "Subscription"),
+            ("plan_name", "Plan"),
+        ],
+        title="Organizations",
+    )
+
+
 @users_app.command("create")
 def users_create(
     ctx: typer.Context,

@@ -326,3 +326,44 @@ def test_users_generate_link_sends_no_query(invoke, mock_api):
     result = invoke(["admin", "users", "generate-link", "u-1"])
     assert result.exit_code == 0
     assert dict(route.calls.last.request.url.params) == {}
+
+
+SAMPLE_USER_ORG = {
+    "id": "org-1",
+    "name": "Test Corp",
+    "logo_url": None,
+    "role": "owner",
+    "is_current": True,
+    "onboarding_status": "active",
+    "suspended_at": None,
+    "subscription_status": "active",
+    "plan_name": "Growth",
+}
+
+
+def test_users_organizations(invoke, mock_api):
+    mock_api.get("/api/v1/admin/users/u-1/organizations").respond(
+        200, json={"organizations": [SAMPLE_USER_ORG]}
+    )
+    result = invoke(["admin", "users", "organizations", "u-1"])
+    assert result.exit_code == 0
+    assert "Test Corp" in result.output
+    assert "owner" in result.output
+    assert "Growth" in result.output
+
+
+def test_users_organizations_json(invoke, mock_api):
+    payload = {"organizations": [SAMPLE_USER_ORG]}
+    mock_api.get("/api/v1/admin/users/u-1/organizations").respond(200, json=payload)
+    result = invoke(["admin", "users", "organizations", "u-1", "--json"])
+    assert result.exit_code == 0
+    assert json.loads(result.output) == payload
+
+
+def test_users_organizations_not_found(invoke, mock_api):
+    mock_api.get("/api/v1/admin/users/u-x/organizations").respond(
+        404, json={"detail": "User not found"}
+    )
+    result = invoke(["admin", "users", "organizations", "u-x", "--json"])
+    assert result.exit_code == 3
+    assert json.loads(result.output)["status_code"] == 404
