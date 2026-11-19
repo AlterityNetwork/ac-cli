@@ -300,43 +300,54 @@ def test_runs_list_shows_the_user_search_query(invoke, mock_api, table_column):
     assert table_column(result.output, 1).replace(" ", "") == "RevenueleadersinLondon"
 
 
-#: The `Prospects` cell, read from the column list itself.
-PROSPECT_COUNT_COLUMN = [key for key, _ in _LIST_FIELDS].index("prospect_count")
+#: The `Results` cell, read from the column list itself.
+RESULT_COUNT_COLUMN = [key for key, _ in _LIST_FIELDS].index("result_count")
 
 
-def test_runs_list_names_how_many_prospects_a_run_wrote(invoke, mock_api, table_column):
-    """The Signals list carries the count. The column reads it as it is."""
-    run = {**SAMPLE_RUN, "capability_id": "signals.search", "prospect_count": 12}
+def test_runs_list_names_how_many_results_a_run_returned(invoke, mock_api, table_column):
+    """The column reads the count as the API answers it."""
+    run = {**SAMPLE_RUN, "capability_id": "signals.search", "result_count": 12}
     mock_api.get("/api/v1/agentic/runs").respond(200, json={"items": [run], "next_cursor": None})
 
     result = invoke(["agentic", "runs", "list", "--capability", "signals.search"])
 
     assert result.exit_code == 0
-    assert "Prospects" in result.output
-    assert table_column(result.output, PROSPECT_COUNT_COLUMN) == "12"
+    assert "Results" in result.output
+    assert "Prospects" not in result.output
+    assert table_column(result.output, RESULT_COUNT_COLUMN) == "12"
 
 
-def test_runs_list_prints_zero_and_never_a_blank_for_an_empty_run(invoke, mock_api, table_column):
-    """Zero is a Run that wrote no prospect. A blank cell is no count at all."""
-    run = {**SAMPLE_RUN, "capability_id": "signals.search", "prospect_count": 0}
-    mock_api.get("/api/v1/agentic/runs").respond(200, json={"items": [run], "next_cursor": None})
-
-    result = invoke(["agentic", "runs", "list", "--capability", "signals.search"])
-
-    assert table_column(result.output, PROSPECT_COUNT_COLUMN) == "0"
-
-
-def test_runs_list_prints_a_blank_prospect_cell_when_nobody_counted(invoke, mock_api, table_column):
-    run = {**SAMPLE_RUN, "prospect_count": None}
+def test_runs_list_counts_a_search_run_on_an_unfiltered_list(invoke, mock_api, table_column):
+    """The API counts each row by its own capability, so no filter is needed."""
+    run = {**SAMPLE_RUN, "capability_id": "company.search", "result_count": 5}
     mock_api.get("/api/v1/agentic/runs").respond(200, json={"items": [run], "next_cursor": None})
 
     result = invoke(["agentic", "runs", "list"])
 
-    assert table_column(result.output, PROSPECT_COUNT_COLUMN) == ""
+    assert table_column(result.output, RESULT_COUNT_COLUMN) == "5"
 
 
-def test_runs_list_json_passes_the_prospect_count_through(invoke, mock_api):
-    page = {"items": [{**SAMPLE_RUN, "prospect_count": 12}], "next_cursor": None}
+def test_runs_list_prints_zero_and_never_a_blank_for_an_empty_run(invoke, mock_api, table_column):
+    """Zero is a search that found nothing. A blank cell is no count at all."""
+    run = {**SAMPLE_RUN, "capability_id": "signals.search", "result_count": 0}
+    mock_api.get("/api/v1/agentic/runs").respond(200, json={"items": [run], "next_cursor": None})
+
+    result = invoke(["agentic", "runs", "list", "--capability", "signals.search"])
+
+    assert table_column(result.output, RESULT_COUNT_COLUMN) == "0"
+
+
+def test_runs_list_prints_a_blank_result_cell_when_nobody_counted(invoke, mock_api, table_column):
+    run = {**SAMPLE_RUN, "result_count": None}
+    mock_api.get("/api/v1/agentic/runs").respond(200, json={"items": [run], "next_cursor": None})
+
+    result = invoke(["agentic", "runs", "list"])
+
+    assert table_column(result.output, RESULT_COUNT_COLUMN) == ""
+
+
+def test_runs_list_json_passes_the_result_count_through(invoke, mock_api):
+    page = {"items": [{**SAMPLE_RUN, "result_count": 12}], "next_cursor": None}
     mock_api.get("/api/v1/agentic/runs").respond(200, json=page)
 
     result = invoke(["agentic", "runs", "list", "--json"])

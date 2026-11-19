@@ -120,16 +120,19 @@ _RUN_FIELDS = [
 
 # `Title` holds the name a person gave a Run, or its saved-search name, on any
 # list. A `--capability signals.search` list also titles an unnamed Run from its
-# input. `Prospects` is blank on every list but that one. Zero is a Run that
-# wrote no prospect. The table holds seven columns to stay readable at 80
-# characters, so the saved search of a Run prints on `runs get` and in `--json`.
+# input. `Results` is the number of results the run page lists. The API counts
+# a succeeded Signals, People Signals, Company Search or People Search Run, and
+# the cell is blank for every other Run. Zero is a search that found nothing. A
+# Signals count falls when a person dismisses or deletes a prospect. The table
+# holds seven columns to stay readable at 80 characters, so the saved search of
+# a Run prints on `runs get` and in `--json`.
 _LIST_FIELDS = [
     ("id", "Run ID"),
     ("display_name", "Definition / Search"),
     ("title", "Title"),
     ("status", "Status"),
     ("kind", "Kind"),
-    ("prospect_count", "Prospects"),
+    ("result_count", "Results"),
     ("created_at", "Created"),
 ]
 
