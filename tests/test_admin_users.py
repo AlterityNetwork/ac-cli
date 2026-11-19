@@ -310,6 +310,15 @@ def test_users_list_sends_limit_and_offset(invoke, mock_api):
     assert dict(route.calls.last.request.url.params) == {"limit": "20", "offset": "40"}
 
 
+def test_users_list_copilots_only(invoke, mock_api):
+    route = mock_api.get("/api/v1/admin/users").respond(200, json={"items": [], "total": 0})
+    result = invoke(["admin", "users", "list", "--copilots"])
+    assert result.exit_code == 0
+    params = dict(route.calls.last.request.url.params)
+    assert params["copilot"] == "true"
+    assert params["include_superadmins"] == "true"
+
+
 def test_users_generate_link_rejects_send_email(invoke, mock_api):
     route = mock_api.post("/api/v1/admin/users/u-1/generate-impersonation-link").respond(
         200, json={"link": "https://app.example.com"}

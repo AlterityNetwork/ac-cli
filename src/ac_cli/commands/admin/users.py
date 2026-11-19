@@ -29,11 +29,16 @@ def users_list(
     order: str | None = typer.Option(None, help="Sort order (asc/desc)"),
     page: int = typer.Option(1, min=1, help="Page number"),
     page_size: int = typer.Option(50, "--page-size", min=1, help="Page size"),
+    copilots: bool = typer.Option(False, "--copilots", help="List only copilots"),
     json_output: bool = JSON_OPTION,
 ) -> None:
     """List users."""
     set_json_mode(json_output)
     params: dict = {"limit": page_size, "offset": (page - 1) * page_size}
+    if copilots:
+        # A copilot can also be a superadmin, so do not hide superadmins.
+        params["copilot"] = "true"
+        params["include_superadmins"] = "true"
     if query:
         params["q"] = query
     if sort:

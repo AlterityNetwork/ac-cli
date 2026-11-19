@@ -1,4 +1,4 @@
-"""Admin commands: users, organizations, queues, demo."""
+"""Admin commands: users, organizations, queues."""
 
 import typer
 from rich import print as rprint
@@ -106,7 +106,6 @@ from ac_cli.commands.admin.billing import billing_app  # noqa: E402
 from ac_cli.commands.admin.copilots import copilots_app  # noqa: E402
 from ac_cli.commands.admin.credit_prices import credit_prices_app  # noqa: E402
 from ac_cli.commands.admin.crm import admin_crm_app  # noqa: E402
-from ac_cli.commands.admin.demo import demo_app  # noqa: E402
 from ac_cli.commands.admin.entitlement_grants import entitlement_grants_app  # noqa: E402
 from ac_cli.commands.admin.intelligence import intelligence_app  # noqa: E402
 from ac_cli.commands.admin.legal_documents import legal_docs_app  # noqa: E402
@@ -124,7 +123,6 @@ app.add_typer(users_app, name="users")
 app.add_typer(organizations_app, name="orgs")
 app.add_typer(copilots_app, name="copilots")
 app.add_typer(queues_app, name="queues")
-app.add_typer(demo_app, name="demo")
 app.add_typer(onboarding_app, name="onboarding")
 app.add_typer(app_usage_app, name="app-usage")
 app.add_typer(ai_usage_app, name="ai-usage")
