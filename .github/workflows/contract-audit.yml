@@ -1,0 +1,36 @@
+name: Contract audit
+
+# Fails a PR whose CLI calls a path the API does not serve, sends a key the
+# route does not read, or reads a response key the route does not return
+# (ENG-3053). The audits read contracts/ac-python-api.openapi.json, a copy of
+# the committed ac-python-api spec; scripts/sync_api_spec.py refreshes it.
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: contract-audit-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - uses: astral-sh/setup-uv@38f3f104447c67c051c4a08e39b64a148898af3a # v4
+        with:
+          version: "latest"
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
+      - name: Install dependencies
+        run: uv sync
+      - name: Audit paths, request keys and response keys
+        run: uv run python scripts/audit_endpoints.py --strict --spec-file contracts/ac-python-api.openapi.json
+      - name: Audit tests
+        run: uv run pytest --no-cov -n 0 tests/test_audit_endpoints.py tests/test_audit_payloads.py tests/test_audit_responses.py
