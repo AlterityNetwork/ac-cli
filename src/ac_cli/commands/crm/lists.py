@@ -195,6 +195,10 @@ def lists_for_member(
     ctx: typer.Context,
     person_id: str | None = typer.Option(None, "--person-id", help="Person ID"),
     company_id: str | None = typer.Option(None, "--company-id", help="Company ID"),
+    limit: int | None = typer.Option(
+        None, "--limit", min=1, max=1000, help="Page size, 1 to 1000. Default: every row"
+    ),
+    offset: int = typer.Option(0, "--offset", min=0, help="Rows to skip"),
     json_output: bool = JSON_OPTION,
 ) -> None:
     """List CRM lists that contain the given person or company."""
@@ -207,7 +211,12 @@ def lists_for_member(
         rprint("[red]Must specify --person-id or --company-id[/red]")
         raise typer.Exit(code=1)
 
-    resp = _api_request("get", f"{_CRM}/members/{member_type}/{member_id}/lists")
+    params: dict = {}
+    if limit is not None:
+        params["limit"] = limit
+    if offset:
+        params["offset"] = offset
+    resp = _api_request("get", f"{_CRM}/members/{member_type}/{member_id}/lists", params=params)
     data = resp.json()
     if json_output:
         print_json(data)
