@@ -1,0 +1,22 @@
+name: Claude fix
+
+# Comment "@claude fix" on an open PR (or reply it on one inline finding) and
+# Claude pushes a fix commit to the PR branch. The job lives in
+# AlterityNetwork/agencycore .github/workflows/claude-fix-reusable.yml.
+on:
+  issue_comment:
+    types: [created]
+  pull_request_review_comment:
+    types: [created]
+
+jobs:
+  fix:
+    uses: AlterityNetwork/agencycore/.github/workflows/claude-fix-reusable.yml@staging
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: write
+      id-token: write
+      actions: read
+    secrets:
+      CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
