@@ -1,6 +1,14 @@
 """Shared test fixtures for ac-cli tests."""
 
+import os
 from unittest.mock import patch
+
+# Each pytest-xdist worker starts with COLUMNS=80. The rich console in
+# ac_cli.formatting reads COLUMNS once, when the module loads, and keeps that
+# width. A later monkeypatch.setenv("COLUMNS", ...) then has no effect. Remove
+# the variable before ac_cli loads, so the console reads COLUMNS at each print,
+# as it does in a serial run.
+os.environ.pop("COLUMNS", None)
 
 import pytest
 import respx
