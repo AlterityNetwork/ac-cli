@@ -192,6 +192,28 @@ def test_subscriptions_create(invoke, mock_api):
     assert "Created subscription" in result.output
 
 
+def test_subscriptions_update_clear_custom_price(invoke, mock_api):
+    route = mock_api.patch("/api/v1/admin/subscriptions/sub-1").respond(200, json=SAMPLE_SUB)
+    result = invoke(["admin", "subscriptions", "update", "sub-1", "--clear-custom-price"])
+    assert result.exit_code == 0
+    assert json.loads(route.calls.last.request.content) == {"custom_price_cents": None}
+
+
+def test_subscriptions_update_clear_and_set_custom_price_conflict(invoke, mock_api):
+    result = invoke(
+        [
+            "admin",
+            "subscriptions",
+            "update",
+            "sub-1",
+            "--clear-custom-price",
+            "--custom-price-cents",
+            "100",
+        ]
+    )
+    assert result.exit_code == 1
+
+
 def test_subscriptions_update(invoke, mock_api):
     mock_api.patch("/api/v1/admin/subscriptions/sub-1").respond(
         200, json={**SAMPLE_SUB, "plan_id": "plan-2"}

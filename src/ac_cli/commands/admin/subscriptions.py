@@ -161,6 +161,9 @@ def subscriptions_update(
     ),
     currency: str | None = typer.Option(None, "--currency", help="Price currency"),
     coupon: str | None = typer.Option(None, "--coupon", help="Stripe coupon id"),
+    clear_custom_price: bool = typer.Option(
+        False, "--clear-custom-price", help="Remove the custom price and use the plan price"
+    ),
     json_output: bool = JSON_OPTION,
 ) -> None:
     """Update a subscription."""
@@ -178,6 +181,12 @@ def subscriptions_update(
         currency=currency,
         coupon=coupon,
     )
+    if clear_custom_price:
+        if custom_price_cents is not None:
+            rprint("[red]Use --clear-custom-price or --custom-price-cents, not both.[/red]")
+            raise typer.Exit(code=1)
+        # The API reads an explicit null as a reset to the plan price.
+        body["custom_price_cents"] = None
     if not body:
         rprint("[yellow]No fields to update.[/yellow]")
         raise typer.Exit(code=1)
