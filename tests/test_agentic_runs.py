@@ -726,6 +726,97 @@ def test_runs_spans_omits_since_when_absent(invoke, mock_api):
     assert "since" not in route.calls[0].request.url.params
 
 
+# --- items -----------------------------------------------------------------
+
+SAMPLE_ITEM = {
+    "result_id": "33333333-3333-4333-8333-333333333333",
+    "ref": {"kind": "domain", "value": "acme.com"},
+    "display": {"name": "Acme Payments"},
+}
+
+
+def test_runs_items(invoke, mock_api):
+    mock_api.get(f"/api/v1/agentic/runs/{SAMPLE_RUN['id']}/items").respond(
+        200, json={"items": [SAMPLE_ITEM], "next_cursor": None}
+    )
+
+    result = invoke(["agentic", "runs", "items", SAMPLE_RUN["id"]])
+
+    assert result.exit_code == 0
+    assert "Acme Payments" in result.output
+    assert SAMPLE_ITEM["result_id"] in result.output
+
+
+def test_runs_items_json(invoke, mock_api):
+    mock_api.get(f"/api/v1/agentic/runs/{SAMPLE_RUN['id']}/items").respond(
+        200, json={"items": [SAMPLE_ITEM], "next_cursor": None}
+    )
+
+    result = invoke(["agentic", "runs", "items", SAMPLE_RUN["id"], "--json"])
+
+    assert json.loads(result.output)["items"][0] == SAMPLE_ITEM
+
+
+def test_runs_items_pages(invoke, mock_api):
+    route = mock_api.get(f"/api/v1/agentic/runs/{SAMPLE_RUN['id']}/items").respond(
+        200, json={"items": [], "next_cursor": None}
+    )
+
+    invoke(["agentic", "runs", "items", SAMPLE_RUN["id"], "--cursor", "c1", "--limit", "5"])
+
+    params = route.calls[0].request.url.params
+    assert params["cursor"] == "c1"
+    assert params["limit"] == "5"
+
+
+def test_runs_items_omits_cursor_when_absent(invoke, mock_api):
+    route = mock_api.get(f"/api/v1/agentic/runs/{SAMPLE_RUN['id']}/items").respond(
+        200, json={"items": [], "next_cursor": None}
+    )
+
+    invoke(["agentic", "runs", "items", SAMPLE_RUN["id"]])
+
+    assert "cursor" not in route.calls[0].request.url.params
+
+
+def test_runs_items_refuses_an_out_of_range_limit(invoke, mock_api):
+    result = invoke(["agentic", "runs", "items", SAMPLE_RUN["id"], "--limit", "0"])
+
+    assert result.exit_code != 0
+
+
+def test_runs_items_empty_page(invoke, mock_api):
+    mock_api.get(f"/api/v1/agentic/runs/{SAMPLE_RUN['id']}/items").respond(
+        200, json={"items": [], "next_cursor": None}
+    )
+
+    result = invoke(["agentic", "runs", "items", SAMPLE_RUN["id"]])
+
+    assert result.exit_code == 0
+    assert "Items (0)" in result.output
+
+
+def test_runs_items_next_page_hint(invoke, mock_api):
+    mock_api.get(f"/api/v1/agentic/runs/{SAMPLE_RUN['id']}/items").respond(
+        200, json={"items": [SAMPLE_ITEM], "next_cursor": "abc123"}
+    )
+
+    result = invoke(["agentic", "runs", "items", SAMPLE_RUN["id"]])
+
+    assert "--cursor" in result.output
+    assert "abc123" in result.output
+
+
+def test_runs_items_not_found(invoke, mock_api):
+    mock_api.get(f"/api/v1/agentic/runs/{SAMPLE_RUN['id']}/items").respond(
+        404, json={"detail": "run not found"}
+    )
+
+    result = invoke(["agentic", "runs", "items", SAMPLE_RUN["id"]])
+
+    assert result.exit_code == 3
+
+
 # --- cancel ----------------------------------------------------------------
 
 
