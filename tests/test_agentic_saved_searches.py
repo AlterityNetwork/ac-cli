@@ -903,3 +903,138 @@ def test_get_prints_the_watch_list(invoke, mock_api):
     assert result.exit_code == 0
     assert "Watch list:" in result.output
     assert LIST_ID in result.output
+
+
+OTHER_LIST_ID = "66666666-6666-4666-8666-666666666666"
+SOURCE_DETAIL = {
+    **WATCH_DETAIL,
+    "sources": [
+        {
+            "id": "77777777-7777-4777-8777-777777777777",
+            "kind": "crm_list",
+            "list_id": LIST_ID,
+            "name": "Q4 targets",
+            "sync": True,
+        },
+        {
+            "id": "88888888-8888-4888-8888-888888888888",
+            "kind": "csv",
+            "name": "accounts.csv",
+            "rows": [{"domain": "a.test"}, {"domain": "b.test"}],
+        },
+    ],
+}
+
+
+def _create(invoke, *flags: str):
+    return invoke(
+        [
+            "agentic",
+            "saved-searches",
+            "create",
+            "--capability",
+            SIGNALS,
+            "--name",
+            "Watched accounts",
+            "--brief",
+            json.dumps(WATCH_BRIEF),
+            *flags,
+        ]
+    )
+
+
+def test_create_sends_synced_and_fixed_lists(invoke, mock_api):
+    route = mock_api.post(BASE).respond(201, json=SOURCE_DETAIL)
+
+    result = _create(invoke, "--source-list", LIST_ID, "--source-list-fixed", OTHER_LIST_ID)
+
+    assert result.exit_code == 0
+    assert json.loads(route.calls[0].request.content)["sources"] == [
+        {"kind": "crm_list", "list_id": LIST_ID, "sync": True},
+        {"kind": "crm_list", "list_id": OTHER_LIST_ID, "sync": False},
+    ]
+
+
+def test_create_sends_the_sources_json(invoke, mock_api):
+    route = mock_api.post(BASE).respond(201, json=SOURCE_DETAIL)
+    sources = [{"kind": "manual", "rows": [{"domain": "a.test"}]}]
+
+    result = _create(invoke, "--sources", json.dumps(sources))
+
+    assert result.exit_code == 0
+    assert json.loads(route.calls[0].request.content)["sources"] == sources
+
+
+def test_create_refuses_sources_json_that_is_not_a_list(invoke, mock_api):
+    result = _create(invoke, "--sources", json.dumps({"kind": "manual"}))
+
+    assert result.exit_code == 2
+    assert not mock_api.calls
+
+
+@pytest.mark.parametrize(
+    "flags",
+    [
+        ("--watch-list-id", LIST_ID, "--source-list", OTHER_LIST_ID),
+        ("--sources", "[]", "--source-list", LIST_ID),
+    ],
+)
+def test_create_refuses_two_ways_to_name_the_sources(invoke, mock_api, flags):
+    result = _create(invoke, *flags)
+
+    assert result.exit_code == 2
+    assert not mock_api.calls
+
+
+def test_patch_clear_sources_sends_an_empty_set(invoke, mock_api):
+    route = mock_api.patch(f"{BASE}/{SEARCH_ID}").respond(200, json=DETAIL)
+
+    result = invoke(
+        [
+            "agentic",
+            "saved-searches",
+            "patch",
+            SEARCH_ID,
+            "--expected-updated-at",
+            "opaque",
+            "--clear-sources",
+        ]
+    )
+
+    assert result.exit_code == 0
+    assert json.loads(route.calls[0].request.content) == {
+        "expected_updated_at": "opaque",
+        "sources": [],
+    }
+
+
+def test_patch_sends_a_synced_list_as_the_whole_set(invoke, mock_api):
+    route = mock_api.patch(f"{BASE}/{SEARCH_ID}").respond(200, json=SOURCE_DETAIL)
+
+    result = invoke(
+        [
+            "agentic",
+            "saved-searches",
+            "patch",
+            SEARCH_ID,
+            "--expected-updated-at",
+            "opaque",
+            "--source-list",
+            LIST_ID,
+        ]
+    )
+
+    assert result.exit_code == 0
+    assert json.loads(route.calls[0].request.content)["sources"] == [
+        {"kind": "crm_list", "list_id": LIST_ID, "sync": True}
+    ]
+
+
+def test_get_prints_each_source(invoke, mock_api):
+    mock_api.get(f"{BASE}/{SEARCH_ID}").respond(200, json=SOURCE_DETAIL)
+
+    result = invoke(["agentic", "saved-searches", "get", SEARCH_ID])
+
+    assert result.exit_code == 0
+    assert "CRM list Q4 targets, kept in sync" in result.output
+    assert "CSV accounts.csv, 2 rows" in result.output
