@@ -29,15 +29,17 @@ _WATCH_LIST_HELP = (
     "the list and does not discover companies outside the list."
 )
 _SOURCE_LIST_HELP = (
-    "CRM list kept in sync: each Run reads its current members. Repeat it for more lists."
+    "CRM list kept in sync: each Run reads its current members. A saved search "
+    "keeps one CRM list kept in sync today."
 )
 _FIXED_LIST_HELP = (
     "CRM list kept as a fixed set: the server keeps the members the list has now. "
-    "Repeat it for more lists."
+    "The API refuses this today, because a Run reads one synced list only."
 )
 _SOURCES_HELP = (
     "The whole source set as a JSON array, for CSV and manual rows. "
-    'Each item has a "kind": crm_list, csv or manual.'
+    'Each item has a "kind": crm_list, csv or manual. The API refuses this today '
+    "for any set other than one CRM list kept in sync."
 )
 _PAGE_DEFAULT = 50
 _PAGE_MIN = 1

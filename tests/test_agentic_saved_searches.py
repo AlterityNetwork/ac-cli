@@ -1038,3 +1038,15 @@ def test_get_prints_each_source(invoke, mock_api):
     assert result.exit_code == 0
     assert "CRM list Q4 targets, kept in sync" in result.output
     assert "CSV accounts.csv, 2 rows" in result.output
+
+
+def test_the_source_help_says_what_the_api_refuses_today():
+    from ac_cli.commands.saved_searches import (
+        _FIXED_LIST_HELP,
+        _SOURCE_LIST_HELP,
+        _SOURCES_HELP,
+    )
+
+    assert "one CRM list kept in sync" in _SOURCE_LIST_HELP
+    for text in (_FIXED_LIST_HELP, _SOURCES_HELP):
+        assert "The API refuses this today" in text
