@@ -1,0 +1,740 @@
+[
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/ai-usage/by-app",
+    "key": "app_id",
+    "reason": "Read existed when the response audit landed (ENG-3053); the route does not return this key, so the CLI shows a blank or '?'. Fix the read, then remove this entry."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/ai-usage/by-app",
+    "key": "cost",
+    "reason": "Read existed when the response audit landed (ENG-3053); the route does not return this key, so the CLI shows a blank or '?'. Fix the read, then remove this entry."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/ai-usage/by-app",
+    "key": "requests",
+    "reason": "Read existed when the response audit landed (ENG-3053); the route does not return this key, so the CLI shows a blank or '?'. Fix the read, then remove this entry."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/ai-usage/by-app",
+    "key": "tokens",
+    "reason": "Read existed when the response audit landed (ENG-3053); the route does not return this key, so the CLI shows a blank or '?'. Fix the read, then remove this entry."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/ai-usage/by-model",
+    "key": "cost",
+    "reason": "Read existed when the response audit landed (ENG-3053); the route does not return this key, so the CLI shows a blank or '?'. Fix the read, then remove this entry."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/ai-usage/by-model",
+    "key": "provider",
+    "reason": "Read existed when the response audit landed (ENG-3053); the route does not return this key, so the CLI shows a blank or '?'. Fix the read, then remove this entry."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/ai-usage/by-model",
+    "key": "requests",
+    "reason": "Read existed when the response audit landed (ENG-3053); the route does not return this key, so the CLI shows a blank or '?'. Fix the read, then remove this entry."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/ai-usage/by-model",
+    "key": "tokens",
+    "reason": "Read existed when the response audit landed (ENG-3053); the route does not return this key, so the CLI shows a blank or '?'. Fix the read, then remove this entry."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/ai-usage/by-workflow",
+    "key": "cost",
+    "reason": "Read existed when the response audit landed (ENG-3053); the route does not return this key, so the CLI shows a blank or '?'. Fix the read, then remove this entry."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/ai-usage/by-workflow",
+    "key": "requests",
+    "reason": "Read existed when the response audit landed (ENG-3053); the route does not return this key, so the CLI shows a blank or '?'. Fix the read, then remove this entry."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/ai-usage/by-workflow",
+    "key": "tokens",
+    "reason": "Read existed when the response audit landed (ENG-3053); the route does not return this key, so the CLI shows a blank or '?'. Fix the read, then remove this entry."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/ai-usage/summary",
+    "key": "cost",
+    "reason": "Read existed when the response audit landed (ENG-3053); the route does not return this key, so the CLI shows a blank or '?'. Fix the read, then remove this entry."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/ai-usage/summary",
+    "key": "provider",
+    "reason": "Read existed when the response audit landed (ENG-3053); the route does not return this key, so the CLI shows a blank or '?'. Fix the read, then remove this entry."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/ai-usage/summary",
+    "key": "requests",
+    "reason": "Read existed when the response audit landed (ENG-3053); the route does not return this key, so the CLI shows a blank or '?'. Fix the read, then remove this entry."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/ai-usage/summary",
+    "key": "tokens",
+    "reason": "Read existed when the response audit landed (ENG-3053); the route does not return this key, so the CLI shows a blank or '?'. Fix the read, then remove this entry."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/ai-usage/users",
+    "key": "items",
+    "reason": "Read existed when the response audit landed (ENG-3053); the route does not return this key, so the CLI shows a blank or '?'. Fix the read, then remove this entry."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/ai-usage/users",
+    "key": "total",
+    "reason": "Read existed when the response audit landed (ENG-3053); the route does not return this key, so the CLI shows a blank or '?'. Fix the read, then remove this entry."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/ai-usage/users/{id}",
+    "key": "cost",
+    "reason": "Read existed when the response audit landed (ENG-3053); the route does not return this key, so the CLI shows a blank or '?'. Fix the read, then remove this entry."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/ai-usage/users/{id}",
+    "key": "full_name",
+    "reason": "Read existed when the response audit landed (ENG-3053); the route does not return this key, so the CLI shows a blank or '?'. Fix the read, then remove this entry."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/ai-usage/users/{id}",
+    "key": "provider",
+    "reason": "Read existed when the response audit landed (ENG-3053); the route does not return this key, so the CLI shows a blank or '?'. Fix the read, then remove this entry."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/ai-usage/users/{id}",
+    "key": "requests",
+    "reason": "Read existed when the response audit landed (ENG-3053); the route does not return this key, so the CLI shows a blank or '?'. Fix the read, then remove this entry."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/ai-usage/users/{id}",
+    "key": "tokens",
+    "reason": "Read existed when the response audit landed (ENG-3053); the route does not return this key, so the CLI shows a blank or '?'. Fix the read, then remove this entry."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/app-usage/users",
+    "key": "full_name",
+    "reason": "Read existed when the response audit landed (ENG-3053); the route does not return this key, so the CLI shows a blank or '?'. Fix the read, then remove this entry."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/app-usage/users/{id}",
+    "key": "events",
+    "reason": "Read existed when the response audit landed (ENG-3053); the route does not return this key, so the CLI shows a blank or '?'. Fix the read, then remove this entry."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/app-usage/users/{id}",
+    "key": "full_name",
+    "reason": "Read existed when the response audit landed (ENG-3053); the route does not return this key, so the CLI shows a blank or '?'. Fix the read, then remove this entry."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/app-usage/users/{id}",
+    "key": "total_events",
+    "reason": "Read existed when the response audit landed (ENG-3053); the route does not return this key, so the CLI shows a blank or '?'. Fix the read, then remove this entry."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/legal-documents/{id}",
+    "key": "updated_at",
+    "reason": "Read existed when the response audit landed (ENG-3053); the route does not return this key, so the CLI shows a blank or '?'. Fix the read, then remove this entry."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/organizations/{id}",
+    "key": "plan",
+    "reason": "Read existed when the response audit landed (ENG-3053); the route does not return this key, so the CLI shows a blank or '?'. Fix the read, then remove this entry."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/organizations/{id}",
+    "key": "slug",
+    "reason": "Read existed when the response audit landed (ENG-3053); the route does not return this key, so the CLI shows a blank or '?'. Fix the read, then remove this entry."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/platform-activity/users",
+    "key": "full_name",
+    "reason": "Read existed when the response audit landed (ENG-3053); the route does not return this key, so the CLI shows a blank or '?'. Fix the read, then remove this entry."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/platform-activity/users/{id}",
+    "key": "full_name",
+    "reason": "Read existed when the response audit landed (ENG-3053); the route does not return this key, so the CLI shows a blank or '?'. Fix the read, then remove this entry."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/battlecards",
+    "key": "competitor_name",
+    "reason": "Read existed when the response audit landed (ENG-3053); the route does not return this key, so the CLI shows a blank or '?'. Fix the read, then remove this entry."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/battlecards",
+    "key": "status",
+    "reason": "Read existed when the response audit landed (ENG-3053); the route does not return this key, so the CLI shows a blank or '?'. Fix the read, then remove this entry."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/battlecards/{id}",
+    "key": "competitor_name",
+    "reason": "Read existed when the response audit landed (ENG-3053); the route does not return this key, so the CLI shows a blank or '?'. Fix the read, then remove this entry."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/battlecards/{id}",
+    "key": "status",
+    "reason": "Read existed when the response audit landed (ENG-3053); the route does not return this key, so the CLI shows a blank or '?'. Fix the read, then remove this entry."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/battlecards/{id}",
+    "key": "strengths",
+    "reason": "Read existed when the response audit landed (ENG-3053); the route does not return this key, so the CLI shows a blank or '?'. Fix the read, then remove this entry."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/battlecards/{id}",
+    "key": "updated_at",
+    "reason": "Read existed when the response audit landed (ENG-3053); the route does not return this key, so the CLI shows a blank or '?'. Fix the read, then remove this entry."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/battlecards/{id}",
+    "key": "weaknesses",
+    "reason": "Read existed when the response audit landed (ENG-3053); the route does not return this key, so the CLI shows a blank or '?'. Fix the read, then remove this entry."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/crm/communications/contact-by-email",
+    "key": "company_id",
+    "reason": "Read existed when the response audit landed (ENG-3053); the route does not return this key, so the CLI shows a blank or '?'. Fix the read, then remove this entry."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/crm/communications/contact-by-email",
+    "key": "email",
+    "reason": "Read existed when the response audit landed (ENG-3053); the route does not return this key, so the CLI shows a blank or '?'. Fix the read, then remove this entry."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/crm/communications/contact-by-email",
+    "key": "full_name",
+    "reason": "Read existed when the response audit landed (ENG-3053); the route does not return this key, so the CLI shows a blank or '?'. Fix the read, then remove this entry."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/crm/communications/contact-by-email",
+    "key": "id",
+    "reason": "Read existed when the response audit landed (ENG-3053); the route does not return this key, so the CLI shows a blank or '?'. Fix the read, then remove this entry."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/crm/communications/contact-by-email",
+    "key": "job_title",
+    "reason": "Read existed when the response audit landed (ENG-3053); the route does not return this key, so the CLI shows a blank or '?'. Fix the read, then remove this entry."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/crm/engagement-dashboard",
+    "key": "clicks",
+    "reason": "Read existed when the response audit landed (ENG-3053); the route does not return this key, so the CLI shows a blank or '?'. Fix the read, then remove this entry."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/crm/engagement-dashboard",
+    "key": "score",
+    "reason": "Read existed when the response audit landed (ENG-3053); the route does not return this key, so the CLI shows a blank or '?'. Fix the read, then remove this entry."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/crm/engagement-dashboard",
+    "key": "status",
+    "reason": "Read existed when the response audit landed (ENG-3053); the route does not return this key, so the CLI shows a blank or '?'. Fix the read, then remove this entry."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/crm/signals",
+    "key": "evidence_origin",
+    "reason": "Read existed when the response audit landed (ENG-3053); the route does not return this key, so the CLI shows a blank or '?'. Fix the read, then remove this entry."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/crm/signals",
+    "key": "signal_score",
+    "reason": "Read existed when the response audit landed (ENG-3053); the route does not return this key, so the CLI shows a blank or '?'. Fix the read, then remove this entry."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/crm/signals/{id}",
+    "key": "citations",
+    "reason": "Read existed when the response audit landed (ENG-3053); the route does not return this key, so the CLI shows a blank or '?'. Fix the read, then remove this entry."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/crm/signals/{id}",
+    "key": "evidence_origin",
+    "reason": "Read existed when the response audit landed (ENG-3053); the route does not return this key, so the CLI shows a blank or '?'. Fix the read, then remove this entry."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/crm/signals/{id}",
+    "key": "intel_signal_id",
+    "reason": "Read existed when the response audit landed (ENG-3053); the route does not return this key, so the CLI shows a blank or '?'. Fix the read, then remove this entry."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/crm/signals/{id}",
+    "key": "opportunity_reason",
+    "reason": "Read existed when the response audit landed (ENG-3053); the route does not return this key, so the CLI shows a blank or '?'. Fix the read, then remove this entry."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/crm/signals/{id}",
+    "key": "opportunity_score",
+    "reason": "Read existed when the response audit landed (ENG-3053); the route does not return this key, so the CLI shows a blank or '?'. Fix the read, then remove this entry."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/crm/signals/{id}",
+    "key": "prospect_id",
+    "reason": "Read existed when the response audit landed (ENG-3053); the route does not return this key, so the CLI shows a blank or '?'. Fix the read, then remove this entry."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/crm/signals/{id}",
+    "key": "signal_reason",
+    "reason": "Read existed when the response audit landed (ENG-3053); the route does not return this key, so the CLI shows a blank or '?'. Fix the read, then remove this entry."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/crm/signals/{id}",
+    "key": "signal_score",
+    "reason": "Read existed when the response audit landed (ENG-3053); the route does not return this key, so the CLI shows a blank or '?'. Fix the read, then remove this entry."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/impersonation/me",
+    "key": "session_id",
+    "reason": "Read existed when the response audit landed (ENG-3053); the route does not return this key, so the CLI shows a blank or '?'. Fix the read, then remove this entry."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/impersonation/me",
+    "key": "started_at",
+    "reason": "Read existed when the response audit landed (ENG-3053); the route does not return this key, so the CLI shows a blank or '?'. Fix the read, then remove this entry."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/impersonation/me",
+    "key": "target_user_id",
+    "reason": "Read existed when the response audit landed (ENG-3053); the route does not return this key, so the CLI shows a blank or '?'. Fix the read, then remove this entry."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/legal-documents/current/{id}",
+    "key": "effective_date",
+    "reason": "Read existed when the response audit landed (ENG-3053); the route does not return this key, so the CLI shows a blank or '?'. Fix the read, then remove this entry."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/legal-documents/current/{id}",
+    "key": "id",
+    "reason": "Read existed when the response audit landed (ENG-3053); the route does not return this key, so the CLI shows a blank or '?'. Fix the read, then remove this entry."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/legal-documents/current/{id}",
+    "key": "type",
+    "reason": "Read existed when the response audit landed (ENG-3053); the route does not return this key, so the CLI shows a blank or '?'. Fix the read, then remove this entry."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/legal-documents/current/{id}",
+    "key": "url",
+    "reason": "Read existed when the response audit landed (ENG-3053); the route does not return this key, so the CLI shows a blank or '?'. Fix the read, then remove this entry."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/managed-onboarding/config",
+    "key": "completed_at",
+    "reason": "Read existed when the response audit landed (ENG-3053); the route does not return this key, so the CLI shows a blank or '?'. Fix the read, then remove this entry."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/managed-onboarding/config",
+    "key": "org_name",
+    "reason": "Read existed when the response audit landed (ENG-3053); the route does not return this key, so the CLI shows a blank or '?'. Fix the read, then remove this entry."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/managed-onboarding/config",
+    "key": "status",
+    "reason": "Read existed when the response audit landed (ENG-3053); the route does not return this key, so the CLI shows a blank or '?'. Fix the read, then remove this entry."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/marketplace/apps/{id}",
+    "key": "developer_name",
+    "reason": "Read existed when the response audit landed (ENG-3053); the route does not return this key, so the CLI shows a blank or '?'. Fix the read, then remove this entry."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/marketplace/developers",
+    "key": "app_count",
+    "reason": "Read existed when the response audit landed (ENG-3053); the route does not return this key, so the CLI shows a blank or '?'. Fix the read, then remove this entry."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/marketplace/developers",
+    "key": "name",
+    "reason": "Read existed when the response audit landed (ENG-3053); the route does not return this key, so the CLI shows a blank or '?'. Fix the read, then remove this entry."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/network/news",
+    "key": "title",
+    "reason": "Read existed when the response audit landed (ENG-3053); the route does not return this key, so the CLI shows a blank or '?'. Fix the read, then remove this entry."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/network/referrals/{id}",
+    "key": "description",
+    "reason": "Read existed when the response audit landed (ENG-3053); the route does not return this key, so the CLI shows a blank or '?'. Fix the read, then remove this entry."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/network/slack-invites/status",
+    "key": "requested_at",
+    "reason": "Read existed when the response audit landed (ENG-3053); the route does not return this key, so the CLI shows a blank or '?'. Fix the read, then remove this entry."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/network/slack-invites/status",
+    "key": "status",
+    "reason": "Read existed when the response audit landed (ENG-3053); the route does not return this key, so the CLI shows a blank or '?'. Fix the read, then remove this entry."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/notifications",
+    "key": "is_read",
+    "reason": "Read existed when the response audit landed (ENG-3053); the route does not return this key, so the CLI shows a blank or '?'. Fix the read, then remove this entry."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/nylas/oauth/organization/accounts",
+    "key": "email",
+    "reason": "Read existed when the response audit landed (ENG-3053); the route does not return this key, so the CLI shows a blank or '?'. Fix the read, then remove this entry."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/nylas/oauth/organization/accounts",
+    "key": "status",
+    "reason": "Read existed when the response audit landed (ENG-3053); the route does not return this key, so the CLI shows a blank or '?'. Fix the read, then remove this entry."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/orgs/{id}/apps",
+    "key": "app_slug",
+    "reason": "Read existed when the response audit landed (ENG-3053); the route does not return this key, so the CLI shows a blank or '?'. Fix the read, then remove this entry."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/orgs/{id}/apps",
+    "key": "installed_at",
+    "reason": "Read existed when the response audit landed (ENG-3053); the route does not return this key, so the CLI shows a blank or '?'. Fix the read, then remove this entry."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/orgs/{id}/apps/{id}/configs",
+    "key": "value",
+    "reason": "Read existed when the response audit landed (ENG-3053); the route does not return this key, so the CLI shows a blank or '?'. Fix the read, then remove this entry."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/orgs/{id}/apps/{id}/usage",
+    "key": "app_slug",
+    "reason": "Read existed when the response audit landed (ENG-3053); the route does not return this key, so the CLI shows a blank or '?'. Fix the read, then remove this entry."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/orgs/{id}/apps/{id}/usage",
+    "key": "last_event_at",
+    "reason": "Read existed when the response audit landed (ENG-3053); the route does not return this key, so the CLI shows a blank or '?'. Fix the read, then remove this entry."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/orgs/{id}/apps/{id}/usage",
+    "key": "total_events",
+    "reason": "Read existed when the response audit landed (ENG-3053); the route does not return this key, so the CLI shows a blank or '?'. Fix the read, then remove this entry."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/playbooks",
+    "key": "status",
+    "reason": "Read existed when the response audit landed (ENG-3053); the route does not return this key, so the CLI shows a blank or '?'. Fix the read, then remove this entry."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/playbooks/{id}",
+    "key": "competitor_name",
+    "reason": "Read existed when the response audit landed (ENG-3053); the route does not return this key, so the CLI shows a blank or '?'. Fix the read, then remove this entry."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/playbooks/{id}",
+    "key": "description",
+    "reason": "Read existed when the response audit landed (ENG-3053); the route does not return this key, so the CLI shows a blank or '?'. Fix the read, then remove this entry."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/playbooks/{id}",
+    "key": "status",
+    "reason": "Read existed when the response audit landed (ENG-3053); the route does not return this key, so the CLI shows a blank or '?'. Fix the read, then remove this entry."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/playbooks/{id}",
+    "key": "updated_at",
+    "reason": "Read existed when the response audit landed (ENG-3053); the route does not return this key, so the CLI shows a blank or '?'. Fix the read, then remove this entry."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/profiles/me",
+    "key": "email",
+    "reason": "Read existed when the response audit landed (ENG-3053); the route does not return this key, so the CLI shows a blank or '?'. Fix the read, then remove this entry."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/profiles/members",
+    "key": "total",
+    "reason": "Read existed when the response audit landed (ENG-3053); the route does not return this key, so the CLI shows a blank or '?'. Fix the read, then remove this entry."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/resources",
+    "key": "created_at",
+    "reason": "Read existed when the response audit landed (ENG-3053); the route does not return this key, so the CLI shows a blank or '?'. Fix the read, then remove this entry."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/sequences/dashboard/stats",
+    "key": "emails_sent",
+    "reason": "Read existed when the response audit landed (ENG-3053); the route does not return this key, so the CLI shows a blank or '?'. Fix the read, then remove this entry."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/sequences/dashboard/stats",
+    "key": "meetings_booked",
+    "reason": "Read existed when the response audit landed (ENG-3053); the route does not return this key, so the CLI shows a blank or '?'. Fix the read, then remove this entry."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/sequences/dashboard/stats",
+    "key": "reply_rate",
+    "reason": "Read existed when the response audit landed (ENG-3053); the route does not return this key, so the CLI shows a blank or '?'. Fix the read, then remove this entry."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/sequences/inbox/threads/{id}/messages",
+    "key": "body",
+    "reason": "Read existed when the response audit landed (ENG-3053); the route does not return this key, so the CLI shows a blank or '?'. Fix the read, then remove this entry."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/sequences/inbox/threads/{id}/messages",
+    "key": "sender",
+    "reason": "Read existed when the response audit landed (ENG-3053); the route does not return this key, so the CLI shows a blank or '?'. Fix the read, then remove this entry."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/sequences/inbox/threads/{id}/messages",
+    "key": "sent_at",
+    "reason": "Read existed when the response audit landed (ENG-3053); the route does not return this key, so the CLI shows a blank or '?'. Fix the read, then remove this entry."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/sequences/outbox/pending",
+    "key": "step_order",
+    "reason": "Read existed when the response audit landed (ENG-3053); the route does not return this key, so the CLI shows a blank or '?'. Fix the read, then remove this entry."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/sequences/sequences/{id}/recipients",
+    "key": "current_step",
+    "reason": "Read existed when the response audit landed (ENG-3053); the route does not return this key, so the CLI shows a blank or '?'. Fix the read, then remove this entry."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/sequences/sequences/{id}/recipients",
+    "key": "recipient_email",
+    "reason": "Read existed when the response audit landed (ENG-3053); the route does not return this key, so the CLI shows a blank or '?'. Fix the read, then remove this entry."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/sequences/sequences/{id}/recipients",
+    "key": "recipient_name",
+    "reason": "Read existed when the response audit landed (ENG-3053); the route does not return this key, so the CLI shows a blank or '?'. Fix the read, then remove this entry."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/sequences/sequences/{id}/step-stats",
+    "key": "data",
+    "reason": "Read existed when the response audit landed (ENG-3053); the route does not return this key, so the CLI shows a blank or '?'. Fix the read, then remove this entry."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/tos/config",
+    "key": "embed_url",
+    "reason": "Read existed when the response audit landed (ENG-3053); the route does not return this key, so the CLI shows a blank or '?'. Fix the read, then remove this entry."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/tos/config",
+    "key": "updated_at",
+    "reason": "Read existed when the response audit landed (ENG-3053); the route does not return this key, so the CLI shows a blank or '?'. Fix the read, then remove this entry."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/tos/config",
+    "key": "version",
+    "reason": "Read existed when the response audit landed (ENG-3053); the route does not return this key, so the CLI shows a blank or '?'. Fix the read, then remove this entry."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/tos/status",
+    "key": "version",
+    "reason": "Read existed when the response audit landed (ENG-3053); the route does not return this key, so the CLI shows a blank or '?'. Fix the read, then remove this entry."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/workflows/{id}/runs",
+    "key": "created_at",
+    "reason": "Read existed when the response audit landed (ENG-3053); the route does not return this key, so the CLI shows a blank or '?'. Fix the read, then remove this entry."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/workflows/{id}/runs/{id}",
+    "key": "error",
+    "reason": "Read existed when the response audit landed (ENG-3053); the route does not return this key, so the CLI shows a blank or '?'. Fix the read, then remove this entry."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/workflows/{id}/runs/{id}/logs",
+    "key": "level",
+    "reason": "Read existed when the response audit landed (ENG-3053); the route does not return this key, so the CLI shows a blank or '?'. Fix the read, then remove this entry."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/workflows/{id}/schedule",
+    "key": "enabled",
+    "reason": "Read existed when the response audit landed (ENG-3053); the route does not return this key, so the CLI shows a blank or '?'. Fix the read, then remove this entry."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/workflows/{id}/schedules",
+    "key": "enabled",
+    "reason": "Read existed when the response audit landed (ENG-3053); the route does not return this key, so the CLI shows a blank or '?'. Fix the read, then remove this entry."
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/crm/communications/generate-draft",
+    "key": "content",
+    "reason": "Read existed when the response audit landed (ENG-3053); the route does not return this key, so the CLI shows a blank or '?'. Fix the read, then remove this entry."
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/crm/communications/resolve-contact",
+    "key": "email",
+    "reason": "Read existed when the response audit landed (ENG-3053); the route does not return this key, so the CLI shows a blank or '?'. Fix the read, then remove this entry."
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/crm/communications/resolve-contact",
+    "key": "full_name",
+    "reason": "Read existed when the response audit landed (ENG-3053); the route does not return this key, so the CLI shows a blank or '?'. Fix the read, then remove this entry."
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/crm/communications/resolve-contact",
+    "key": "id",
+    "reason": "Read existed when the response audit landed (ENG-3053); the route does not return this key, so the CLI shows a blank or '?'. Fix the read, then remove this entry."
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/inbox/threads/{id}/ai-draft",
+    "key": "body",
+    "reason": "Read existed when the response audit landed (ENG-3053); the route does not return this key, so the CLI shows a blank or '?'. Fix the read, then remove this entry."
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/inbox/threads/{id}/ai-draft",
+    "key": "reason",
+    "reason": "Read existed when the response audit landed (ENG-3053); the route does not return this key, so the CLI shows a blank or '?'. Fix the read, then remove this entry."
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/inbox/threads/{id}/ai-draft",
+    "key": "status",
+    "reason": "Read existed when the response audit landed (ENG-3053); the route does not return this key, so the CLI shows a blank or '?'. Fix the read, then remove this entry."
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/inbox/threads/{id}/ai-draft",
+    "key": "subject",
+    "reason": "Read existed when the response audit landed (ENG-3053); the route does not return this key, so the CLI shows a blank or '?'. Fix the read, then remove this entry."
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/sequences/sequences/classify-step-subtype",
+    "key": "subtype",
+    "reason": "Read existed when the response audit landed (ENG-3053); the route does not return this key, so the CLI shows a blank or '?'. Fix the read, then remove this entry."
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/sequences/sequences/{id}/impact-preview",
+    "key": "affected_recipients",
+    "reason": "Read existed when the response audit landed (ENG-3053); the route does not return this key, so the CLI shows a blank or '?'. Fix the read, then remove this entry."
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/sequences/sequences/{id}/impact-preview",
+    "key": "pending_drafts",
+    "reason": "Read existed when the response audit landed (ENG-3053); the route does not return this key, so the CLI shows a blank or '?'. Fix the read, then remove this entry."
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/sequences/sequences/{id}/steps/{id}/generate-drafts",
+    "key": "run_id",
+    "reason": "Read existed when the response audit landed (ENG-3053); the route does not return this key, so the CLI shows a blank or '?'. Fix the read, then remove this entry."
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/writing-styles/analyze",
+    "key": "analysis",
+    "reason": "Read existed when the response audit landed (ENG-3053); the route does not return this key, so the CLI shows a blank or '?'. Fix the read, then remove this entry."
+  }
+]

@@ -702,6 +702,61 @@ def runs_span_detail(
     )
 
 
+@runs_app.command("items")
+def runs_items(
+    ctx: typer.Context,
+    run_id: str = typer.Argument(..., help="Run ID"),
+    cursor: str | None = typer.Option(None, "--cursor", help="Page to continue"),
+    limit: int = typer.Option(_PAGE_DEFAULT, "--limit", help="Page size, 1 to 100"),
+    json_output: bool = JSON_OPTION,
+) -> None:
+    """List the durable partial rows of one live or finished run.
+
+    `ac agentic runs stream` keeps no backlog, so a client that just
+    subscribed reads this page next, then applies whatever it buffered
+    meanwhile. Each row carries the same `result_id`, `ref` and `display` the
+    live `result.item_ready` event of the same row carried. A run with no
+    durable row, such as an Agent run of the Run Explorer, answers an empty
+    page.
+    """
+    set_json_mode(json_output)
+    _checked_limit(limit)
+    params: dict = {"limit": limit}
+    if cursor:
+        params["cursor"] = cursor
+
+    resp = _api_request("get", f"{_AGENTIC}/runs/{run_id}/items", params=params)
+
+    data = resp.json()
+    if json_output:
+        print_json(data)
+        return
+
+    items = data.get("items", [])
+    rows = [
+        {
+            "result_id": item.get("result_id"),
+            "ref": _ref_text(item.get("ref")),
+            "name": (item.get("display") or {}).get("name"),
+        }
+        for item in items
+    ]
+    print_table(
+        rows,
+        [("result_id", "Result ID"), ("ref", "Ref"), ("name", "Name")],
+        title=f"Items ({len(items)})",
+    )
+    if data.get("next_cursor"):
+        _print_cursor_hint(data["next_cursor"], limit)
+
+
+def _ref_text(ref: dict | None) -> str | None:
+    """Renders one result's identity, such as `domain:acme.com`."""
+    if not ref:
+        return None
+    return f"{ref.get('kind')}:{ref.get('value', ref.get('id', ''))}"
+
+
 @runs_app.command("cancel")
 def runs_cancel(
     ctx: typer.Context,

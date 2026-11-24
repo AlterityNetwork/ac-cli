@@ -390,3 +390,33 @@ def test_recipients_history_tasks_name_the_step_by_its_order(invoke, mock_api):
     tasks_table = result.output.split("Tasks (1)", 1)[1]
     assert "9b1c2d3e" not in tasks_table
     assert "│ 6 " in tasks_table or "│ 6" in tasks_table
+
+
+def test_recipients_list_pages_with_limit_and_offset(invoke, mock_api):
+    """ENG-3050: the API answers one page when the CLI names it."""
+    route = mock_api.get("/api/v1/sequences/sequences/seq-1/recipients").respond(200, json=[])
+    result = invoke(
+        ["sequences", "recipients", "list", "seq-1", "--limit", "50", "--offset", "100"]
+    )
+    assert result.exit_code == 0
+    params = route.calls.last.request.url.params
+    assert params["limit"] == "50"
+    assert params["offset"] == "100"
+
+
+def test_recipients_list_sends_no_limit_by_default(invoke, mock_api):
+    """With no --limit the API answers every recipient."""
+    route = mock_api.get("/api/v1/sequences/sequences/seq-1/recipients").respond(200, json=[])
+    result = invoke(["sequences", "recipients", "list", "seq-1"])
+    assert result.exit_code == 0
+    assert "limit" not in route.calls.last.request.url.params
+
+
+def test_recipients_list_sends_an_offset_without_a_limit(invoke, mock_api):
+    """The API skips the first rows and answers the rest."""
+    route = mock_api.get("/api/v1/sequences/sequences/seq-1/recipients").respond(200, json=[])
+    result = invoke(["sequences", "recipients", "list", "seq-1", "--offset", "500"])
+    assert result.exit_code == 0
+    params = route.calls.last.request.url.params
+    assert params["offset"] == "500"
+    assert "limit" not in params

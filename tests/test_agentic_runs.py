@@ -726,6 +726,246 @@ def test_runs_spans_omits_since_when_absent(invoke, mock_api):
     assert "since" not in route.calls[0].request.url.params
 
 
+# --- items -----------------------------------------------------------------
+
+SAMPLE_ITEM = {
+    "result_id": "33333333-3333-4333-8333-333333333333",
+    "ref": {"kind": "domain", "value": "acme.com"},
+    "display": {"name": "Acme Payments"},
+}
+
+
+def test_runs_items(invoke, mock_api):
+    mock_api.get(f"/api/v1/agentic/runs/{SAMPLE_RUN['id']}/items").respond(
+        200, json={"items": [SAMPLE_ITEM], "next_cursor": None}
+    )
+
+    result = invoke(["agentic", "runs", "items", SAMPLE_RUN["id"]])
+
+    assert result.exit_code == 0
+    assert "Acme Payments" in result.output
+    assert SAMPLE_ITEM["result_id"] in result.output
+
+
+def test_runs_items_json(invoke, mock_api):
+    mock_api.get(f"/api/v1/agentic/runs/{SAMPLE_RUN['id']}/items").respond(
+        200, json={"items": [SAMPLE_ITEM], "next_cursor": None}
+    )
+
+    result = invoke(["agentic", "runs", "items", SAMPLE_RUN["id"], "--json"])
+
+    assert json.loads(result.output)["items"][0] == SAMPLE_ITEM
+
+
+def test_runs_items_pages(invoke, mock_api):
+    route = mock_api.get(f"/api/v1/agentic/runs/{SAMPLE_RUN['id']}/items").respond(
+        200, json={"items": [], "next_cursor": None}
+    )
+
+    invoke(["agentic", "runs", "items", SAMPLE_RUN["id"], "--cursor", "c1", "--limit", "5"])
+
+    params = route.calls[0].request.url.params
+    assert params["cursor"] == "c1"
+    assert params["limit"] == "5"
+
+
+def test_runs_items_omits_cursor_when_absent(invoke, mock_api):
+    route = mock_api.get(f"/api/v1/agentic/runs/{SAMPLE_RUN['id']}/items").respond(
+        200, json={"items": [], "next_cursor": None}
+    )
+
+    invoke(["agentic", "runs", "items", SAMPLE_RUN["id"]])
+
+    assert "cursor" not in route.calls[0].request.url.params
+
+
+def test_runs_items_refuses_an_out_of_range_limit(invoke, mock_api):
+    result = invoke(["agentic", "runs", "items", SAMPLE_RUN["id"], "--limit", "0"])
+
+    assert result.exit_code != 0
+
+
+def test_runs_items_empty_page(invoke, mock_api):
+    mock_api.get(f"/api/v1/agentic/runs/{SAMPLE_RUN['id']}/items").respond(
+        200, json={"items": [], "next_cursor": None}
+    )
+
+    result = invoke(["agentic", "runs", "items", SAMPLE_RUN["id"]])
+
+    assert result.exit_code == 0
+    assert "Items (0)" in result.output
+
+
+def test_runs_items_next_page_hint(invoke, mock_api):
+    mock_api.get(f"/api/v1/agentic/runs/{SAMPLE_RUN['id']}/items").respond(
+        200, json={"items": [SAMPLE_ITEM], "next_cursor": "abc123"}
+    )
+
+    result = invoke(["agentic", "runs", "items", SAMPLE_RUN["id"]])
+
+    assert "--cursor" in result.output
+    assert "abc123" in result.output
+
+
+def test_runs_items_not_found(invoke, mock_api):
+    mock_api.get(f"/api/v1/agentic/runs/{SAMPLE_RUN['id']}/items").respond(
+        404, json={"detail": "run not found"}
+    )
+
+    result = invoke(["agentic", "runs", "items", SAMPLE_RUN["id"]])
+
+    assert result.exit_code == 3
+
+
+def test_runs_items_not_found_as_json(invoke, mock_api):
+    """A poll loop reads `--json` for the same route the table reads."""
+    mock_api.get(f"/api/v1/agentic/runs/{SAMPLE_RUN['id']}/items").respond(
+        404, json={"detail": "run not found"}
+    )
+
+    result = invoke(["agentic", "runs", "items", SAMPLE_RUN["id"], "--json"])
+
+    assert result.exit_code == 3
+    body = json.loads(result.output)
+    assert body == {"error": True, "status_code": 404, "detail": "run not found"}
+
+
+def test_runs_items_forbidden(invoke, mock_api):
+    """A run of another organization answers 403, not 404."""
+    mock_api.get(f"/api/v1/agentic/runs/{SAMPLE_RUN['id']}/items").respond(
+        403, json={"detail": "not your organization"}
+    )
+
+    result = invoke(["agentic", "runs", "items", SAMPLE_RUN["id"]])
+
+    assert result.exit_code == 4
+
+
+def test_runs_items_server_error(invoke, mock_api):
+    """A status code with no entry in `_EXIT_CODES` takes the general failure."""
+    mock_api.get(f"/api/v1/agentic/runs/{SAMPLE_RUN['id']}/items").respond(
+        500, json={"detail": "internal error"}
+    )
+
+    result = invoke(["agentic", "runs", "items", SAMPLE_RUN["id"]])
+
+    assert result.exit_code == 1
+
+
+def test_runs_items_refuses_a_page_size_the_api_refuses(invoke, mock_api):
+    """The route shares the same `Query(50, ge=1, le=100)` bound as `spans`."""
+    result = invoke(["agentic", "runs", "items", SAMPLE_RUN["id"], "--limit", "200"])
+
+    assert result.exit_code != 0
+    assert "100" in result.output
+
+
+def test_runs_items_refuses_a_page_size_as_json(invoke, mock_api):
+    route = mock_api.get(f"/api/v1/agentic/runs/{SAMPLE_RUN['id']}/items").respond(
+        200, json={"items": [], "next_cursor": None}
+    )
+
+    result = invoke(["agentic", "runs", "items", SAMPLE_RUN["id"], "--limit", "0", "--json"])
+
+    assert result.exit_code == 2
+    body = json.loads(result.output)
+    assert body["error"] is True
+    assert body["detail"] == "--limit is not between 1 and 100: 0"
+    assert not route.called
+
+
+def test_runs_items_hint_omits_the_default_page_size(invoke, mock_api):
+    mock_api.get(f"/api/v1/agentic/runs/{SAMPLE_RUN['id']}/items").respond(
+        200, json={"items": [SAMPLE_ITEM], "next_cursor": "abc123"}
+    )
+
+    result = invoke(["agentic", "runs", "items", SAMPLE_RUN["id"]])
+
+    assert "--limit" not in result.output
+    assert "--cursor abc123" in result.output
+
+
+def test_runs_items_hint_repeats_a_page_size_the_caller_chose(invoke, mock_api):
+    """A walk started at 100 rows a page that continues at the default reads
+    the set in twice the requests, and the pasted line says nothing."""
+    mock_api.get(f"/api/v1/agentic/runs/{SAMPLE_RUN['id']}/items").respond(
+        200, json={"items": [SAMPLE_ITEM], "next_cursor": "abc123"}
+    )
+
+    result = invoke(["agentic", "runs", "items", SAMPLE_RUN["id"], "--limit", "100"])
+
+    assert "--limit 100 --cursor abc123" in result.output
+
+
+def test_runs_items_omits_the_next_page_hint_when_no_cursor_key_is_sent(invoke, mock_api):
+    """An older API answers with no `next_cursor` key at all.
+
+    `data.get("next_cursor")` reads this the same as an explicit null, so the
+    command prints no hint and raises no `KeyError`.
+    """
+    mock_api.get(f"/api/v1/agentic/runs/{SAMPLE_RUN['id']}/items").respond(
+        200, json={"items": [SAMPLE_ITEM]}
+    )
+
+    result = invoke(["agentic", "runs", "items", SAMPLE_RUN["id"]])
+
+    assert result.exit_code == 0
+    assert "Next page:" not in result.output
+
+
+def test_runs_items_name_blank_when_display_is_absent(invoke, mock_api):
+    """An API that answers no `display` key at all names no result.
+
+    `(item.get("display") or {}).get("name")` reads this the same as a null
+    `display`, so the row renders with a blank name cell instead of a
+    `KeyError` or `AttributeError`.
+    """
+    item = {key: value for key, value in SAMPLE_ITEM.items() if key != "display"}
+    mock_api.get(f"/api/v1/agentic/runs/{SAMPLE_RUN['id']}/items").respond(
+        200, json={"items": [item], "next_cursor": None}
+    )
+
+    result = invoke(["agentic", "runs", "items", SAMPLE_RUN["id"]])
+
+    assert result.exit_code == 0
+    assert "None" not in result.output
+
+
+def test_runs_items_ref_blank_when_absent(invoke, mock_api):
+    """A run with no durable row for this item answers a null `ref`.
+
+    `_ref_text` returns `None` for that row, and the table prints the cell
+    blank rather than the word `None`.
+    """
+    item = {**SAMPLE_ITEM, "ref": None}
+    mock_api.get(f"/api/v1/agentic/runs/{SAMPLE_RUN['id']}/items").respond(
+        200, json={"items": [item], "next_cursor": None}
+    )
+
+    result = invoke(["agentic", "runs", "items", SAMPLE_RUN["id"]])
+
+    assert result.exit_code == 0
+    assert "None" not in result.output
+
+
+def test_runs_items_ref_falls_back_to_the_id_when_no_value_is_named(invoke, mock_api):
+    """Some refs identify a row by `id` rather than `value`.
+
+    `_ref_text` reads `ref.get("value", ref.get("id", ""))`, so a ref that
+    carries an `id` and no `value` still renders an identity instead of a
+    blank cell.
+    """
+    item = {**SAMPLE_ITEM, "ref": {"kind": "company", "id": "company-42"}}
+    mock_api.get(f"/api/v1/agentic/runs/{SAMPLE_RUN['id']}/items").respond(
+        200, json={"items": [item], "next_cursor": None}
+    )
+
+    result = invoke(["agentic", "runs", "items", SAMPLE_RUN["id"]])
+
+    assert result.exit_code == 0
+    assert "company:company-42" in result.output
+
+
 # --- cancel ----------------------------------------------------------------
 
 

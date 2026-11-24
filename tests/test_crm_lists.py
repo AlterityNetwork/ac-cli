@@ -729,3 +729,15 @@ def test_lists_add_member_reports_a_duplicate(invoke, mock_api):
     result = invoke(["crm", "lists", "add-member", "l1", "--person-id", "p1"])
     assert result.exit_code == 5  # the CLI maps 409 to exit code 5
     assert "already on the list" in result.output
+
+
+def test_lists_for_member_pages_with_limit_and_offset(invoke, mock_api):
+    """ENG-3050: the API answers one page when the CLI names it."""
+    route = mock_api.get("/api/v1/crm/members/person/p1/lists").respond(200, json=[])
+    result = invoke(
+        ["crm", "lists", "lists-for-member", "--person-id", "p1", "--limit", "20", "--offset", "40"]
+    )
+    assert result.exit_code == 0
+    params = route.calls.last.request.url.params
+    assert params["limit"] == "20"
+    assert params["offset"] == "40"
