@@ -118,6 +118,88 @@ def test_plans_delete_aborted(invoke, mock_api):
     assert result.exit_code == 1
 
 
+def test_plans_reprice_subscriptions_with_yes(invoke, mock_api):
+    route = mock_api.post("/api/v1/admin/subscription-plans/plan-1/reprice-subscriptions").respond(
+        200, json={"moved": 3, "failed": 1}
+    )
+    result = invoke(
+        [
+            "admin",
+            "subscription-plans",
+            "reprice-subscriptions",
+            "plan-1",
+            "--period",
+            "monthly",
+            "--from-price-cents",
+            "25000",
+            "--yes",
+        ]
+    )
+    assert result.exit_code == 0
+    assert json.loads(route.calls.last.request.content) == {
+        "billing_period": "monthly",
+        "from_price_cents": 25000,
+    }
+    assert "Moved 3" in result.output
+    assert "1 failed" in result.output
+
+
+def test_plans_reprice_subscriptions_json(invoke, mock_api):
+    mock_api.post("/api/v1/admin/subscription-plans/plan-1/reprice-subscriptions").respond(
+        200, json={"moved": 0, "failed": 0}
+    )
+    result = invoke(
+        [
+            "admin",
+            "subscription-plans",
+            "reprice-subscriptions",
+            "plan-1",
+            "--period",
+            "annual",
+            "--from-price-cents",
+            "300000",
+            "--yes",
+            "--json",
+        ]
+    )
+    assert result.exit_code == 0
+    assert json.loads(result.output) == {"moved": 0, "failed": 0}
+
+
+def test_plans_reprice_subscriptions_aborted(invoke, mock_api):
+    result = invoke(
+        [
+            "admin",
+            "subscription-plans",
+            "reprice-subscriptions",
+            "plan-1",
+            "--period",
+            "monthly",
+            "--from-price-cents",
+            "25000",
+        ],
+        input="n\n",
+    )
+    assert result.exit_code == 1
+
+
+def test_plans_reprice_subscriptions_refuses_an_unknown_period(invoke, mock_api):
+    result = invoke(
+        [
+            "admin",
+            "subscription-plans",
+            "reprice-subscriptions",
+            "plan-1",
+            "--period",
+            "weekly",
+            "--from-price-cents",
+            "25000",
+            "--yes",
+        ]
+    )
+    assert result.exit_code == 2
+
+
 # -- Subscriptions -----------------------------------------------------------
 
 
