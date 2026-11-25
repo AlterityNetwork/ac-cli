@@ -77,8 +77,9 @@ The table documents the branch it is read on.
 The CLI is designed to be consumed by AI agents and scripts:
 
 - **Structured JSON errors**: When `--json` is active, errors return `{"error": true, "status_code": ..., "detail": ...}` instead of Rich text
-- **Semantic exit codes**: `0`=success, `1`=general error, `2`=validation (422), `3`=not found (404), `4`=auth/permission (401/403), `5`=conflict (409), `6`=plan refusal (402)
+- **Semantic exit codes**: `0` success, `1` general error, `2` validation, `3` not found, `4` auth or permission, `5` conflict, `6` plan refusal. The status-to-code map is in `.claude/rules/code-patterns.md` (Error Handling).
 - **`AC_YES=1` env var**: Skips all `typer.confirm()` prompts for non-interactive use
+- **`--act-as <user-id>` / `AC_ACT_AS` env var**: Superadmin only. Every request adds the `X-Act-As-User` header and the API audit-logs it. It is a global option on `ac` (`main.py`).
 - **`--json` on all groups**: Every group callback calls `set_json_mode()` so errors also respect JSON mode
 
 See `.claude/rules/code-patterns.md` for implementation details.
@@ -98,7 +99,9 @@ scripts/               → bump.sh (manual version), auto-version-tag.sh (post-c
                          lint.sh (ruff lint + format + markup gate),
                          check_markup.py (no unwrapped value reaches rich markup),
                          audit_endpoints.py (CLI vs API endpoint diff),
-                         audit_payloads.py (CLI vs API body and query keys)
+                         audit_payloads.py (CLI vs API body and query keys),
+                         audit_responses.py (response keys the CLI reads vs the API returns),
+                         sync_api_spec.py (copy the API spec into contracts/)
 ```
 
 ## Running Checks
@@ -112,8 +115,9 @@ uv run python -m ac_cli.main --help        # Verify CLI loads
 uv run python scripts/check_markup.py      # No unwrapped value reaches rich markup
 uv run vulture src/                        # Dead-code scan
 uv run deptry src/                         # Dependency hygiene
-python scripts/audit_endpoints.py --strict # Diff CLI calls vs live OpenAPI
-python scripts/audit_endpoints.py --strict --spec-file openapi.json  # Same, from an exported spec
+uv run python scripts/audit_endpoints.py --strict # Diff CLI calls vs live OpenAPI
+uv run python scripts/audit_endpoints.py --strict --spec-file contracts/ac-python-api.openapi.json  # Same, from the vendored spec (what CI runs)
+uv run python scripts/sync_api_spec.py      # Refresh contracts/ from ../ac-python-api/openapi.json
 ```
 
 Pytest defaults (`pyproject.toml`): `-n auto --dist worksteal --maxfail=1 --cov-fail-under=90`. No mypy/type-check tooling is configured.
@@ -128,6 +132,19 @@ The PAYLOAD check (`scripts/audit_payloads.py`) compares the body keys and query
 parameters each call sends with the request schema of its route. FastAPI drops an
 unknown key with no error, so a wrong key name makes an option do nothing. A call
 whose keys the check cannot follow is listed as UNRESOLVED. Check those by hand.
+
+The RESPONSE check (`scripts/audit_responses.py`) compares the keys each command
+reads from `resp.json()` (`.get`, `[]`, `print_table`/`print_detail` columns) with
+the response schema of its route. A renamed response field would otherwise print
+`?` with no error. Reads of an untyped response are listed as RESPONSE-UNRESOLVED
+and never fail. `scripts/audit_responses_allowlist.json` lists the reads that
+existed when the check landed; fix a read, then remove its entry (a stale entry
+fails `--strict`).
+
+The `Contract audit` workflow runs all three checks with `--strict` on every PR,
+against `contracts/ac-python-api.openapi.json`. The API repo is private and this
+repo holds no token for it, so the spec travels as a file: after an API route or
+model change merges, run `scripts/sync_api_spec.py` and commit the copy.
 
 ## TDD Workflow
 
@@ -145,7 +162,7 @@ Every new command needs tests for: happy path, `--json` flag, error codes, and `
 - **Always use conventional commit prefixes** (`feat:`, `fix:`, `chore:`, etc.) — auto-bump and PyPI publishing depend on this.
 - **Credentials in `~/.agencycore/config.json`** (file mode 0600) — never commit.
 - **Dependencies**: use `uv add <pkg>` / `uv add --dev <pkg>`. Both `pyproject.toml` and `uv.lock` must stay in sync.
-- **API↔CLI parity**: every `ac-python-api` route change (new/removed/renamed/method/schema) must land alongside the matching CLI update in the same branch. Run `python scripts/audit_endpoints.py --strict` against a live API; it must report `CLI-ONLY: 0`, `API-ONLY: 0`, `METHOD-DIFF: 0`. New path-prefix constants must be added to `PATH_CONSTANTS` in that script. Intentionally CLI-omitted endpoints (webhooks, SSE streams, frontend-only) go in `OUT_OF_SCOPE` in the same script. Also propagate user-facing changes to `../ac-cli-plugin`.
+- **API↔CLI parity**: every `ac-python-api` route change (new/removed/renamed/method/schema) must land alongside the matching CLI update in the same branch. Run `uv run python scripts/audit_endpoints.py --strict` against a live API; it must report `CLI-ONLY: 0` and `METHOD-DIFF: 0`. Review each API-ONLY entry: implement the CLI command, or add it to `OUT_OF_SCOPE`. API-ONLY entries are reported and do not fail the run. New path-prefix constants must be added to `PATH_CONSTANTS` in that script. Intentionally CLI-omitted endpoints (webhooks, SSE streams, frontend-only) go in `OUT_OF_SCOPE` in the same script. Also propagate user-facing changes to `../ac-cli-plugin`.
 
 ## API Domains Not Exposed in CLI
 

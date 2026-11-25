@@ -1,3 +1,10 @@
+---
+paths:
+  - "src/ac_cli/main.py"
+  - "src/ac_cli/commands/**"
+  - "tests/**"
+---
+
 # Project Structure
 
 ## Layout
@@ -10,7 +17,7 @@
   - `commands/_helpers.py` — shared helpers: `_api_request`, `_build_body`, `_get_org_id`, `_handle_error`, `set_json_mode`, `should_skip_confirm`, `_EXIT_CODES`
   - `commands/` — single-file modules (`auth.py`, `env.py`, `apps.py`, …) and package-based domains (`crm/`, `sequences/`, `admin/`, …); `ls src/ac_cli/commands/` lists them
 - `tests/` — one test file per command group, named `test_<domain>_<group>.py`
-- `scripts/` — `bump.sh` (manual version), `auto-version-tag.sh` (post-commit hook), `audit_endpoints.py` (CLI vs API endpoint diff via live OpenAPI spec)
+- `scripts/` — version, lint and audit scripts. `CLAUDE.md` (Project Layout) lists each one.
 
 ## Adding a New Command Group
 
@@ -25,27 +32,8 @@ All command groups follow the same pattern regardless of domain:
        ctx.ensure_object(dict)
    ```
 4. **Write commands** using `_api_request()` from `commands/_helpers.py`, `print_detail`/`print_table`/`print_json` from `formatting.py`
-5. **Add `--json` to each command** using the shared `JSON_OPTION` constant:
-   ```python
-   from ac_cli.commands._helpers import JSON_OPTION, set_json_mode
-
-   @app.command()
-   def list(ctx: typer.Context, json_output: bool = JSON_OPTION, ...):
-       set_json_mode(json_output)
-       ...
-       if json_output:
-           print_json(data)
-   ```
-   The `set_json_mode()` call is **required** — it enables structured JSON error output and is what makes errors agent-friendly when `--json` is active.
-6. **For delete/destructive commands**, use `should_skip_confirm(yes)` instead of `if not yes:`:
-   ```python
-   from ac_cli.commands._helpers import should_skip_confirm
-
-   yes: bool = typer.Option(False, "--yes", "-y", help="Skip confirmation")
-   ...
-   if not should_skip_confirm(yes):
-       typer.confirm("Delete this resource?", abort=True)
-   ```
+5. **Add `--json` to each command** with the shared `JSON_OPTION` constant, and call `set_json_mode(json_output)` first. This is required: it turns on structured JSON errors. See `code-patterns.md` (Output).
+6. **For delete and other destructive commands**, use `should_skip_confirm(yes)` instead of `if not yes:`. See `code-patterns.md` (Delete Commands).
 7. **Register in `main.py`**: `from ac_cli.commands import <group>` + `app.add_typer(<group>.app, name="<group>")`
 8. **For sub-groups within a package** (e.g. `files/images.py`): define `<sub>_app = typer.Typer(help="...")`, then import and register in the package's `__init__.py`: `app.add_typer(<sub>_app, name="<sub>")`
 9. **Add tests** in `tests/test_<domain>_<group>.py` using the `invoke`, `mock_api`, `tmp_path` fixtures from `conftest.py`
