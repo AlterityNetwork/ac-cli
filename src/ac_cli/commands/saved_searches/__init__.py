@@ -139,13 +139,29 @@ def _schedule_text(schedule: dict | None) -> str | None:
     return f"{schedule['cron']} {schedule['timezone']}"
 
 
+_LAST_START_WORDS = {
+    "started": "started",
+    "not_enough_credits": "did not start: not enough credits",
+    "budget_reached": "did not start: the spend limit for the day was reached",
+    "not_started": "did not start",
+}
+
+
 def _print_schedule(data: dict) -> None:
-    """Print the schedule one read or write answered."""
-    text = _schedule_text(data.get("schedule"))
+    """Print the schedule one read or write answered, and its last scheduled run."""
+    schedule = data.get("schedule")
+    text = _schedule_text(schedule)
     if text is None:
         rprint("No schedule. The saved search runs only when someone starts it.")
         return
     rprint("[bold]Schedule:[/bold]", as_text(text))
+    last_start = schedule.get("last_start") if isinstance(schedule, dict) else None
+    if last_start:
+        words = _LAST_START_WORDS.get(last_start.get("outcome"), "did not start")
+        rprint(
+            "[bold]Last scheduled run:[/bold]",
+            as_text(f"{words} ({last_start.get('at')})"),
+        )
 
 
 def _source_text(source: dict) -> str:
