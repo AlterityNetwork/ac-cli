@@ -868,7 +868,9 @@ def capabilities_estimate(
     if units is not None:
         body["units"] = units
     if input_json is not None:
-        body["input"] = _parse_input(input_json) if input_json else {}
+        if not input_json.strip():
+            refuse_local("--input must be a JSON object")
+        body["input"] = _parse_input(input_json)
     if saved_search_id is not None:
         body["saved_search_id"] = saved_search_id
     if cron is not None:

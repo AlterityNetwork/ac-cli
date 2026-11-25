@@ -87,9 +87,18 @@ def test_the_human_output_names_the_price_and_the_cover(invoke, mock_api):
         ["--units", "3", "--saved-search-id", SEARCH_ID],
         ["--units", "-1"],
         ["--input", "[]"],
+        ["--input", ""],
         ["--units", "3", "--timezone", "UTC"],
     ],
-    ids=["nothing", "units-and-input", "units-and-search", "negative", "not-object", "zone-only"],
+    ids=[
+        "nothing",
+        "units-and-input",
+        "units-and-search",
+        "negative",
+        "not-object",
+        "empty-input",
+        "zone-only",
+    ],
 )
 def test_an_unusable_request_is_refused_without_http(invoke, mock_api, args):
     result = invoke([*_estimate(*args), "--json"])
