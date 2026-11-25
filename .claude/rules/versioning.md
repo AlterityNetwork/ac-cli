@@ -1,3 +1,10 @@
+---
+paths:
+  - "scripts/**"
+  - ".github/**"
+  - "pyproject.toml"
+---
+
 # Versioning & Publishing
 
 ## How It Works

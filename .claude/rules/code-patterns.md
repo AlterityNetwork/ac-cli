@@ -74,9 +74,9 @@ paths:
 - `_handle_error()` extracts detail from API error responses. It checks both `"detail"` (FastAPI HTTPException format) and `"message"` (domain error format) fields
 - When JSON mode is active (`_json_output` context var), errors emit structured JSON: `{"error": true, "status_code": <int>, "detail": <str>}`. Otherwise, errors print Rich-formatted text.
 - A refused run start answers `detail` as a dict of `code`, `message` and `remedy`. A 402 (`credits_exhausted` and the plan refusals) prints `Error 402: <message> <remedy>`, and JSON mode puts the sentence in `detail` and the dict in `context`. A 429 `day_cap_exhausted` prints `Error 429: <message> <remedy> (<code>)`, and JSON mode keeps the dict as `detail`.
-- **Semantic exit codes** via `_EXIT_CODES` mapping: `{401: 4, 402: 6, 403: 4, 404: 3, 409: 5, 422: 2}`. Unmapped status codes and connection errors exit with code 1. Success is always 0.
+- **Semantic exit codes** (`0` success, `1` general error, `2` validation, `3` not found, `4` auth or permission, `5` conflict, `6` plan refusal) via `_EXIT_CODES` mapping: `{401: 4, 402: 6, 403: 4, 404: 3, 409: 5, 422: 2}`. Unmapped status codes and connection errors exit with code 1. Success is always 0.
 - Auth and health commands handle errors directly in the command function — use the same `body.get("detail") or body.get("message")` pattern, and should also respect JSON mode and semantic exit codes
-- `httpx.Client.delete()` does not support `json` kwarg — for DELETE requests with a JSON body, use `client.request("DELETE", url, json=...)` directly (see `inbox.py` remove-tags)
+- `httpx.Client.delete()` does not support `json` kwarg — for DELETE requests with a JSON body, use `client.request("DELETE", url, json=...)` directly (see `sequences/inbox.py` remove-tags)
 
 ## Output
 - Rich output by default via `formatting.py` helpers (`print_table`, `print_detail`)
@@ -115,7 +115,7 @@ paths:
 
 ## List Commands & Pagination
 - All API list endpoints return a standardized paginated response: `{"data": [...], "total": N, "limit": N, "offset": N, "has_more": bool}`
-- List commands should accept `--limit` (default 50) and `--offset` (default 0) options, and always send both as query params
+- List commands should accept `--limit` (default 50 unless the route documents another default) and `--offset` (default 0) options, and always send both as query params
 - For endpoints returning paginated responses, extract items via `data.get("data", [])` and show server-reported total in table titles: `f"Title ({data.get('total', '?')} total)"`
 - Some legacy endpoints (communications list, thread, recipients) still return raw lists — use `isinstance(data, list)` fallback for those: `items = data if isinstance(data, list) else data.get("data", [])`
 - CRM, sequences inbox, and sequences outbox commands all follow the paginated pattern
