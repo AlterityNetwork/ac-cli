@@ -293,6 +293,39 @@ def test_schedule_get_prints_the_schedule_or_none(invoke, mock_api):
     assert "No schedule" in result.output
 
 
+@pytest.mark.parametrize(
+    ("outcome", "words"),
+    [
+        ("started", "started"),
+        ("not_enough_credits", "did not start: not enough credits"),
+        ("budget_reached", "did not start: the spend limit for the day was reached"),
+        ("not_started", "did not start"),
+    ],
+)
+def test_schedule_get_prints_the_last_scheduled_run(invoke, mock_api, outcome, words):
+    last_start = {"outcome": outcome, "at": "2026-11-24T09:00:00Z"}
+    mock_api.get(f"{BASE}/{SEARCH_ID}/schedule").respond(
+        200, json={"schedule": {**SCHEDULE, "last_start": last_start}}
+    )
+
+    result = invoke(["agentic", "saved-searches", "schedule", "get", SEARCH_ID])
+
+    assert result.exit_code == 0
+    assert "Last scheduled run:" in result.output
+    assert words in result.output
+    assert "2026-11-24" in result.output
+
+
+def test_schedule_get_prints_no_last_run_before_the_first(invoke, mock_api):
+    mock_api.get(f"{BASE}/{SEARCH_ID}/schedule").respond(
+        200, json={"schedule": {**SCHEDULE, "last_start": None}}
+    )
+
+    result = invoke(["agentic", "saved-searches", "schedule", "get", SEARCH_ID])
+
+    assert "Last scheduled run" not in result.output
+
+
 def test_schedule_set_sends_the_cron_and_zone(invoke, mock_api):
     route = mock_api.put(f"{BASE}/{SEARCH_ID}/schedule").respond(200, json={"schedule": SCHEDULE})
 
