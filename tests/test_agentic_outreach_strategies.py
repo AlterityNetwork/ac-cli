@@ -302,3 +302,103 @@ class TestCampaignStrategy:
 
         assert result.exit_code == 0, result.output
         assert "Website teardown" in result.output
+
+
+TEMPLATE = {
+    "key": "new-funding",
+    "name": "New funding",
+    "goal": "Book a 20 min intro call",
+    "angle": "Their latest funding round.",
+    "research_tools": ["research.search_web", "research.search_company"],
+}
+
+
+class TestStrategyTemplates:
+    def test_templates_prints_the_ready_made_strategies(self, invoke, mock_api, table_column):
+        route = mock_api.get(f"{BASE}/strategy-templates").respond(
+            200, json={"items": [TEMPLATE], "total": 1}
+        )
+
+        result = invoke(_cmd("templates"))
+
+        assert result.exit_code == 0, result.output
+        assert route.called
+        assert table_column(result.output, 0).replace(" ", "") == "new-funding"
+        assert "New funding" in result.output
+
+    def test_templates_json(self, invoke, mock_api):
+        mock_api.get(f"{BASE}/strategy-templates").respond(
+            200, json={"items": [TEMPLATE], "total": 1}
+        )
+
+        result = invoke(_cmd("templates", "--json"))
+
+        assert result.exit_code == 0, result.output
+        assert json.loads(result.output)["items"][0]["key"] == "new-funding"
+
+    def test_create_from_template_copies_it(self, invoke, mock_api):
+        route = mock_api.post(f"{BASE}/strategy-templates/new-funding/copy").respond(
+            201, json=STRATEGY
+        )
+
+        result = invoke(_cmd("create", "--from-template", "new-funding"))
+
+        assert result.exit_code == 0, result.output
+        assert _body(route) == {}
+        assert STRATEGY_ID in result.output
+
+    def test_create_from_template_sends_the_name_and_the_offer(self, invoke, mock_api):
+        route = mock_api.post(f"{BASE}/strategy-templates/new-funding/copy").respond(
+            201, json=STRATEGY
+        )
+
+        result = invoke(
+            _cmd(
+                "create",
+                "--from-template",
+                "new-funding",
+                "--name",
+                "Series A founders",
+                "--offer-id",
+                OFFER_ID,
+                "--json",
+            )
+        )
+
+        assert result.exit_code == 0, result.output
+        assert _body(route) == {"name": "Series A founders", "offer_id": OFFER_ID}
+        assert json.loads(result.output)["id"] == STRATEGY_ID
+
+    def test_create_from_an_unknown_template_exits_3(self, invoke, mock_api):
+        mock_api.post(f"{BASE}/strategy-templates/nope/copy").respond(
+            404, json={"detail": "not found"}
+        )
+
+        assert invoke(_cmd("create", "--from-template", "nope")).exit_code == 3
+
+    def test_create_from_template_with_a_taken_name_exits_5(self, invoke, mock_api):
+        mock_api.post(f"{BASE}/strategy-templates/new-funding/copy").respond(
+            409, json={"detail": "taken", "code": "strategy_name_taken"}
+        )
+
+        result = invoke(_cmd("create", "--from-template", "new-funding", "--name", "A"))
+
+        assert result.exit_code == 5
+
+    def test_create_from_template_refuses_a_strategy_field(self, invoke, mock_api):
+        route = mock_api.post(f"{BASE}/strategy-templates/new-funding/copy").respond(
+            201, json=STRATEGY
+        )
+
+        result = invoke(_cmd("create", "--from-template", "new-funding", "--goal", "G"))
+
+        assert result.exit_code == 2
+        assert not route.called
+
+    def test_create_with_no_name_and_no_template_is_refused(self, invoke, mock_api):
+        route = mock_api.post(f"{BASE}/strategies").respond(201, json=STRATEGY)
+
+        result = invoke(_cmd("create", "--goal", "G"))
+
+        assert result.exit_code == 2
+        assert not route.called
