@@ -818,6 +818,88 @@ def runs_rename(
 
 
 app.add_typer(runs_app, name="runs")
+_ESTIMATE_FIELDS = [
+    ("unit", "Unit"),
+    ("units", "Units"),
+    ("credits_per_unit", "Credits per unit"),
+    ("credits_per_run", "Credits per run (most)"),
+    ("remaining_credits", "Credits left"),
+    ("units_covered", "Units the credits cover"),
+    ("credits_enforced", "Credit limit enforced"),
+]
+
+
+@capabilities_app.command("estimate")
+def capabilities_estimate(
+    capability_id: str = typer.Argument(..., help="Stable capability ID, such as signals.search"),
+    units: int | None = typer.Option(
+        None, "--units", help="Price this many companies or people. 0 prices a discovery run."
+    ),
+    input_json: str | None = typer.Option(
+        None, "--input", help="Price this capability input, as a JSON object"
+    ),
+    saved_search_id: str | None = typer.Option(
+        None,
+        "--saved-search-id",
+        help="Price a run of this saved search, with the members its list holds now",
+    ),
+    cron: str | None = typer.Option(
+        None, "--cron", help="Add the runs and credits of 30 days on this schedule"
+    ),
+    timezone: str | None = typer.Option(
+        None, "--timezone", help="The IANA zone of --cron. The API reads UTC when it is not set."
+    ),
+    json_output: bool = JSON_OPTION,
+) -> None:
+    """Show the most credits one run uses, before it starts.
+
+    Name one of --units, --input or --saved-search-id. Admission prices a
+    start with the same number.
+    """
+    set_json_mode(json_output)
+    named = [one for one in (units, input_json, saved_search_id) if one is not None]
+    if len(named) != 1:
+        refuse_local("name one of --units, --input or --saved-search-id")
+    if units is not None and units < 0:
+        refuse_local("--units must be 0 or more")
+    if timezone is not None and cron is None:
+        refuse_local("--timezone needs --cron")
+    body: dict = {}
+    if units is not None:
+        body["units"] = units
+    if input_json is not None:
+        body["input"] = _parse_input(input_json) if input_json else {}
+    if saved_search_id is not None:
+        body["saved_search_id"] = saved_search_id
+    if cron is not None:
+        schedule = {"cron": cron}
+        if timezone is not None:
+            schedule["timezone"] = timezone
+        body["schedule"] = schedule
+    capability_id = quote(capability_id, safe="")
+    resp = _api_request(
+        "post",
+        f"{_AGENTIC}/capabilities/{capability_id}/estimate",
+        json=body,
+    )
+    data = resp.json()
+    if json_output:
+        print_json(data)
+        return
+    if not data.get("priced"):
+        rprint(
+            as_text(f"No price per unit. A run uses up to {data.get('credits_per_run')} credits.")
+        )
+        return
+    print_detail(data, _ESTIMATE_FIELDS)
+    plan = data.get("schedule")
+    if plan:
+        print_detail(
+            plan,
+            [("runs_per_month", "Runs in 30 days"), ("credits_per_month", "Credits in 30 days")],
+        )
+
+
 app.add_typer(capabilities_app, name="capabilities")
 
 
