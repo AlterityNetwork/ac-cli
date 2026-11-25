@@ -441,3 +441,76 @@ def test_start_sends_neither_by_default(invoke, mock_api):
     body = json.loads(route.calls[0].request.content)
     assert "title" not in body
     assert "saved_search_id" not in body
+
+
+# Mirrors CompanyEnrichOutput in ac-python-api (contract v2, ENG-3129).
+ENRICH_V2_RESULT = {
+    "company_enrich": {
+        "capability_id": "company.enrich",
+        "contract_version": 2,
+        "items": [
+            {
+                "input_index": 0,
+                "ref": {"kind": "domain", "value": "acme.com"},
+                "status": "enriched",
+                "match": {
+                    "name": "Acme",
+                    "domain": "acme.com",
+                    "linkedin_url": "https://www.linkedin.com/company/acme",
+                    "how": "domain",
+                },
+                "values": {
+                    "name": "Acme",
+                    "website": "https://acme.com",
+                    "industry": "Manufacturing",
+                    "country_code": "DE",
+                },
+            },
+            {
+                "input_index": 1,
+                "ref": {"kind": "name", "value": "Globex"},
+                "status": "not_found",
+                "match": {"name": None, "domain": None, "linkedin_url": None, "how": None},
+                "values": {},
+            },
+        ],
+        "outcome": "complete",
+        "diagnostics": [],
+        "usage": {"cost_cents": 12, "cost_kind": "settled", "provider_calls": 4},
+    }
+}
+
+
+def test_start_sends_the_company_enrich_v2_input_unchanged(invoke, mock_api):
+    """Company Enrich v2 takes only `subjects`, and a `name` ref is new."""
+    subjects = [
+        {"kind": "domain", "value": "acme.com"},
+        {"kind": "company_linkedin", "value": "https://www.linkedin.com/company/acme"},
+        {"kind": "name", "value": "Globex"},
+    ]
+    route = mock_api.post("/api/v1/agentic/capabilities/company.enrich/runs").respond(
+        200, json={**SAMPLE_RUN, "capability_id": "company.enrich", "contract_version": 2}
+    )
+    result = invoke(
+        [
+            "agentic",
+            "capabilities",
+            "start",
+            "company.enrich",
+            "--input",
+            json.dumps({"subjects": subjects}),
+            "--idempotency-key",
+            "delivery-43",
+            "--json",
+        ]
+    )
+    assert result.exit_code == 0, result.output
+    assert json.loads(route.calls[0].request.content) == {"input": {"subjects": subjects}}
+
+
+def test_runs_get_json_returns_the_company_enrich_v2_result_whole(invoke, mock_api):
+    run = {**SAMPLE_RUN, "status": "succeeded", "result": ENRICH_V2_RESULT}
+    mock_api.get(f"/api/v1/agentic/runs/{run['id']}").respond(200, json=run)
+    result = invoke(["agentic", "runs", "get", run["id"], "--json"])
+    assert result.exit_code == 0, result.output
+    assert json.loads(result.output)["result"] == ENRICH_V2_RESULT
