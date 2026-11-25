@@ -473,9 +473,16 @@ ENRICH_V2_RESULT = {
                 "match": {"name": None, "domain": None, "linkedin_url": None, "how": None},
                 "values": {},
             },
+            {
+                "input_index": 2,
+                "ref": {"kind": "name", "value": "Initech"},
+                "status": "failed",
+                "match": {"name": None, "domain": None, "linkedin_url": None, "how": None},
+                "values": {},
+            },
         ],
-        "outcome": "complete",
-        "diagnostics": [],
+        "outcome": "partial",
+        "diagnostics": [{"item_index": 2, "reason": "provider_failed"}],
         "usage": {"cost_cents": 12, "cost_kind": "settled", "provider_calls": 4},
     }
 }
