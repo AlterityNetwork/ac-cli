@@ -161,3 +161,64 @@ def test_credit_prices_create_forbidden(invoke, mock_api):
     mock_api.post(BASE).respond(403, json={"detail": "Super admin only"})
     result = _create(invoke, "--credits", "35")
     assert result.exit_code == 4
+
+
+SAMPLE_COSTS = {
+    "period_start": "2026-10-25T12:00:00+00:00",
+    "period_end": "2026-11-24T12:00:00+00:00",
+    "days": 30,
+    "actions": [
+        {
+            "action_key": "company.enrich",
+            "usage_rows": 4,
+            "cost_usd": 0.06,
+            "charges": 2,
+            "units": 3.0,
+            "credits": 36,
+            "cost_per_unit_usd": 0.02,
+            "cost_per_credit_usd": 0.0016667,
+        },
+        {
+            "action_key": "company.search.supplied",
+            "usage_rows": 0,
+            "cost_usd": 0.0,
+            "charges": 1,
+            "units": 4.0,
+            "credits": 80,
+            "cost_per_unit_usd": None,
+            "cost_per_credit_usd": None,
+        },
+    ],
+}
+
+
+def test_credit_prices_costs(invoke, mock_api):
+    route = mock_api.get(f"{BASE}/costs").respond(200, json=SAMPLE_COSTS)
+    result = invoke(["admin", "credit-prices", "costs"])
+    assert result.exit_code == 0
+    assert "company.enrich" in result.output
+    assert "$0.0200" in result.output
+    assert "last 30 days" in result.output
+    assert route.calls[0].request.url.params["days"] == "30"
+
+
+def test_credit_prices_costs_days(invoke, mock_api):
+    route = mock_api.get(f"{BASE}/costs").respond(200, json={**SAMPLE_COSTS, "days": 90})
+    result = invoke(["admin", "credit-prices", "costs", "--days", "90"])
+    assert result.exit_code == 0
+    assert route.calls[0].request.url.params["days"] == "90"
+
+
+def test_credit_prices_costs_json(invoke, mock_api):
+    mock_api.get(f"{BASE}/costs").respond(200, json=SAMPLE_COSTS)
+    result = invoke(["admin", "credit-prices", "costs", "--json"])
+    assert result.exit_code == 0
+    data = json.loads(result.output)
+    assert data["actions"][1]["cost_per_unit_usd"] is None
+
+
+def test_credit_prices_costs_empty(invoke, mock_api):
+    mock_api.get(f"{BASE}/costs").respond(200, json={**SAMPLE_COSTS, "actions": []})
+    result = invoke(["admin", "credit-prices", "costs"])
+    assert result.exit_code == 0
+    assert "No metered actions" in result.output

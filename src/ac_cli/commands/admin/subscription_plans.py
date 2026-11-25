@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json as _json
+from enum import Enum
 
 import typer
 from rich import print as rprint
@@ -18,6 +19,11 @@ from ac_cli.commands.admin import _ADMIN
 from ac_cli.formatting import print_detail, print_json, print_table, styled
 
 subscription_plans_app = typer.Typer(help="Subscription plan catalog (super admin)")
+
+
+class _BillingPeriod(str, Enum):
+    monthly = "monthly"
+    annual = "annual"
 
 
 def _features_from(features_json: str | None) -> dict | None:
@@ -185,3 +191,50 @@ def plans_delete(
         typer.confirm(f"Delete plan {plan_id}?", abort=True)
     _api_request("delete", f"{_ADMIN}/subscription-plans/{plan_id}")
     rprint(styled("[green]Deleted plan {}[/green]", plan_id))
+
+
+@subscription_plans_app.command("reprice-subscriptions")
+def plans_reprice_subscriptions(
+    plan_id: str = typer.Argument(..., help="Plan ID"),
+    period: _BillingPeriod = typer.Option(
+        ...,
+        "--period",
+        help="The billing period whose subscriptions move.",
+    ),
+    from_price_cents: int = typer.Option(
+        ...,
+        "--from-price-cents",
+        min=0,
+        help="The old price, net of tax. Only subscriptions at this price move.",
+    ),
+    yes: bool = typer.Option(False, "--yes", "-y", help="Skip confirmation"),
+    json_output: bool = JSON_OPTION,
+) -> None:
+    """Move the subscriptions at an old price to the current plan price.
+
+    Each live Stripe subscription with no custom price pays the new price from
+    its next renewal, with no proration.
+    """
+    set_json_mode(json_output)
+    if not should_skip_confirm(yes):
+        typer.confirm(
+            f"Move the {period.value} subscriptions of plan {plan_id} at "
+            f"{from_price_cents} to the plan price from their next renewal?",
+            abort=True,
+        )
+    resp = _api_request(
+        "post",
+        f"{_ADMIN}/subscription-plans/{plan_id}/reprice-subscriptions",
+        json={"billing_period": period.value, "from_price_cents": from_price_cents},
+    )
+    data = resp.json()
+    if json_output:
+        print_json(data)
+    else:
+        rprint(
+            styled(
+                "[green]Moved {} subscriptions[/green], {} failed",
+                data.get("moved", 0),
+                data.get("failed", 0),
+            )
+        )

@@ -59,6 +59,50 @@ def credit_prices_list(
     )
 
 
+def _usd(value: float | None) -> str:
+    return "-" if value is None else f"${value:,.4f}"
+
+
+@credit_prices_app.command("costs")
+def credit_prices_costs(
+    ctx: typer.Context,
+    days: int = typer.Option(30, "--days", min=1, max=365, help="Days in the window that ends now"),
+    json_output: bool = JSON_OPTION,
+) -> None:
+    """Show what each action cost us in USD and what it charged in credits."""
+    set_json_mode(json_output)
+    resp = _api_request("get", f"{_ADMIN}/credit-prices/costs", params={"days": days})
+    data = resp.json()
+    if json_output:
+        print_json(data)
+        return
+    actions = data.get("actions") or []
+    if not actions:
+        rprint(styled("[yellow]No metered actions in the last {} days.[/yellow]", data.get("days")))
+        return
+    rows = [
+        {
+            **action,
+            "cost_usd": _usd(action.get("cost_usd")),
+            "cost_per_unit_usd": _usd(action.get("cost_per_unit_usd")),
+            "cost_per_credit_usd": _usd(action.get("cost_per_credit_usd")),
+        }
+        for action in actions
+    ]
+    print_table(
+        rows,
+        [
+            ("action_key", "Action"),
+            ("cost_usd", "Cost"),
+            ("units", "Units"),
+            ("credits", "Credits"),
+            ("cost_per_unit_usd", "Per unit"),
+            ("cost_per_credit_usd", "Per credit"),
+        ],
+        title=f"Action costs, last {data.get('days')} days",
+    )
+
+
 @credit_prices_app.command("create")
 def credit_prices_create(
     ctx: typer.Context,
