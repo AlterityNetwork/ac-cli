@@ -451,3 +451,58 @@ def test_orgs_create_user_conflict_exit_code(invoke, mock_api):
     )
     assert result.exit_code == 5
     assert json.loads(result.output)["status_code"] == 409
+
+
+_CREATE_USER_ARGS = [
+    "admin",
+    "orgs",
+    "create-user",
+    "org-1",
+    "--email",
+    "a@example.com",
+    "--first-name",
+    "A",
+    "--last-name",
+    "B",
+]
+_LINK = "https://sb.example.com/auth/v1/verify?token=abc&type=recovery&redirect_to=x"
+
+
+def test_orgs_create_user_return_link_prints_the_link(invoke, mock_api):
+    route = mock_api.post("/api/v1/admin/organizations/org-1/users").respond(
+        201,
+        json={"user_id": "u-9", "role": "member", "email_sent": False, "sign_in_link": _LINK},
+    )
+    result = invoke([*_CREATE_USER_ARGS, "--return-link"])
+    assert result.exit_code == 0
+    assert _LINK in result.output.splitlines()
+    sent = json.loads(route.calls.last.request.content)
+    assert sent["return_link"] is True
+    assert sent["send_email"] is False
+
+
+def test_orgs_create_user_return_link_without_link_says_so(invoke, mock_api):
+    mock_api.post("/api/v1/admin/organizations/org-1/users").respond(
+        201,
+        json={"user_id": "u-9", "role": "member", "email_sent": False, "sign_in_link": None},
+    )
+    result = invoke([*_CREATE_USER_ARGS, "--return-link"])
+    assert result.exit_code == 0
+    assert "reset-password" in result.output
+
+
+def test_orgs_create_user_return_link_json(invoke, mock_api):
+    payload = {"user_id": "u-9", "role": "member", "email_sent": False, "sign_in_link": _LINK}
+    mock_api.post("/api/v1/admin/organizations/org-1/users").respond(201, json=payload)
+    result = invoke([*_CREATE_USER_ARGS, "--return-link", "--json"])
+    assert result.exit_code == 0
+    assert json.loads(result.output) == payload
+
+
+def test_orgs_create_user_omits_return_link_by_default(invoke, mock_api):
+    route = mock_api.post("/api/v1/admin/organizations/org-1/users").respond(
+        201, json={"user_id": "u-9", "role": "member", "email_sent": True}
+    )
+    result = invoke(_CREATE_USER_ARGS)
+    assert result.exit_code == 0
+    assert "return_link" not in json.loads(route.calls.last.request.content)

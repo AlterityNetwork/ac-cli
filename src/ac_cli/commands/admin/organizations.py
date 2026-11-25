@@ -281,17 +281,25 @@ def organizations_create_user(
     send_email: bool = typer.Option(
         True, "--send-email/--no-send-email", help="Send the welcome email"
     ),
+    return_link: bool = typer.Option(
+        False,
+        "--return-link",
+        help="Print a set-password link (valid for one hour) and send no welcome email",
+    ),
     json_output: bool = JSON_OPTION,
 ) -> None:
     """Create a user and add them to an active organization."""
     set_json_mode(json_output)
+    # The API refuses send_email and return_link together. A second link makes
+    # the emailed link invalid.
     body = _build_body(
         email=email,
         first_name=first_name,
         last_name=last_name,
         role=role,
         job_title=job_title,
-        send_email=send_email,
+        send_email=False if return_link else send_email,
+        return_link=True if return_link else None,
     )
 
     resp = _api_request("post", f"{_ADMIN}/organizations/{org_id}/users", json=body)
@@ -307,6 +315,16 @@ def organizations_create_user(
                 org_id,
             )
         )
+        if return_link:
+            link = data.get("sign_in_link")
+            if link:
+                # Plain echo, so rich does not wrap the URL.
+                typer.echo(link)
+            else:
+                rprint(
+                    "[yellow]No sign-in link was generated. "
+                    "Use ac admin users reset-password.[/yellow]"
+                )
 
 
 @organizations_app.command("update-member")
