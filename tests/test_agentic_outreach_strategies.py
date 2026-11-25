@@ -1,6 +1,9 @@
 """Tests for the Outreach strategy commands and `--strategy` on campaigns."""
 
 import json
+from unittest.mock import patch
+
+import httpx
 
 BASE = "/api/v1/agentic/outreach"
 STRATEGY_ID = "66666666-6666-4666-8666-666666666666"
@@ -401,4 +404,95 @@ class TestStrategyTemplates:
         result = invoke(_cmd("create", "--goal", "G"))
 
         assert result.exit_code == 2
+        assert not route.called
+
+
+DRAFT_ID = "77777777-7777-4777-8777-777777777777"
+DRAFT_STRATEGY = {
+    "name": "Shopify founders, checkout audit",
+    "goal": "Book a 20 min intro call",
+    "offer_id": OFFER_ID,
+    "offer_name": "Free mobile checkout audit",
+    "angle": "One problem on their mobile checkout.",
+    "research_tools": ["research.fetch_page", "research.detect_technologies"],
+}
+
+
+class TestStrategyWrite:
+    def test_write_starts_a_draft_and_prints_its_id(self, invoke, mock_api):
+        route = mock_api.post(f"{BASE}/strategy-drafts").respond(202, json={"draft_id": DRAFT_ID})
+
+        result = invoke(_cmd("write", "Book intro calls with Shopify founders."))
+
+        assert result.exit_code == 0, result.output
+        assert _body(route) == {"description": "Book intro calls with Shopify founders."}
+        assert "regenerate" not in route.calls[0].request.url.params
+        assert DRAFT_ID in result.output
+
+    def test_write_regenerate_json(self, invoke, mock_api):
+        route = mock_api.post(f"{BASE}/strategy-drafts").respond(202, json={"draft_id": DRAFT_ID})
+
+        result = invoke(_cmd("write", "Book calls.", "--regenerate", "--json"))
+
+        assert result.exit_code == 0, result.output
+        assert route.calls[0].request.url.params["regenerate"] == "true"
+        assert json.loads(result.output) == {"draft_id": DRAFT_ID}
+
+    def test_write_wait_polls_until_ready_and_prints_the_strategy(self, invoke, mock_api):
+        mock_api.post(f"{BASE}/strategy-drafts").respond(202, json={"draft_id": DRAFT_ID})
+        poll = mock_api.get(f"{BASE}/strategy-drafts/{DRAFT_ID}").mock(
+            side_effect=[
+                httpx.Response(200, json={"draft_id": DRAFT_ID, "status": "pending"}),
+                httpx.Response(
+                    200,
+                    json={"draft_id": DRAFT_ID, "status": "ready", "strategy": DRAFT_STRATEGY},
+                ),
+            ]
+        )
+
+        with patch("ac_cli.commands.outreach.strategies.time.sleep"):
+            result = invoke(_cmd("write", "Book calls.", "--wait"))
+
+        assert result.exit_code == 0, result.output
+        assert poll.call_count == 2
+        assert "Shopify founders, checkout audit" in result.output
+        assert "Free mobile checkout audit" in result.output
+        assert "research.fetch_page" in result.output
+
+    def test_write_wait_json_prints_the_final_state(self, invoke, mock_api):
+        mock_api.post(f"{BASE}/strategy-drafts").respond(202, json={"draft_id": DRAFT_ID})
+        mock_api.get(f"{BASE}/strategy-drafts/{DRAFT_ID}").respond(
+            200, json={"draft_id": DRAFT_ID, "status": "ready", "strategy": DRAFT_STRATEGY}
+        )
+
+        with patch("ac_cli.commands.outreach.strategies.time.sleep"):
+            result = invoke(_cmd("write", "Book calls.", "--wait", "--json"))
+
+        assert result.exit_code == 0, result.output
+        assert json.loads(result.output)["strategy"]["offer_id"] == OFFER_ID
+
+    def test_write_wait_prints_a_failure(self, invoke, mock_api):
+        mock_api.post(f"{BASE}/strategy-drafts").respond(202, json={"draft_id": DRAFT_ID})
+        mock_api.get(f"{BASE}/strategy-drafts/{DRAFT_ID}").respond(
+            200, json={"draft_id": DRAFT_ID, "status": "failed", "reason": "writer_empty"}
+        )
+
+        with patch("ac_cli.commands.outreach.strategies.time.sleep"):
+            result = invoke(_cmd("write", "Book calls.", "--wait"))
+
+        assert result.exit_code == 1
+        assert "writer_empty" in result.output
+
+    def test_write_refused_exits_4(self, invoke, mock_api):
+        mock_api.post(f"{BASE}/strategy-drafts").respond(
+            403, json={"detail": "not available", "code": "strategy_draft_refused"}
+        )
+
+        assert invoke(_cmd("write", "Book calls.")).exit_code == 4
+
+    def test_write_refuses_a_blank_or_long_description(self, invoke, mock_api):
+        route = mock_api.post(f"{BASE}/strategy-drafts").respond(202, json={"draft_id": DRAFT_ID})
+
+        assert invoke(_cmd("write", "   ")).exit_code == 2
+        assert invoke(_cmd("write", "x" * 1001)).exit_code == 2
         assert not route.called

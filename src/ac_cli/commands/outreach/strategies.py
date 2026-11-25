@@ -9,6 +9,9 @@ campaign follows. `list` prints the live strategies by name, and
 --from-template <key>` copies one into the organization, with an optional
 `--name` and `--offer-id`; the copy is a normal strategy.
 
+`write "<description>"` asks Outreach to write a strategy from one or two
+sentences. It saves nothing; `--wait` prints the strategy for `create`.
+
 `update` sends only the given options. A change of the goal, the offer, the
 angle, the tools or the cap adds 1 to the version. The name and the examples
 keep it. `--no-offer`, `--default-cap`, `--no-tools` and `--no-examples` clear
@@ -17,6 +20,8 @@ follows the strategy (exit 5, `strategy_in_use`).
 """
 
 from __future__ import annotations
+
+import time
 
 import typer
 from rich import print as rprint
@@ -41,6 +46,9 @@ _GOAL_MAX = 2000
 _ANGLE_MAX = 4000
 _EXAMPLES_MAX = 5
 _EXAMPLE_MAX = 4000
+_DESCRIPTION_MAX = 1000
+_WAIT_SECONDS = 120
+_POLL_SECONDS = 2.0
 RESEARCH_TOOLS = (
     "research.fetch_page",
     "research.search_web",
@@ -62,6 +70,14 @@ _TEMPLATE_FIELDS = [
     ("goal", "Goal"),
     ("tools", "Research tools"),
     ("angle", "Opens with"),
+]
+_DRAFT_FIELDS = [
+    ("name", "Name"),
+    ("goal", "Goal"),
+    ("offer_name", "Offer"),
+    ("offer_id", "Offer ID"),
+    ("angle", "Angle"),
+    ("tools", "Research tools"),
 ]
 _FIELDS = [
     ("id", "Strategy ID"),
@@ -301,6 +317,58 @@ def strategies_create(
         return
     rprint(styled("[green]Strategy {} is created.[/green]", data["id"]))
     print_detail(_cells(data), _FIELDS)
+
+
+@strategies_app.command("write")
+def strategies_write(
+    description: str = typer.Argument(
+        ..., help="What you want from these people, and what you offer"
+    ),
+    regenerate: bool = typer.Option(False, "--regenerate", help="Write a new strategy"),
+    wait: bool = typer.Option(False, "--wait", help="Wait for the strategy and print it"),
+    json_output: bool = JSON_OPTION,
+) -> None:
+    """Ask Outreach to write a strategy from a short description. It saves nothing."""
+    set_json_mode(json_output)
+    if not description.strip():
+        refuse_local("the description may not be blank")
+    _check_text("the description", description, _DESCRIPTION_MAX)
+    params = {"regenerate": "true"} if regenerate else None
+    started = _api_request(
+        "post",
+        f"{_OUTREACH}/strategy-drafts",
+        json={"description": description},
+        params=params,
+    ).json()
+    draft_id = started.get("draft_id")
+    if not wait:
+        if json_output:
+            print_json(started)
+        else:
+            rprint(styled("Strategy draft started: {}", draft_id))
+        return
+    deadline = time.monotonic() + _WAIT_SECONDS
+    while True:
+        data = _api_request("get", f"{_OUTREACH}/strategy-drafts/{draft_id}").json()
+        if data.get("status") != "pending" or time.monotonic() >= deadline:
+            break
+        time.sleep(_POLL_SECONDS)
+    if json_output:
+        print_json(data)
+    elif data.get("status") == "ready":
+        print_detail(_cells(data.get("strategy") or {}), _DRAFT_FIELDS)
+        rprint(styled("[dim]Nothing is saved. Save it with `strategies create`.[/dim]"))
+    else:
+        rprint(
+            styled(
+                "Strategy draft {}: {} {}",
+                draft_id,
+                data.get("status"),
+                data.get("reason") or "",
+            )
+        )
+    if data.get("status") != "ready":
+        raise typer.Exit(1)
 
 
 @strategies_app.command("update")
