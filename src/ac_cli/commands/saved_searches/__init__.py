@@ -28,6 +28,19 @@ _WATCH_LIST_HELP = (
     "CRM list of companies to watch, up to 50. Each Run checks every company on "
     "the list and does not discover companies outside the list."
 )
+_SOURCE_LIST_HELP = (
+    "CRM list kept in sync: each Run reads its current members. A saved search "
+    "keeps one CRM list kept in sync today."
+)
+_FIXED_LIST_HELP = (
+    "CRM list kept as a fixed set: the server keeps the members the list has now. "
+    "The API refuses this today, because a Run reads one synced list only."
+)
+_SOURCES_HELP = (
+    "The whole source set as a JSON array, for CSV and manual rows. "
+    'Each item has a "kind": crm_list, csv or manual. The API refuses this today '
+    "for any set other than one CRM list kept in sync."
+)
 _PAGE_DEFAULT = 50
 _PAGE_MIN = 1
 _PAGE_MAX = 100
@@ -54,6 +67,7 @@ _DETAIL_FIELDS = [
     ("name", "Name"),
     ("description", "Description"),
     ("watch_list_id", "Watch list"),
+    ("sources", "Sources"),
     ("last_run_id", "Last run"),
     ("last_run_at", "Last run at"),
     ("created_at", "Created"),
@@ -134,9 +148,46 @@ def _print_schedule(data: dict) -> None:
     rprint("[bold]Schedule:[/bold]", as_text(text))
 
 
+def _source_text(source: dict) -> str:
+    """Render one source as one line a person reads."""
+    kind = source.get("kind")
+    if kind == "crm_list":
+        name = source.get("name") or source.get("list_id")
+        sync = "kept in sync" if source.get("sync") else "fixed"
+        return f"CRM list {name}, {sync}"
+    rows = len(source.get("rows") or [])
+    if kind == "csv":
+        return f"CSV {source.get('name')}, {rows} rows"
+    return f"Added manually, {rows} rows"
+
+
+def _sources(
+    sources: str | None, synced: list[str] | None, fixed: list[str] | None
+) -> list[dict] | None:
+    """Build the source set the flags name, or None when they name none."""
+    if sources is not None and (synced or fixed):
+        refuse_local("use --sources or the list flags, not both")
+    if sources is not None:
+        try:
+            value = json.loads(sources)
+        except json.JSONDecodeError:
+            refuse_local("--sources is not valid JSON")
+        if not isinstance(value, list):
+            refuse_local("--sources must be a JSON array")
+        return value
+    if not synced and not fixed:
+        return None
+    return [{"kind": "crm_list", "list_id": one, "sync": True} for one in synced or []] + [
+        {"kind": "crm_list", "list_id": one, "sync": False} for one in fixed or []
+    ]
+
+
 def _print_saved_search(data: dict) -> None:
     """Print one saved search and its complete brief."""
-    print_detail(data, _DETAIL_FIELDS)
+    shown = dict(data)
+    if isinstance(data.get("sources"), list):
+        shown["sources"] = "; ".join(_source_text(one) for one in data["sources"]) or None
+    print_detail(shown, _DETAIL_FIELDS)
     rprint("[bold]Brief:[/bold]", as_text(json.dumps(data["brief"], sort_keys=True)))
 
 
@@ -151,10 +202,18 @@ def saved_searches_create(
         help="Brief JSON in the input shape the capability publishes",
     ),
     watch_list_id: str | None = typer.Option(None, "--watch-list-id", help=_WATCH_LIST_HELP),
+    source_list: list[str] | None = typer.Option(None, "--source-list", help=_SOURCE_LIST_HELP),
+    source_list_fixed: list[str] | None = typer.Option(
+        None, "--source-list-fixed", help=_FIXED_LIST_HELP
+    ),
+    sources: str | None = typer.Option(None, "--sources", help=_SOURCES_HELP),
     json_output: bool = JSON_OPTION,
 ) -> None:
     """Create one repeatable search brief for one product."""
     set_json_mode(json_output)
+    source_set = _sources(sources, source_list, source_list_fixed)
+    if watch_list_id is not None and source_set is not None:
+        refuse_local("use --watch-list-id or the source flags, not both")
     body = {
         "capability_id": _checked_capability(capability),
         "name": name,
@@ -162,6 +221,8 @@ def saved_searches_create(
     }
     if watch_list_id is not None:
         body["watch_list_id"] = watch_list_id
+    if source_set is not None:
+        body["sources"] = source_set
     data = _api_request("post", _SAVED_SEARCHES, json=body).json()
     if json_output:
         print_json(data)
@@ -235,14 +296,40 @@ def saved_searches_patch(
         "--clear-watch-list-id",
         help="Stop watching the list. The search finds new companies again.",
     ),
+    source_list: list[str] | None = typer.Option(None, "--source-list", help=_SOURCE_LIST_HELP),
+    source_list_fixed: list[str] | None = typer.Option(
+        None, "--source-list-fixed", help=_FIXED_LIST_HELP
+    ),
+    sources: str | None = typer.Option(None, "--sources", help=_SOURCES_HELP),
+    clear_sources: bool = typer.Option(
+        False,
+        "--clear-sources",
+        help="Remove every source. The search finds new companies again.",
+    ),
     json_output: bool = JSON_OPTION,
 ) -> None:
-    """Replace the name, the brief, or the watch list under one write token."""
+    """Replace the name, the brief, or the sources under one write token."""
     set_json_mode(json_output)
     if watch_list_id is not None and clear_watch_list_id:
         refuse_local("use --watch-list-id or --clear-watch-list-id, not both")
-    if name is None and brief is None and watch_list_id is None and not clear_watch_list_id:
-        refuse_local("provide --name, --brief, --watch-list-id or --clear-watch-list-id")
+    source_set = _sources(sources, source_list, source_list_fixed)
+    if clear_sources:
+        if source_set is not None:
+            refuse_local("use --clear-sources or the source flags, not both")
+        source_set = []
+    if source_set is not None and (watch_list_id is not None or clear_watch_list_id):
+        refuse_local("use the watch list flags or the source flags, not both")
+    if (
+        name is None
+        and brief is None
+        and watch_list_id is None
+        and not clear_watch_list_id
+        and source_set is None
+    ):
+        refuse_local(
+            "provide --name, --brief, --watch-list-id, --clear-watch-list-id, "
+            "a source flag or --clear-sources"
+        )
     body: dict = {"expected_updated_at": expected_updated_at}
     if name is not None:
         body["name"] = name
@@ -252,6 +339,8 @@ def saved_searches_patch(
         body["watch_list_id"] = watch_list_id
     if clear_watch_list_id:
         body["watch_list_id"] = None
+    if source_set is not None:
+        body["sources"] = source_set
     data = _api_request("patch", f"{_SAVED_SEARCHES}/{search_id}", json=body).json()
     if json_output:
         print_json(data)
