@@ -277,7 +277,7 @@ def strategies_create(
     max_research_cents: int | None = _CAP_OPTION,
     json_output: bool = JSON_OPTION,
 ) -> None:
-    """Create a strategy. Only `--name` is required.
+    """Create a strategy. Give `--name`, or copy a template with `--from-template`.
 
     No `--tool` means no research: Outreach reads the CRM record and signals
     only. No cap takes the API default. With `--from-template`, only `--name`
@@ -368,6 +368,8 @@ def strategies_write(
             )
         )
     if data.get("status") != "ready":
+        if not json_output:
+            rprint(styled("[dim]Try again with --regenerate.[/dim]"))
         raise typer.Exit(1)
 
 

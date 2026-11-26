@@ -482,6 +482,7 @@ class TestStrategyWrite:
 
         assert result.exit_code == 1
         assert "writer_empty" in result.output
+        assert "--regenerate" in result.output
 
     def test_write_refused_exits_4(self, invoke, mock_api):
         mock_api.post(f"{BASE}/strategy-drafts").respond(
