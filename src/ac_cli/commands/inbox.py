@@ -492,10 +492,19 @@ def inbox_ask_to_reply(
 
 
 @app.command("counts")
-def inbox_counts(json_output: bool = JSON_OPTION) -> None:
-    """Show the inbox badge figures for your own conversations."""
+def inbox_counts(
+    sequence: str | None = typer.Option(
+        None, help="any, none, or a sequence id. Count only those conversations."
+    ),
+    json_output: bool = JSON_OPTION,
+) -> None:
+    """Show the inbox badge figures for your own conversations.
+
+    `--sequence any` gives the badge of the Inbox tab of Sequences.
+    """
     set_json_mode(json_output)
-    data = _api_request("get", f"{_INBOX}/counts").json()
+    params = {"sequence": sequence} if sequence else None
+    data = _api_request("get", f"{_INBOX}/counts", params=params).json()
     if json_output:
         print_json(data)
         return
