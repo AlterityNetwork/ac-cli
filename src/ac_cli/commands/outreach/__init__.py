@@ -26,6 +26,8 @@ email) and ends it (`exit`).
 enrollment ends as moved, and the person is enrolled in the target.
 `ac agentic outreach organization` reads, stops and resumes Outreach for the
 whole organization. Only an organization admin stops or resumes.
+`ac agentic outreach replies` lists the replies to Outreach messages and the
+counts of the Review tab, and marks one reply done (`replies.py`).
 `ac agentic outreach strategies` lists, reads, creates, edits and archives the
 strategies that campaigns follow (`strategies.py`). `campaigns create` and
 `update` take `--strategy`. A create without it makes a strategy from the
@@ -85,6 +87,7 @@ from ac_cli.commands._helpers import (
     set_json_mode,
     should_skip_confirm,
 )
+from ac_cli.commands.outreach.replies import replies_app
 from ac_cli.commands.outreach.strategies import strategies_app
 from ac_cli.formatting import as_text, print_detail, print_json, print_table, styled
 
@@ -1525,3 +1528,4 @@ app.add_typer(campaigns_app, name="campaigns")
 app.add_typer(enrollments_app, name="enrollments")
 app.add_typer(organization_app, name="organization")
 app.add_typer(strategies_app, name="strategies")
+app.add_typer(replies_app, name="replies")
