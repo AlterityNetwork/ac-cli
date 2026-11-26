@@ -5,6 +5,13 @@ campaign follows. `list` prints the live strategies by name, and
 `--include-archived` adds the archived ones. Each strategy prints
 `used_by_campaigns`: its live (active or paused) campaigns.
 
+`templates` prints the ready-made strategies from Corbel. `create
+--from-template <key>` copies one into the organization, with an optional
+`--name` and `--offer-id`; the copy is a normal strategy.
+
+`write "<description>"` asks Outreach to write a strategy from one or two
+sentences. It saves nothing; `--wait` prints the strategy for `create`.
+
 `update` sends only the given options. A change of the goal, the offer, the
 angle, the tools or the cap adds 1 to the version. The name and the examples
 keep it. `--no-offer`, `--default-cap`, `--no-tools` and `--no-examples` clear
@@ -13,6 +20,8 @@ follows the strategy (exit 5, `strategy_in_use`).
 """
 
 from __future__ import annotations
+
+import time
 
 import typer
 from rich import print as rprint
@@ -37,6 +46,9 @@ _GOAL_MAX = 2000
 _ANGLE_MAX = 4000
 _EXAMPLES_MAX = 5
 _EXAMPLE_MAX = 4000
+_DESCRIPTION_MAX = 1000
+_WAIT_SECONDS = 120
+_POLL_SECONDS = 2.0
 RESEARCH_TOOLS = (
     "research.fetch_page",
     "research.search_web",
@@ -51,6 +63,21 @@ _LIST_FIELDS = [
     ("used_by_campaigns", "Campaigns"),
     ("version", "Version"),
     ("archived_at", "Archived"),
+]
+_TEMPLATE_FIELDS = [
+    ("key", "Key"),
+    ("name", "Name"),
+    ("goal", "Goal"),
+    ("tools", "Research tools"),
+    ("angle", "Opens with"),
+]
+_DRAFT_FIELDS = [
+    ("name", "Name"),
+    ("goal", "Goal"),
+    ("offer_name", "Offer"),
+    ("offer_id", "Offer ID"),
+    ("angle", "Angle"),
+    ("tools", "Research tools"),
 ]
 _FIELDS = [
     ("id", "Strategy ID"),
@@ -202,9 +229,46 @@ def strategies_get(
     print_detail(_cells(data), _FIELDS)
 
 
+@strategies_app.command("templates")
+def strategies_templates(json_output: bool = JSON_OPTION) -> None:
+    """List the ready-made strategies from Corbel. Copy one with `create --from-template`."""
+    set_json_mode(json_output)
+    data = _api_request("get", f"{_OUTREACH}/strategy-templates").json()
+    if json_output:
+        print_json(data)
+        return
+    rows = [_cells(item) for item in data.get("items", [])]
+    print_table(rows, _TEMPLATE_FIELDS, title=f"Outreach strategy templates ({len(rows)})")
+
+
+def _create_from_template(
+    key: str, *, name: str | None, offer_id: str | None, json_output: bool
+) -> None:
+    """Copy one template into the strategies of the organization."""
+    if name is not None and not name.strip():
+        refuse_local("--name may not be blank")
+    _check_text("--name", name, _NAME_MAX)
+    body = {field: value for field, value in (("name", name), ("offer_id", offer_id)) if value}
+    data = _api_request("post", f"{_OUTREACH}/strategy-templates/{key}/copy", json=body).json()
+    if json_output:
+        print_json(data)
+        return
+    rprint(styled("[green]Strategy {} is created from {}.[/green]", data["id"], key))
+    print_detail(_cells(data), _FIELDS)
+
+
 @strategies_app.command("create")
 def strategies_create(
-    name: str = typer.Option(..., "--name", help="Strategy name, unique among the live ones"),
+    name: str | None = typer.Option(
+        None,
+        "--name",
+        help="Strategy name, unique among the live ones. Required without --from-template",
+    ),
+    from_template: str | None = typer.Option(
+        None,
+        "--from-template",
+        help="Copy a ready-made strategy (see `templates`), such as new-funding",
+    ),
     goal: str | None = _GOAL_OPTION,
     offer_id: str | None = _OFFER_OPTION,
     angle: str | None = _ANGLE_OPTION,
@@ -213,12 +277,31 @@ def strategies_create(
     max_research_cents: int | None = _CAP_OPTION,
     json_output: bool = JSON_OPTION,
 ) -> None:
-    """Create a strategy. Only `--name` is required.
+    """Create a strategy. Give `--name`, or copy a template with `--from-template`.
 
     No `--tool` means no research: Outreach reads the CRM record and signals
-    only. No cap takes the API default.
+    only. No cap takes the API default. With `--from-template`, only `--name`
+    and `--offer-id` may change the copy.
     """
     set_json_mode(json_output)
+    if from_template is not None:
+        given = [
+            flag
+            for flag, value in (
+                ("--goal", goal),
+                ("--angle", angle),
+                ("--tool", tools),
+                ("--example", examples),
+                ("--max-research-cents", max_research_cents),
+            )
+            if value is not None and value != []
+        ]
+        if given:
+            refuse_local(f"--from-template takes only --name and --offer-id, not {given[0]}")
+        _create_from_template(from_template, name=name, offer_id=offer_id, json_output=json_output)
+        return
+    if name is None:
+        refuse_local("give --name, or --from-template")
     body = _strategy_body(
         name=name,
         goal=goal,
@@ -234,6 +317,65 @@ def strategies_create(
         return
     rprint(styled("[green]Strategy {} is created.[/green]", data["id"]))
     print_detail(_cells(data), _FIELDS)
+
+
+@strategies_app.command("write")
+def strategies_write(
+    description: str = typer.Argument(
+        ..., help="What you want from these people, and what you offer"
+    ),
+    regenerate: bool = typer.Option(False, "--regenerate", help="Write a new strategy"),
+    wait: bool = typer.Option(False, "--wait", help="Wait for the strategy and print it"),
+    json_output: bool = JSON_OPTION,
+) -> None:
+    """Ask Outreach to write a strategy from a short description. It saves nothing."""
+    set_json_mode(json_output)
+    if not description.strip():
+        refuse_local("the description may not be blank")
+    _check_text("the description", description, _DESCRIPTION_MAX)
+    params = {"regenerate": "true"} if regenerate else None
+    started = _api_request(
+        "post",
+        f"{_OUTREACH}/strategy-drafts",
+        json={"description": description},
+        params=params,
+    ).json()
+    draft_id = started.get("draft_id")
+    if not wait:
+        if json_output:
+            print_json(started)
+        else:
+            rprint(styled("Strategy draft started: {}", draft_id))
+        return
+    deadline = time.monotonic() + _WAIT_SECONDS
+    while True:
+        data = _api_request("get", f"{_OUTREACH}/strategy-drafts/{draft_id}").json()
+        if data.get("status") != "pending" or time.monotonic() >= deadline:
+            break
+        time.sleep(_POLL_SECONDS)
+    if json_output:
+        print_json(data)
+    elif data.get("status") == "ready":
+        print_detail(_cells(data.get("strategy") or {}), _DRAFT_FIELDS)
+        rprint(styled("[dim]Nothing is saved. Save it with `strategies create`.[/dim]"))
+    else:
+        rprint(
+            styled(
+                "Strategy draft {}: {} {}",
+                draft_id,
+                data.get("status"),
+                data.get("reason") or "",
+            )
+        )
+    if data.get("status") != "ready":
+        if not json_output:
+            hint = (
+                "Try again with --regenerate."
+                if data.get("status") == "failed"
+                else "Still writing; run the same command again to keep waiting."
+            )
+            rprint(styled("[dim]{}[/dim]", hint))
+        raise typer.Exit(1)
 
 
 @strategies_app.command("update")
