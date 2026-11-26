@@ -345,6 +345,16 @@ def test_ask_to_reply_and_counts(invoke, mock_api):
     assert json.loads(counts.output) == {"badge": 3, "needs_reply": 2, "unread": 2}
 
 
+def test_counts_for_one_sequence_scope(invoke, mock_api):
+    route = mock_api.get(f"{BASE}/counts", params={"sequence": "any"}).respond(
+        200, json={"badge": 1, "needs_reply": 0, "unread": 1}
+    )
+    counts = invoke(["inbox", "counts", "--sequence", "any", "--json"])
+    assert counts.exit_code == 0
+    assert route.called
+    assert json.loads(counts.output) == {"badge": 1, "needs_reply": 0, "unread": 1}
+
+
 def test_every_command_prints_json_with_json(invoke, mock_api):
     changed = {"thread_ids": [T1]}
     mock_api.get(f"{BASE}/messages").respond(
