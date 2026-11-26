@@ -497,3 +497,23 @@ class TestStrategyWrite:
         assert invoke(_cmd("write", "   ")).exit_code == 2
         assert invoke(_cmd("write", "x" * 1001)).exit_code == 2
         assert not route.called
+
+    def test_write_wait_timeout_keeps_waiting_without_regenerate(self, invoke, mock_api):
+        mock_api.post(f"{BASE}/strategy-drafts").respond(202, json={"draft_id": DRAFT_ID})
+        mock_api.get(f"{BASE}/strategy-drafts/{DRAFT_ID}").respond(
+            200, json={"draft_id": DRAFT_ID, "status": "pending"}
+        )
+
+        with (
+            patch("ac_cli.commands.outreach.strategies.time.sleep"),
+            patch(
+                "ac_cli.commands.outreach.strategies.time.monotonic",
+                side_effect=[0.0, 0.0, 999.0],
+            ),
+        ):
+            result = invoke(_cmd("write", "Book calls.", "--wait"))
+
+        assert result.exit_code == 1
+        assert "pending" in result.output
+        assert "run the same command again" in result.output
+        assert "--regenerate" not in result.output

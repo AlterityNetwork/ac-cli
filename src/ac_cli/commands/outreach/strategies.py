@@ -369,7 +369,12 @@ def strategies_write(
         )
     if data.get("status") != "ready":
         if not json_output:
-            rprint(styled("[dim]Try again with --regenerate.[/dim]"))
+            hint = (
+                "Try again with --regenerate."
+                if data.get("status") == "failed"
+                else "Still writing; run the same command again to keep waiting."
+            )
+            rprint(styled("[dim]{}[/dim]", hint))
         raise typer.Exit(1)
 
 
