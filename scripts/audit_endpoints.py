@@ -71,6 +71,12 @@ PATH_CONSTANTS: dict[str, str] = {
 
 # API endpoints intentionally not covered by the CLI.
 OUT_OF_SCOPE: set[tuple[str, str]] = {
+    # ENG-3203: deprecated routes the frontend still calls. The CLI reads and
+    # starts by key through `definitions startable` and `runs start --key`. The
+    # three entries go with the routes, when the frontend has moved.
+    ("GET", "/api/v1/agentic/capabilities"),
+    ("GET", "/api/v1/agentic/capabilities/{id}"),
+    ("POST", "/api/v1/agentic/capabilities/{id}/runs"),
     # Frontend-only selection bridge: resolves frozen Company Search rows to
     # CRM ids before the existing list and mark-actioned routes are called.
     ("POST", "/api/v1/agentic/runs/companies/materialize"),
