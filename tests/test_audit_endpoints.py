@@ -100,19 +100,19 @@ def test_the_agentic_prefix_is_registered_for_endpoint_discovery() -> None:
     assert audit.PATH_CONSTANTS["_AGENTIC"] == "/api/v1/agentic"
 
 
-def test_the_audit_finds_each_capability_command() -> None:
-    """The three capability routes must reach the parity gate.
+def test_the_audit_finds_each_startable_definition_command() -> None:
+    """The startable routes must reach the parity gate.
 
-    `capabilities get` and `capabilities start` percent-encode the ID before
-    the f-string, so the literal path stays readable to the audit. This test
-    fails if that encoding moves back inside the f-string.
+    `definitions startable-show` percent-encodes the key before the f-string,
+    so the literal path stays readable to the audit. This test fails if that
+    encoding moves back inside the f-string.
     """
     calls = audit.collect_cli_calls(audit.CLI_ROOT)
 
     assert {
-        ("GET", "/api/v1/agentic/capabilities"),
-        ("GET", "/api/v1/agentic/capabilities/{id}"),
-        ("POST", "/api/v1/agentic/capabilities/{id}/runs"),
+        ("GET", "/api/v1/agentic/definitions/startable"),
+        ("GET", "/api/v1/agentic/definitions/startable/{id}"),
+        ("POST", "/api/v1/agentic/runs"),
     } <= calls
 
 

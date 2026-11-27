@@ -230,7 +230,7 @@ def _start_capability(invoke, *extra):
 
 def test_json_error_402_from_a_route_detail(invoke, mock_api):
     """A detail-shaped plan refusal exits 6 with the sentence and the remedy."""
-    mock_api.post("/api/v1/agentic/capabilities/company.search/runs").respond(402, json=_DETAIL_402)
+    mock_api.post("/api/v1/agentic/runs").respond(402, json=_DETAIL_402)
     result = _start_capability(invoke, "--json")
     assert result.exit_code == 6
     parsed = json.loads(result.output)
@@ -273,7 +273,7 @@ def test_a_402_detail_without_a_message_is_not_flattened(invoke, mock_api):
 def test_a_non_402_detail_with_a_message_is_not_flattened(invoke, mock_api):
     """The join is for a plan refusal only. A 409 object keeps its fields."""
     detail = {"code": "idempotency_conflict", "message": "This key belongs to another start."}
-    mock_api.post("/api/v1/agentic/capabilities/company.search/runs").respond(
+    mock_api.post("/api/v1/agentic/runs").respond(
         409, json={"detail": detail}
     )
     result = _start_capability(invoke, "--json")
@@ -283,7 +283,7 @@ def test_a_non_402_detail_with_a_message_is_not_flattened(invoke, mock_api):
 
 def test_json_error_402_from_a_route_detail_keeps_the_code(invoke, mock_api):
     """A script must tell a missing module from a lapsed plan."""
-    mock_api.post("/api/v1/agentic/capabilities/company.search/runs").respond(402, json=_DETAIL_402)
+    mock_api.post("/api/v1/agentic/runs").respond(402, json=_DETAIL_402)
     result = _start_capability(invoke, "--json")
     parsed = json.loads(result.output)
     assert (parsed.get("context") or {}).get("code") == "not_entitled"
