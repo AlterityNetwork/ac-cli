@@ -1597,11 +1597,6 @@ def definitions_startable_estimate(
     Name one of --units, --input or --saved-search-id. Admission prices a
     start with the same number.
     """
-    """Show the most credits one run uses, before it starts.
-
-    Name one of --units, --input or --saved-search-id. Admission prices a
-    start with the same number.
-    """
     _estimate_run(key, units, input_json, saved_search_id, cron, timezone, json_output)
 
 
