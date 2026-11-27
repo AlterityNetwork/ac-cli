@@ -349,6 +349,7 @@ def strategies_create(
                 ("--tool", tools),
                 ("--example", examples),
                 ("--template", templates),
+                ("--use-offers/--no-offers", use_offers),
                 ("--max-research-cents", max_research_cents),
             )
             if value is not None and value != []

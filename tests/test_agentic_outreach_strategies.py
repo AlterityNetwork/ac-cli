@@ -4,6 +4,7 @@ import json
 from unittest.mock import patch
 
 import httpx
+import pytest
 
 BASE = "/api/v1/agentic/outreach"
 STRATEGY_ID = "66666666-6666-4666-8666-666666666666"
@@ -464,6 +465,17 @@ class TestStrategyTemplates:
         )
 
         result = invoke(_cmd("create", "--from-template", "new-funding", "--goal", "G"))
+
+        assert result.exit_code == 2
+        assert not route.called
+
+    @pytest.mark.parametrize("flag", ["--no-offers", "--use-offers"])
+    def test_create_from_template_refuses_the_offer_switch(self, invoke, mock_api, flag):
+        route = mock_api.post(f"{BASE}/strategy-templates/new-funding/copy").respond(
+            201, json=STRATEGY
+        )
+
+        result = invoke(_cmd("create", "--from-template", "new-funding", flag))
 
         assert result.exit_code == 2
         assert not route.called
