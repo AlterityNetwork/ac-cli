@@ -272,6 +272,8 @@ def runs_start(
     set_json_mode(json_output)
     if (definition_id is None) == (key is None):
         refuse_local("name exactly one of --definition and --key")
+    if key is not None and not key.strip():
+        refuse_local("--key must not be empty")
     if saved_search_id and key is None:
         refuse_local("--saved-search-id goes with --key")
     # A fresh key per invocation, and never a stable one. The key names the
@@ -353,6 +355,11 @@ def runs_list(
         "--capability",
         help="Runs of one capability, e.g. company.search. Repeat it to name more than one.",
     ),
+    key: list[str] | None = typer.Option(
+        None,
+        "--key",
+        help="Runs of one definition key, e.g. company.search. Repeat it to name more than one.",
+    ),
     status: str | None = typer.Option(None, "--status", help="Runs in one status"),
     source: str | None = typer.Option(
         None,
@@ -393,6 +400,8 @@ def runs_list(
         params["definition_id"] = definition_id
     if capability:
         params["capability_id"] = capability
+    if key:
+        params["definition_key"] = key
     if status:
         params["status"] = status
     if source:
@@ -428,6 +437,7 @@ def runs_list(
                 ("--parent", parent),
                 ("--definition", definition_id),
                 *(("--capability", one) for one in capability or []),
+                *(("--key", one) for one in key or []),
                 ("--status", status),
                 ("--source", source),
                 ("--saved-search-id", saved_search_id),
@@ -1427,6 +1437,22 @@ _STARTABLE_LIST_FIELDS = [
     ("name", "Name"),
 ]
 
+_CAPABILITY_LIST_FIELDS = [
+    ("capability_id", "Capability ID"),
+    ("availability", "Availability"),
+    ("reason", "Reason"),
+    ("name", "Name"),
+]
+
+_CAPABILITY_FIELDS = [
+    ("capability_id", "Capability ID"),
+    ("availability", "Availability"),
+    ("reason", "Reason"),
+    ("name", "Name"),
+    ("description", "Description"),
+    ("executor_type", "Executor"),
+]
+
 _STARTABLE_FIELDS = [
     ("definition_key", "Key"),
     ("availability", "Availability"),
@@ -1437,37 +1463,57 @@ _STARTABLE_FIELDS = [
 ]
 
 
-def _startable_list(show_all: bool, json_output: bool) -> None:
-    """Lists the startable definitions and prints them."""
+def _legacy_record(record: dict) -> dict:
+    """Names the key `capability_id`, as the deprecated aliases always printed it."""
+    return {("capability_id" if k == "definition_key" else k): v for k, v in record.items()}
+
+
+def _startable_list(show_all: bool, json_output: bool, legacy: bool = False) -> None:
+    """Lists the startable definitions and prints them.
+
+    Args:
+        show_all: Also read the keys this caller cannot start.
+        json_output: Print the JSON the API answered.
+        legacy: Print the old `capabilities list` output: `capability_id`, its
+          header and its title.
+    """
     resp = _api_request(
         "get",
         f"{_AGENTIC}/definitions/startable",
         params={"available_only": "false" if show_all else "true"},
     )
     data = resp.json()
+    items = data.get("items", [])
+    fields, title = _STARTABLE_LIST_FIELDS, f"Startable definitions ({len(items)})"
+    if legacy:
+        data = {**data, "items": [_legacy_record(one) for one in items]}
+        items = data["items"]
+        fields, title = _CAPABILITY_LIST_FIELDS, f"Capabilities ({len(items)})"
     if json_output:
         print_json(data)
         return
-    items = data.get("items", [])
-    print_table(items, _STARTABLE_LIST_FIELDS, title=f"Startable definitions ({len(items)})")
+    print_table(items, fields, title=title)
     if not items and not show_all:
         rprint("[dim]Nothing you can start. Run with --all to read why.[/dim]")
 
 
-def _startable_show(key: str, json_output: bool) -> None:
+def _startable_show(key: str, json_output: bool, legacy: bool = False) -> None:
     """Reads one startable definition and prints it.
 
     The key is encoded. The vocabulary holds a dot and letters, which a path
     segment carries as they are, and a reserved character would otherwise
-    change the path this reads.
+    change the path this reads. `legacy` prints the old `capabilities get`
+    output, with `capability_id`.
     """
     key = quote(key, safe="")
     resp = _api_request("get", f"{_AGENTIC}/definitions/startable/{key}")
     data = resp.json()
+    if legacy:
+        data = _legacy_record(data)
     if json_output:
         print_json(data)
         return
-    print_detail(data, _STARTABLE_FIELDS)
+    print_detail(data, _CAPABILITY_FIELDS if legacy else _STARTABLE_FIELDS)
     scopes = data.get("required_scopes")
     if scopes:
         rprint("[bold]Required scopes:[/bold]", as_text(", ".join(scopes)))
@@ -1521,7 +1567,7 @@ def capabilities_list(
 ) -> None:
     """Deprecated: use `ac agentic definitions startable`."""
     set_json_mode(json_output)
-    _startable_list(show_all, json_output)
+    _startable_list(show_all, json_output, legacy=True)
 
 
 @capabilities_app.command("get", hidden=True)
@@ -1532,7 +1578,7 @@ def capabilities_get(
 ) -> None:
     """Deprecated: use `ac agentic definitions startable-show`."""
     set_json_mode(json_output)
-    _startable_show(capability_id, json_output)
+    _startable_show(capability_id, json_output, legacy=True)
 
 
 approvals_app = typer.Typer(help="Agentic approval inbox")

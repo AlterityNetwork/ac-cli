@@ -120,3 +120,41 @@ def test_definitions_startable_show_encodes_a_reserved_character(invoke, mock_ap
     invoke(["agentic", "definitions", "startable-show", "a/b", "--json"])
 
     assert route.called
+
+
+def test_runs_start_refuses_an_empty_key_without_http(invoke, mock_api):
+    for value in ("", "  "):
+        result = invoke(["agentic", "runs", "start", "--key", value, "--json"])
+
+        assert result.exit_code == 2
+    assert not mock_api.calls
+
+
+def test_runs_list_filters_on_the_definition_key_and_repeats(invoke, mock_api):
+    route = mock_api.get(RUNS).respond(200, json={"items": [], "next_cursor": None})
+
+    result = invoke(
+        ["agentic", "runs", "list", "--key", "signals.search", "--key", "people.signals", "--json"]
+    )
+
+    assert result.exit_code == 0, result.output
+    params = route.calls[0].request.url.params
+    assert params.get_list("definition_key") == ["signals.search", "people.signals"]
+    assert "capability_id" not in params
+
+
+def test_runs_list_keeps_the_capability_filter(invoke, mock_api):
+    route = mock_api.get(RUNS).respond(200, json={"items": [], "next_cursor": None})
+
+    invoke(["agentic", "runs", "list", "--capability", "company.search", "--json"])
+
+    assert route.calls[0].request.url.params.get_list("capability_id") == ["company.search"]
+
+
+def test_the_get_alias_prints_capability_id_in_a_table(invoke, mock_api):
+    mock_api.get(f"{STARTABLE}/company.search").respond(200, json=AVAILABLE)
+
+    result = invoke(["agentic", "capabilities", "get", "company.search"])
+
+    assert "Capability ID" in result.output
+    assert "Key" not in result.output.replace("Keys", "")
