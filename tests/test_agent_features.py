@@ -273,9 +273,7 @@ def test_a_402_detail_without_a_message_is_not_flattened(invoke, mock_api):
 def test_a_non_402_detail_with_a_message_is_not_flattened(invoke, mock_api):
     """The join is for a plan refusal only. A 409 object keeps its fields."""
     detail = {"code": "idempotency_conflict", "message": "This key belongs to another start."}
-    mock_api.post("/api/v1/agentic/runs").respond(
-        409, json={"detail": detail}
-    )
+    mock_api.post("/api/v1/agentic/runs").respond(409, json={"detail": detail})
     result = _start_capability(invoke, "--json")
     assert result.exit_code == 5
     assert json.loads(result.output)["detail"] == detail
