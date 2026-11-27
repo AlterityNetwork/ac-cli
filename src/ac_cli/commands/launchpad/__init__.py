@@ -1,4 +1,4 @@
-"""Launchpad commands: signal preferences."""
+"""Launchpad commands: signal preferences and the setup checklist."""
 
 import typer
 
@@ -16,8 +16,10 @@ def launchpad_callback(ctx: typer.Context) -> None:
 
 # Sub-apps are imported after the prefix constant so the modules can import
 # `_LAUNCHPAD` from this package without a circular-import failure.
+from ac_cli.commands.launchpad.setup import setup_app  # noqa: E402
 from ac_cli.commands.launchpad.signal_preferences import (  # noqa: E402
     signal_preferences_app,
 )
 
 app.add_typer(signal_preferences_app, name="signal-preferences")
+app.add_typer(setup_app, name="setup")
