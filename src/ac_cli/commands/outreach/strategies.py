@@ -12,15 +12,20 @@ campaign follows. `list` prints the live strategies by name, and
 `write "<description>"` asks Outreach to write a strategy from one or two
 sentences. It saves nothing; `--wait` prints the strategy for `create`.
 
+`--template` takes one message template as a JSON object: name, channel
+(email or linkedin), an optional email subject and the body. The text goes out
+as written, and the writer fills each {{ }} part. Repeat it, up to 10.
+
 `update` sends only the given options. A change of the goal, the offer, the
-angle, the tools or the cap adds 1 to the version. The name and the examples
-keep it. `--no-offer`, `--default-cap`, `--no-tools` and `--no-examples` clear
-a field. `archive` frees the name. The API refuses it while a live campaign
+angle, the tools or the cap adds 1 to the version. The name, the examples and
+the templates keep it. `--no-offer`, `--default-cap`, `--no-tools`,
+`--no-examples` and `--no-templates` clear a field. `archive` frees the name. The API refuses it while a live campaign
 follows the strategy (exit 5, `strategy_in_use`).
 """
 
 from __future__ import annotations
 
+import json
 import time
 
 import typer
@@ -46,6 +51,9 @@ _GOAL_MAX = 2000
 _ANGLE_MAX = 4000
 _EXAMPLES_MAX = 5
 _EXAMPLE_MAX = 4000
+_TEMPLATES_MAX = 10
+_TEMPLATE_KEYS = frozenset({"id", "name", "channel", "subject", "body"})
+_CHANNELS = ("email", "linkedin")
 _DESCRIPTION_MAX = 1000
 _WAIT_SECONDS = 120
 _POLL_SECONDS = 2.0
@@ -89,6 +97,7 @@ _FIELDS = [
     ("tools", "Research tools"),
     ("max_research_cents", "Max research cents"),
     ("examples", "Example messages"),
+    ("templates", "Message templates"),
     ("used_by_campaigns", "Used by campaigns"),
     ("version", "Version"),
     ("archived_at", "Archived"),
@@ -100,11 +109,36 @@ def _cells(strategy: dict) -> dict:
     """Adds the tool and example cells to one strategy."""
     tools = strategy.get("research_tools")
     examples = strategy.get("example_messages")
+    templates = strategy.get("message_templates") or []
     return {
         **strategy,
         "tools": ", ".join(str(one) for one in tools) if tools else "none",
         "examples": " | ".join(str(one) for one in examples) if examples else "",
+        "templates": " | ".join(f"{one.get('name')} ({one.get('channel')})" for one in templates),
     }
+
+
+def _templates(texts: list[str] | None) -> list[dict] | None:
+    """Reads each --template as one JSON object, before any call."""
+    if texts is None:
+        return None
+    if len(texts) > _TEMPLATES_MAX:
+        refuse_local(f"--template takes at most {_TEMPLATES_MAX} templates", len(texts))
+    found: list[dict] = []
+    for text in texts:
+        try:
+            template = json.loads(text)
+        except json.JSONDecodeError:
+            refuse_local("--template must be a JSON object", text)
+        if not isinstance(template, dict):
+            refuse_local("--template must be a JSON object", text)
+        unknown = set(template) - _TEMPLATE_KEYS
+        if unknown:
+            refuse_local(f"--template does not take {sorted(unknown)[0]}", text)
+        if template.get("channel") not in _CHANNELS:
+            refuse_local(f"--template channel must be one of: {', '.join(_CHANNELS)}", text)
+        found.append(template)
+    return found
 
 
 def _check_text(option: str, value: str | None, most: int) -> None:
@@ -121,6 +155,7 @@ def _strategy_body(
     tools: list[str] | None,
     examples: list[str] | None,
     max_research_cents: int | None,
+    templates: list[str] | None = None,
 ) -> dict[str, object]:
     """Build a strategy body from the given options.
 
@@ -153,6 +188,7 @@ def _strategy_body(
             ("angle", angle),
             ("research_tools", tools or None),
             ("example_messages", examples or None),
+            ("message_templates", _templates(templates) or None),
             ("max_research_cents", max_research_cents),
         )
         if value is not None
@@ -177,6 +213,14 @@ _TOOL_OPTION = typer.Option(
 )
 _EXAMPLE_OPTION = typer.Option(
     None, "--example", help="An example message that shows the tone. Repeat, up to 5"
+)
+_TEMPLATE_OPTION = typer.Option(
+    None,
+    "--template",
+    help=(
+        'One message template as JSON: {"name", "channel" (email or linkedin), '
+        '"subject" (email only), "body"}. Repeat, up to 10'
+    ),
 )
 _CAP_OPTION = typer.Option(
     None,
@@ -274,6 +318,7 @@ def strategies_create(
     angle: str | None = _ANGLE_OPTION,
     tools: list[str] | None = _TOOL_OPTION,
     examples: list[str] | None = _EXAMPLE_OPTION,
+    templates: list[str] | None = _TEMPLATE_OPTION,
     max_research_cents: int | None = _CAP_OPTION,
     json_output: bool = JSON_OPTION,
 ) -> None:
@@ -292,6 +337,7 @@ def strategies_create(
                 ("--angle", angle),
                 ("--tool", tools),
                 ("--example", examples),
+                ("--template", templates),
                 ("--max-research-cents", max_research_cents),
             )
             if value is not None and value != []
@@ -310,6 +356,7 @@ def strategies_create(
         tools=tools,
         examples=examples,
         max_research_cents=max_research_cents,
+        templates=templates,
     )
     data = _api_request("post", f"{_OUTREACH}/strategies", json=body).json()
     if json_output:
@@ -390,13 +437,15 @@ def strategies_update(
     no_tools: bool = typer.Option(False, "--no-tools", help="Clear the tools: no research"),
     examples: list[str] | None = _EXAMPLE_OPTION,
     no_examples: bool = typer.Option(False, "--no-examples", help="Clear the examples"),
+    templates: list[str] | None = _TEMPLATE_OPTION,
+    no_templates: bool = typer.Option(False, "--no-templates", help="Clear the message templates"),
     max_research_cents: int | None = _CAP_OPTION,
     default_cap: bool = typer.Option(
         False, "--default-cap", help="Clear the cap: the API default applies"
     ),
     json_output: bool = JSON_OPTION,
 ) -> None:
-    """Edit a strategy. `--tool` and `--example` replace the whole list.
+    """Edit a strategy. `--tool`, `--example` and `--template` replace the whole list.
 
     A change of the goal, the offer, the angle, the tools or the cap adds 1
     to the version. An empty `--goal` or `--angle` clears it.
@@ -406,6 +455,7 @@ def strategies_update(
         ("--offer-id", offer_id, no_offer, "--no-offer"),
         ("--tool", tools, no_tools, "--no-tools"),
         ("--example", examples, no_examples, "--no-examples"),
+        ("--template", templates, no_templates, "--no-templates"),
         ("--max-research-cents", max_research_cents, default_cap, "--default-cap"),
     ):
         if value is not None and value != [] and clear:
@@ -418,6 +468,7 @@ def strategies_update(
         tools=tools,
         examples=examples,
         max_research_cents=max_research_cents,
+        templates=templates,
     )
     if no_offer:
         body["offer_id"] = None
@@ -427,6 +478,8 @@ def strategies_update(
         body["research_tools"] = []
     if no_examples:
         body["example_messages"] = []
+    if no_templates:
+        body["message_templates"] = []
     if not body:
         refuse_local("nothing to update: give at least one option")
     data = _api_request("patch", f"{_OUTREACH}/strategies/{strategy_id}", json=body).json()

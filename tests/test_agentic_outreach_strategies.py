@@ -47,7 +47,7 @@ CAMPAIGN = {
 
 
 def _body(route) -> dict:
-    return json.loads(route.calls[0].request.content)
+    return json.loads(route.calls.last.request.content)
 
 
 def _cmd(*args: str) -> list[str]:
@@ -197,6 +197,52 @@ class TestStrategies:
             "research_tools": [],
             "example_messages": [],
         }
+
+    def test_create_sends_message_templates_and_shows_them(self, invoke, mock_api):
+        template = {
+            "name": "Checkout audit",
+            "channel": "email",
+            "subject": "{{first name}}, your checkout",
+            "body": "Hi {{first name}}, {{one checkout problem}}.",
+        }
+        route = mock_api.post(f"{BASE}/strategies").respond(
+            201, json={**STRATEGY, "message_templates": [{"id": STRATEGY_ID, **template}]}
+        )
+
+        result = invoke(_cmd("create", "--name", "Templates", "--template", json.dumps(template)))
+
+        assert result.exit_code == 0, result.output
+        assert _body(route) == {"name": "Templates", "message_templates": [template]}
+        assert "Checkout audit (email)" in result.output
+
+    def test_create_refuses_a_template_that_is_not_a_json_object(self, invoke, mock_api):
+        route = mock_api.post(f"{BASE}/strategies").respond(201, json=STRATEGY)
+
+        for bad in ("not json", "[]", '{"name": "A", "channel": "fax", "body": "Hi"}'):
+            result = invoke(_cmd("create", "--name", "A", "--template", bad))
+            assert result.exit_code == 2, bad
+        assert not route.called
+
+    def test_update_replaces_or_clears_the_templates(self, invoke, mock_api):
+        route = mock_api.patch(f"{BASE}/strategies/{STRATEGY_ID}").respond(200, json=STRATEGY)
+        template = {"name": "Connect", "channel": "linkedin", "body": "Hi {{first name}}"}
+
+        replaced = invoke(_cmd("update", STRATEGY_ID, "--template", json.dumps(template)))
+        assert replaced.exit_code == 0, replaced.output
+        assert _body(route) == {"message_templates": [template]}
+
+        cleared = invoke(_cmd("update", STRATEGY_ID, "--no-templates"))
+        assert cleared.exit_code == 0, cleared.output
+        assert _body(route) == {"message_templates": []}
+
+    def test_update_refuses_a_template_and_no_templates_without_a_call(self, invoke, mock_api):
+        route = mock_api.patch(f"{BASE}/strategies/{STRATEGY_ID}").respond(200, json=STRATEGY)
+        template = json.dumps({"name": "A", "channel": "email", "body": "Hi"})
+
+        result = invoke(_cmd("update", STRATEGY_ID, "--template", template, "--no-templates"))
+
+        assert result.exit_code == 2
+        assert not route.called
 
     def test_update_refuses_an_offer_and_no_offer_without_a_call(self, invoke, mock_api):
         route = mock_api.patch(f"{BASE}/strategies/{STRATEGY_ID}").respond(200, json=STRATEGY)
