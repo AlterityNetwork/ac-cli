@@ -888,33 +888,16 @@ _ESTIMATE_FIELDS = [
 ]
 
 
-@capabilities_app.command("estimate")
-def capabilities_estimate(
-    capability_id: str = typer.Argument(..., help="Stable capability ID, such as signals.search"),
-    units: int | None = typer.Option(
-        None, "--units", help="Price this many companies or people. 0 prices a discovery run."
-    ),
-    input_json: str | None = typer.Option(
-        None, "--input", help="Price this capability input, as a JSON object"
-    ),
-    saved_search_id: str | None = typer.Option(
-        None,
-        "--saved-search-id",
-        help="Price a run of this saved search, with the members its list holds now",
-    ),
-    cron: str | None = typer.Option(
-        None, "--cron", help="Add the runs and credits of 30 days on this schedule"
-    ),
-    timezone: str | None = typer.Option(
-        None, "--timezone", help="The IANA zone of --cron. The API reads UTC when it is not set."
-    ),
-    json_output: bool = JSON_OPTION,
+def _estimate_run(
+    key: str,
+    units: int | None,
+    input_json: str | None,
+    saved_search_id: str | None,
+    cron: str | None,
+    timezone: str | None,
+    json_output: bool,
 ) -> None:
-    """Show the most credits one run uses, before it starts.
-
-    Name one of --units, --input or --saved-search-id. Admission prices a
-    start with the same number.
-    """
+    """Prices one run on the startable route and prints it."""
     set_json_mode(json_output)
     named = [one for one in (units, input_json, saved_search_id) if one is not None]
     if len(named) != 1:
@@ -937,10 +920,10 @@ def capabilities_estimate(
         if timezone is not None:
             schedule["timezone"] = timezone
         body["schedule"] = schedule
-    capability_id = quote(capability_id, safe="")
+    key = quote(key, safe="")
     resp = _api_request(
         "post",
-        f"{_AGENTIC}/capabilities/{capability_id}/estimate",
+        f"{_AGENTIC}/definitions/startable/{key}/estimate",
         json=body,
     )
     data = resp.json()
@@ -959,6 +942,32 @@ def capabilities_estimate(
             plan,
             [("runs_per_month", "Runs in 30 days"), ("credits_per_month", "Credits in 30 days")],
         )
+
+
+@capabilities_app.command("estimate", hidden=True)
+def capabilities_estimate(
+    capability_id: str = typer.Argument(..., help="Stable capability ID, such as signals.search"),
+    units: int | None = typer.Option(
+        None, "--units", help="Price this many companies or people. 0 prices a discovery run."
+    ),
+    input_json: str | None = typer.Option(
+        None, "--input", help="Price this capability input, as a JSON object"
+    ),
+    saved_search_id: str | None = typer.Option(
+        None,
+        "--saved-search-id",
+        help="Price a run of this saved search, with the members its list holds now",
+    ),
+    cron: str | None = typer.Option(
+        None, "--cron", help="Add the runs and credits of 30 days on this schedule"
+    ),
+    timezone: str | None = typer.Option(
+        None, "--timezone", help="The IANA zone of --cron. The API reads UTC when it is not set."
+    ),
+    json_output: bool = JSON_OPTION,
+) -> None:
+    """Deprecated: use `ac agentic definitions startable-estimate`."""
+    _estimate_run(capability_id, units, input_json, saved_search_id, cron, timezone, json_output)
 
 
 app.add_typer(capabilities_app, name="capabilities")
@@ -1557,6 +1566,43 @@ def definitions_startable_show(
     """
     set_json_mode(json_output)
     _startable_show(key, json_output)
+
+
+@definitions_app.command("startable-estimate")
+def definitions_startable_estimate(
+    key: str = typer.Argument(
+        ..., help="A definition key, such as signals.search. It is case-sensitive"
+    ),
+    units: int | None = typer.Option(
+        None, "--units", help="Price this many companies or people. 0 prices a discovery run."
+    ),
+    input_json: str | None = typer.Option(
+        None, "--input", help="Price this run input, as a JSON object"
+    ),
+    saved_search_id: str | None = typer.Option(
+        None,
+        "--saved-search-id",
+        help="Price a run of this saved search, with the members its list holds now",
+    ),
+    cron: str | None = typer.Option(
+        None, "--cron", help="Add the runs and credits of 30 days on this schedule"
+    ),
+    timezone: str | None = typer.Option(
+        None, "--timezone", help="The IANA zone of --cron. The API reads UTC when it is not set."
+    ),
+    json_output: bool = JSON_OPTION,
+) -> None:
+    """Show the most credits one run uses, before it starts.
+
+    Name one of --units, --input or --saved-search-id. Admission prices a
+    start with the same number.
+    """
+    """Show the most credits one run uses, before it starts.
+
+    Name one of --units, --input or --saved-search-id. Admission prices a
+    start with the same number.
+    """
+    _estimate_run(key, units, input_json, saved_search_id, cron, timezone, json_output)
 
 
 @capabilities_app.command("list", hidden=True)
