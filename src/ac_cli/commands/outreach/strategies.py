@@ -93,6 +93,7 @@ _FIELDS = [
     ("goal", "Goal"),
     ("offer_name", "Offer"),
     ("offer_id", "Offer ID"),
+    ("use_offers", "Uses offers"),
     ("angle", "Angle"),
     ("tools", "Research tools"),
     ("max_research_cents", "Max research cents"),
@@ -156,6 +157,7 @@ def _strategy_body(
     examples: list[str] | None,
     max_research_cents: int | None,
     templates: list[str] | None = None,
+    use_offers: bool | None = None,
 ) -> dict[str, object]:
     """Build a strategy body from the given options.
 
@@ -177,6 +179,8 @@ def _strategy_body(
         if not example.strip():
             refuse_local("--example may not be blank")
         _check_text("--example", example, _EXAMPLE_MAX)
+    if use_offers is False and offer_id is not None:
+        refuse_local("--no-offers takes no --offer-id")
     if max_research_cents is not None and max_research_cents < 0:
         refuse_local("--max-research-cents may not be negative", max_research_cents)
     return {
@@ -189,6 +193,7 @@ def _strategy_body(
             ("research_tools", tools or None),
             ("example_messages", examples or None),
             ("message_templates", _templates(templates) or None),
+            ("use_offers", use_offers),
             ("max_research_cents", max_research_cents),
         )
         if value is not None
@@ -213,6 +218,11 @@ _TOOL_OPTION = typer.Option(
 )
 _EXAMPLE_OPTION = typer.Option(
     None, "--example", help="An example message that shows the tone. Repeat, up to 5"
+)
+_USE_OFFERS_OPTION = typer.Option(
+    None,
+    "--use-offers/--no-offers",
+    help="--no-offers: pitch no offer and no service. --use-offers: pitch the offer or the best fit",
 )
 _TEMPLATE_OPTION = typer.Option(
     None,
@@ -319,6 +329,7 @@ def strategies_create(
     tools: list[str] | None = _TOOL_OPTION,
     examples: list[str] | None = _EXAMPLE_OPTION,
     templates: list[str] | None = _TEMPLATE_OPTION,
+    use_offers: bool | None = _USE_OFFERS_OPTION,
     max_research_cents: int | None = _CAP_OPTION,
     json_output: bool = JSON_OPTION,
 ) -> None:
@@ -357,6 +368,7 @@ def strategies_create(
         examples=examples,
         max_research_cents=max_research_cents,
         templates=templates,
+        use_offers=use_offers,
     )
     data = _api_request("post", f"{_OUTREACH}/strategies", json=body).json()
     if json_output:
@@ -438,6 +450,7 @@ def strategies_update(
     examples: list[str] | None = _EXAMPLE_OPTION,
     no_examples: bool = typer.Option(False, "--no-examples", help="Clear the examples"),
     templates: list[str] | None = _TEMPLATE_OPTION,
+    use_offers: bool | None = _USE_OFFERS_OPTION,
     no_templates: bool = typer.Option(False, "--no-templates", help="Clear the message templates"),
     max_research_cents: int | None = _CAP_OPTION,
     default_cap: bool = typer.Option(
@@ -469,6 +482,7 @@ def strategies_update(
         examples=examples,
         max_research_cents=max_research_cents,
         templates=templates,
+        use_offers=use_offers,
     )
     if no_offer:
         body["offer_id"] = None

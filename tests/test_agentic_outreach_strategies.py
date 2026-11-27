@@ -244,6 +244,30 @@ class TestStrategies:
         assert result.exit_code == 2
         assert not route.called
 
+    def test_create_with_no_offers_pitches_nothing(self, invoke, mock_api):
+        route = mock_api.post(f"{BASE}/strategies").respond(201, json=STRATEGY)
+
+        result = invoke(_cmd("create", "--name", "Goal only", "--no-offers"))
+
+        assert result.exit_code == 0, result.output
+        assert _body(route) == {"name": "Goal only", "use_offers": False}
+
+    def test_no_offers_with_an_offer_refuses_without_a_call(self, invoke, mock_api):
+        route = mock_api.post(f"{BASE}/strategies").respond(201, json=STRATEGY)
+
+        result = invoke(_cmd("create", "--name", "A", "--no-offers", "--offer-id", OFFER_ID))
+
+        assert result.exit_code == 2
+        assert not route.called
+
+    def test_update_turns_offers_on_and_off(self, invoke, mock_api):
+        route = mock_api.patch(f"{BASE}/strategies/{STRATEGY_ID}").respond(200, json=STRATEGY)
+
+        assert invoke(_cmd("update", STRATEGY_ID, "--no-offers")).exit_code == 0
+        assert _body(route) == {"use_offers": False}
+        assert invoke(_cmd("update", STRATEGY_ID, "--use-offers")).exit_code == 0
+        assert _body(route) == {"use_offers": True}
+
     def test_update_refuses_an_offer_and_no_offer_without_a_call(self, invoke, mock_api):
         route = mock_api.patch(f"{BASE}/strategies/{STRATEGY_ID}").respond(200, json=STRATEGY)
 
