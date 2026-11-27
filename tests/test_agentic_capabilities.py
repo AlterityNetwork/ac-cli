@@ -190,6 +190,19 @@ UNAVAILABLE = {
 }
 
 
+def _legacy(record):
+    """The record as the deprecated alias prints it: `capability_id`, no `definition_key`."""
+    return {("capability_id" if k == "definition_key" else k): v for k, v in record.items()}
+
+
+def test_capabilities_list_json_keeps_the_old_key_name(invoke, mock_api):
+    mock_api.get(BASE).respond(200, json={"items": [AVAILABLE, UNAVAILABLE]})
+
+    result = invoke(["agentic", "capabilities", "list", "--json"])
+
+    assert json.loads(result.output) == {"items": [_legacy(AVAILABLE), _legacy(UNAVAILABLE)]}
+
+
 def test_capabilities_list(invoke, mock_api):
     mock_api.get(BASE).respond(200, json={"items": [AVAILABLE]})
 
@@ -197,7 +210,8 @@ def test_capabilities_list(invoke, mock_api):
 
     assert result.exit_code == 0
     assert "company.search" in result.output
-    assert "Startable definitions (1)" in result.output
+    assert "Capabilities (1)" in result.output
+    assert "Capability ID" in result.output
     assert "Version" not in result.output
 
 
@@ -289,7 +303,7 @@ def test_capabilities_get_json_answers_the_whole_record(invoke, mock_api):
     result = invoke(["agentic", "capabilities", "get", "company.search", "--json"])
 
     assert result.exit_code == 0
-    assert json.loads(result.output) == AVAILABLE
+    assert json.loads(result.output) == _legacy(AVAILABLE)
 
 
 def test_capabilities_get_reports_an_unknown_id(invoke, mock_api):
