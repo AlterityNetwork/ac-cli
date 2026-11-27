@@ -1,8 +1,8 @@
-"""The three `ac agentic capabilities` commands.
+"""The hidden `ac agentic capabilities` aliases.
 
-`start` keeps the API contract and the delivery key intact. `list` and `get`
-mirror the two read endpoints. All three sit on one Typer group, so one file
-holds them.
+The three commands are the deprecated names of `runs start --key`,
+`definitions startable` and `definitions startable-show`. They call the same
+endpoints, and this file keeps their behaviour pinned until the group goes.
 
 Staging serves no `/api/v1/agentic/` path until the cutover, so the audit for
 this group runs against a branch API.
@@ -25,7 +25,7 @@ ARGS = [
     "--idempotency-key",
     "delivery-42",
 ]
-PATH = "/api/v1/agentic/capabilities/company.search/runs"
+PATH = "/api/v1/agentic/runs"
 
 
 @pytest.mark.parametrize(
@@ -50,7 +50,7 @@ def test_start_preserves_request_and_run_response(invoke, mock_api, outcome, sta
     assert result.exit_code == 0, result.output
     assert json.loads(result.output) == run
     request = route.calls[0].request
-    assert json.loads(request.content) == {"input": {"query": "acme"}}
+    assert json.loads(request.content) == {"key": "company.search", "input": {"query": "acme"}}
     assert request.headers["Idempotency-Key"] == "delivery-42"
 
 
@@ -65,7 +65,7 @@ def test_start_passes_people_signals_list_and_employer_fit(invoke, mock_api):
         },
         "signal_recency": "1m",
     }
-    route = mock_api.post("/api/v1/agentic/capabilities/people.signals/runs").respond(
+    route = mock_api.post("/api/v1/agentic/runs").respond(
         200, json={**SAMPLE_RUN, "capability_id": "people.signals"}
     )
 
@@ -84,7 +84,7 @@ def test_start_passes_people_signals_list_and_employer_fit(invoke, mock_api):
     )
 
     assert result.exit_code == 0, result.output
-    assert json.loads(route.calls[0].request.content) == {"input": payload}
+    assert json.loads(route.calls[0].request.content) == {"key": "people.signals", "input": payload}
 
 
 def test_human_response_shows_capability_and_status(invoke, mock_api):
@@ -161,10 +161,10 @@ def test_api_errors_keep_code_and_semantic_exit(invoke, mock_api, status, code, 
 # endpoints; the start tests above cover the third route of the same group.
 # ---------------------------------------------------------------------------
 
-BASE = "/api/v1/agentic/capabilities"
+BASE = "/api/v1/agentic/definitions/startable"
 
 AVAILABLE = {
-    "capability_id": "company.search",
+    "definition_key": "company.search",
     "availability": "available",
     "name": "Company Search",
     "description": "Finds companies and returns selectable references.",
@@ -184,7 +184,7 @@ AVAILABLE = {
 }
 
 UNAVAILABLE = {
-    "capability_id": "people.enrich",
+    "definition_key": "people.enrich",
     "availability": "unavailable",
     "reason": "not_installed",
 }
@@ -197,7 +197,7 @@ def test_capabilities_list(invoke, mock_api):
 
     assert result.exit_code == 0
     assert "company.search" in result.output
-    assert "Capabilities (1)" in result.output
+    assert "Startable definitions (1)" in result.output
     assert "Version" not in result.output
 
 
@@ -332,14 +332,14 @@ def test_capabilities_get_encodes_a_reserved_character(invoke, mock_api):
     and respx matches on the decoded form, so a route registered for `a%2Fb`
     matches an unencoded request too. Only the raw bytes tell the two apart.
     """
-    route = mock_api.get(url__regex=r".*/capabilities/.*").respond(
+    route = mock_api.get(url__regex=r".*/startable/.*").respond(
         404, json={"detail": "unknown capability id"}
     )
 
     result = invoke(["agentic", "capabilities", "get", "a/b"])
 
     assert route.called
-    assert route.calls[0].request.url.raw_path.endswith(b"/capabilities/a%2Fb")
+    assert route.calls[0].request.url.raw_path.endswith(b"/startable/a%2Fb")
     assert result.exit_code == 3
 
 
@@ -427,6 +427,7 @@ def test_start_sends_the_name_and_the_saved_search(invoke, mock_api):
 
     assert result.exit_code == 0, result.output
     assert json.loads(route.calls[0].request.content) == {
+        "key": "company.search",
         "input": {"query": "acme"},
         "title": "Acme lookalikes",
         "saved_search_id": "s-1",
@@ -495,7 +496,7 @@ def test_start_sends_the_company_enrich_v2_input_unchanged(invoke, mock_api):
         {"kind": "company_linkedin", "value": "https://www.linkedin.com/company/acme"},
         {"kind": "name", "value": "Globex"},
     ]
-    route = mock_api.post("/api/v1/agentic/capabilities/company.enrich/runs").respond(
+    route = mock_api.post("/api/v1/agentic/runs").respond(
         200, json={**SAMPLE_RUN, "capability_id": "company.enrich", "contract_version": 2}
     )
     result = invoke(
@@ -512,7 +513,10 @@ def test_start_sends_the_company_enrich_v2_input_unchanged(invoke, mock_api):
         ]
     )
     assert result.exit_code == 0, result.output
-    assert json.loads(route.calls[0].request.content) == {"input": {"subjects": subjects}}
+    assert json.loads(route.calls[0].request.content) == {
+        "key": "company.enrich",
+        "input": {"subjects": subjects},
+    }
 
 
 def test_runs_get_json_returns_the_company_enrich_v2_result_whole(invoke, mock_api):

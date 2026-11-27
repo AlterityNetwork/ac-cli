@@ -1,9 +1,10 @@
 """Agentic platform commands.
 
-`ac agentic capabilities` reads the five product capabilities of this tenant
-and starts one of them,
-`ac agentic runs` drives the run surface of the new agentic platform,
-`ac agentic definitions` drives the definition lifecycle,
+`ac agentic runs` drives the run surface of the new agentic platform, and
+starts a run by definition ID or by key,
+`ac agentic definitions` drives the definition lifecycle and lists the
+definitions a caller starts by key. The hidden `ac agentic capabilities` group
+is the deprecated name of those two reads and of the key start,
 `ac agentic tools` reads the catalogue a definition names its tools from,
 `ac agentic approvals` answers a run that stopped for a person,
 `ac agentic conversations` reads and writes web chat conversations,
@@ -167,10 +168,57 @@ _SPAN_FIELDS = [
 ]
 
 
-@capabilities_app.command("start")
+def _strict_input(input_json: str) -> dict:
+    """Reads a `--input` flag as a UTF-8 JSON object with finite numbers.
+
+    Args:
+        input_json: The JSON text the caller passed.
+
+    Returns:
+        The input object.
+
+    Raises:
+        typer.Exit: Code 2, with no HTTP call, for any other value. The refusal
+          names no value, because a refused input is the whole flag.
+    """
+    try:
+        value = json.loads(input_json)
+        if not isinstance(value, dict):
+            raise ValueError("input is not an object")
+        json.dumps(value, allow_nan=False, ensure_ascii=False).encode("utf-8")
+    except (ValueError, RecursionError):
+        refuse_local("--input must be a UTF-8 JSON object with finite numbers")
+    return value
+
+
+def _start_by_key(
+    key: str,
+    value: dict,
+    idempotency_key: str,
+    title: str | None,
+    saved_search_id: str | None,
+    json_output: bool,
+) -> None:
+    """Starts the definition a key names, and prints the run."""
+    body: dict = {"key": key, "input": value}
+    if title is not None:
+        body["title"] = title
+    if saved_search_id:
+        body["saved_search_id"] = saved_search_id
+    resp = _api_request(
+        "post", f"{_AGENTIC}/runs", json=body, headers={"Idempotency-Key": idempotency_key}
+    )
+    data = resp.json()
+    if json_output:
+        print_json(data)
+        return
+    print_detail(data, [("outcome", "Outcome"), *_RUN_FIELDS])
+
+
+@capabilities_app.command("start", hidden=True)
 def capabilities_start(
-    capability_id: str = typer.Argument(..., help="Stable capability ID, such as company.search"),
-    input_json: str = typer.Option(..., "--input", help="Capability input as a JSON object"),
+    capability_id: str = typer.Argument(..., help="Stable key, such as company.search"),
+    input_json: str = typer.Option(..., "--input", help="Input as a JSON object"),
     idempotency_key: str = typer.Option(
         ..., "--idempotency-key", help="Delivery key; reuse it only for the same request"
     ),
@@ -185,41 +233,26 @@ def capabilities_start(
     ),
     json_output: bool = JSON_OPTION,
 ) -> None:
-    """Start a capability with the active contract and a delivery key."""
+    """Deprecated: use `ac agentic runs start --key`."""
     set_json_mode(json_output)
     idempotency_key = checked_header_key(idempotency_key)
-    try:
-        value = json.loads(input_json)
-        if not isinstance(value, dict):
-            raise ValueError("input is not an object")
-        json.dumps(value, allow_nan=False, ensure_ascii=False).encode("utf-8")
-    except (ValueError, RecursionError):
-        # Name no value. A refused input is the whole flag, and it can be long.
-        refuse_local("--input must be a UTF-8 JSON object with finite numbers")
-    capability_id = quote(capability_id, safe="")
-    body: dict = {"input": value}
-    if title is not None:
-        body["title"] = title
-    if saved_search_id:
-        body["saved_search_id"] = saved_search_id
-    resp = _api_request(
-        "post",
-        f"{_AGENTIC}/capabilities/{capability_id}/runs",
-        json=body,
-        headers={"Idempotency-Key": idempotency_key},
-    )
-    data = resp.json()
-    if json_output:
-        print_json(data)
-        return
-    print_detail(data, [("outcome", "Outcome"), *_RUN_FIELDS])
+    _start_by_key(
+        capability_id, _strict_input(input_json), idempotency_key, title, saved_search_id,
+        json_output,
+    )  # fmt: skip
 
 
 @runs_app.command("start")
 def runs_start(
     ctx: typer.Context,
-    definition_id: str = typer.Option(
-        ..., "--definition", help="Definition to run (agent or workflow)"
+    definition_id: str | None = typer.Option(
+        None, "--definition", help="Definition to run (agent or workflow)"
+    ),
+    key: str | None = typer.Option(
+        None,
+        "--key",
+        help="Key of a startable definition, such as company.search. "
+        "`ac agentic definitions startable` lists them.",
     ),
     input_json: str | None = typer.Option(None, "--input", help="Input JSON string"),
     idempotency_key: str | None = typer.Option(
@@ -228,22 +261,38 @@ def runs_start(
         help="Delivery identity of this start. A fresh one is minted when it is not given.",
     ),
     title: str | None = typer.Option(None, "--title", help="Name of the run, up to 200 characters"),
+    saved_search_id: str | None = typer.Option(
+        None,
+        "--saved-search-id",
+        help="With --key: the saved search this start came from. The run lists under it.",
+    ),
     json_output: bool = JSON_OPTION,
 ) -> None:
-    """Start a run of one definition."""
+    """Start a run of one definition, by its ID or by its key."""
     set_json_mode(json_output)
-    body = {"definition_id": definition_id, "input": _parse_input(input_json)}
-    if title is not None:
-        body["title"] = title
+    if (definition_id is None) == (key is None):
+        refuse_local("name exactly one of --definition and --key")
+    if saved_search_id and key is None:
+        refuse_local("--saved-search-id goes with --key")
     # A fresh key per invocation, and never a stable one. The key names the
     # delivery, so a value derived from the command would make tomorrow's run a
     # duplicate of today's and it would never execute.
     #
     # Read the flag with `is not None`. An empty flag is a typing error.
     # Truthiness would mint a key for it and disable the duplicate guard.
-    key = checked_header_key(idempotency_key) if idempotency_key is not None else str(uuid.uuid4())
-
-    resp = _api_request("post", f"{_AGENTIC}/runs", json=body, headers={"Idempotency-Key": key})
+    delivery = (
+        checked_header_key(idempotency_key) if idempotency_key is not None else str(uuid.uuid4())
+    )
+    if key is not None:
+        value = _strict_input(input_json) if input_json is not None else {}
+        _start_by_key(key, value, delivery, title, saved_search_id, json_output)
+        return
+    body = {"definition_id": definition_id, "input": _parse_input(input_json)}
+    if title is not None:
+        body["title"] = title
+    resp = _api_request(
+        "post", f"{_AGENTIC}/runs", json=body, headers={"Idempotency-Key": delivery}
+    )
 
     data = resp.json()
     if json_output:
@@ -1371,15 +1420,15 @@ app.add_typer(tools_app, name="tools")
 
 # The list table. It drops the two schemas, which no table renders, and it
 # drops `required_scopes`, which is a list. `--json` and `get` answer both.
-_CAPABILITY_LIST_FIELDS = [
-    ("capability_id", "Capability ID"),
+_STARTABLE_LIST_FIELDS = [
+    ("definition_key", "Key"),
     ("availability", "Availability"),
     ("reason", "Reason"),
     ("name", "Name"),
 ]
 
-_CAPABILITY_FIELDS = [
-    ("capability_id", "Capability ID"),
+_STARTABLE_FIELDS = [
+    ("definition_key", "Key"),
     ("availability", "Availability"),
     ("reason", "Reason"),
     ("name", "Name"),
@@ -1388,75 +1437,102 @@ _CAPABILITY_FIELDS = [
 ]
 
 
-@capabilities_app.command("list")
-def capabilities_list(
+def _startable_list(show_all: bool, json_output: bool) -> None:
+    """Lists the startable definitions and prints them."""
+    resp = _api_request(
+        "get",
+        f"{_AGENTIC}/definitions/startable",
+        params={"available_only": "false" if show_all else "true"},
+    )
+    data = resp.json()
+    if json_output:
+        print_json(data)
+        return
+    items = data.get("items", [])
+    print_table(items, _STARTABLE_LIST_FIELDS, title=f"Startable definitions ({len(items)})")
+    if not items and not show_all:
+        rprint("[dim]Nothing you can start. Run with --all to read why.[/dim]")
+
+
+def _startable_show(key: str, json_output: bool) -> None:
+    """Reads one startable definition and prints it.
+
+    The key is encoded. The vocabulary holds a dot and letters, which a path
+    segment carries as they are, and a reserved character would otherwise
+    change the path this reads.
+    """
+    key = quote(key, safe="")
+    resp = _api_request("get", f"{_AGENTIC}/definitions/startable/{key}")
+    data = resp.json()
+    if json_output:
+        print_json(data)
+        return
+    print_detail(data, _STARTABLE_FIELDS)
+    scopes = data.get("required_scopes")
+    if scopes:
+        rprint("[bold]Required scopes:[/bold]", as_text(", ".join(scopes)))
+
+
+_ALL_HELP = "Also show the keys you cannot start, each with a reason"
+
+
+@definitions_app.command("startable")
+def definitions_startable(
     ctx: typer.Context,
-    show_all: bool = typer.Option(
-        False,
-        "--all",
-        help="Also show the capabilities you cannot start, each with a reason",
-    ),
+    show_all: bool = typer.Option(False, "--all", help=_ALL_HELP),
     json_output: bool = JSON_OPTION,
 ) -> None:
-    """List the product capabilities of this organization.
+    """List the definitions you can start by key.
 
-    The catalogue is not paginated. The five IDs are fixed by the deploy, so
-    the answer is the whole list and there is no cursor.
+    The list is not paginated. The deploy fixes the keys, so the answer is the
+    whole list and there is no cursor.
 
     An empty list means you can start nothing. It carries no reason, because
     the same empty list answers a caller with no run right and an organization
     that installed nothing. Use `--all` to read the reason of each.
     """
     set_json_mode(json_output)
-
-    resp = _api_request(
-        "get",
-        f"{_AGENTIC}/capabilities",
-        params={"available_only": "false" if show_all else "true"},
-    )
-
-    data = resp.json()
-    if json_output:
-        print_json(data)
-        return
-
-    items = data.get("items", [])
-    print_table(items, _CAPABILITY_LIST_FIELDS, title=f"Capabilities ({len(items)})")
-    if not items and not show_all:
-        rprint("[dim]Nothing you can start. Run with --all to read why.[/dim]")
+    _startable_list(show_all, json_output)
 
 
-@capabilities_app.command("get")
-def capabilities_get(
+@definitions_app.command("startable-show")
+def definitions_startable_show(
     ctx: typer.Context,
-    capability_id: str = typer.Argument(
-        ..., help="A stable ID, such as company.search. It is case-sensitive"
+    key: str = typer.Argument(
+        ..., help="A definition key, such as company.search. It is case-sensitive"
     ),
     json_output: bool = JSON_OPTION,
 ) -> None:
-    """Read one product capability.
+    """Read one startable definition.
 
-    An ID outside the five answers 404, and one you may not start answers 403.
-    An installed product you may start carries the two JSON Schemas, which no
-    table renders. Use `--json` to read them.
+    A key outside the vocabulary answers 404, and one you may not start answers
+    403. An installed definition you may start carries the two JSON Schemas,
+    which no table renders. Use `--json` to read them.
     """
     set_json_mode(json_output)
+    _startable_show(key, json_output)
 
-    # Encoded, as `capabilities start` encodes it. The five IDs hold a dot and
-    # letters, which a path segment carries as they are. A reserved character
-    # in the argument would otherwise change the path this reads.
-    capability_id = quote(capability_id, safe="")
-    resp = _api_request("get", f"{_AGENTIC}/capabilities/{capability_id}")
 
-    data = resp.json()
-    if json_output:
-        print_json(data)
-        return
+@capabilities_app.command("list", hidden=True)
+def capabilities_list(
+    ctx: typer.Context,
+    show_all: bool = typer.Option(False, "--all", help=_ALL_HELP),
+    json_output: bool = JSON_OPTION,
+) -> None:
+    """Deprecated: use `ac agentic definitions startable`."""
+    set_json_mode(json_output)
+    _startable_list(show_all, json_output)
 
-    print_detail(data, _CAPABILITY_FIELDS)
-    scopes = data.get("required_scopes")
-    if scopes:
-        rprint("[bold]Required scopes:[/bold]", as_text(", ".join(scopes)))
+
+@capabilities_app.command("get", hidden=True)
+def capabilities_get(
+    ctx: typer.Context,
+    capability_id: str = typer.Argument(..., help="A key, such as company.search"),
+    json_output: bool = JSON_OPTION,
+) -> None:
+    """Deprecated: use `ac agentic definitions startable-show`."""
+    set_json_mode(json_output)
+    _startable_show(capability_id, json_output)
 
 
 approvals_app = typer.Typer(help="Agentic approval inbox")
