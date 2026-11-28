@@ -48,7 +48,7 @@ _CONVERSATION_FIELDS = [
     ("id", "Conversation ID"),
     ("title", "Title"),
     ("summary", "Summary"),
-    ("draft_capability_ids", "Drafts for"),
+    ("draft_definition_keys", "Drafts for"),
     ("created_by", "Created by"),
     ("last_activity_at", "Last activity"),
     ("created_at", "Created"),
@@ -106,11 +106,11 @@ def conversations_list(
     ctx: typer.Context,
     cursor: str | None = typer.Option(None, "--cursor", help="Page to continue"),
     limit: int = typer.Option(_PAGE_DEFAULT, "--limit", help="Page size, 1 to 100"),
-    draft_capability: str | None = typer.Option(
+    draft_key: str | None = typer.Option(
         None,
-        "--draft-capability",
+        "--draft-key",
         help=(
-            "List the draft conversations of one capability, such as "
+            "List the draft conversations of one definition key, such as "
             "signals.search. Without it the list holds ordinary chats only."
         ),
     ),
@@ -119,8 +119,8 @@ def conversations_list(
     """List your conversations, the one that moved last first."""
     set_json_mode(json_output)
     params = _page_params(limit, cursor)
-    if draft_capability is not None:
-        params["draft_capability_id"] = draft_capability
+    if draft_key is not None:
+        params["draft_definition_key"] = draft_key
     data = _api_request("get", _CONVERSATIONS, params=params).json()
     if json_output:
         print_json(data)
@@ -133,11 +133,11 @@ def conversations_list(
 def conversations_create(
     ctx: typer.Context,
     title: str | None = typer.Option(None, "--title", help="Optional title"),
-    draft_capability: list[str] = typer.Option(
+    draft_key: list[str] = typer.Option(
         [],
-        "--draft-capability",
+        "--draft-key",
         help=(
-            "Open a draft conversation for this capability. Repeat for each "
+            "Open a draft conversation for this definition key. Repeat for each "
             "one. Its turns write a search for a form and start no run. The "
             "API takes signals.search and people.signals."
         ),
@@ -149,8 +149,8 @@ def conversations_create(
     body: dict[str, object] = {}
     if title is not None:
         body["title"] = title
-    if draft_capability:
-        body["draft_capability_ids"] = draft_capability
+    if draft_key:
+        body["draft_definition_keys"] = draft_key
     data = _api_request("post", _CONVERSATIONS, json=body).json()
     if json_output:
         print_json(data)
@@ -205,7 +205,7 @@ def _draft(value: str) -> dict[str, object]:
     """Reads one `--draft` flag, or refuses it before any HTTP call.
 
     Args:
-        value: A JSON object with `capability_id`, an object `input`, and an
+        value: A JSON object with `definition_key`, an object `input`, and an
           optional text or null `title`.
 
     Returns:
@@ -220,15 +220,15 @@ def _draft(value: str) -> dict[str, object]:
         draft = None
     if (
         not isinstance(draft, dict)
-        or not isinstance(draft.get("capability_id"), str)
+        or not isinstance(draft.get("definition_key"), str)
         or not isinstance(draft.get("input"), dict)
         or not isinstance(draft.get("title"), str | None)
     ):
         refuse_local(
-            "--draft must be a JSON object with a capability_id, an object input "
+            "--draft must be a JSON object with a definition_key, an object input "
             "and an optional text title"
         )
-    body: dict[str, object] = {"capability_id": draft["capability_id"], "input": draft["input"]}
+    body: dict[str, object] = {"definition_key": draft["definition_key"], "input": draft["input"]}
     if "title" in draft:
         body["title"] = draft["title"]
     return body
@@ -258,7 +258,7 @@ def conversations_send(
         "--draft",
         help=(
             "The form state of a draft conversation, as JSON: "
-            '{"capability_id": "signals.search", "input": {...}}. '
+            '{"definition_key": "signals.search", "input": {...}}. '
             "The answer carries the drafted search."
         ),
     ),

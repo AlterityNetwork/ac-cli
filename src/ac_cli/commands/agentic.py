@@ -3,8 +3,7 @@
 `ac agentic runs` drives the run surface of the new agentic platform, and
 starts a run by definition ID or by key,
 `ac agentic definitions` drives the definition lifecycle and lists the
-definitions a caller starts by key. The hidden `ac agentic capabilities` group
-is the deprecated name of those two reads and of the key start,
+definitions a caller starts by key,
 `ac agentic tools` reads the catalogue a definition names its tools from,
 `ac agentic approvals` answers a run that stopped for a person,
 `ac agentic conversations` reads and writes web chat conversations,
@@ -63,7 +62,6 @@ app = typer.Typer(help="Agentic platform")
 _AGENTIC = "/api/v1/agentic"
 
 runs_app = typer.Typer(help="Agentic run operations")
-capabilities_app = typer.Typer(help="Read and start product capabilities")
 
 
 @app.callback()
@@ -108,7 +106,7 @@ _RUN_FIELDS = [
     ("title", "Title"),
     ("kind", "Kind"),
     ("definition_name", "Definition"),
-    ("capability_id", "Capability"),
+    ("definition_key", "Key"),
     ("contract_version", "Contract version"),
     ("status", "Status"),
     ("waiting_on", "Waiting on"),
@@ -121,7 +119,7 @@ _RUN_FIELDS = [
 ]
 
 # `Title` holds the name a person gave a Run, or its saved-search name, on any
-# list. A `--capability signals.search` list also titles an unnamed Run from its
+# list. A `--key signals.search` list also titles an unnamed Run from its
 # input. `Results` is the number of results the run page lists. The API counts
 # a succeeded Signals, People Signals, Company Search or People Search Run, and
 # the cell is blank for every other Run. Zero is a search that found nothing. A
@@ -213,33 +211,6 @@ def _start_by_key(
         print_json(data)
         return
     print_detail(data, [("outcome", "Outcome"), *_RUN_FIELDS])
-
-
-@capabilities_app.command("start", hidden=True)
-def capabilities_start(
-    capability_id: str = typer.Argument(..., help="Stable key, such as company.search"),
-    input_json: str = typer.Option(..., "--input", help="Input as a JSON object"),
-    idempotency_key: str = typer.Option(
-        ..., "--idempotency-key", help="Delivery key; reuse it only for the same request"
-    ),
-    title: str | None = typer.Option(
-        None, "--title", help="Name of the search, up to 200 characters"
-    ),
-    saved_search_id: str | None = typer.Option(
-        None,
-        "--saved-search-id",
-        help="The saved search this start came from. The run lists under it, and the "
-        "saved search keeps its last run.",
-    ),
-    json_output: bool = JSON_OPTION,
-) -> None:
-    """Deprecated: use `ac agentic runs start --key`."""
-    set_json_mode(json_output)
-    idempotency_key = checked_header_key(idempotency_key)
-    _start_by_key(
-        capability_id, _strict_input(input_json), idempotency_key, title, saved_search_id,
-        json_output,
-    )  # fmt: skip
 
 
 @runs_app.command("start")
@@ -350,11 +321,6 @@ def runs_list(
     ctx: typer.Context,
     parent: str | None = typer.Option(None, "--parent", help="Children of one run"),
     definition_id: str | None = typer.Option(None, "--definition", help="Runs of one definition"),
-    capability: list[str] | None = typer.Option(
-        None,
-        "--capability",
-        help="Runs of one capability, e.g. company.search. Repeat it to name more than one.",
-    ),
     key: list[str] | None = typer.Option(
         None,
         "--key",
@@ -398,8 +364,6 @@ def runs_list(
         params["parent_run_id"] = parent
     if definition_id:
         params["definition_id"] = definition_id
-    if capability:
-        params["capability_id"] = capability
     if key:
         params["definition_key"] = key
     if status:
@@ -436,7 +400,6 @@ def runs_list(
             filters=[
                 ("--parent", parent),
                 ("--definition", definition_id),
-                *(("--capability", one) for one in capability or []),
                 *(("--key", one) for one in key or []),
                 ("--status", status),
                 ("--source", source),
@@ -944,35 +907,6 @@ def _estimate_run(
         )
 
 
-@capabilities_app.command("estimate", hidden=True)
-def capabilities_estimate(
-    capability_id: str = typer.Argument(..., help="Stable capability ID, such as signals.search"),
-    units: int | None = typer.Option(
-        None, "--units", help="Price this many companies or people. 0 prices a discovery run."
-    ),
-    input_json: str | None = typer.Option(
-        None, "--input", help="Price this capability input, as a JSON object"
-    ),
-    saved_search_id: str | None = typer.Option(
-        None,
-        "--saved-search-id",
-        help="Price a run of this saved search, with the members its list holds now",
-    ),
-    cron: str | None = typer.Option(
-        None, "--cron", help="Add the runs and credits of 30 days on this schedule"
-    ),
-    timezone: str | None = typer.Option(
-        None, "--timezone", help="The IANA zone of --cron. The API reads UTC when it is not set."
-    ),
-    json_output: bool = JSON_OPTION,
-) -> None:
-    """Deprecated: use `ac agentic definitions startable-estimate`."""
-    _estimate_run(capability_id, units, input_json, saved_search_id, cron, timezone, json_output)
-
-
-app.add_typer(capabilities_app, name="capabilities")
-
-
 definitions_app = typer.Typer(help="Agentic definition lifecycle")
 
 _DEFINITION_FIELDS = [
@@ -983,7 +917,7 @@ _DEFINITION_FIELDS = [
     ("state", "State"),
     ("has_unpublished_changes", "Unpublished edits"),
     ("source_definition_id", "Forked from"),
-    ("capability_id", "Capability"),
+    ("definition_key", "Key"),
     ("contract_version", "Contract version"),
     ("created_at", "Created"),
     ("published_at", "Published"),
@@ -1150,8 +1084,8 @@ def definitions_get(
     A platform template answers 404 here. It is visible through `list` and
     through `fork`.
 
-    Only the root workflow of a capability holds a capability contract. The
-    table shows its capability ID and its contract version. Use `--json` to
+    Only the root workflow of a startable definition holds a start contract.
+    The table shows its key and its contract version. Use `--json` to
     read the two JSON Schemas.
     """
     set_json_mode(json_output)
@@ -1164,11 +1098,11 @@ def definitions_get(
 
     # `print_detail` prints a nested object as a Python repr. The two scalars
     # of the binding therefore move up to the row before it prints.
-    binding = data.get("capability_binding") or {}
+    binding = data.get("definition_key_binding") or {}
     print_detail(
         {
             **data,
-            "capability_id": binding.get("capability_id"),
+            "definition_key": binding.get("definition_key"),
             "contract_version": binding.get("contract_version"),
         },
         _DEFINITION_FIELDS,
@@ -1446,22 +1380,6 @@ _STARTABLE_LIST_FIELDS = [
     ("name", "Name"),
 ]
 
-_CAPABILITY_LIST_FIELDS = [
-    ("capability_id", "Capability ID"),
-    ("availability", "Availability"),
-    ("reason", "Reason"),
-    ("name", "Name"),
-]
-
-_CAPABILITY_FIELDS = [
-    ("capability_id", "Capability ID"),
-    ("availability", "Availability"),
-    ("reason", "Reason"),
-    ("name", "Name"),
-    ("description", "Description"),
-    ("executor_type", "Executor"),
-]
-
 _STARTABLE_FIELDS = [
     ("definition_key", "Key"),
     ("availability", "Availability"),
@@ -1472,19 +1390,12 @@ _STARTABLE_FIELDS = [
 ]
 
 
-def _legacy_record(record: dict) -> dict:
-    """Names the key `capability_id`, as the deprecated aliases always printed it."""
-    return {("capability_id" if k == "definition_key" else k): v for k, v in record.items()}
-
-
-def _startable_list(show_all: bool, json_output: bool, legacy: bool = False) -> None:
+def _startable_list(show_all: bool, json_output: bool) -> None:
     """Lists the startable definitions and prints them.
 
     Args:
         show_all: Also read the keys this caller cannot start.
         json_output: Print the JSON the API answered.
-        legacy: Print the old `capabilities list` output: `capability_id`, its
-          header and its title.
     """
     resp = _api_request(
         "get",
@@ -1494,10 +1405,6 @@ def _startable_list(show_all: bool, json_output: bool, legacy: bool = False) -> 
     data = resp.json()
     items = data.get("items", [])
     fields, title = _STARTABLE_LIST_FIELDS, f"Startable definitions ({len(items)})"
-    if legacy:
-        data = {**data, "items": [_legacy_record(one) for one in items]}
-        items = data["items"]
-        fields, title = _CAPABILITY_LIST_FIELDS, f"Capabilities ({len(items)})"
     if json_output:
         print_json(data)
         return
@@ -1506,23 +1413,20 @@ def _startable_list(show_all: bool, json_output: bool, legacy: bool = False) -> 
         rprint("[dim]Nothing you can start. Run with --all to read why.[/dim]")
 
 
-def _startable_show(key: str, json_output: bool, legacy: bool = False) -> None:
+def _startable_show(key: str, json_output: bool) -> None:
     """Reads one startable definition and prints it.
 
     The key is encoded. The vocabulary holds a dot and letters, which a path
     segment carries as they are, and a reserved character would otherwise
-    change the path this reads. `legacy` prints the old `capabilities get`
-    output, with `capability_id`.
+    change the path this reads.
     """
     key = quote(key, safe="")
     resp = _api_request("get", f"{_AGENTIC}/definitions/startable/{key}")
     data = resp.json()
-    if legacy:
-        data = _legacy_record(data)
     if json_output:
         print_json(data)
         return
-    print_detail(data, _CAPABILITY_FIELDS if legacy else _STARTABLE_FIELDS)
+    print_detail(data, _STARTABLE_FIELDS)
     scopes = data.get("required_scopes")
     if scopes:
         rprint("[bold]Required scopes:[/bold]", as_text(", ".join(scopes)))
@@ -1598,28 +1502,6 @@ def definitions_startable_estimate(
     start with the same number.
     """
     _estimate_run(key, units, input_json, saved_search_id, cron, timezone, json_output)
-
-
-@capabilities_app.command("list", hidden=True)
-def capabilities_list(
-    ctx: typer.Context,
-    show_all: bool = typer.Option(False, "--all", help=_ALL_HELP),
-    json_output: bool = JSON_OPTION,
-) -> None:
-    """Deprecated: use `ac agentic definitions startable`."""
-    set_json_mode(json_output)
-    _startable_list(show_all, json_output, legacy=True)
-
-
-@capabilities_app.command("get", hidden=True)
-def capabilities_get(
-    ctx: typer.Context,
-    capability_id: str = typer.Argument(..., help="A key, such as company.search"),
-    json_output: bool = JSON_OPTION,
-) -> None:
-    """Deprecated: use `ac agentic definitions startable-show`."""
-    set_json_mode(json_output)
-    _startable_show(capability_id, json_output, legacy=True)
 
 
 approvals_app = typer.Typer(help="Agentic approval inbox")

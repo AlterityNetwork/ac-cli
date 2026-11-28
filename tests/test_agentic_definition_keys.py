@@ -141,20 +141,3 @@ def test_runs_list_filters_on_the_definition_key_and_repeats(invoke, mock_api):
     params = route.calls[0].request.url.params
     assert params.get_list("definition_key") == ["signals.search", "people.signals"]
     assert "capability_id" not in params
-
-
-def test_runs_list_keeps_the_capability_filter(invoke, mock_api):
-    route = mock_api.get(RUNS).respond(200, json={"items": [], "next_cursor": None})
-
-    invoke(["agentic", "runs", "list", "--capability", "company.search", "--json"])
-
-    assert route.calls[0].request.url.params.get_list("capability_id") == ["company.search"]
-
-
-def test_the_get_alias_prints_capability_id_in_a_table(invoke, mock_api):
-    mock_api.get(f"{STARTABLE}/company.search").respond(200, json=AVAILABLE)
-
-    result = invoke(["agentic", "capabilities", "get", "company.search"])
-
-    assert "Capability ID" in result.output
-    assert "Key" not in result.output.replace("Keys", "")
