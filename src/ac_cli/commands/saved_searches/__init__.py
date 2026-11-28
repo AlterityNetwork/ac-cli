@@ -20,10 +20,10 @@ from ac_cli.formatting import as_text, console, print_detail, print_json, print_
 app = typer.Typer(help="Manage repeatable agentic saved searches")
 
 _SAVED_SEARCHES = "/api/v1/agentic/saved-searches"
-#: Search capabilities that hold a saved brief. An enrich capability
+#: Search keys that hold a saved brief. An enrich key
 #: takes the rows it works on, so the API refuses a saved brief for one.
-_CAPABILITIES = ("signals.search", "people.signals", "people.search", "company.search")
-_CAPABILITY_HELP = f"Which product saves the brief: {', '.join(_CAPABILITIES)}"
+_KEYS = ("signals.search", "people.signals", "people.search", "company.search")
+_KEY_HELP = f"Which definition key saves the brief: {', '.join(_KEYS)}"
 _WATCH_LIST_HELP = (
     "CRM list of companies to watch, up to 50. Each Run checks every company on "
     "the list and does not discover companies outside the list."
@@ -56,14 +56,14 @@ _SUMMARY_FIELDS = [
 _MULTI_SUMMARY_FIELDS = [
     ("id", "Saved search ID"),
     ("name", "Name"),
-    ("capability_id", "Type"),
+    ("definition_key", "Type"),
     ("schedule", "Schedule"),
     ("last_run_at", "Last run at"),
     ("updated_at", "Token"),
 ]
 _DETAIL_FIELDS = [
     ("id", "Saved search ID"),
-    ("capability_id", "Capability"),
+    ("definition_key", "Key"),
     ("name", "Name"),
     ("description", "Description"),
     ("watch_list_id", "Watch list"),
@@ -102,11 +102,11 @@ def _checked_limit(limit: int) -> int:
     refuse_local(f"--limit is not between {_PAGE_MIN} and {_PAGE_MAX}", limit)
 
 
-def _checked_capability(capability: str) -> str:
-    """Refuse a capability that holds no saved search."""
-    if capability in _CAPABILITIES:
-        return capability
-    refuse_local(f"--capability must be one of: {', '.join(_CAPABILITIES)}", capability)
+def _checked_key(key: str) -> str:
+    """Refuse a key that holds no saved search."""
+    if key in _KEYS:
+        return key
+    refuse_local(f"--key must be one of: {', '.join(_KEYS)}", key)
 
 
 def _page_params(limit: int, cursor: str | None) -> dict[str, object]:
@@ -118,14 +118,14 @@ def _page_params(limit: int, cursor: str | None) -> dict[str, object]:
 
 
 def _print_next_page(
-    next_cursor: str | None, limit: int, capability: str | list[str] | None = None
+    next_cursor: str | None, limit: int, keys: str | list[str] | None = None
 ) -> None:
     """Print the options that continue the same page walk."""
     if not next_cursor:
         return
     parts: list[object] = ["[dim]Next page:[/dim]"]
-    for one in [capability] if isinstance(capability, str) else capability or []:
-        parts += ["--capability", as_text(one)]
+    for one in [keys] if isinstance(keys, str) else keys or []:
+        parts += ["--key", as_text(one)]
     if limit != _PAGE_DEFAULT:
         parts += ["--limit", as_text(limit)]
     parts += ["--cursor", as_text(next_cursor)]
@@ -210,12 +210,12 @@ def _print_saved_search(data: dict) -> None:
 @app.command("create")
 def saved_searches_create(
     ctx: typer.Context,
-    capability: str = typer.Option(..., "--capability", help=_CAPABILITY_HELP),
+    key: str = typer.Option(..., "--key", help=_KEY_HELP),
     name: str = typer.Option(..., "--name", help="What to call the saved search"),
     brief: str = typer.Option(
         ...,
         "--brief",
-        help="Brief JSON in the input shape the capability publishes",
+        help="Brief JSON in the input shape the definition publishes",
     ),
     watch_list_id: str | None = typer.Option(None, "--watch-list-id", help=_WATCH_LIST_HELP),
     source_list: list[str] | None = typer.Option(None, "--source-list", help=_SOURCE_LIST_HELP),
@@ -231,7 +231,7 @@ def saved_searches_create(
     if watch_list_id is not None and source_set is not None:
         refuse_local("use --watch-list-id or the source flags, not both")
     body = {
-        "capability_id": _checked_capability(capability),
+        "definition_key": _checked_key(key),
         "name": name,
         "brief": _parse_object(brief, "--brief"),
     }
@@ -249,18 +249,18 @@ def saved_searches_create(
 @app.command("list")
 def saved_searches_list(
     ctx: typer.Context,
-    capability: list[str] = typer.Option(..., "--capability", help=_CAPABILITY_HELP),
+    key: list[str] = typer.Option(..., "--key", help=_KEY_HELP),
     cursor: str | None = typer.Option(None, "--cursor", help="Page to continue"),
     limit: int = typer.Option(_PAGE_DEFAULT, "--limit", help="Page size, 1 to 100"),
     json_output: bool = JSON_OPTION,
 ) -> None:
     """List selected products' saved-search summaries, newest first."""
     set_json_mode(json_output)
-    checked = list(dict.fromkeys(_checked_capability(one) for one in capability))
+    checked = list(dict.fromkeys(_checked_key(one) for one in key))
     data = _api_request(
         "get",
         _SAVED_SEARCHES,
-        params={"capability": checked, **_page_params(limit, cursor)},
+        params={"definition_key": checked, **_page_params(limit, cursor)},
     ).json()
     if json_output:
         print_json(data)

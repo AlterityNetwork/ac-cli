@@ -26,11 +26,12 @@ SAMPLE = {
     "published_config": None,
     "referenced_ids": [],
     "capability_binding": None,
+    "definition_key_binding": None,
     "validation": None,
 }
 
 BINDING = {
-    "capability_id": "company.search",
+    "definition_key": "company.search",
     "contract_version": 2,
     "name": "Company Search",
     "description": "Finds companies and returns selectable references.",
@@ -39,7 +40,13 @@ BINDING = {
     "platform_managed": True,
 }
 
-BOUND = {**SAMPLE, "kind": "workflow", "state": "active", "capability_binding": BINDING}
+BOUND = {
+    **SAMPLE,
+    "kind": "workflow",
+    "state": "active",
+    "capability_binding": BINDING,
+    "definition_key_binding": BINDING,
+}
 
 BASE = "/api/v1/agentic/definitions"
 
@@ -131,17 +138,17 @@ def test_definitions_get(invoke, mock_api):
     assert "researcher" in result.output
 
 
-def test_definitions_get_shows_the_capability_contract(invoke, mock_api):
+def test_definitions_get_shows_the_key_contract(invoke, mock_api):
     mock_api.get(f"{BASE}/{DEFINITION_ID}").respond(200, json=BOUND)
     result = invoke(["agentic", "definitions", "get", DEFINITION_ID])
 
     assert result.exit_code == 0
-    assert "Capability: company.search" in result.output
+    assert "Key: company.search" in result.output
     assert "Contract version: 2" in result.output
     assert "--json" in result.output
 
 
-def test_definitions_get_of_an_unbound_definition_names_no_capability(invoke, mock_api):
+def test_definitions_get_of_an_unbound_definition_names_no_key(invoke, mock_api):
     mock_api.get(f"{BASE}/{DEFINITION_ID}").respond(200, json=SAMPLE)
     result = invoke(["agentic", "definitions", "get", DEFINITION_ID])
 
@@ -155,7 +162,7 @@ def test_definitions_get_json_carries_both_schemas(invoke, mock_api):
     result = invoke(["agentic", "definitions", "get", DEFINITION_ID, "--json"])
 
     assert result.exit_code == 0
-    binding = json.loads(result.output)["capability_binding"]
+    binding = json.loads(result.output)["definition_key_binding"]
     assert binding["input_schema"] == BINDING["input_schema"]
     assert binding["output_schema"] == BINDING["output_schema"]
 

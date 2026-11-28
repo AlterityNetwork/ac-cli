@@ -294,7 +294,7 @@ def test_runs_list_shows_the_user_search_query(invoke, mock_api, table_column):
     }
     mock_api.get("/api/v1/agentic/runs").respond(200, json={"items": [run], "next_cursor": None})
 
-    result = invoke(["agentic", "runs", "list", "--capability", "people.search"])
+    result = invoke(["agentic", "runs", "list", "--key", "people.search"])
 
     assert result.exit_code == 0
     assert table_column(result.output, 1).replace(" ", "") == "RevenueleadersinLondon"
@@ -309,7 +309,7 @@ def test_runs_list_names_how_many_results_a_run_returned(invoke, mock_api, table
     run = {**SAMPLE_RUN, "capability_id": "signals.search", "result_count": 12}
     mock_api.get("/api/v1/agentic/runs").respond(200, json={"items": [run], "next_cursor": None})
 
-    result = invoke(["agentic", "runs", "list", "--capability", "signals.search"])
+    result = invoke(["agentic", "runs", "list", "--key", "signals.search"])
 
     assert result.exit_code == 0
     assert "Results" in result.output
@@ -332,7 +332,7 @@ def test_runs_list_prints_zero_and_never_a_blank_for_an_empty_run(invoke, mock_a
     run = {**SAMPLE_RUN, "capability_id": "signals.search", "result_count": 0}
     mock_api.get("/api/v1/agentic/runs").respond(200, json={"items": [run], "next_cursor": None})
 
-    result = invoke(["agentic", "runs", "list", "--capability", "signals.search"])
+    result = invoke(["agentic", "runs", "list", "--key", "signals.search"])
 
     assert table_column(result.output, RESULT_COUNT_COLUMN) == "0"
 
@@ -393,9 +393,9 @@ def test_runs_list_filters_on_the_capability(invoke, mock_api):
     route = mock_api.get("/api/v1/agentic/runs").respond(
         200, json={"items": [], "next_cursor": None}
     )
-    invoke(["agentic", "runs", "list", "--capability", "company.search"])
+    invoke(["agentic", "runs", "list", "--key", "company.search"])
 
-    assert route.calls[0].request.url.params["capability_id"] == "company.search"
+    assert route.calls[0].request.url.params["definition_key"] == "company.search"
 
 
 def test_runs_list_filters_on_several_capabilities(invoke, mock_api):
@@ -408,14 +408,14 @@ def test_runs_list_filters_on_several_capabilities(invoke, mock_api):
             "agentic",
             "runs",
             "list",
-            "--capability",
+            "--key",
             "signals.search",
-            "--capability",
+            "--key",
             "people.signals",
         ]
     )
 
-    assert route.calls[0].request.url.params.get_list("capability_id") == [
+    assert route.calls[0].request.url.params.get_list("definition_key") == [
         "signals.search",
         "people.signals",
     ]
@@ -431,15 +431,15 @@ def test_runs_list_next_page_hint_repeats_each_capability(invoke, mock_api):
             "agentic",
             "runs",
             "list",
-            "--capability",
+            "--key",
             "signals.search",
-            "--capability",
+            "--key",
             "people.signals",
         ]
     )
 
     assert result.exit_code == 0
-    assert "--capability signals.search --capability people.signals" in result.output
+    assert "--key signals.search --key people.signals" in result.output
 
 
 def test_runs_list_sends_no_capability_by_default(invoke, mock_api):
@@ -448,7 +448,7 @@ def test_runs_list_sends_no_capability_by_default(invoke, mock_api):
     )
     invoke(["agentic", "runs", "list"])
 
-    assert "capability_id" not in route.calls[0].request.url.params
+    assert "definition_key" not in route.calls[0].request.url.params
 
 
 SEARCH_ID = "77777777-7777-4777-8777-777777777777"
@@ -1646,8 +1646,13 @@ def test_runs_spans_refuses_an_empty_since_rather_than_dropping_it(invoke, mock_
     assert not route.calls
 
 
-def test_runs_get_shows_capability_identity(invoke, mock_api):
-    run = {**SAMPLE_RUN, "capability_id": "company.search", "contract_version": 7}
+def test_runs_get_shows_the_definition_key(invoke, mock_api):
+    run = {
+        **SAMPLE_RUN,
+        "capability_id": "company.search",
+        "definition_key": "company.search",
+        "contract_version": 7,
+    }
     mock_api.get(f"/api/v1/agentic/runs/{run['id']}").respond(200, json=run)
     result = invoke(["agentic", "runs", "get", run["id"]])
     assert result.exit_code == 0
@@ -1792,7 +1797,7 @@ def test_runs_list_names_a_signals_run_by_its_title(invoke, mock_api, table_colu
     run = {**SAMPLE_RUN, "capability_id": "signals.search", "title": "UK fintech"}
     mock_api.get("/api/v1/agentic/runs").respond(200, json={"items": [run], "next_cursor": None})
 
-    result = invoke(["agentic", "runs", "list", "--capability", "signals.search"])
+    result = invoke(["agentic", "runs", "list", "--key", "signals.search"])
 
     assert result.exit_code == 0
     assert "Title" in result.output

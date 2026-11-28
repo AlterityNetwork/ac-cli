@@ -15,6 +15,7 @@ SIGNALS = "signals.search"
 SUMMARY = {
     "id": SEARCH_ID,
     "capability_id": SIGNALS,
+    "definition_key": SIGNALS,
     "contract_version": 3,
     "name": "UK fintech",
     "last_run_id": RUN_ID,
@@ -71,7 +72,7 @@ def test_create_sends_name_and_full_brief(invoke, mock_api):
             "agentic",
             "saved-searches",
             "create",
-            "--capability",
+            "--key",
             SIGNALS,
             "--name",
             "UK fintech",
@@ -82,7 +83,7 @@ def test_create_sends_name_and_full_brief(invoke, mock_api):
 
     assert result.exit_code == 0
     assert json.loads(route.calls[0].request.content) == {
-        "capability_id": SIGNALS,
+        "definition_key": SIGNALS,
         "name": "UK fintech",
         "brief": BRIEF,
     }
@@ -98,7 +99,7 @@ def test_create_json_keeps_the_detail(invoke, mock_api):
             "agentic",
             "saved-searches",
             "create",
-            "--capability",
+            "--key",
             SIGNALS,
             "--name",
             "UK fintech",
@@ -119,7 +120,7 @@ def test_create_refuses_non_object_brief_before_request(invoke, mock_api):
             "agentic",
             "saved-searches",
             "create",
-            "--capability",
+            "--key",
             SIGNALS,
             "--name",
             "UK fintech",
@@ -142,7 +143,7 @@ def test_create_refuses_invalid_json_before_request(invoke, mock_api):
             "agentic",
             "saved-searches",
             "create",
-            "--capability",
+            "--key",
             SIGNALS,
             "--name",
             "UK fintech",
@@ -164,7 +165,7 @@ def test_list_sends_page_options_and_prints_summary(invoke, mock_api):
             "agentic",
             "saved-searches",
             "list",
-            "--capability",
+            "--key",
             SIGNALS,
             "--cursor",
             "current",
@@ -175,9 +176,9 @@ def test_list_sends_page_options_and_prints_summary(invoke, mock_api):
 
     assert result.exit_code == 0
     assert "UK fintech" in result.output
-    assert f"--capability {SIGNALS} --limit 10 --cursor next" in result.output
+    assert f"--key {SIGNALS} --limit 10 --cursor next" in result.output
     params = route.calls[0].request.url.params
-    assert params["capability"] == SIGNALS
+    assert params["definition_key"] == SIGNALS
     assert params["cursor"] == "current"
     assert params["limit"] == "10"
 
@@ -185,7 +186,7 @@ def test_list_sends_page_options_and_prints_summary(invoke, mock_api):
 def test_list_forwards_an_empty_cursor_for_api_validation(invoke, mock_api):
     route = mock_api.get(BASE).respond(400, json={"detail": "cursor is empty"})
 
-    result = invoke(["agentic", "saved-searches", "list", "--capability", SIGNALS, "--cursor", ""])
+    result = invoke(["agentic", "saved-searches", "list", "--key", SIGNALS, "--cursor", ""])
 
     assert result.exit_code == 1
     assert route.calls[0].request.url.params["cursor"] == ""
@@ -199,7 +200,7 @@ def test_list_refuses_invalid_limit_before_request(invoke, mock_api):
             "agentic",
             "saved-searches",
             "list",
-            "--capability",
+            "--key",
             SIGNALS,
             "--limit",
             "101",
@@ -216,7 +217,7 @@ def test_list_json_keeps_the_page(invoke, mock_api):
     page = {"items": [SUMMARY], "next_cursor": "next"}
     mock_api.get(BASE).respond(200, json=page)
 
-    result = invoke(["agentic", "saved-searches", "list", "--capability", SIGNALS, "--json"])
+    result = invoke(["agentic", "saved-searches", "list", "--key", SIGNALS, "--json"])
 
     assert json.loads(result.output) == page
 
@@ -224,14 +225,14 @@ def test_list_json_keeps_the_page(invoke, mock_api):
 def test_list_without_a_next_cursor_prints_no_hint(invoke, mock_api):
     mock_api.get(BASE).respond(200, json={"items": [], "next_cursor": None})
 
-    result = invoke(["agentic", "saved-searches", "list", "--capability", SIGNALS])
+    result = invoke(["agentic", "saved-searches", "list", "--key", SIGNALS])
 
     assert result.exit_code == 0
     assert "Next page" not in result.output
 
 
 def test_list_combines_multiple_capabilities(invoke, mock_api, table_column):
-    people = {**SUMMARY, "id": RUN_ID, "capability_id": "people.signals", "name": "Leaders"}
+    people = {**SUMMARY, "id": RUN_ID, "definition_key": "people.signals", "name": "Leaders"}
     route = mock_api.get(BASE).respond(
         200, json={"items": [SUMMARY, people], "next_cursor": "next"}
     )
@@ -241,17 +242,17 @@ def test_list_combines_multiple_capabilities(invoke, mock_api, table_column):
             "agentic",
             "saved-searches",
             "list",
-            "--capability",
+            "--key",
             SIGNALS,
-            "--capability",
+            "--key",
             "people.signals",
         ]
     )
 
     assert result.exit_code == 0
     request = route.calls[-1].request
-    assert request.url.params.get_list("capability") == [SIGNALS, "people.signals"]
-    assert "--capability signals.search --capability people.signals" in result.output
+    assert request.url.params.get_list("definition_key") == [SIGNALS, "people.signals"]
+    assert "--key signals.search --key people.signals" in result.output
     assert "Type" in result.output
     assert "signals.search" in table_column(result.output, 2)
     assert "people.signals" in table_column(result.output, 2)
@@ -272,7 +273,7 @@ def test_list_shows_the_schedule_of_each_search(invoke, mock_api, table_column, 
     item = {**SUMMARY, "schedule": schedule}
     mock_api.get(BASE).respond(200, json={"items": [item], "next_cursor": None})
 
-    result = invoke(["agentic", "saved-searches", "list", "--capability", SIGNALS])
+    result = invoke(["agentic", "saved-searches", "list", "--key", SIGNALS])
 
     assert result.exit_code == 0
     # The cell folds, and the reader drops the fold points and their spaces.
@@ -666,7 +667,7 @@ def test_start_refuses_a_key_the_header_refuses(invoke, mock_api, key):
 def test_a_capability_that_holds_no_saved_search_is_refused_locally(invoke, mock_api, command):
     route = mock_api.get(BASE).respond(200, json={"items": [], "next_cursor": None})
     created = mock_api.post(BASE).respond(201, json=DETAIL)
-    arguments = ["agentic", "saved-searches", command, "--capability", "people.enrich"]
+    arguments = ["agentic", "saved-searches", command, "--key", "people.enrich"]
     if command == "create":
         arguments += [
             "--name",
@@ -706,7 +707,7 @@ def test_create_sends_another_capability_and_its_brief(invoke, mock_api):
             "agentic",
             "saved-searches",
             "create",
-            "--capability",
+            "--key",
             "people.search",
             "--name",
             "EU engineers",
@@ -718,7 +719,7 @@ def test_create_sends_another_capability_and_its_brief(invoke, mock_api):
 
     assert result.exit_code == 0
     assert json.loads(route.calls[0].request.content) == {
-        "capability_id": "people.search",
+        "definition_key": "people.search",
         "name": "EU engineers",
         "brief": people_brief,
     }
@@ -734,7 +735,7 @@ def test_create_accepts_people_signals_input(invoke, mock_api):
             "agentic",
             "saved-searches",
             "create",
-            "--capability",
+            "--key",
             "people.signals",
             "--name",
             "Marketing leaders",
@@ -746,7 +747,7 @@ def test_create_accepts_people_signals_input(invoke, mock_api):
 
     assert result.exit_code == 0
     assert json.loads(route.calls[0].request.content) == {
-        "capability_id": "people.signals",
+        "definition_key": "people.signals",
         "name": "Marketing leaders",
         "brief": brief,
     }
@@ -799,7 +800,7 @@ def test_create_sends_the_watch_list_id(invoke, mock_api):
             "agentic",
             "saved-searches",
             "create",
-            "--capability",
+            "--key",
             SIGNALS,
             "--name",
             "Watched accounts",
@@ -812,7 +813,7 @@ def test_create_sends_the_watch_list_id(invoke, mock_api):
 
     assert result.exit_code == 0
     assert json.loads(route.calls[0].request.content) == {
-        "capability_id": SIGNALS,
+        "definition_key": SIGNALS,
         "name": "Watched accounts",
         "brief": WATCH_BRIEF,
         "watch_list_id": LIST_ID,
@@ -843,7 +844,7 @@ def test_create_reports_a_list_too_large_to_watch(invoke, mock_api):
             "agentic",
             "saved-searches",
             "create",
-            "--capability",
+            "--key",
             SIGNALS,
             "--name",
             "Watched accounts",
@@ -965,7 +966,7 @@ def _create(invoke, *flags: str):
             "agentic",
             "saved-searches",
             "create",
-            "--capability",
+            "--key",
             SIGNALS,
             "--name",
             "Watched accounts",

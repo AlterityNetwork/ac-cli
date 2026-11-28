@@ -216,8 +216,9 @@ def _start_capability(invoke, *extra):
     return invoke(
         [
             "agentic",
-            "capabilities",
+            "runs",
             "start",
+            "--key",
             "company.search",
             "--input",
             "{}",
